@@ -97,6 +97,12 @@ try {
         )
     }
 
+    if ([System.IO.Path]::GetExtension($fullPath) -ne '.docx') {
+        throw [System.ArgumentException]::new(
+            "Path bukan berkas .docx: $fullPath"
+        )
+    }
+
     # --- Buka Microsoft Word lewat COM ------------------------------------
     try {
         $word = New-Object -ComObject Word.Application

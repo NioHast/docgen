@@ -10,7 +10,7 @@ Dua-pass:
 Hasil: daftar isi menampilkan nomor halaman asli di aplikasi manapun
 (Word, LibreOffice, Google Docs) tanpa perlu update field manual.
 
-Kalau soffice/pdftotext tidak tersedia, output = input (Word tetap
+Kalau soffice/pdftotext/pdfinfo tidak tersedia, output = input (Word tetap
 memperbarui field saat dibuka karena updateFields=true).
 
 Usage:
@@ -128,8 +128,13 @@ def main():
     src, dst = sys.argv[1], sys.argv[2]
     shutil.copy(src, dst)
 
-    if not shutil.which("soffice") or not shutil.which("pdftotext"):
-        print("[warn] docx-pagenum: soffice/pdftotext tidak ada, nomor halaman "
+    missing = [
+        tool
+        for tool in ("soffice", "pdftotext", "pdfinfo")
+        if not shutil.which(tool)
+    ]
+    if missing:
+        print(f"[warn] docx-pagenum: {'/'.join(missing)} tidak ada, nomor halaman "
               "daftar isi memakai nilai cache (Word tetap update saat dibuka)")
         return
 
@@ -140,13 +145,13 @@ def main():
 
     try:
         pdf = render_pdf(src)
-    except (subprocess.TimeoutExpired, subprocess.SubprocessError) as err:
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError, OSError) as err:
         print(f"[warn] docx-pagenum: render LibreOffice gagal/timeout ({err}), nomor halaman memakai nilai cache default.")
         return
 
     try:
         pages = page_texts(pdf)
-    except (subprocess.TimeoutExpired, subprocess.SubprocessError) as err:
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError, OSError) as err:
         print(f"[warn] docx-pagenum: ekstraksi teks PDF gagal/timeout ({err}), nomor halaman memakai nilai cache default.")
         return
     finally:

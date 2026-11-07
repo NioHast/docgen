@@ -110,13 +110,20 @@ class TesPeriksaProsa(unittest.TestCase):
         self.assertEqual(is01[0][3], "{{?validation dataset?}}")
         self.assertIn("putuskan lalu hapus penanda", is01[0][4])
 
-    def test_tes_bawaan_tetap_108(self):
+    def test_em_dash_menghasilkan_ej11(self):
+        hasil = periksa_prosa.periksa("Galat turun—akurasi naik.")
+        ej11 = [x for x in hasil if x[1] == "EJ-11"]
+        self.assertEqual(len(ej11), 1, hasil)
+        self.assertEqual(ej11[0][2], "K")
+        self.assertIn("em dash dilarang", ej11[0][4])
+
+    def test_tes_bawaan_tetap_109(self):
         buf = io.StringIO()
         with redirect_stdout(buf):
             kode = periksa_prosa.main(["--tes"])
         keluaran = buf.getvalue()
         self.assertEqual(kode, 0, keluaran)
-        self.assertIn("108/108 kasus lulus", keluaran)
+        self.assertIn("109/109 kasus lulus", keluaran)
 
 
 if __name__ == "__main__":

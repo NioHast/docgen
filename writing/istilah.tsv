@@ -47,6 +47,7 @@ feature selection	yes	yes	confirmed
 fine-tuning	yes	yes	confirmed
 framework	yes	yes	review
 gradient descent	yes	yes	confirmed
+graphical user interface	yes	yes	confirmed
 ground truth	yes	yes	confirmed
 ground truth data	yes	yes	confirmed
 hardware	no	no	review

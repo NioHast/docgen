@@ -10,6 +10,7 @@ from types import SimpleNamespace
 
 import pytest
 from docx import Document
+from docx.enum.style import WD_STYLE_TYPE
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.ns import qn
 from lxml import etree
@@ -79,6 +80,11 @@ def xml_text(paragraph) -> str:
         ("BAB IX", 9),
         ("BAB II.", 2),
         ("BAB 12", 12),
+        ("1. PENDAHULUAN", 1),
+        ("3. METODE PENELITIAN", 3),
+        ("2 TINJAUAN PUSTAKA", 2),
+        ("1.1 Latar Belakang", None),
+        ("2.3 Metode Penelitian", None),
         ("DAFTAR GAMBAR", None),
         ("BAB IVAN", None),
     ],
@@ -103,6 +109,21 @@ def test_nomor_caption_per_bab_reset(docs, tmp_path):
         "Tabel 1.1 Data responden",
         "Tabel 2.1 Hasil pengujian",
     ]
+
+
+def test_proposal_heading1_arab_memberi_nomor_caption(tmp_path):
+    source = tmp_path / "proposal.docx"
+    document = Document()
+    document.add_paragraph("1. PENDAHULUAN", style="Heading 1")
+    table_caption = document.styles.add_style(
+        "Table Caption", WD_STYLE_TYPE.PARAGRAPH
+    )
+    document.add_paragraph("Tabel 1. Data awal", style=table_caption)
+    document.save(source)
+
+    output = run_tool(source, tmp_path)
+
+    assert caption_texts(output, "TableCaption") == ["Tabel 1.1 Data awal"]
 
 
 # ---------------------------------------------------------------------------

@@ -52,7 +52,7 @@ show_help() {
     echo -e "  ${GREEN}sync-skills${NC}  Sinkronkan skill AI agent & MCP ke Antigravity, Claude, OpenCode"
     echo -e "  ${GREEN}uninstall${NC}    Hapus integrasi skill dan perintah AI agent dari seluruh sistem"
     echo -e "  ${GREEN}check${NC}        Audit dependensi sistem dan struktur proyek"
-    echo -e "  ${GREEN}test${NC}         Jalankan suite pengujian otomatis (test.sh)"
+    echo -e "  ${GREEN}test${NC}         Jalankan suite pengujian otomatis (pytest)"
     echo -e "  ${GREEN}view${NC}         Buka dokumen Laporan.pdf di viewer"
     echo -e "  ${GREEN}watch${NC}        Pantau perubahan berkas dan auto-rebuild (live)"
     echo -e "  ${GREEN}clean${NC}        Bersihkan berkas output dan direktori sementara"
@@ -376,7 +376,13 @@ cmd_docx() {
 cmd_test() {
     show_banner
     echo -e "${BLUE}${BOLD}Menjalankan Test Suite...${NC}"
-    ./test.sh
+    if [ -x .venv/Scripts/python.exe ]; then
+        .venv/Scripts/python.exe -m pytest tests -q
+    elif [ -x .venv/bin/python ]; then
+        .venv/bin/python -m pytest tests -q
+    else
+        python3 -m pytest tests -q
+    fi
 }
 
 cmd_view() {

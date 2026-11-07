@@ -13,6 +13,8 @@ from docx.oxml.ns import qn
 
 from istilah import ISTILAH_ASING, main
 
+pytestmark = pytest.mark.integration
+
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_MD = ROOT / "writing" / "istilah-uji.md"
 GLOSSARY = ROOT / "writing" / "istilah.tsv"

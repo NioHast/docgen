@@ -7,7 +7,7 @@ Folder ini berisi contoh keluaran pipeline, bukan naskah skripsi sungguhan.
 | Berkas | Keterangan |
 | --- | --- |
 | `contoh-skripsi.docx` | Hasil build dari `chapters/`, disalin apa adanya dari `Laporan.docx`. |
-| `template.dotx` | Template style Word, diekspor dari `reference.docx`. |
+| `template.dotx` | Template style Word, diekspor dari `reference.docx` hasil preset `undip-skripsi`. |
 
 ### `contoh-skripsi.docx`
 
@@ -22,11 +22,14 @@ mengubah isi contoh, ubah `chapters/` lalu build ulang dan salin hasilnya.
 
 ### `template.dotx`
 
-Template ini diekspor dari `reference.docx`, yaitu basis style DOCX repositori.
-Isinya placeholder style (Title, Heading 1–9, Body Text, Table Caption, Image
-Caption, dan seterusnya), bukan naskah laporan. Style, margin, header/footer,
-dan pengaturan halaman di dalamnya bisa dipakai sebagai titik awal dokumen
-baru.
+Template ini dibuat dari `reference.docx` yang digenerate ulang dengan preset
+`presets/undip-skripsi.yml`, bukan dari `reference.docx` statis di root
+repositori. Generator memakai `reference.docx` hanya sebagai basis style, lalu
+menerapkan margin UNDIP (atas/kiri 4 cm, bawah/kanan 3 cm) dan Heading 1
+12 pt. Isinya placeholder style (Title, Heading 1–9, Body Text, Table Caption,
+Image Caption, dan seterusnya), bukan naskah laporan. Style, margin,
+header/footer, dan pengaturan halaman di dalamnya bisa dipakai sebagai titik
+awal dokumen baru.
 
 Dobel-klik `template.dotx` dari Explorer/File Manager akan membuka **dokumen
 baru tanpa judul** di Word yang mewarisi style template. Saat disimpan, Word
@@ -45,9 +48,14 @@ bash build-docx.sh
 # 2. Salin hasil build sebagai contoh, byte-identik
 cp Laporan.docx contoh/contoh-skripsi.docx
 
-# 3. Ekspor template style dari reference.docx
+# 3. Generate reference DOCX dari preset UNDIP
+.venv/Scripts/python.exe tools/build_style.py \
+  --preset presets/undip-skripsi.yml \
+  --out /tmp/reference-undip.docx
+
+# 4. Ekspor template style dari reference hasil preset
 .venv/Scripts/python.exe tools/export_dotx.py \
-  --in reference.docx \
+  --in /tmp/reference-undip.docx \
   --out contoh/template.dotx
 ```
 

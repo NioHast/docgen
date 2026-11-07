@@ -20,12 +20,14 @@ preset ``<prefix>_<field>`` (mis. ``heading1_font_size: 11pt``):
   - Normal       : TNR 12 pt, line 360, before/after 0, jc both, firstLine 709
   - Heading1     : TNR 12 pt bold hitam, center, 0/0, line 360, keepNext,
                    keepLines, outlineLvl 0
-  - Heading2/3   : TNR 12 pt bold hitam, both, 0/0, line 360, keepNext,
-                   hanging 709/709, outlineLvl 1/2
+  - Heading2/3   : TNR 12 pt bold hitam, both, before 240 twip (satu baris),
+                   after 0, line 360, keepNext, hanging 709/709, outlineLvl 1/2
   - TOCHeading   : TNR 12 pt bold, center, 0/0, line 360
-  - ImageCaption : TNR 10 pt tegak, center, 0/0, line 240
-  - TableCaption : TNR 10 pt tegak, both, 0/0, line 240, keepNext
-  - SourceCode   : Courier New 10 pt, line 240, 0/0, tanpa shading, kiri
+  - ImageCaption : TNR 12 pt tegak, center, 0/0, line 240
+  - TableCaption : TNR 12 pt tegak, left, 0/0, line 240, keepNext
+  - SourceCode / VerbatimChar / HTMLCode / HTMLPreformatted:
+                   Courier New 10 pt hitam, tanpa shading, kiri
+  - Hyperlink    : hitam 000000, tanpa garis bawah
   - Bibliography : TNR 12 pt, line 360, 0/0, hanging 720 twip
   - Figure       : center, 0/0
 
@@ -63,6 +65,19 @@ CM_TO_TWIP = 566.929  # 1 cm = 566.929 twip
 DEFAULT_DOCX_FONT = "Times New Roman"
 DOCX_LINE_SPACING = 360  # 1,5 baris; lihat catatan pemetaan di docstring.
 SOURCE_CODE_FONT = "Courier New"
+CODE_STYLE_IDS = ("SourceCode", "VerbatimChar", "HTMLCode", "HTMLPreformatted")
+CODE_STYLE_TYPES = {
+    "SourceCode": "paragraph",
+    "VerbatimChar": "character",
+    "HTMLCode": "character",
+    "HTMLPreformatted": "paragraph",
+}
+CODE_RPR_INNER = (
+    '<w:rFonts w:ascii="Courier New" w:hAnsi="Courier New" w:cs="Courier New"/>'
+    '<w:color w:val="000000"/>'
+    '<w:sz w:val="20"/>'
+    '<w:szCs w:val="20"/>'
+)
 
 STYLE_RE = re.compile(
     r'<w:style\b[^>]*w:styleId="([^"]+)"[^>]*>.*?</w:style>', re.S
@@ -209,7 +224,8 @@ STYLE_SPEC_DEFAULTS: dict[str, dict[str, object]] = {
         "bold": True,
         "color": "000000",
         "alignment": "both",
-        "space_before": "0pt",
+        # 240 twip = 12 pt = satu baris kosong sebelum subbab.
+        "space_before": "12pt",
         "space_after": "0pt",
         "line_spacing": 360,
         "keep_next": True,
@@ -225,7 +241,8 @@ STYLE_SPEC_DEFAULTS: dict[str, dict[str, object]] = {
         "bold": True,
         "color": "000000",
         "alignment": "both",
-        "space_before": "0pt",
+        # 240 twip = 12 pt = satu baris kosong sebelum sub-subbab.
+        "space_before": "12pt",
         "space_after": "0pt",
         "line_spacing": 360,
         "keep_next": True,
@@ -249,7 +266,7 @@ STYLE_SPEC_DEFAULTS: dict[str, dict[str, object]] = {
     "ImageCaption": {
         "prefix": "image_caption",
         "font_family": DEFAULT_DOCX_FONT,
-        "font_size": "10pt",
+        "font_size": "12pt",
         "bold": False,
         "italic": False,
         "alignment": "center",
@@ -260,10 +277,10 @@ STYLE_SPEC_DEFAULTS: dict[str, dict[str, object]] = {
     "TableCaption": {
         "prefix": "table_caption",
         "font_family": DEFAULT_DOCX_FONT,
-        "font_size": "10pt",
+        "font_size": "12pt",
         "bold": False,
         "italic": False,
-        "alignment": "both",
+        "alignment": "left",
         "space_before": "0pt",
         "space_after": "0pt",
         "line_spacing": 240,
@@ -273,11 +290,33 @@ STYLE_SPEC_DEFAULTS: dict[str, dict[str, object]] = {
         "prefix": "source_code",
         "font_family": SOURCE_CODE_FONT,
         "font_size": "10pt",
+        "color": "000000",
         "line_spacing": 240,
         "space_before": "0pt",
         "space_after": "0pt",
         "shading": "none",
         "alignment": "left",
+    },
+    "VerbatimChar": {
+        "prefix": "verbatim_char",
+        "font_family": SOURCE_CODE_FONT,
+        "font_size": "10pt",
+        "color": "000000",
+        "shading": "none",
+    },
+    "HTMLCode": {
+        "prefix": "html_code",
+        "font_family": SOURCE_CODE_FONT,
+        "font_size": "10pt",
+        "color": "000000",
+        "shading": "none",
+    },
+    "HTMLPreformatted": {
+        "prefix": "html_preformatted",
+        "font_family": SOURCE_CODE_FONT,
+        "font_size": "10pt",
+        "color": "000000",
+        "shading": "none",
     },
     "Bibliography": {
         "prefix": "bibliography",
@@ -811,13 +850,17 @@ def apply_style_specs(
     """Terapkan seluruh spec style; font per style opsional agar --font menang."""
     for style_id, spec in specs.items():
         active = spec
-        if not apply_font_family and style_id != "SourceCode":
+        if not apply_font_family and style_id not in CODE_STYLE_IDS:
             active = {
                 key: value
                 for key, value in spec.items()
                 if key != "font_family"
             }
         ppr, rpr, ppr_drops, rpr_drops = build_style_patch(active)
+        if CODE_STYLE_TYPES.get(style_id) == "character":
+            # Style karakter tidak punya pPr; drop shd hanya di rPr.
+            ppr = []
+            ppr_drops = ()
         styles_xml = patch_style(
             styles_xml,
             style_id,
@@ -827,6 +870,138 @@ def apply_style_specs(
             rpr_drops=rpr_drops,
         )
     return styles_xml
+
+
+def style_exists(styles_xml: str, style_id: str) -> bool:
+    return bool(
+        re.search(
+            rf'<w:style\b[^>]*w:styleId="{re.escape(style_id)}"', styles_xml
+        )
+    )
+
+
+def ensure_code_styles(styles_xml: str) -> tuple[str, int]:
+    """Pastikan style kode HTML/verbatim tersedia sebelum dipatch.
+
+    Pandoc hanya memakai style ``Verbatim Char``/``Source Code`` bila ada.
+    Beberapa reference.docx lama tidak memuat ``HTML Code`` dan
+    ``HTML Preformatted``; tanpa definisi eksplisit Pandoc memakai font
+    monospace bawaannya (Consolas/DejaVu Sans Mono).
+    """
+    added = 0
+    for style_id in CODE_STYLE_IDS:
+        if style_exists(styles_xml, style_id):
+            continue
+        style_type = CODE_STYLE_TYPES[style_id]
+        name = {
+            "SourceCode": "Source Code",
+            "VerbatimChar": "Verbatim Char",
+            "HTMLCode": "HTML Code",
+            "HTMLPreformatted": "HTML Preformatted",
+        }[style_id]
+        if style_type == "character":
+            block = (
+                f'<w:style w:type="character" w:customStyle="1" '
+                f'w:styleId="{style_id}">\n'
+                f'  <w:name w:val="{name}"/>\n'
+                f'  <w:basedOn w:val="DefaultParagraphFont"/>\n'
+                f"  <w:rPr>\n    {CODE_RPR_INNER}\n  </w:rPr>\n"
+                f"</w:style>\n"
+            )
+        else:
+            block = (
+                f'<w:style w:type="paragraph" w:styleId="{style_id}">\n'
+                f'  <w:name w:val="{name}"/>\n'
+                f'  <w:basedOn w:val="Normal"/>\n'
+                f"  <w:qFormat/>\n"
+                f"  <w:pPr>\n"
+                f'    <w:spacing w:before="0" w:after="0" w:line="240" '
+                f'w:lineRule="auto"/>\n'
+                f'    <w:ind w:left="0" w:right="0" w:firstLine="0"/>\n'
+                f'    <w:jc w:val="left"/>\n'
+                f"  </w:pPr>\n"
+                f"  <w:rPr>\n    {CODE_RPR_INNER}\n  </w:rPr>\n"
+                f"</w:style>\n"
+            )
+        closing = styles_xml.rfind("</w:styles>")
+        if closing == -1:
+            raise ValueError("</w:styles> tidak ditemukan")
+        styles_xml = styles_xml[:closing] + block + styles_xml[closing:]
+        added += 1
+    return styles_xml, added
+
+
+def patch_code_styles(styles_xml: str) -> str:
+    """Paksa semua style kode menjadi Courier New 10 pt hitam tanpa shading."""
+    for style_id in CODE_STYLE_IDS:
+        is_paragraph = CODE_STYLE_TYPES[style_id] == "paragraph"
+        styles_xml = patch_style(
+            styles_xml,
+            style_id,
+            rpr=[
+                (
+                    "rFonts",
+                    {
+                        "ascii": SOURCE_CODE_FONT,
+                        "hAnsi": SOURCE_CODE_FONT,
+                        "cs": SOURCE_CODE_FONT,
+                        "asciiTheme": None,
+                        "hAnsiTheme": None,
+                        "cstheme": None,
+                        "eastAsiaTheme": None,
+                    },
+                ),
+                (
+                    "color",
+                    {
+                        "val": "000000",
+                        "themeColor": None,
+                        "themeShade": None,
+                        "themeTint": None,
+                    },
+                ),
+                ("sz", {"val": 20}),
+                ("szCs", {"val": 20}),
+            ],
+            rpr_drops=("shd",),
+            ppr_drops=("shd",) if is_paragraph else (),
+        )
+    return styles_xml
+
+
+def patch_hyperlink_style(styles_xml: str) -> str:
+    """Hyperlink hitam tanpa garis bawah agar tidak biru di Word."""
+    if not style_exists(styles_xml, "Hyperlink"):
+        block = (
+            '<w:style w:type="character" w:styleId="Hyperlink">\n'
+            '  <w:name w:val="Hyperlink"/>\n'
+            '  <w:basedOn w:val="DefaultParagraphFont"/>\n'
+            "  <w:rPr>\n"
+            '    <w:color w:val="000000"/>\n'
+            '    <w:u w:val="none"/>\n'
+            "  </w:rPr>\n"
+            "</w:style>\n"
+        )
+        closing = styles_xml.rfind("</w:styles>")
+        if closing == -1:
+            raise ValueError("</w:styles> tidak ditemukan")
+        styles_xml = styles_xml[:closing] + block + styles_xml[closing:]
+    return patch_style(
+        styles_xml,
+        "Hyperlink",
+        rpr=[
+            (
+                "color",
+                {
+                    "val": "000000",
+                    "themeColor": None,
+                    "themeShade": None,
+                    "themeTint": None,
+                },
+            ),
+            ("u", {"val": "none"}),
+        ],
+    )
 
 
 def current_normal_size(styles_xml: str) -> int | None:
@@ -1030,12 +1205,16 @@ def main(argv: list[str] | None = None) -> int:
                     ppr=[("ind", {"firstLine": indent_twips})],
                 )
 
+        styles_xml, added_code_styles = ensure_code_styles(styles_xml)
+
         style_specs = resolve_style_specs(preset)
         styles_xml = apply_style_specs(
             styles_xml,
             style_specs,
             apply_font_family=not explicit_font,
         )
+        styles_xml = patch_code_styles(styles_xml)
+        styles_xml = patch_hyperlink_style(styles_xml)
 
         document_xml = apply_margins(document_xml, margins)
 
@@ -1053,7 +1232,9 @@ def main(argv: list[str] | None = None) -> int:
         )
 
         style_count_after = len(STYLE_RE.findall(styles_xml))
-        expected_added = int(added_isng) + int(added_review)
+        expected_added = (
+            added_code_styles + int(added_isng) + int(added_review)
+        )
         if style_count_after != style_count_before + expected_added:
             raise ValueError(
                 "Jumlah style berubah tidak wajar: "

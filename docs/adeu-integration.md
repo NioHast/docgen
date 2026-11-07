@@ -9,8 +9,11 @@ tinjauan yang bisa diputuskan manusia.
 
 1. **Build DOCX** dari `chapters/*.md` seperti biasa.
 2. **Tambah ID paragraf**: tahap pascaproses `tools/add_paragraph_ids.py`
-   menambahkan bookmark `pNNNN` pada setiap paragraf dan menulis
-   `build/manifest.json`.
+   menambahkan bookmark `pNNNN` pada setiap paragraf body dan menulis
+   `build/manifest.json`. Tahap ini dijalankan otomatis di akhir
+   `build-docx.sh`, setelah finalisasi section, format caption, istilah, dan
+   nomor halaman. Bookmark `pNNNN` lama dihapus lebih dulu, sehingga tahap ini
+   idempoten; bookmark lain dipertahankan.
 3. **Edit di Word** dengan Track Changes. Pengguna hanya boleh mengubah blok
    yang tidak dilindungi.
 4. **Rekonsiliasi**: jalankan `tools/reconcile.py` terhadap DOCX hasil edit,
@@ -25,7 +28,7 @@ pada build berikutnya.
 
 ## Prasyarat
 
-Alat rekonsiliasi membutuhkan Python 3.10+ dengan `python-docx` dan `lxml`
+Alat rekonsiliasi membutuhkan Python 3.12 dengan `python-docx` dan `lxml`
 (dependensi yang sama dengan modul istilah). Dari akar proyek:
 
 ```powershell
@@ -54,7 +57,9 @@ menambah, mengganti nama, atau mengubah arti field tanpa menaikkan versi.
       "text": "BAB I PENDAHULUAN",
       "text_sha256": "hex",
       "protected": false,
-      "protected_reason": null
+      "protected_reason": null,
+      "source_file": "bab1-pendahuluan.md",
+      "source_line": 12
     }
   ]
 }
@@ -72,10 +77,22 @@ Field penting:
 | `text_sha256` | Hash teks saat build; berguna untuk audit manifest. |
 | `protected` | `true` bila paragraf tidak boleh diedit manual. |
 | `protected_reason` | Alasan perlindungan, misalnya `caption_style` atau `toc_field`. |
+| `source_file` | Opsional; path Markdown relatif terhadap `--source-dir`. `null` bila tidak ada kecocokan unik. |
+| `source_line` | Opsional; nomor baris 1-based awal blok Markdown. `null` bila tidak ada kecocokan unik. |
+
+`source_file` dan `source_line` hanya ditulis bila `add_paragraph_ids.py`
+dijalankan dengan `--source-dir`. `build-docx.sh` selalu menjalankannya dengan
+`--source-dir "$OUTDIR/chapters"`, jadi manifest hasil build normal memuat kedua
+field tersebut. Manifest hanya menjamin kecocokan bila heading path dan teks
+paragraf cocok tepat satu kali di seluruh `chapters/`.
 
 Bookmark `pNNNN` disisipkan di dalam DOCX dan diproyeksikan Adeu sebagai penanda
-`{#pNNNN}`. Bookmark harus membungkus teks paragraf; ID harus unik dan konsisten
-dengan manifest.
+`{#pNNNN}`. `add_paragraph_ids.py` menaruh `w:bookmarkStart` setelah `w:pPr` dan
+`w:bookmarkEnd` di akhir paragraf, sehingga bookmark membungkus isi paragraf
+tanpa mengubah properti paragraf. ID dihitung dari urutan paragraf (`p0001`,
+`p0002`, ...) dan dibuat ulang pada setiap build; karena itu DOCX dan manifest
+harus berasal dari build yang sama. Bookmark harus unik dan konsisten dengan
+manifest.
 
 ## Menjalankan rekonsiliasi
 
@@ -107,7 +124,7 @@ ditulis adalah `--out`. Alat menolak `--out` yang berada di dalam direktori
 |---|---|
 | `0` | Tidak ada perubahan; laporan tetap ditulis dengan ringkasan nol. |
 | `2` | Ada perubahan yang perlu ditinjau (termasuk paragraf baru/hilang). |
-| `3` | Ada perubahan atau penghapusan pada blok `protected` (pelanggaran). |
+| `3` | Ada perubahan atau penghapusan pada blok `protected` (pelanggaran), termasuk paragraf `protected` yang hilang dari DOCX. |
 | `1` | Kesalahan input: DOCX/manifest tidak terbaca, manifest tidak valid, direktori `chapters/` tidak ada, atau argumen CLI salah. |
 
 Exit code `3` diprioritaskan di atas `2`. Artinya, satu pelanggaran blok
@@ -148,7 +165,8 @@ Untuk paragraf tidak terlindungi yang berubah, alat mencari blok sumber di
 1. Blok Markdown diparse menjadi heading, paragraf, list, blockquote, tabel,
    dan blok kode. Setiap blok menyimpan `heading_path` dari heading di atasnya.
 2. `heading_path` manifest dicocokkan dengan `heading_path` blok setelah
-   normalisasi penomoran. Contoh: `BAB II TINJAUAN PUSTAKA` cocok dengan
+   normalisasi penomoran. Bila tidak persis sama, keduanya dicocokkan sebagai
+   suffix yang utuh. Contoh: `BAB II TINJAUAN PUSTAKA` cocok dengan
    `# TINJAUAN PUSTAKA`, dan `2.1 Landasan Teori` cocok dengan
    `## Landasan Teori`.
 3. Di antara blok dengan jalur yang cocok, `difflib.SequenceMatcher` memilih
@@ -166,9 +184,10 @@ editor.
 - Bookmark `pNNNN` yang ada di DOCX tetapi tidak ada di manifest dilaporkan
   sebagai `PARAGRAF BARU`.
 - Paragraf berisi teks yang sama sekali tidak berada di dalam bookmark
-  `pNNNN` dilaporkan sebagai `PARAGRAF BARU — tanpa ID`.
+  `pNNNN` dilaporkan sebagai `PARAGRAF BARU: tanpa ID`.
 - ID manifest yang tidak ditemukan di DOCX dilaporkan sebagai
-  `PARAGRAF HILANG`.
+  `PARAGRAF HILANG`. Bila paragraf tersebut `protected`, bagiannya dilaporkan
+  sebagai `PELANGGARAN` dan exit code menjadi `3`.
 - Paragraf kosong tanpa ID diabaikan agar tidak menghasilkan derau.
 
 ### 5. Penulisan laporan
@@ -181,10 +200,10 @@ berkas yang identik. Tidak ada timestamp di laporan.
 
 | Jenis | Contoh `protected_reason` | Alasan |
 |---|---|---|
-| TOC (Daftar isi) | `toc_field` | Daftar isi adalah field Word yang diisi ulang saat build; nomor halaman dan hyperlink-nya dihitung otomatis. Edit manual akan hilang atau membuat nomor halaman basi. |
+| TOC (Daftar isi) | `toc_field`, `toc_style` | Daftar isi adalah field Word yang diisi ulang saat build; nomor halaman dan hyperlink-nya dihitung otomatis. `toc_field` dipakai untuk paragraf di dalam field TOC; `toc_style` untuk paragraf bergaya `TOC1`/`TOC2`/`TOC3` di luar field. Edit manual akan hilang atau membuat nomor halaman basi. |
 | Caption | `caption_style` | Caption memakai penomoran dan style khusus (misalnya `Tabel 2.1`). Edit manual dapat memutus urutan nomor, cross-reference, dan daftar tabel/gambar. |
 | Section break | `sectpr` | Section break mengatur margin, orientasi, dan penomoran halaman (Romawi/Arab). Perubahan struktur ini tidak bisa diwakili oleh edit teks paragraf dan dapat merusak pagination. |
-| Bibliography (Daftar pustaka) | `bibliography` | Daftar pustaka dihasilkan `citeproc` dari `references.bib` dan `apa.csl`. Edit manual akan tertimpa build berikutnya dan membuat sitasi tidak konsisten. |
+| Bibliography (Daftar pustaka) | `bibliography` | Daftar pustaka dihasilkan `citeproc` dari `references.bib` dan `refs/undip-msi.csl` (turunan APA 7, author-date alfabetis). Edit manual akan tertimpa build berikutnya dan membuat sitasi tidak konsisten. |
 | Halaman sampul | `cover_style` | Sampul dihasilkan dari `cover.md` dan `metadata.yml`. Perubahan manual tidak akan bertahan dan membuat data sampul tidak sinkron. |
 | Field nomor | `seq_field`, `page_field`, `pageref_field` | Field `SEQ`, `PAGE`, dan `PAGEREF` dihitung Word. Mengedit hasil field secara manual akan membuat nomor gambar/halaman tidak sinkron dengan isi dokumen. |
 
@@ -202,7 +221,7 @@ tahap tambah ID harus menandainya saat manifest dibuat.
 - Berubah: 4
 - Dilindungi & dilanggar: 1
 
-## p0042 — BAB II / 2.1 Landasan Teori
+## p0042: BAB II / 2.1 Landasan Teori
 
 Sumber: chapters/bab2-tinjauan-pustaka.md (blok 12, kemiripan 0.94)
 
@@ -216,7 +235,7 @@ Sumber: chapters/bab2-tinjauan-pustaka.md (blok 12, kemiripan 0.94)
 
 ---
 
-## PELANGGARAN p0011 — caption (protected: caption_style)
+## PELANGGARAN p0011: caption (protected: caption_style)
 
 **Sebelum**
 > Tabel 2.1 Ringkasan Pipeline
@@ -230,18 +249,25 @@ Sumber: chapters/bab2-tinjauan-pustaka.md (blok 12, kemiripan 0.94)
 Jika sumber tidak ditemukan, bagian `Sumber:` diganti dengan:
 
 ```markdown
-**SUMBER TIDAK DITEMUKAN** — tidak ada blok Markdown yang cocok dengan heading_path dan teks lama.
+**SUMBER TIDAK DITEMUKAN**: tidak ada blok Markdown yang cocok dengan heading_path dan teks lama.
 ```
 
 Paragraf baru dan hilang muncul sebagai bagian tersendiri:
 
 ```markdown
-## PARAGRAF BARU — tanpa ID
+## PARAGRAF BARU p0999
+
+ID ini ada di DOCX tetapi tidak ada di manifest.
+
+**Sesudah**
+> Paragraf ber-bookmark yang tidak dikenal manifest.
+
+## PARAGRAF BARU: tanpa ID
 
 **Sesudah**
 > Paragraf yang disisipkan langsung di Word.
 
-## PARAGRAF HILANG p0012 — BAB II TINJAUAN PUSTAKA / 2.2 Kerangka Pemikiran
+## PARAGRAF HILANG p0012: BAB II TINJAUAN PUSTAKA / 2.2 Kerangka Pemikiran
 
 **Sebelum**
 > Paragraf yang dihapus dari Word.

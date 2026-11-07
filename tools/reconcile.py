@@ -1065,12 +1065,24 @@ def run(
     if not chapters_dir.is_dir():
         raise ReconcileError(f"direktori chapters tidak ditemukan: {chapters_dir}")
 
-    # Alat ini tidak boleh menulis apa pun ke sumber Markdown.
+    # Alat ini tidak boleh menulis apa pun ke sumber Markdown dan tidak boleh
+    # menimpa DOCX atau manifest yang menjadi input.
     try:
         out_resolved = out_path.resolve()
+        docx_resolved = docx_path.resolve()
+        manifest_resolved = manifest_path.resolve()
         chapters_resolved = chapters_dir.resolve()
     except OSError as exc:
         raise ReconcileError(f"path tidak dapat diselesaikan: {exc}") from exc
+    if out_resolved in (docx_resolved, manifest_resolved):
+        raise ReconcileError(
+            "--out tidak boleh menimpa --docx atau --manifest; "
+            "gunakan review/manual-edits.md."
+        )
+    if out_path.suffix.lower() != ".md":
+        raise ReconcileError(
+            "--out harus berekstensi .md; gunakan review/manual-edits.md."
+        )
     if out_resolved == chapters_resolved or chapters_resolved in out_resolved.parents:
         raise ReconcileError(
             "--out tidak boleh berada di dalam direktori chapters; "

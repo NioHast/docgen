@@ -44,13 +44,10 @@ def main():
         import subprocess
         sh_pdf = "build.sh" if os.path.isfile("build.sh") else os.path.join(pkg_root, "build.sh")
         sh_docx = "build-docx.sh" if os.path.isfile("build-docx.sh") else os.path.join(pkg_root, "build-docx.sh")
-        ps_script = "laporan.ps1" if os.path.isfile("laporan.ps1") else os.path.join(pkg_root, "laporan.ps1")
-        if sys.platform == "win32":
-            ret = subprocess.run(["powershell", "-ExecutionPolicy", "Bypass", "-File", ps_script, "build"]).returncode
-        else:
-            ret_pdf = subprocess.run(["bash", sh_pdf]).returncode
-            ret_docx = subprocess.run(["bash", sh_docx]).returncode
-            ret = ret_pdf or ret_docx
+        # Windows memakai Git Bash; tidak ada jalur PowerShell terpisah.
+        ret_pdf = subprocess.run(["bash", sh_pdf]).returncode
+        ret_docx = subprocess.run(["bash", sh_docx]).returncode
+        ret = ret_pdf or ret_docx
         if ret != 0:
             print("Gagal mengompilasi dokumen untuk bundling.")
             return 1

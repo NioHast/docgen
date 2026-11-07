@@ -8,7 +8,8 @@ Yang dilakukan:
 
 1. Memberi nomor ``Gambar <bab>.<n>`` / ``Tabel <bab>.<n>`` pada paragraf
    caption, dengan nomor bab dari Heading1 terakhir yang berformat
-   ``BAB <romawi/arab>`` dan counter terpisah yang direset per bab.
+   ``BAB <romawi/arab>`` atau ``<nomor arab>. <judul>`` (proposal), dan
+   counter terpisah yang direset per bab.
 2. Memusatkan paragraf gambar, menghapus spasi sebelum/sesudahnya, dan
    meng-clamp lebar gambar maksimum ke 14,0 cm (5.040.000 EMU).
 3. Menyeragamkan border tabel body (single 0,5 pt hitam), menghapus shading
@@ -51,6 +52,7 @@ BAB_RE = re.compile(
     r"^\s*BAB\s+(?P<number>[IVXLCDM]+|\d+)(?=\s|[.:;,\-–—]|$)",
     re.IGNORECASE,
 )
+ARABIC_CHAPTER_RE = re.compile(r"^\s*(?P<number>\d+)(?!\.\d)[\.\s]+")
 
 W_BODY = qn("w:body")
 W_P = qn("w:p")
@@ -565,12 +567,19 @@ def _roman_to_int(token: str) -> int | None:
 
 def _chapter_number(text: str) -> int | None:
     match = BAB_RE.match(text)
-    if match is None:
-        return None
-    token = match.group("number")
-    if token.isdigit():
-        return int(token)
-    return _roman_to_int(token)
+    if match is not None:
+        token = match.group("number")
+        if token.isdigit():
+            return int(token)
+        return _roman_to_int(token)
+
+    # Proposal memakai Heading1 bernomor arab, mis. "1. PENDAHULUAN".
+    # Lookahead menolak subbab seperti "1.1 Latar Belakang" agar tidak
+    # dianggap sebagai nomor bab.
+    match = ARABIC_CHAPTER_RE.match(text)
+    if match is not None:
+        return int(match.group("number"))
+    return None
 
 
 def _caption_kind(style_id: str | None, text: str) -> str | None:
@@ -799,8 +808,8 @@ def _add_warnings(report: FormatReport) -> None:
             )
         else:
             report.warnings.append(
-                "Tidak ada Heading1 berformat 'BAB <romawi/arab>'; "
-                "penomoran caption dilewati."
+                "Tidak ada Heading1 berformat 'BAB <romawi/arab>' atau "
+                "'<nomor arab>. <judul>'; penomoran caption dilewati."
             )
     elif report.skipped_no_chapter:
         report.warnings.append(

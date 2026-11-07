@@ -77,13 +77,27 @@ Keluaran utama:
 ada penanda `{{?istilah?}}` yang belum diputuskan atau `python-docx`/`lxml`
 belum tersedia. `reference.docx` tidak ditimpa: versi sesuai preset dibuat di
 direktori sementara. Urutan pascaprosesnya adalah `scripts/finalize-docx.py`,
-`tools/format_figures.py`, `tools/istilah.py apply/verify`,
-`scripts/docx-pagenum.py`, lalu `tools/add_paragraph_ids.py`.
+`tools/format_figures.py`, `tools/normalize_layout.py`, `tools/format_code.py`,
+`tools/format_equations.py`, `tools/istilah.py apply/verify`,
+`scripts/docx-pagenum.py`, `tools/add_paragraph_ids.py`, lalu
+`tools/word_finalize.py`.
 
 Build PDF tidak memerlukan Python, tetapi membutuhkan Pandoc dan Typst.
 `build.sh` menyalin aset ke direktori sementara, memilih preset dari
-`metadata.yml`, memproses sitasi dengan `refs/ieee.csl`, lalu menjalankan
+`metadata.yml`, memproses sitasi dengan `refs/undip-msi.csl`, lalu menjalankan
 Pandoc dengan `--pdf-engine=typst`.
+
+Gaya sitasi default adalah **author-date alfabetis** dari
+`refs/undip-msi.csl` (turunan APA 7): dua penulis memakai `dan`, tiga penulis
+atau lebih memakai `dkk.`, dan daftar pustaka diurutkan alfabetis tanpa nomor.
+`metadata.yml` menetapkan `lang: "id-ID"` untuk istilah sitasi Indonesia.
+
+Metadata dan nama keluaran dapat dioverride tanpa menyalin skrip:
+
+```bash
+LAPORAN_METADATA=metadata-proposal.yml LAPORAN_REPORT_NAME=Proposal bash build-docx.sh
+LAPORAN_METADATA=metadata-proposal.yml LAPORAN_REPORT_NAME=Proposal bash build.sh
+```
 
 ## Perintah penting
 
@@ -120,7 +134,7 @@ tabel dipakai untuk memeriksa atau mengulang satu tahap tanpa build penuh.
 | `reference.docx` | Basis style DOCX; dibaca `tools/build_style.py` untuk membuat salinan sesuai preset, jangan diedit manual. |
 | `tools/` | Generator style, istilah, caption, ID paragraf, rekonsiliasi, ekspor DOTX, pemeriksa prosa, dan `env.sh`. |
 | `scripts/` | Finalisasi section, nomor halaman DOCX, pembuat reference, dan utilitas laporan. |
-| `refs/` | `ieee.csl` untuk sitasi IEEE. |
+| `refs/` | `undip-msi.csl` (turunan APA 7: author-date, `dan`/`dkk.`, daftar pustaka alfabetis). |
 | `writing/` | `istilah.tsv`, `larangan.txt`, dan `panduan.md` untuk penulisan. |
 | `tests/` | Tes pytest dan fixture. |
 | `build/` | `manifest.json` hasil build (gitignored). |
@@ -182,8 +196,10 @@ dan dokumentasi.
 - **PDF dan DOCX tidak identik secara piksel.** Typst dan Word menghitung
   tata letak, font, serta nomor halaman dengan cara berbeda. Periksa kedua
   keluaran bila isi atau format berubah.
-- **Nilai preset UNDIP masih dapat berubah.** Lihat `presets/undip-skripsi.yml`
-  dan `docs/format-undip.md` sebelum menganggap formatnya final.
+- **Nilai preset UNDIP sudah final dan diuji.** Sumber kebenarannya adalah
+  `presets/undip-skripsi.yml`; pemetaan DOCX diverifikasi oleh
+  `tests/test_build_style.py` dan penomoran heading oleh
+  `tests/test_heading_numbering.py`. Lihat `docs/format-undip.md`.
 
 ## Lisensi dan atribusi
 

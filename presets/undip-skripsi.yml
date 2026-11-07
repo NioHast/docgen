@@ -3,6 +3,10 @@ preset_id: "undip-skripsi"
 name: "Universitas Diponegoro (UNDIP)"
 description: "Format Skripsi & Tugas Akhir sesuai Pedoman Akademik Universitas Diponegoro (Margin 4-4-3-3)."
 
+# Gaya sitasi author-date alfabetis (turunan APA 7). Dibaca build.sh dan
+# build-docx.sh; fallback bila kunci tidak ada: refs/undip-msi.csl.
+csl: "refs/undip-msi.csl"
+
 # 1. Geometri & Margin Halaman (Standar UNDIP: Atas 4cm, Kiri 4cm, Bawah 3cm, Kanan 3cm)
 margin_top: 4cm
 margin_bottom: 3cm
@@ -43,7 +47,8 @@ heading2_font_size: 12pt
 heading2_bold: true
 heading2_color: "000000"
 heading2_alignment: both
-heading2_space_before: 0pt
+# 12 pt = satu baris kosong sebagai pemisah dari teks sebelumnya.
+heading2_space_before: 12pt
 heading2_space_after: 0pt
 heading2_line_spacing: 360
 heading2_keep_next: true
@@ -57,7 +62,8 @@ heading3_font_size: 12pt
 heading3_bold: true
 heading3_color: "000000"
 heading3_alignment: both
-heading3_space_before: 0pt
+# 12 pt = satu baris kosong sebagai pemisah dari teks sebelumnya.
+heading3_space_before: 12pt
 heading3_space_after: 0pt
 heading3_line_spacing: 360
 heading3_keep_next: true
@@ -77,7 +83,7 @@ toc_heading_line_spacing: 360
 toc_heading_first_line_indent: 0cm
 
 image_caption_font_family: "Times New Roman"
-image_caption_font_size: 10pt
+image_caption_font_size: 12pt
 image_caption_bold: false
 image_caption_italic: false
 image_caption_alignment: center
@@ -86,10 +92,10 @@ image_caption_space_after: 0pt
 image_caption_line_spacing: 240
 
 table_caption_font_family: "Times New Roman"
-table_caption_font_size: 10pt
+table_caption_font_size: 12pt
 table_caption_bold: false
 table_caption_italic: false
-table_caption_alignment: both
+table_caption_alignment: left
 table_caption_space_before: 0pt
 table_caption_space_after: 0pt
 table_caption_line_spacing: 240
@@ -124,4 +130,4 @@ heading_subsub_dot: true
 
 # 4. Pengaturan Halaman Sampul
 cover_show_lecturer: true
-cover_logo_width: 4cm
+cover_logo_width: 4.88cm

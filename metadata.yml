@@ -15,6 +15,8 @@ institution: "Universitas Example"
 faculty: "Program Studi Informatika"
 year: "2026/2027"
 date: "Agustus 2026"
+# Bahasa dokumen untuk citeproc: istilah sitasi menjadi "dan" dan "dkk.".
+lang: "id-ID"
 daftar_gambar: false
 daftar_tabel: false
 # Komponen halaman depan opsional (aktifkan jika diperlukan):

@@ -5,8 +5,8 @@ bookmark stabil `p0001`, `p0002`, dan seterusnya. Adeu memproyeksikan bookmark
 itu menjadi penanda `{#nama}` sehingga komentar, diff, atau rujukan dapat
 diarahkan ke paragraf yang sama meskipun dokumen sudah disunting di Word.
 
-Alat ini hanya mengubah `word/document.xml`. Semua part lain—header, footer,
-styles, numbering, media, relasi, dan properti dokumen—disalin byte-per-byte
+Alat ini hanya mengubah `word/document.xml`. Semua part lain (header, footer,
+styles, numbering, media, relasi, dan properti dokumen) disalin byte-per-byte
 dari DOCX asli.
 
 Dependensi: `python-docx` dan `lxml` (lihat `tools/requirements.txt`).
@@ -147,7 +147,7 @@ Pencocokan dilakukan konservatif:
 - `source_line` adalah nomor baris 1-based tempat blok dimulai.
 
 Transformasi Pandoc yang kompleks (mis. sitasi `[@kunci]` yang sudah menjadi
-teks APA, persamaan, atau caption otomatis) tidak ditebak. Paragraf seperti itu
+teks sitasi author-date, persamaan, atau caption otomatis) tidak ditebak. Paragraf seperti itu
 tetap `null`.
 
 ## Jaminan dan batasan

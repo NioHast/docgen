@@ -43,6 +43,8 @@
 (?<![\d.,])\d+(?:[.,]\d+)?(?:V|mV|kV|mA|kW|Hz|kHz|MHz|GHz|kg|mg|cm|mm|km|ms)\b	EJ-08 K [flag m; min 1] beri spasi antara angka dan lambang satuan (koreksi dihitung dinamis)
 ,\s+sehingga\b	EJ-10 K [flag m; min 1] tanpa koma bila anak kalimat mengikuti induk kalimat (EYD V, tanda koma kaidah 4)
 \d\s?(?:Volt|Ampere|Watt|Hertz|Celcius|Celsius|C)\b	EJ-09 K [flag m; min 1] pakai lambang satuan: V, A, W, Hz, °C
+# Tanda baca: em dash (U+2014) dilarang.
+\u2014	EJ-11 K [flag m; min 1] em dash dilarang; pakai koma/titik dua/titik
 
 # Klise mesin dan kalke (AI)
 \b[Dd]i era (?:digital|modern|globalisasi|teknologi|revolusi|serba)	AI-01 AI [flag m; min 1] pembuka generik; mulai dari masalah konkret

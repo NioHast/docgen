@@ -57,7 +57,7 @@ dan keluar 1. Lint prosa tidak memerlukannya.
 | `NM-01` | Nominalisasi | G |
 | `KK-01` | Klaim terlalu kuat (`membuktikan`) | G |
 | `SG-01`–`SG-06` | Singkatan dan akronim: tanda hubung, titik, jamak, kepanjangan | K/G |
-| `EJ-01`–`EJ-10` | Ejaan: di/ke, bentuk terikat, angka, satuan, koma | K |
+| `EJ-01`–`EJ-11` | Ejaan: di/ke, bentuk terikat, angka, satuan, koma, em dash | K |
 | `AI-01`–`AI-19` | Klise mesin dan kalke | AI |
 | `KB-01` | Kata tidak baku (129 pasangan) | K |
 | `KL-01` | Kalimat lebih dari 35 kata | G |
@@ -90,7 +90,7 @@ menyerahkan draf.
 python tools/periksa_prosa.py --tes
 ```
 
-Di Linux/macOS gunakan `.venv/bin/python`. `--tes` bawaan berisi 108 kasus. Tes di
+Di Linux/macOS gunakan `.venv/bin/python`. `--tes` bawaan berisi 109 kasus. Tes di
 `tests/test_periksa_prosa.py` menambah regresi untuk `.docx` yang memuat `Abstract`,
 `Daftar Pustaka`, pemetaan heading, dan penanda `IS-01`.
 

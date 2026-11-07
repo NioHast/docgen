@@ -17,7 +17,7 @@ Tabel berikut merangkum pemetaan sintaks Markdown yang digunakan dalam pipeline 
 | Judul Bab (Level 1) | `# Judul` | `# PENDAHULUAN` | BAB I PENDAHULUAN |
 | Sub-Bab (Level 2) | `## Sub Judul` | `## Latar Belakang` | 1.1. Latar Belakang |
 | Sub-Sub-Bab (Level 3) | `### Rincian` | `### Identifikasi Masalah` | 1.1.1 Rincian Masalah |
-| Sitasi Bibliografi | `[@citekey]` | `[@typst2024]` | (Mädje & Haug, 2024) |
+| Sitasi Bibliografi | `[@citekey]` | `[@typst2024]` | Sitasi author-date, misalnya `(Mädje dan Haug, 2024)` |
 | Tabel Akademik | Pipe & Header Syntax | `| Kolom 1 | Kolom 2 |` | Tabel formal bergaris 0.5pt |
 | Gambar / Diagram | `![Keterangan](path)` | `![Arsitektur](gambar/flow.png)` | Gambar terpusat ber-caption |
 | Persamaan Matematika | `$...$` / `$$...$$` | `$E = m c^2$` | Notasi rumus terformat presisi |
@@ -30,10 +30,10 @@ Typst adalah sistem typesetting berbasis markup yang dapat diprogram (*programma
 
 Typst mengadopsi model kompilasi inkremental modern berbasis bahasa pemrograman Rust. Karakteristik utama Typst mencakup:
 
-1. **Kecepatan Kompilasi Tinggi** --- Typst mampu mengompilasi puluhan halaman dokumen dalam hitungan milidetik, memungkinkan pengalaman pratinjau langsung (*live reload*) yang sangat responsif.
-2. **Binary Ringan dan Mandiri** --- Ukuran binary Typst hanya berkisar 25 MB dan tidak membutuhkan dependensi eksternal dari repositori paket yang besar.
-3. **Tipografi Bawaan yang Portabel** --- Typst menyertakan font berkualitas tinggi seperti Libertinus Serif dan DejaVu Sans Mono langsung di dalam binary, sehingga menjamin konsistensi render di semua platform tanpa isu font hilang (*missing fonts*).
-4. **Model Tata Letak Deklaratif** --- Pengaturan margin halaman, penomoran heading bertingkat, dan aturan jeda halaman (*pagebreak*) dikonfigurasi melalui fungsi bawaan yang elegan seperti `#set page()`, `#set heading()`, dan `#show heading()`.
+1. **Kecepatan Kompilasi Tinggi**: Typst mampu mengompilasi puluhan halaman dokumen dalam hitungan milidetik, memungkinkan pengalaman pratinjau langsung (*live reload*) yang sangat responsif.
+2. **Binary Ringan dan Mandiri**: Ukuran binary Typst hanya berkisar 25 MB dan tidak membutuhkan dependensi eksternal dari repositori paket yang besar.
+3. **Tipografi Bawaan yang Portabel**: Typst menyertakan font berkualitas tinggi seperti Libertinus Serif dan DejaVu Sans Mono langsung di dalam binary, sehingga menjamin konsistensi render di semua platform tanpa isu font hilang (*missing fonts*).
+4. **Model Tata Letak Deklaratif**: Pengaturan margin halaman, penomoran heading bertingkat, dan aturan jeda halaman (*pagebreak*) dikonfigurasi melalui fungsi bawaan yang elegan seperti `#set page()`, `#set heading()`, dan `#show heading()`.
 
 ## Pandoc dan Pemrosesan Dokumen Abstrak
 
@@ -68,16 +68,16 @@ convert input.png -alpha off output.png
 
 Perintah ini secara rekursif menonaktifkan transparansi dan menggantinya dengan latar belakang putih pekat, menjamin gambar tampil bersih pada media cetak.
 
-## Reproducibility dan Lingkungan Terisolasi
+## Reproducibility dan Lingkungan Pengembangan
 
-### Manajemen Dependensi Berbasis Nix Flakes
+### Manajemen Dependensi dengan Python Virtual Environment
 
-Nix adalah manajer paket murni fungsional yang menjamin *reproducible builds* dengan menyimpan setiap dependensi dalam direktori unik berbasis *cryptographic hash* di `/nix/store` [@dolstra2004nix]. Melalui berkas konfigurasi `flake.nix` dan berkas pengunci `flake.lock`, seluruh dependensi toolchain (Pandoc, Typst, ImageMagick, poppler-utils, dan LibreOffice) dapat diinisialisasi secara deterministik di berbagai mesin pengembang tanpa konflik dependensi sistem operasi.
+Dependensi Python untuk pengolahan DOCX dan pengujian, yaitu `python-docx`, `lxml`, dan `pytest`, dipasang di dalam virtual environment `.venv` sesuai daftar versi pada `tools/requirements.txt`. Isolasi ini mencegah konflik dengan paket Python sistem dan membuat lingkungan pengujian dapat direproduksi pada mesin pengembang. Lingkungan dibuat dari akar repositori dengan `python -m venv .venv`, lalu dependensi dipasang memakai `.venv/Scripts/pip install -r tools/requirements.txt` pada Windows atau `.venv/bin/pip install -r tools/requirements.txt` pada Linux dan macOS.
 
-### Kontainerisasi Menggunakan Docker
+### Dukungan Lingkungan Build Lintas Platform
 
-Docker menyediakan isolasi tingkat sistem operasi menggunakan teknologi Linux *cgroups* dan *namespaces* [@merkel2014docker; @love2010kernel]. Melalui `Dockerfile` multi-arsitektur (amd64 dan arm64), lingkungan kompilasi dokumen dapat dijalankan langsung pada platform apapun yang mendukung runtime container tanpa perlu instalasi perangkat lunak lokal.
+Build dijalankan melalui Git Bash di Windows atau shell Bash pada Linux dan macOS. Pandoc menangani konversi Markdown, pemrosesan sitasi, dan keluaran DOCX, sedangkan Typst menghasilkan PDF. Kedua perkakas dipanggil melalui `tools/env.sh` yang membantu menemukan instalasi Pandoc dan Typst pada PATH Windows, WinGet, maupun WSL. Build DOCX memerlukan Git Bash di Windows karena venv Windows tidak dapat dipanggil dari WSL dan path `/mnt/c` memicu `WinError 5` pada `python-docx`; build PDF dapat dijalankan di Git Bash, WSL, Linux, maupun macOS.
 
-## Standar Sitasi Akademik APA Edisi ke-7
+## Standar Sitasi Akademik Author-Date
 
-Karya ilmiah dan laporan akademik mengadopsi standar pengutipan dan penulisan daftar pustaka berdasarkan *Publication Manual of the American Psychological Association* (APA) Edisi ke-7 [@apa2020manual]. Standar APA menerapkan sistem pengutipan Nama Penulis dan Tahun Penerbitan (*Author-Date System*), misalnya `(MacFarlane, 2024)` untuk sitasi dalam kurung (*parenthetical*) atau `MacFarlane (2024)` untuk sitasi naratif. Pemrosesan sitasi pada pipeline dijalankan secara otomatis oleh mesin `pandoc-citeproc` menggunakan berkas definisi gaya `apa.csl` dan basis data pustaka BibTeX `references.bib`.
+Karya ilmiah dan laporan akademik pada pipeline ini menggunakan standar pengutipan author-date. Setiap sumber dikutip dengan nama penulis dan tahun terbit di dalam tanda kurung, misalnya `(Nama, tahun)`. Sitasi dua penulis ditulis `(Nama dan Nama, tahun)`, sedangkan sitasi lebih dari dua penulis ditulis `(Nama dkk., tahun)`. Daftar pustaka disusun alfabetis menurut nama belakang penulis pertama dan tidak memakai nomor, sehingga setiap sitasi dalam teks merujuk langsung ke entri yang sesuai di DAFTAR PUSTAKA. Pemrosesan sitasi dijalankan secara otomatis oleh `pandoc --citeproc` menggunakan berkas definisi gaya `refs/undip-msi.csl` dan basis data pustaka BibTeX `references.bib`.

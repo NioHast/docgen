@@ -97,6 +97,7 @@ POLA = [
      lambda c: "beri spasi antara angka dan lambang satuan: " + re.sub(r"(?<=\d)(?=[^\d.,])", " ", c, count=1), 1),
     ("EJ-10", "K", r",\s+sehingga\b", 0, "tanpa koma bila anak kalimat mengikuti induk kalimat (EYD V, tanda koma kaidah 4)", 1),
     ("EJ-09", "K", r"\d\s?(?:Volt|Ampere|Watt|Hertz|Celcius|Celsius|C)\b", 0, "pakai lambang satuan: V, A, W, Hz, °C", 1),
+    ("EJ-11", "K", r"—", 0, "em dash dilarang; pakai koma/titik dua/titik", 1),
     # Klise mesin dan kalke
     ("AI-01", "AI", r"\b[Dd]i era (?:digital|modern|globalisasi|teknologi|revolusi|serba)", 0, "pembuka generik; mulai dari masalah konkret", 1),
     ("AI-02", "AI", r"\bseiring (?:dengan )?(?:perkembangan|kemajuan|berjalannya) (?:zaman|teknologi|waktu)", I,
@@ -444,6 +445,7 @@ def tes():
         "Sistem antrian ini handal untuk melatih kemampuan berfikir.": "KB-01",
         "Peneliti mengkategorikan dan mempublikasikan hasil.": "KB-01",
         "Galat turun, sehingga akurasi naik.": "EJ-10",
+        "Galat turun—akurasi naik.": "EJ-11",
         "Hal ini benar. Hal ini salah. Hal ini lagi.": "AI-15",
         "Antar muka dibuat dengan Qt.": "EJ-05",
         "Non parametrik dipakai.": "EJ-05",

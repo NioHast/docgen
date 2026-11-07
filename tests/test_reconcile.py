@@ -461,3 +461,39 @@ def test_missing_chapters_dir_exits_one(tmp_path):
 
     assert code == 1
     assert not report_path.exists()
+
+
+def test_output_without_md_extension_is_rejected(tmp_path):
+    docx = write_docx(tmp_path / "Laporan.docx")
+    forbidden = tmp_path / "review" / "manual-edits.txt"
+
+    code, _ = run_reconcile(tmp_path, docx, out=forbidden)
+
+    assert code == 1
+    assert not forbidden.exists()
+
+
+def test_output_must_not_overwrite_docx(tmp_path, capsys):
+    docx = write_docx(tmp_path / "Laporan.docx")
+    before = docx.read_bytes()
+
+    code, _ = run_reconcile(tmp_path, docx, out=docx)
+
+    assert code == 1
+    assert docx.read_bytes() == before
+    assert "tidak boleh menimpa --docx atau --manifest" in capsys.readouterr().err
+
+
+def test_output_must_not_overwrite_manifest(tmp_path, capsys):
+    docx = write_docx(tmp_path / "Laporan.docx")
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_bytes(MANIFEST.read_bytes())
+    before = manifest_path.read_bytes()
+
+    code, _ = run_reconcile(
+        tmp_path, docx, manifest=manifest_path, out=manifest_path
+    )
+
+    assert code == 1
+    assert manifest_path.read_bytes() == before
+    assert "tidak boleh menimpa --docx atau --manifest" in capsys.readouterr().err

@@ -17,7 +17,7 @@ cover.md + chapters/bab*.md
         │
         ├── metadata.yml
         ├── presets/<preset>.yml
-        ├── references.bib + refs/ieee.csl   (citeproc)
+        ├── references.bib + refs/undip-msi.csl   (citeproc)
         └── template.typ                     (template Pandoc → Typst)
         │
         ▼
@@ -44,14 +44,41 @@ PDF. Tidak ada LaTeX di pipeline ini.
 | `metadata.yml` | Judul, penulis, institusi, dan nama preset. |
 | `presets/*.yml` | Margin, font, spasi, dan opsi tata letak per kampus. |
 | `references.bib` | Basis data sitasi. |
-| `refs/ieee.csl` | Gaya sitasi IEEE untuk `--citeproc`. |
+| `refs/undip-msi.csl` | Gaya sitasi author-date (turunan APA 7) untuk `--citeproc`. |
 | `cover.md`, `chapters/bab*.md` | Isi laporan. Bab diurutkan dengan `sort -V`. |
 | `gambar/` | Gambar; PNG dengan alpha dibersihkan memakai ImageMagick bila tersedia. |
 
 `build.sh` menyalin berkas-berkas di atas ke direktori sementara (`mktemp -d`)
 lalu menjalankan Pandoc dari sana. Direktori sementara dihapus otomatis saat
 build selesai (trap `EXIT`). Karena itu `refs/` ikut disalin: argumen
-`--csl="refs/ieee.csl"` diresolusikan relatif terhadap direktori kerja Pandoc.
+`--csl="refs/undip-msi.csl"` diresolusikan relatif terhadap direktori kerja Pandoc.
+
+## Kesesuaian dengan Panduan MSI UNDIP
+
+`template.typ` menerapkan aturan Panduan Tesis MSI UNDIP Edisi 9/2022 yang
+relevan untuk keluaran PDF:
+
+| Aspek | Perilaku PDF |
+| --- | --- |
+| Font | Times New Roman 12 pt. Nilai `font_family` lama `Libertinus Serif` dari preset generik dipetakan ke Times New Roman; jika TNR tidak terpasang di sistem, Typst memakai Libertinus Serif sebagai fallback. |
+| Heading bab | 12 pt, bold, center, kapital. Untuk proposal, `heading_chapter_prefix: ""` + `heading_chapter_num_format: "arabic"` menghasilkan `1. PENDAHULUAN` dalam satu baris, bukan `BAB I`. |
+| Page break bab | Untuk tesis, setiap H1 memulai halaman baru. Mode proposal (`heading_chapter_prefix: ""` + `heading_chapter_num_format: "arabic"`) tidak memaksa page break. Set `heading_chapter_pagebreak: true`/`false` untuk override eksplisit. |
+| Caption | Semua caption 12 pt. Caption tabel di atas tabel dan rapat kiri; caption gambar tetap di bawah gambar dan mengikuti perataan figure (center). |
+| Nomor halaman | Sampul tidak bernomor; front matter mulai `ii`; isi mulai `1` (angka Arab). Nomor halaman berada di footer kanan (`number-align: right`). |
+| Persamaan | Nomor `(bab.n)` di tepi kanan; jarak 2 kali `line_spacing` sebelum/sesudah; persamaan menjorok 1 cm dari margin kiri sebagai pendekatan "2 tabulasi". |
+
+Catatan:
+
+- `number-align: right` berlaku untuk semua halaman bernomor karena peralihan
+  front matter ke isi dilakukan oleh blok Typst di `cover.md`, yang hanya
+  menetapkan `numbering` dan mewarisi `number-align` dari template. Panduan MSI
+  menempatkan nomor front matter di tengah; bila diperlukan, atur ulang di
+  `cover.md`.
+- Panduan menyebut persamaan "menjorok ke kanan 2 tabulasi" tanpa ukuran
+  metrik. Template memakai 1 cm; nomor persamaan tetap berada di tepi kanan
+  margin.
+- Pemisah caption bawaan Typst masih `: ` (`Tabel 1.1: Judul`). Panduan tidak
+  mengatur tanda pemisah; yang diwajibkan adalah ukuran, posisi, dan perataan.
 
 ## Cara kerja `tools/env.sh`
 
@@ -91,8 +118,8 @@ kerja.
 Di WSL, executable Windows tidak ditemukan oleh pencarian `PATH` Linux
 (`typst` ≠ `typst.exe`). `env.sh` karena itu mengekspor dua variabel:
 
-- `LAPORAN_TYPST` — path lengkap ke `typst.exe`.
-- `LAPORAN_PANDOC` — nama fungsi pembungkus `_laporan_pandoc_windows`.
+- `LAPORAN_TYPST`: path lengkap ke `typst.exe`.
+- `LAPORAN_PANDOC`: nama fungsi pembungkus `_laporan_pandoc_windows`.
 
 Fungsi pembungkus meneruskan argumen ke `pandoc.exe`, tetapi mengubah argumen
 path absolut POSIX (`/mnt/c/...`, `/tmp/...`) menjadi path Windows memakai
@@ -132,12 +159,20 @@ Karena `build.sh` memakai `set -e`, build berhenti sebelum Pandoc dipanggil.
 ```bash
 bash build.sh
 ls -l Laporan.pdf
-file Laporan.pdf                    # contoh: PDF document, version 1.7, 24 page(s)
+file Laporan.pdf                    # contoh: PDF document, version 1.7, 23 page(s)
 pdfinfo Laporan.pdf | grep Pages    # bila poppler-utils tersedia
 ```
 
-Baseline repo menghasilkan PDF 24 halaman. Jumlah halaman dapat berubah bila
-isi bab, margin preset, atau metadata diubah.
+Baseline repo saat ini menghasilkan PDF 23 halaman. Jumlah halaman dapat
+berubah bila isi bab, margin preset, atau metadata diubah. Yang harus tetap
+benar:
+
+- font yang tertanam adalah Times New Roman (Regular/Bold/Italic/BoldItalic),
+  bukan Libertinus Serif;
+- halaman pertama front matter bernomor `ii`, bukan `i`;
+- halaman isi bernomor Arab mulai `1` dan berada di kanan bawah;
+- heading bab 12 pt; caption 12 pt; caption tabel berada di atas tabel dan
+  rapat kiri.
 
 Pandoc 3.13 masih mencetak peringatan berikut; ini bukan error:
 
@@ -159,10 +194,10 @@ echo $?    # 1
 | --- | --- | --- |
 | Mesin | Pandoc → **Typst** | Pandoc → **WordprocessingML** |
 | Tata letak | Ditentukan `template.typ` | Ditentukan `reference.docx` + gaya Word |
-| Nomor halaman | `set page(numbering: ...)` di Typst | Properti section DOCX (`scripts/docx-pagenum.py`) |
-| Font | Font yang tersedia untuk Typst | Font di `reference.docx`/preset |
+| Nomor halaman | `set page(numbering: ..., number-align: right)` di Typst | Properti section DOCX (`scripts/docx-pagenum.py`) |
+| Font | Times New Roman 12 pt (fallback Libertinus Serif) | Times New Roman di `reference.docx`/preset |
 | Preset | `presets/*.yml` dibaca sebagai metadata | `tools/build_style.py` menghasilkan `reference.docx` |
-| Sitasi | `--citeproc` + `refs/ieee.csl` | `--citeproc` + `refs/ieee.csl` |
+| Sitasi | `--citeproc` + `refs/undip-msi.csl` | `--citeproc` + `refs/undip-msi.csl` |
 | Keluaran | `Laporan.pdf` | `Laporan.docx` |
 
 Konsekuensinya:
@@ -173,7 +208,7 @@ Konsekuensinya:
 - Perubahan pada `template.typ` hanya memengaruhi PDF; perubahan pada
   `reference.docx`/`build_style.py` hanya memengaruhi DOCX.
 - Keduanya berbagi sumber isi (`cover.md`, `chapters/`, `metadata.yml`,
-  `references.bib`, `refs/ieee.csl`). Perubahan isi/sitasi harus diverifikasi
+  `references.bib`, `refs/undip-msi.csl`). Perubahan isi/sitasi harus diverifikasi
   di kedua keluaran.
 - `build.sh` tidak memerlukan Python/docx; `build-docx.sh` tidak memerlukan
   Typst. `tools/env.sh` dipakai bersama hanya untuk menemukan Pandoc (dan
@@ -186,5 +221,5 @@ Konsekuensinya:
 | `[env] ERROR: Pandoc tidak ditemukan` | Instal Pandoc, atau pastikan `pandoc.exe` ada di `%LOCALAPPDATA%\Pandoc`. |
 | `[env] ERROR: Typst tidak ditemukan` | Instal Typst, atau pastikan `typst.exe` ada di `%LOCALAPPDATA%\Microsoft\WinGet\Links`. |
 | Pandoc Linux terlalu lama untuk Typst baru | Jalankan lewat Git Bash, atau biarkan `env.sh` memakai Pandoc Windows di WSL. |
-| `refs/ieee.csl` tidak ditemukan | Pastikan berkas ada; `build.sh` menyalin direktori `refs/` ke direktori kerja sementara. |
+| `refs/undip-msi.csl` tidak ditemukan | Pastikan berkas ada; `build.sh` menyalin direktori `refs/` ke direktori kerja sementara. |
 | Peringatan `--no-highlight` | Tidak berbahaya; hanya deprecation dari Pandoc 3.13. |

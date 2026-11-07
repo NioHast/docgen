@@ -6,6 +6,7 @@ Bibliography, margin 4/3/4/3, kelestarian style, serta override preset.
 
 from __future__ import annotations
 
+import re
 import subprocess
 import sys
 import zipfile
@@ -172,7 +173,8 @@ def test_undip_matches_reference_spec(generated: Path) -> None:
         assert on_off(get_rpr(heading), "b") is True
         assert val(get_rpr(heading), "color") == "000000"
         assert_alignment(heading, "both")
-        assert_spacing(heading, before=0, after=0, line=360)
+        # Satu baris kosong (12 pt = 240 twip) sebelum subbab.
+        assert_spacing(heading, before=240, after=0, line=360)
         assert on_off(get_ppr(heading), "keepNext") is True
         assert val(get_ppr(heading), "outlineLvl") == outline_level
         assert_indent(heading, left=709, hanging=709)
@@ -186,7 +188,7 @@ def test_undip_matches_reference_spec(generated: Path) -> None:
 
     image_caption = get_style(styles, "ImageCaption")
     assert_font(image_caption, "Times New Roman")
-    assert_size(image_caption, 20)
+    assert_size(image_caption, 24)
     assert on_off(get_rpr(image_caption), "b") is False
     assert on_off(get_rpr(image_caption), "i") is False
     assert_alignment(image_caption, "center")
@@ -194,10 +196,10 @@ def test_undip_matches_reference_spec(generated: Path) -> None:
 
     table_caption = get_style(styles, "TableCaption")
     assert_font(table_caption, "Times New Roman")
-    assert_size(table_caption, 20)
+    assert_size(table_caption, 24)
     assert on_off(get_rpr(table_caption), "b") is False
     assert on_off(get_rpr(table_caption), "i") is False
-    assert_alignment(table_caption, "both")
+    assert_alignment(table_caption, "left")
     assert_spacing(table_caption, before=0, after=0, line=240)
     assert on_off(get_ppr(table_caption), "keepNext") is True
 
@@ -206,7 +208,19 @@ def test_undip_matches_reference_spec(generated: Path) -> None:
     assert_size(source_code, 20)
     assert_spacing(source_code, before=0, after=0, line=240)
     assert_alignment(source_code, "left")
+    assert val(get_rpr(source_code), "color") == "000000"
     assert source_code.find(f".//{W}shd") is None
+
+    for style_id in ("VerbatimChar", "HTMLCode", "HTMLPreformatted"):
+        code_style = get_style(styles, style_id)
+        assert_font(code_style, "Courier New")
+        assert_size(code_style, 20)
+        assert val(get_rpr(code_style), "color") == "000000"
+        assert code_style.find(f".//{W}shd") is None
+
+    hyperlink = get_style(styles, "Hyperlink")
+    assert val(get_rpr(hyperlink), "color") == "000000"
+    assert val(get_rpr(hyperlink), "u") == "none"
 
     bibliography = get_style(styles, "Bibliography")
     assert_font(bibliography, "Times New Roman")
@@ -217,6 +231,17 @@ def test_undip_matches_reference_spec(generated: Path) -> None:
     figure = get_style(styles, "Figure")
     assert_alignment(figure, "center")
     assert_spacing(figure, before=0, after=0)
+
+
+def test_no_legacy_monospace_fonts(generated: Path) -> None:
+    with zipfile.ZipFile(generated) as archive:
+        for member in ("word/styles.xml", "word/document.xml"):
+            xml = archive.read(member).decode("utf-8")
+            assert not re.search(
+                r'w:(?:ascii|hAnsi|cs|eastAsia)="(?:Consolas|DejaVu Sans Mono)"',
+                xml,
+                re.I,
+            ), f"font monospace lama masih ada di {member}"
 
 
 def test_margins_remain_4_3_4_3(generated: Path) -> None:

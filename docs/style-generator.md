@@ -37,8 +37,8 @@ tampilan DOCX konsisten dengan PDF laporan.
 
 Generator juga menambahkan dua character style jika belum ada:
 
-- `IstilahAsing` — italic + `w:lang="en-US"`
-- `IstilahReview` — highlight kuning
+- `IstilahAsing`: italic + `w:lang="en-US"`
+- `IstilahReview`: highlight kuning
 
 ## Font DOCX vs font Typst
 

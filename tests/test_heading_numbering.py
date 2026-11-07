@@ -15,6 +15,8 @@ from pathlib import Path
 import pytest
 from docx import Document
 
+pytestmark = pytest.mark.integration
+
 ROOT = Path(__file__).resolve().parents[1]
 REFERENCE_DOCX = ROOT / "reference.docx"
 LUA_FILTER = ROOT / "docx.lua"

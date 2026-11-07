@@ -14,6 +14,9 @@ bisa dioverride lewat environment variable LAPORAN_DOCX) dan memeriksa:
   - footer default body kosong secara visual; probe PAGE tersembunyi
     (`vanish` + putih) masih diizinkan agar docx-pagenum.py dapat membaca
     nomor halaman dari baris terakhir PDF;
+  - settings.xml tanpa `w:updateFields` dan compatibilityMode 15;
+  - style Hyperlink hitam tanpa underline, Heading2/3 before 240 twip;
+  - style kode memakai Courier New 10 pt hitam tanpa shading;
   - field TOC/PAGEREF tidak rusak.
 
 Jalankan:
@@ -27,6 +30,10 @@ import unittest
 import zipfile
 from pathlib import Path
 
+import pytest
+
+pytestmark = pytest.mark.integration
+
 ROOT = Path(__file__).resolve().parents[1]
 DOCX_PATH = Path(os.environ.get("LAPORAN_DOCX", ROOT / "Laporan.docx"))
 
@@ -34,10 +41,25 @@ SECT_RE = re.compile(r"<w:sectPr\b[^>]*>.*?</w:sectPr>", re.S)
 PARA_RE = re.compile(r"<w:p\b[^>]*>(?:(?!</w:p>).)*?</w:p>", re.S)
 PARA_OPEN_RE = re.compile(r"<w:p\b[^>]*>")
 RUN_RE = re.compile(r"<w:r\b[^>]*>.*?</w:r>", re.S)
+STYLE_RE = re.compile(
+    r'<w:style\b[^>]*w:styleId="([^"]+)"[^>]*>.*?</w:style>', re.S
+)
 
 
 def _attrs(tag):
     return dict(re.findall(r'([\w:]+)="([^"]*)"', tag))
+
+
+def _style_xml(styles, style_id):
+    for match in STYLE_RE.finditer(styles):
+        if match.group(1) == style_id:
+            return match.group(0)
+    return None
+
+
+def _style_value(style_xml, tag):
+    match = re.search(rf'<w:{tag}\b[^>]*w:val="([^"]*)"', style_xml)
+    return match.group(1) if match else None
 
 
 def _heading_positions(doc):
@@ -189,6 +211,8 @@ class PageNumberTest(unittest.TestCase):
             raise unittest.SkipTest(f"DOCX tidak ditemukan: {DOCX_PATH}")
         cls.zip = zipfile.ZipFile(DOCX_PATH)
         cls.document = cls.zip.read("word/document.xml").decode("utf-8")
+        cls.styles = cls.zip.read("word/styles.xml").decode("utf-8")
+        cls.settings = cls.zip.read("word/settings.xml").decode("utf-8")
         cls.rels = cls.zip.read("word/_rels/document.xml.rels").decode("utf-8")
         cls.sections = _parse_sections(cls.document)
         cls.targets = {}
@@ -397,6 +421,72 @@ class PageNumberTest(unittest.TestCase):
         # Field TOC dan PAGEREF harus tetap berupa field OpenXML asli.
         self.assertIn('w:fldCharType="begin"', self.document)
         self.assertIn('w:fldCharType="end"', self.document)
+
+    def test_settings_tanpa_update_fields_dan_compat_15(self):
+        self.assertNotIn(
+            "updateFields", self.settings,
+            "w:updateFields memicu prompt update field saat DOCX dibuka",
+        )
+        modes = [
+            tag
+            for tag in re.findall(r"<w:compatSetting\b[^>]*/>", self.settings)
+            if 'w:name="compatibilityMode"' in tag
+        ]
+        self.assertEqual(
+            len(modes), 1,
+            "settings.xml harus punya tepat satu compatibilityMode",
+        )
+        self.assertRegex(modes[0], r'w:val="15"')
+        self.assertIn(
+            "<w:compat>", self.settings,
+            "w:compat wajib ada agar Word tidak membuka Compatibility Mode",
+        )
+
+    def test_hyperlink_style_hitam_tanpa_underline(self):
+        style = _style_xml(self.styles, "Hyperlink")
+        self.assertIsNotNone(style, "style Hyperlink tidak ditemukan")
+        self.assertEqual(_style_value(style, "color"), "000000")
+        self.assertEqual(_style_value(style, "u"), "none")
+        self.assertNotIn("themeColor", style)
+
+    def test_heading2_dan_heading3_satu_baris_sebelum(self):
+        for style_id in ("Heading2", "Heading3"):
+            style = _style_xml(self.styles, style_id)
+            self.assertIsNotNone(style, f"style {style_id} tidak ditemukan")
+            spacing = re.search(r"<w:spacing\b[^>]*/>", style)
+            self.assertIsNotNone(spacing)
+            before = re.search(r'w:before="(\d+)"', spacing.group(0))
+            after = re.search(r'w:after="(\d+)"', spacing.group(0))
+            self.assertIsNotNone(before)
+            self.assertIsNotNone(after)
+            self.assertEqual(int(before.group(1)), 240)
+            self.assertEqual(int(after.group(1)), 0)
+            self.assertIn('w:line="360"', spacing.group(0))
+
+    def test_style_kode_courier_new_10pt_hitam_tanpa_shading(self):
+        for style_id in (
+            "SourceCode", "VerbatimChar", "HTMLCode", "HTMLPreformatted"
+        ):
+            style = _style_xml(self.styles, style_id)
+            self.assertIsNotNone(style, f"style {style_id} tidak ditemukan")
+            rfonts = re.search(r"<w:rFonts\b[^>]*/>", style)
+            self.assertIsNotNone(rfonts)
+            for attr in ("ascii", "hAnsi", "cs"):
+                self.assertEqual(
+                    re.search(rf'w:{attr}="([^"]*)"', rfonts.group(0)).group(1),
+                    "Courier New",
+                )
+            self.assertEqual(_style_value(style, "sz"), "20")
+            self.assertEqual(_style_value(style, "color"), "000000")
+            self.assertNotIn("<w:shd", style)
+
+    def test_tidak_ada_direct_font_monospace_lama(self):
+        for xml in (self.styles, self.document):
+            self.assertNotRegex(
+                xml,
+                r'w:(?:ascii|hAnsi|cs|eastAsia)="(?:Consolas|DejaVu Sans Mono)"',
+                "font monospace lama masih dipakai sebagai formatting",
+            )
 
 
 if __name__ == "__main__":

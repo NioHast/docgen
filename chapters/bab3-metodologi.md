@@ -7,8 +7,8 @@ Pengembangan sistem **Laporan Generator** dirancang dengan prinsip modularitas t
 ```
 +-------------------------------------------------------------------------+
 |                              INPUT LAYER                                |
-|  chapters/bab*.md  |  cover.md  |  metadata.yml  |  presets/*.yml       |
-|  references.bib    |  apa.csl   |  logo.jpg      |  gambar/*            |
+|  chapters/bab*.md  |  cover.md        |  metadata.yml  |  presets/*.yml |
+|  references.bib    |  refs/undip-msi.csl    |  logo.jpg      |  gambar/*      |
 +-------------------------------------------------------------------------+
                                     |
             +-----------------------+-----------------------+
@@ -26,7 +26,7 @@ Pengembangan sistem **Laporan Generator** dirancang dengan prinsip modularitas t
             v                                               v
 +---------------------------------------+ +-------------------------------+
 |             Laporan.pdf               | |          Laporan.docx         |
-| (Clean Vector, APA Style, Typst)      | | (Roman Front, Arabic Body)    |
+| (Clean Vector, Author-Date, Typst)    | | (Roman Front, Arabic Body)    |
 +---------------------------------------+ +-------------------------------+
 ```
 
@@ -108,9 +108,11 @@ Sistem ini didukung oleh dua utilitas otomatis:
 
 ## Metodologi Pengujian dan Verifikasi
 
-Keandalan seluruh komponen pipeline diuji menggunakan test suite otomatis (`test.sh`) yang mencakup 20 kategori pengujian dan 78 *test assertions*. Pengujian memverifikasi:
-1. Ketersediaan dependensi dan kelengkapan struktur direktori proyek.
-2. Validitas metadata YAML dan integritas basis data sitasi BibTeX.
-3. Keterbacaan teks berkas PDF dan kelayakan ukuran berkas keluaran.
-4. Validitas struktur OpenXML dokumen DOCX (pemeriksaan 3 seksi, format nomor Romawi/Arab, gaya font Times New Roman, dan field TOC).
-5. Integritas sistem preset kampus, fungsionalitas scanner PDF, dan CLI helper.
+Keandalan seluruh komponen pipeline diuji menggunakan suite pytest yang terbagi dalam modul-modul terpisah untuk setiap area pengujian di direktori `tests/`. Pengujian memverifikasi:
+1. Kesesuaian gaya `reference.docx` dengan spesifikasi acuan dan override preset.
+2. Penomoran heading, caption/gambar/tabel, serta struktur penomoran halaman DOCX.
+3. Ekspor DOCX ke DOTX, injeksi ID paragraf, dan validitas manifest paragraf.
+4. Penerapan istilah asing, integrasi dengan Pandoc, dan verifikasi laporan penuh.
+5. Rekonsiliasi edit manual DOCX ke Markdown serta pemeriksaan prosa.
+
+Selain suite pytest, verifikasi integrasi dilakukan melalui `bash build.sh` untuk PDF dan `bash build-docx.sh` untuk DOCX. Kedua skrip memeriksa ketersediaan dependensi dan menghasilkan berkas keluaran; `build-docx.sh` juga menjalankan pascaproses seksi, caption, istilah, nomor halaman, dan ID paragraf. Laporan ini tidak mencantumkan jumlah kasus uji atau persentase kelulusan tetap karena angka tersebut berubah setiap kali suite diperbarui.

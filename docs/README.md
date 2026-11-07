@@ -7,7 +7,7 @@ memproses DOCX, meninjau, lalu mendistribusikan. Kembali ke
 | No | Dokumen | Penjelasan |
 | --- | --- | --- |
 | 1 | [prosa.md](prosa.md) | Panduan dan pemeriksa prosa Indonesia: kode temuan, `make lint-prosa`, `--banding`, dan batasan pemeriksaan berbasis regex. |
-| 2 | [format-undip.md](format-undip.md) | Format target UNDIP, ringkasan preset `undip-skripsi`, dan sitasi IEEE; nilai `heading_subsub_dot` dan catatan integrasi `refs/` di bagian akhir sudah usang. |
+| 2 | [format-undip.md](format-undip.md) | Format target UNDIP: preset `undip-skripsi` final dan teruji, margin 4/3/4/3 cm, aturan heading H1-H3, caption gambar/tabel 12 pt dengan caption tabel rata kiri, kode Courier New 10 pt, bibliografi hanging 1,27 cm, serta sitasi author-date (turunan APA 7) dengan daftar pustaka alfabetis. |
 | 3 | [style-generator.md](style-generator.md) | Cara `tools/build_style.py` menghasilkan `reference.docx` dari preset serta pemetaan margin, font, dan spasi ke DOCX. |
 | 4 | [pdf.md](pdf.md) | Pipeline PDF Pandoc ke Typst, peran `template.typ` dan `tools/env.sh`, serta perbedaan tata letak PDF dan DOCX. |
 | 5 | [istilah.md](istilah.md) | Glosarium `writing/istilah.tsv`, penanda `{{?istilah?}}`, perintah `check`/`apply`/`verify`/`review`, dan batasannya. |

@@ -1,4 +1,4 @@
-.PHONY: build clean lint-deps lint-prosa watch docx html crossref test docker-build init view reference-docx finalize-word
+.PHONY: build clean lint-deps lint-prosa watch docx html crossref test test-fast docker-build init view reference-docx finalize-word
 
 build:
 	./build.sh
@@ -88,7 +88,16 @@ crossref:
 	CITEPROC_OPTS="--filter pandoc-crossref" ./build.sh
 
 test:
-	./test.sh
+	@if [ -x .venv/Scripts/python.exe ]; then PY=.venv/Scripts/python.exe; \
+	elif [ -x .venv/bin/python ]; then PY=.venv/bin/python; \
+	else PY=python; fi; \
+	$$PY -m pytest tests -q
+
+test-fast:
+	@if [ -x .venv/Scripts/python.exe ]; then PY=.venv/Scripts/python.exe; \
+	elif [ -x .venv/bin/python ]; then PY=.venv/bin/python; \
+	else PY=python; fi; \
+	$$PY -m pytest tests -m "not integration" -q
 
 docker-build:
 	docker compose build

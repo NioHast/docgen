@@ -154,6 +154,17 @@ local function pagebreak()
   return pandoc.RawBlock("openxml", '<w:p><w:r><w:br w:type="page"/></w:r></w:p>')
 end
 
+-- Escape teks yang ditulis ke XML mentah. Teks dari heading bisa memuat
+-- karakter seperti &, <, atau > yang membuat document.xml tidak valid bila
+-- dimasukkan apa adanya ke <w:t>.
+local function xml_escape(text)
+  local s = tostring(text or "")
+  s = s:gsub("&", "&amp;")
+  s = s:gsub("<", "&lt;")
+  s = s:gsub(">", "&gt;")
+  return s
+end
+
 local function spacer(before)
   return pandoc.RawBlock(
     "openxml",
@@ -302,7 +313,7 @@ local function toc_entry(e)
     '<w:tabs><w:tab w:val="right" w:leader="dot" w:pos="9072"/></w:tabs>' ..
     '<w:ind w:left="' .. ind .. '" w:right="0"/></w:pPr>' ..
     '<w:hyperlink w:anchor="' .. e.id .. '" w:history="1">' ..
-    '<w:r>' .. bold .. '<w:t xml:space="preserve">' .. e.text .. '</w:t></w:r>' ..
+    '<w:r>' .. bold .. '<w:t xml:space="preserve">' .. xml_escape(e.text) .. '</w:t></w:r>' ..
     '</w:hyperlink>' ..
     '<w:r><w:tab/></w:r>' ..
     '<w:r><w:fldChar w:fldCharType="begin" w:dirty="true"/></w:r>' ..

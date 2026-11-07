@@ -8,6 +8,38 @@ LAPORAN_ENV_SKIP_TYPST=1
 # shellcheck source=tools/env.sh
 source "$DIR/tools/env.sh"
 
+# Proyek turunan (mis. proposal) dapat memakai metadata dan nama laporan lain
+# tanpa menyalin skrip. Default tetap metadata.yml dan Laporan.
+METADATA_NAME="${LAPORAN_METADATA:-metadata.yml}"
+REPORT_NAME="${LAPORAN_REPORT_NAME:-Laporan}"
+
+# Direktori bab: LAPORAN_CHAPTERS eksplisit menang. Bila metadata berada di
+# subdirektori (mis. proposal/metadata.yml), default-nya <dir metadata>/chapters.
+if [ -n "${LAPORAN_CHAPTERS:-}" ]; then
+  CHAPTERS_DIR="$LAPORAN_CHAPTERS"
+else
+  case "$METADATA_NAME" in
+    */*)
+      METADATA_DIR="${METADATA_NAME%/*}"
+      [ -n "$METADATA_DIR" ] || METADATA_DIR="."
+      CHAPTERS_DIR="$METADATA_DIR/chapters"
+      ;;
+    *)
+      CHAPTERS_DIR="chapters"
+      ;;
+  esac
+fi
+
+# Gabungkan path relatif dengan basis; path absolut dibiarkan apa adanya.
+resolve_path() {
+  local path="$1"
+  local base="$2"
+  case "$path" in
+    /*|[A-Za-z]:*) printf '%s\n' "$path" ;;
+    *) printf '%s/%s\n' "$base" "$path" ;;
+  esac
+}
+
 # Build DOCX harus dijalankan dari Git Bash di Windows. WSL tidak dapat
 # memanggil venv Windows dan path /mnt/c memicu WinError 5 pada python-docx.
 if [ -r /proc/version ] && grep -qi "microsoft" /proc/version 2>/dev/null; then
@@ -22,14 +54,25 @@ fi
 
 if [ -n "$1" ]; then
   OUTDIR="$(cd "$1" && pwd)"
-elif [ -f "$(pwd)/metadata.yml" ] && [ -d "$(pwd)/chapters" ]; then
+elif [ -f "$(resolve_path "$METADATA_NAME" "$(pwd)")" ] && [ -d "$(resolve_path "$CHAPTERS_DIR" "$(pwd)")" ]; then
   OUTDIR="$(pwd)"
-elif [ -f "$DIR/templates/default/metadata.yml" ] && [ -d "$DIR/templates/default/chapters" ]; then
+elif [ -f "$(resolve_path "$METADATA_NAME" "$DIR/templates/default")" ] && [ -d "$(resolve_path "$CHAPTERS_DIR" "$DIR/templates/default")" ]; then
   OUTDIR="$DIR/templates/default"
 else
   OUTDIR="$DIR"
 fi
-REPORT="$OUTDIR/Laporan.docx"
+REPORT="$OUTDIR/${REPORT_NAME}.docx"
+
+# Manifest tesis tetap build/manifest.json agar reconcile/docs menemukannya.
+# Laporan lain (mis. Proposal) memakai nama sendiri agar tidak saling menimpa.
+if [ "$REPORT_NAME" = "Laporan" ]; then
+  MANIFEST_PATH="$OUTDIR/build/manifest.json"
+else
+  MANIFEST_PATH="$OUTDIR/build/manifest-${REPORT_NAME}.json"
+fi
+
+CHAPTERS_PATH="$(resolve_path "$CHAPTERS_DIR" "$OUTDIR")"
+CHAPTERS_PARENT="$(dirname "$CHAPTERS_PATH")"
 
 # Resolve Python (handle WindowsApps stub redirector on Windows).
 # Utamakan venv repo bila ada karena add_paragraph_ids.py membutuhkan
@@ -47,8 +90,8 @@ for VENV_PYTHON in "$DIR/.venv/Scripts/python.exe" "$DIR/.venv/bin/python"; do
   fi
 done
 
-if [ ! -d "$OUTDIR/chapters" ]; then
-  echo "ERROR: Direktori chapters/ tidak ditemukan."
+if [ ! -d "$CHAPTERS_PATH" ]; then
+  echo "ERROR: Direktori $CHAPTERS_DIR tidak ditemukan." >&2
   exit 1
 fi
 
@@ -74,11 +117,78 @@ copy_asset() {
   return 1
 }
 
-copy_asset "cover.md" "$TMPDIR" || true
+# Salin metadata dengan nama aslinya. LAPORAN_METADATA boleh berupa path
+# relatif terhadap OUTDIR/DIR atau path absolut.
+copy_metadata() {
+  local name="$1"
+  local dest="$2"
+  local base
+  case "$name" in
+    /*|[A-Za-z]:*)
+      if [ -f "$name" ]; then
+        cp "$name" "$dest/"
+        return 0
+      fi
+      return 1
+      ;;
+  esac
+  for base in "${FALLBACK_DIRS[@]}"; do
+    if [ -f "$base/$name" ]; then
+      cp "$base/$name" "$dest/"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Cari script tahap DOCX di salinan $TMPDIR/tools, lalu di FALLBACK_DIRS.
+resolve_tool() {
+  local name="$1"
+  local candidate="$TMPDIR/tools/$name"
+  local base
+  if [ -f "$candidate" ]; then
+    printf '%s\n' "$candidate"
+    return 0
+  fi
+  for base in "${FALLBACK_DIRS[@]}"; do
+    if [ -f "$base/tools/$name" ]; then
+      printf '%s\n' "$base/tools/$name"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Cover mengikuti direktori metadata bila tersedia (mis. proposal/cover.md).
+# Default tetap cover.md root agar perilaku tesis tidak berubah.
+COVER_SOURCE=""
+case "$METADATA_NAME" in
+  */*)
+    COVER_DIR="${METADATA_NAME%/*}"
+    [ -n "$COVER_DIR" ] || COVER_DIR="."
+    for base in "${FALLBACK_DIRS[@]}"; do
+      candidate="$(resolve_path "$COVER_DIR/cover.md" "$base")"
+      if [ -f "$candidate" ]; then
+        COVER_SOURCE="$candidate"
+        break
+      fi
+    done
+    ;;
+esac
+if [ -n "$COVER_SOURCE" ]; then
+  cp "$COVER_SOURCE" "$TMPDIR/cover.md"
+else
+  copy_asset "cover.md" "$TMPDIR" || true
+fi
 copy_asset "logo.jpg" "$TMPDIR" || true
 copy_asset "reference.docx" "$TMPDIR" || true
 copy_asset "docx.lua" "$TMPDIR" || true
-copy_asset "metadata.yml" "$TMPDIR" || true
+if ! copy_metadata "$METADATA_NAME" "$TMPDIR"; then
+  echo "ERROR: Berkas metadata '$METADATA_NAME' tidak ditemukan." >&2
+  echo "       Sediakan metadata.yml atau set LAPORAN_METADATA." >&2
+  exit 1
+fi
+METADATA_BASENAME="$(basename "$METADATA_NAME")"
 copy_asset "references.bib" "$TMPDIR" || true
 copy_asset "apa.csl" "$TMPDIR" || true
 copy_asset "refs" "$TMPDIR" || true
@@ -86,43 +196,64 @@ copy_asset "presets" "$TMPDIR" || true
 copy_asset "scripts" "$TMPDIR" || true
 copy_asset "tools" "$TMPDIR" || true
 
-if [ ! -f "$TMPDIR/refs/ieee.csl" ]; then
-  echo "ERROR: refs/ieee.csl tidak ditemukan; sitasi tidak dapat diproses." >&2
-  echo "       Letakkan berkas CSL di refs/ieee.csl." >&2
-  exit 1
-fi
-
-if [ -d "$OUTDIR/gambar" ]; then
+GAMBAR_DIR="$CHAPTERS_PARENT/gambar"
+if [ -d "$GAMBAR_DIR" ]; then
+  cp -r "$GAMBAR_DIR" "$TMPDIR/"
+elif [ -d "$OUTDIR/gambar" ]; then
   cp -r "$OUTDIR/gambar" "$TMPDIR/"
 elif [ -d "$DIR/gambar" ]; then
   cp -r "$DIR/gambar" "$TMPDIR/"
 fi
 
-cp "$OUTDIR/chapters"/*.md "$TMPDIR/" 2>/dev/null || true
+cp "$CHAPTERS_PATH"/*.md "$TMPDIR/" 2>/dev/null || true
 CHAPTER_FILES=$(find "$TMPDIR" -maxdepth 1 -name "bab*.md" | sort -V)
 if [ -z "$CHAPTER_FILES" ]; then
-  echo "ERROR: Tidak ada berkas bab*.md di direktori chapters/."
+  # Proposal memakai nama berangka (1-pendahuluan.md, ...), bukan bab*.md.
+  CHAPTER_FILES=$(find "$TMPDIR" -maxdepth 1 -name "*.md" ! -name "cover.md" | sort -V)
+fi
+if [ -z "$CHAPTER_FILES" ]; then
+  echo "ERROR: Tidak ada berkas .md di direktori $CHAPTERS_DIR." >&2
   exit 1
 fi
 INPUT_FILES=("$TMPDIR/cover.md")
 while IFS= read -r f; do
   [ -n "$f" ] && INPUT_FILES+=("$f")
-done < <(find "$TMPDIR" -maxdepth 1 -name "bab*.md" | sort -V)
+done <<< "$CHAPTER_FILES"
 
 cd "$TMPDIR"
 
-PRESET_NAME=$(grep -E '^[[:space:]]*(preset|margin_preset):' "$TMPDIR/metadata.yml" 2>/dev/null | head -n 1 | cut -d: -f2- | tr -d '"'\''\r\n ')
+PRESET_NAME=$(grep -E '^[[:space:]]*(preset|margin_preset):' "$TMPDIR/$METADATA_BASENAME" 2>/dev/null | head -n 1 | cut -d: -f2- | tr -d '"'\''\r\n ')
 PRESET_PATH=""
 PRESET_OPTS=()
-if [ -n "$PRESET_NAME" ] && [ -f "$TMPDIR/presets/${PRESET_NAME}.yml" ]; then
+if [ -n "$PRESET_NAME" ]; then
+  if [ ! -f "$TMPDIR/presets/${PRESET_NAME}.yml" ]; then
+    echo "ERROR: Preset '${PRESET_NAME}' tidak ditemukan di presets/. Perbaiki $METADATA_BASENAME." >&2
+    exit 1
+  fi
   PRESET_PATH="$TMPDIR/presets/${PRESET_NAME}.yml"
   PRESET_OPTS=("--metadata-file=$PRESET_PATH")
 elif [ -f "$TMPDIR/presets/standard.yml" ]; then
   PRESET_PATH="$TMPDIR/presets/standard.yml"
   PRESET_OPTS=("--metadata-file=$PRESET_PATH")
 else
-  echo "ERROR: Preset format tidak ditemukan (metadata: '${PRESET_NAME:-<kosong>}')." >&2
-  echo "       Sediakan presets/${PRESET_NAME}.yml atau presets/standard.yml." >&2
+  echo "ERROR: Preset format tidak ditemukan (metadata: '<kosong>')." >&2
+  echo "       Sediakan presets/standard.yml." >&2
+  exit 1
+fi
+
+# Gaya sitasi mengikuti kunci csl: pada preset; default turunan APA 7 UNDIP MSI.
+CSL_PATH="refs/undip-msi.csl"
+PRESET_CSL=$(grep -E '^[[:space:]]*csl:' "$PRESET_PATH" 2>/dev/null | head -n 1 | cut -d: -f2- | tr -d '"'\''\r\n ')
+if [ -n "$PRESET_CSL" ]; then
+  CSL_PATH="$PRESET_CSL"
+fi
+case "$CSL_PATH" in
+  /*|[A-Za-z]:*) CSL_FILE="$CSL_PATH" ;;
+  *) CSL_FILE="$TMPDIR/$CSL_PATH" ;;
+esac
+if [ ! -f "$CSL_FILE" ]; then
+  echo "ERROR: Berkas CSL '$CSL_PATH' tidak ditemukan; sitasi tidak dapat diproses." >&2
+  echo "       Periksa kunci csl: pada preset atau sediakan refs/undip-msi.csl." >&2
   exit 1
 fi
 
@@ -182,7 +313,7 @@ if [ ! -f "$ISTILAH_SCRIPT" ]; then
   exit 1
 fi
 
-for CHAPTER in "$OUTDIR"/chapters/*.md; do
+for CHAPTER in "$CHAPTERS_PATH"/*.md; do
   [ -e "$CHAPTER" ] || continue
   CHECK_STATUS=0
   "$ISTILAH_PYTHON" "$ISTILAH_SCRIPT" check "$CHAPTER" \
@@ -202,10 +333,10 @@ done
 "${LAPORAN_PANDOC:-pandoc}" \
   "${INPUT_FILES[@]}" \
   "${PRESET_OPTS[@]}" \
-  --metadata-file="metadata.yml" \
+  --metadata-file="$METADATA_BASENAME" \
   --citeproc \
   --bibliography="references.bib" \
-  --csl="refs/ieee.csl" \
+  --csl="$CSL_PATH" \
   --metadata=reference-section-title="DAFTAR PUSTAKA" \
   --top-level-division=chapter \
   --reference-doc="$GENERATED_REFERENCE" \
@@ -260,8 +391,60 @@ if [ ! -s "$FIGURES_DOCX" ]; then
   exit 1
 fi
 
+# --- Normalisasi layout, kode, dan persamaan -------------------------------
+NORMALIZE_SCRIPT="$(resolve_tool normalize_layout.py)" || {
+  echo "ERROR: tools/normalize_layout.py tidak ditemukan." >&2
+  exit 1
+}
+NORMALIZE_DOCX="$TMPDIR/Laporan-layout.docx"
+if ! "$PYTHON_BIN" "$NORMALIZE_SCRIPT" --docx "$FIGURES_DOCX" --out "$NORMALIZE_DOCX"; then
+  echo "ERROR: normalize_layout.py gagal; build dihentikan." >&2
+  exit 1
+fi
+if [ ! -s "$NORMALIZE_DOCX" ]; then
+  echo "ERROR: normalize_layout.py tidak menghasilkan DOCX: $NORMALIZE_DOCX" >&2
+  exit 1
+fi
+
+CODE_SCRIPT="$(resolve_tool format_code.py)" || {
+  echo "ERROR: tools/format_code.py tidak ditemukan." >&2
+  exit 1
+}
+CODE_DOCX="$TMPDIR/Laporan-code.docx"
+if ! "$PYTHON_BIN" "$CODE_SCRIPT" --docx "$NORMALIZE_DOCX" --out "$CODE_DOCX"; then
+  echo "ERROR: format_code.py gagal; build dihentikan." >&2
+  exit 1
+fi
+if [ ! -s "$CODE_DOCX" ]; then
+  echo "ERROR: format_code.py tidak menghasilkan DOCX: $CODE_DOCX" >&2
+  exit 1
+fi
+
+EQUATIONS_SCRIPT="$(resolve_tool format_equations.py)" || {
+  echo "ERROR: tools/format_equations.py tidak ditemukan." >&2
+  exit 1
+}
+EQUATIONS_DOCX="$TMPDIR/Laporan-eq.docx"
+if ! "$PYTHON_BIN" "$EQUATIONS_SCRIPT" --docx "$CODE_DOCX" --out "$EQUATIONS_DOCX"; then
+  echo "ERROR: format_equations.py gagal; build dihentikan." >&2
+  exit 1
+fi
+if [ ! -s "$EQUATIONS_DOCX" ]; then
+  echo "ERROR: format_equations.py tidak menghasilkan DOCX: $EQUATIONS_DOCX" >&2
+  exit 1
+fi
+
+# --- Istilah (setelah format kode/persamaan) -------------------------------
+# istilah.py apply bekerja in-place; pakai salinan agar output tahap sebelumnya
+# tetap utuh dan rantai tidak menimpa input di tengah jalan.
+ISTILAH_DOCX="$TMPDIR/Laporan-istilah.docx"
+if ! cp "$EQUATIONS_DOCX" "$ISTILAH_DOCX"; then
+  echo "ERROR: Gagal menyalin DOCX ke $ISTILAH_DOCX." >&2
+  exit 1
+fi
+
 if ! "$ISTILAH_PYTHON" "$ISTILAH_SCRIPT" apply \
-  "$FIGURES_DOCX" \
+  "$ISTILAH_DOCX" \
   --glossary "$GLOSSARY" \
   --review-file "$ISTILAH_REVIEW"; then
   echo "ERROR: apply istilah gagal; build dihentikan." >&2
@@ -269,15 +452,30 @@ if ! "$ISTILAH_PYTHON" "$ISTILAH_SCRIPT" apply \
 fi
 
 if ! "$ISTILAH_PYTHON" "$ISTILAH_SCRIPT" verify \
-  "$FIGURES_DOCX" \
+  "$ISTILAH_DOCX" \
   --glossary "$GLOSSARY"; then
   echo "ERROR: verify istilah gagal; build dihentikan. Lihat temuan di atas." >&2
   exit 1
 fi
 
-"$PYTHON_BIN" "$PAGENUM_SCRIPT" "$FIGURES_DOCX" "$REPORT"
+if ! "$PYTHON_BIN" "$PAGENUM_SCRIPT" "$ISTILAH_DOCX" "$REPORT"; then
+  echo "ERROR: docx-pagenum.py gagal; build dihentikan." >&2
+  exit 1
+fi
 
-# --- ID paragraf + manifest Adeu (setelah finalize/istilah/pagenum) --------
+# --- Finalisasi Word (in-place pada $REPORT, sebelum ID paragraf) ----------
+# Word memperbarui field TOC/PAGEREF dan dapat menghapus paragraf cache TOC.
+# Jalankan sebelum add_paragraph_ids.py agar manifest mencerminkan DOCX final.
+WORD_FINALIZE_SCRIPT="$(resolve_tool word_finalize.py)" || {
+  echo "ERROR: tools/word_finalize.py tidak ditemukan." >&2
+  exit 1
+}
+if ! "$PYTHON_BIN" "$WORD_FINALIZE_SCRIPT" "$REPORT"; then
+  echo "ERROR: word_finalize.py gagal; build dihentikan." >&2
+  exit 1
+fi
+
+# --- ID paragraf + manifest Adeu (dari DOCX final setelah Word) ------------
 mkdir -p "$OUTDIR/build"
 
 PARAGRAPH_IDS_SCRIPT="$TMPDIR/tools/add_paragraph_ids.py"
@@ -304,9 +502,9 @@ fi
 IDS_DOCX="$TMPDIR/Laporan-ids.docx"
 if ! "$PYTHON_BIN" "$PARAGRAPH_IDS_SCRIPT" "$REPORT" \
   --out-docx "$IDS_DOCX" \
-  --manifest "$OUTDIR/build/manifest.json" \
-  --docx-name "Laporan.docx" \
-  --source-dir "$OUTDIR/chapters"; then
+  --manifest "$MANIFEST_PATH" \
+  --docx-name "${REPORT_NAME}.docx" \
+  --source-dir "$CHAPTERS_PATH"; then
   echo "ERROR: Gagal menambahkan ID paragraf ke $REPORT; build dihentikan." >&2
   exit 1
 fi
@@ -318,4 +516,4 @@ rm -f "$IDS_DOCX"
 
 echo "=== DOCX BERHASIL DIBUAT ==="
 echo "Lokasi: $REPORT"
-echo "Manifest: $OUTDIR/build/manifest.json"
+echo "Manifest: $MANIFEST_PATH"

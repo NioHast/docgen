@@ -22,13 +22,23 @@ $endif$
   paper: "a4",
   margin: doc-margin,
   numbering: none,
+  number-align: right,
 )
 
 $if(font_family)$
-#set text(font: "$font_family$", size: $if(font_size)$$font_size$$else$12pt$endif$)
+#let preset-font = "$font_family$"
 $else$
-#set text(font: "Libertinus Serif", size: 12pt)
+#let preset-font = ""
 $endif$
+// MSI UNDIP mewajibkan Times New Roman 12 pt. Nilai lama "Libertinus Serif"
+// dari preset generik diperlakukan sebagai default, bukan pilihan eksplisit.
+// Jika TNR tidak tersedia, Typst memakai Libertinus Serif sebagai fallback.
+#let doc-font = if preset-font == "" or preset-font == "Libertinus Serif" or preset-font == "Times New Roman" {
+  ("Times New Roman", "Libertinus Serif")
+} else {
+  (preset-font, "Times New Roman", "Libertinus Serif")
+}
+#set text(font: doc-font, size: $if(font_size)$$font_size$$else$12pt$endif$)
 
 $if(line_spacing)$
 #set par(justify: true, leading: $line_spacing$, first-line-indent: $if(first_line_indent)$$first_line_indent$$else$1.25cm$endif$)
@@ -37,7 +47,12 @@ $else$
 $endif$
 #show bibliography: set par(hanging-indent: $if(first_line_indent)$$first_line_indent$$else$1.25cm$endif$, first-line-indent: 0cm)
 
-#let raw-prefix = "$if(heading_chapter_prefix)$$heading_chapter_prefix$$else$BAB $endif$"
+// Pandoc menganggap string kosong sebagai false pada direktif if. Untuk
+// membedakan "kunci tidak ada" dari "kunci ada tetapi bernilai kosong"
+// (proposal: heading_chapter_prefix: ""), pakai direktif for yang tetap
+// melakukan satu iterasi untuk string kosong.
+#let prefix-defined = "$for(heading_chapter_prefix)$true$endfor$"
+#let raw-prefix = if prefix-defined == "true" { "$heading_chapter_prefix$" } else { "BAB " }
 #let chapter-prefix = if raw-prefix == "" {
   ""
 } else if raw-prefix.ends-with(" ") {
@@ -52,6 +67,15 @@ $endif$
   } else {
     numbering("I", n)
   }
+}
+// Opsi page break per bab. Default: true untuk tesis (perilaku lama).
+// Mode proposal (prefix kosong + angka Arab) default-nya tidak memaksa page
+// break. Nilai heading_chapter_pagebreak selalu menang bila diisi eksplisit.
+#let pagebreak-defined = "$for(heading_chapter_pagebreak)$$heading_chapter_pagebreak$$endfor$"
+#let chapter-pagebreak = if pagebreak-defined == "" {
+  if chapter-prefix == "" and chapter-fmt == "arabic" { "false" } else { "true" }
+} else {
+  pagebreak-defined
 }
 
 #set heading(numbering: (..ns) => {
@@ -92,23 +116,40 @@ $endif$
   }
 )
 
-#set math.equation(numbering: it => "(" + str(counter(heading).get().at(0, default: 1)) + "." + str(it) + ")")
+#let eq-spacing = 2 * $if(line_spacing)$$line_spacing$$else$0.75em$endif$
+#set math.equation(
+  numbering: it => "(" + str(counter(heading).get().at(0, default: 1)) + "." + str(it) + ")",
+  number-align: right,
+)
+// Panduan MSI: jarak 2 kali jarak baris sebelum/sesudah persamaan, persamaan
+// menjorok ke kanan (2 tabulasi). Nilai 2 tabulasi tidak punya padanan metrik
+// pasti; dipakai 1 cm dan nomor tetap di tepi kanan margin.
+#show math.equation.where(block: true): it => block(
+  above: eq-spacing,
+  below: eq-spacing,
+  {
+    set align(left)
+    pad(left: 1cm, it)
+  },
+)
 
 #show heading.where(level: 1): it => {
   counter(figure.where(kind: image)).update(0)
   counter(figure.where(kind: table)).update(0)
   counter(figure.where(kind: raw)).update(0)
   counter(math.equation).update(0)
-  pagebreak(weak: true)
+  if chapter-pagebreak != "false" {
+    pagebreak(weak: true)
+  }
   align(center)[
     #block(inset: (top: 0.5em, bottom: 1.8em))[
-      #text(size: 14pt, weight: "bold")[
+      #text(size: 12pt, weight: "bold")[
         #if it.numbering != none [
           #if chapter-prefix != "" [
             #(chapter-prefix + format-chapter-num(counter(heading).get().at(0)))
             #linebreak()
           ] else [
-            #(format-chapter-num(counter(heading).get().at(0)) + ". ")
+            #(format-chapter-num(counter(heading).get().at(0)) + ".")
           ]
           #if it.body.has("text") [
             #upper(it.body.text)
@@ -240,7 +281,16 @@ $endif$
 
 #set table(stroke: 0.5pt + luma(140), inset: 4pt)
 #show table.header: set text(weight: "bold")
+// Caption MSI: semua caption 12 pt. Caption gambar tetap di bawah dan
+// mengikuti perataan figure (center). Caption tabel dipindahkan ke atas dan
+// dibuat rapat kiri tanpa menggeser tabelnya.
 #set figure.caption(position: bottom)
+#show figure.caption: set text(size: 12pt)
+#show figure.where(kind: table): set figure.caption(position: top)
+#show figure.where(kind: table): it => {
+  show figure.caption: cap => block(width: 100%, align(left, cap))
+  it
+}
 #show raw.where(block: true): set text(font: "DejaVu Sans Mono", size: 9pt)
 
 #v(1cm)
@@ -298,8 +348,9 @@ $endfor$
 #v(1cm)
 
 #pagebreak()
-#set page(numbering: "i")
-#counter(page).update(1)
+#set page(numbering: "i", number-align: right)
+// Sampul adalah halaman i yang tidak dicetak; front matter mulai ii.
+#counter(page).update(2)
 
 $if(approval)$
 #align(center)[

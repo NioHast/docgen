@@ -32,8 +32,10 @@ Usage:
   python3 scripts/finalize-docx.py input.docx output.docx
 """
 
+import os
 import re
 import sys
+import tempfile
 import zipfile
 
 if sys.platform == "win32":
@@ -53,6 +55,136 @@ HEADER_FOOTER_REF_RE = re.compile(r"<w:(?:header|footer)Reference\b[^>]*/>")
 PGNUM_RE = re.compile(r"<w:pgNumType\b[^>]*/>")
 TITLEPG_RE = re.compile(r"<w:titlePg\b[^>]*/>")
 SECT_TYPE_RE = re.compile(r"<w:type\b[^>]*/>")
+
+RUN_RE = re.compile(r"<w:r\b[^>]*>.*?</w:r>", re.S)
+HYPERLINK_RE = re.compile(r"<w:hyperlink\b[^>]*>.*?</w:hyperlink>", re.S)
+STYLE_RE = re.compile(
+    r'<w:style\b[^>]*w:styleId="([^"]+)"[^>]*>.*?</w:style>', re.S
+)
+W_TAG_RE = re.compile(r"<(/?)(w:[A-Za-z0-9]+)\b([^>]*)>")
+UPDATE_FIELDS_RE = re.compile(
+    r"<w:updateFields\b[^>]*/>|<w:updateFields\b[^>]*>.*?</w:updateFields>",
+    re.S,
+)
+COMPAT_SETTING_RE = re.compile(
+    r"<w:compatSetting\b[^>]*/>"
+    r"|<w:compatSetting\b[^>]*>.*?</w:compatSetting>",
+    re.S,
+)
+COMPAT_RE = re.compile(
+    r"<w:compat\b[^>]*>.*?</w:compat>|<w:compat\b[^>]*/>", re.S
+)
+
+# Urutan anak rPr/pPr sesuai skema OOXML agar Word tidak menganggap XML rusak.
+RPR_ORDER = (
+    "rStyle",
+    "rFonts",
+    "b",
+    "bCs",
+    "i",
+    "iCs",
+    "caps",
+    "smallCaps",
+    "strike",
+    "dstrike",
+    "outline",
+    "shadow",
+    "emboss",
+    "imprint",
+    "noProof",
+    "snapToGrid",
+    "vanish",
+    "webHidden",
+    "color",
+    "spacing",
+    "w",
+    "kern",
+    "position",
+    "sz",
+    "szCs",
+    "highlight",
+    "u",
+    "effect",
+    "bdr",
+    "shd",
+    "fitText",
+    "vertAlign",
+    "rtl",
+    "cs",
+    "em",
+    "lang",
+    "eastAsianLayout",
+    "specVanish",
+    "oMath",
+)
+PPR_ORDER = (
+    "pStyle",
+    "keepNext",
+    "keepLines",
+    "pageBreakBefore",
+    "framePr",
+    "widowControl",
+    "numPr",
+    "suppressLineNumbers",
+    "pBdr",
+    "shd",
+    "tabs",
+    "suppressAutoHyphens",
+    "kinsoku",
+    "wordWrap",
+    "overflowPunct",
+    "topLinePunct",
+    "autoSpaceDE",
+    "autoSpaceDN",
+    "bidi",
+    "adjustRightInd",
+    "snapToGrid",
+    "spacing",
+    "ind",
+    "contextualSpacing",
+    "mirrorIndents",
+    "suppressOverlap",
+    "jc",
+    "textDirection",
+    "textAlignment",
+    "textboxTightWrap",
+    "outlineLvl",
+    "divId",
+    "cnfStyle",
+    "rPr",
+    "sectPr",
+    "pPrChange",
+)
+
+CODE_STYLE_IDS = ("SourceCode", "VerbatimChar", "HTMLCode", "HTMLPreformatted")
+CODE_STYLE_TYPES = {
+    "SourceCode": "paragraph",
+    "VerbatimChar": "character",
+    "HTMLCode": "character",
+    "HTMLPreformatted": "paragraph",
+}
+CODE_STYLE_NAMES = {
+    "SourceCode": "Source Code",
+    "VerbatimChar": "Verbatim Char",
+    "HTMLCode": "HTML Code",
+    "HTMLPreformatted": "HTML Preformatted",
+}
+CODE_FONT = "Courier New"
+CODE_SIZE_HALF_POINTS = 20  # 10 pt
+MONOSPACE_FONTS = {
+    "consolas",
+    "courier",
+    "courier new",
+    "dejavu sans mono",
+    "lucida console",
+    "menlo",
+    "monaco",
+    "source code pro",
+}
+COMPAT_MODE_TAG = (
+    '<w:compatSetting w:name="compatibilityMode" '
+    'w:uri="http://schemas.microsoft.com/office/word" w:val="15"/>'
+)
 
 # Heading1 yang termasuk front matter. Dipakai sebagai fallback bila tidak
 # ada heading "BAB ..." (mis. dokumen tanpa bab bernomor).
@@ -115,6 +247,575 @@ SECT_TYPE_BEFORE = ("pgSz", "pgMar", "cols", "docGrid")
 def para_text(paragraph):
     """Ambil seluruh teks dalam satu paragraf (bisa terdiri dari banyak run)."""
     return " ".join(re.findall(r"<w:t[^>]*>([^<]*)</w:t>", paragraph)).strip()
+
+
+def xml_escape_attr(value):
+    return (
+        str(value)
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+    )
+
+
+def set_tag_attrs(tag, attrs):
+    """Ganti/tambah/hapus atribut ``w:*`` pada satu elemen XML."""
+    for name, value in attrs.items():
+        pattern = re.compile(rf'(\s+w:{re.escape(name)}=")[^"]*(")')
+        if value is None:
+            tag = pattern.sub("", tag, count=1)
+            continue
+        if pattern.search(tag):
+            tag = pattern.sub(
+                lambda match: (
+                    f"{match.group(1)}{xml_escape_attr(value)}{match.group(2)}"
+                ),
+                tag,
+                count=1,
+            )
+            continue
+        stripped = tag.rstrip()
+        if stripped.endswith("/>"):
+            tag = stripped[:-2].rstrip() + f' w:{name}="{xml_escape_attr(value)}"/>'
+        elif stripped.endswith(">"):
+            tag = stripped[:-1].rstrip() + f' w:{name}="{xml_escape_attr(value)}">'
+        else:
+            raise ValueError(f"Elemen bukan tag XML yang valid: {tag[:80]}")
+    return tag
+
+
+def iter_top_level_spans(inner):
+    """Hasilkan (start, end, tag) untuk elemen top-level dalam container."""
+    depth = 0
+    start = None
+    tag = None
+
+    for match in W_TAG_RE.finditer(inner):
+        closing = match.group(1) == "/"
+        tag_name = match.group(2).split(":", 1)[1]
+        self_closing = (not closing) and match.group(3).rstrip().endswith("/")
+
+        if closing:
+            if depth == 0:
+                continue
+            depth -= 1
+            if depth == 0 and start is not None and tag is not None:
+                yield start, match.end(), tag
+                start = None
+                tag = None
+            continue
+
+        if depth == 0:
+            start = match.start()
+            tag = tag_name
+            if self_closing:
+                yield start, match.end(), tag
+                start = None
+                tag = None
+            else:
+                depth = 1
+        elif not self_closing:
+            depth += 1
+
+
+def find_top_level_span(inner, tag):
+    for start, end, name in iter_top_level_spans(inner):
+        if name == tag:
+            return start, end
+    return None
+
+
+def remove_top_level_child(inner, tag):
+    spans = [
+        (start, end)
+        for start, end, name in iter_top_level_spans(inner)
+        if name == tag
+    ]
+    for start, end in reversed(spans):
+        inner = inner[:start] + inner[end:]
+    return inner
+
+
+def reorder_container_children(inner, container):
+    order = RPR_ORDER if container == "rPr" else PPR_ORDER
+    order_index = {tag: index for index, tag in enumerate(order)}
+    spans = list(iter_top_level_spans(inner))
+    if len(spans) < 2:
+        return inner
+
+    chunks = []
+    last = 0
+    for position, (start, end, tag) in enumerate(spans):
+        chunks.append(
+            {
+                "tag": tag,
+                "leading": inner[last:start],
+                "xml": inner[start:end],
+                "position": position,
+            }
+        )
+        last = end
+    tail = inner[last:]
+
+    chunks.sort(
+        key=lambda chunk: (
+            order_index.get(str(chunk["tag"]), len(order)),
+            int(chunk["position"]),
+        )
+    )
+    return "".join(
+        f"{chunk['leading']}{chunk['xml']}" for chunk in chunks
+    ) + tail
+
+
+def find_container_span(style_block, container):
+    pattern = re.compile(rf"<w:{re.escape(container)}(?:\s[^>]*)?>")
+    match = pattern.search(style_block)
+    if not match:
+        return None
+    if match.group(0).rstrip().endswith("/>"):
+        return match.start(), match.end(), match.end()
+    close = style_block.find(f"</w:{container}>", match.end())
+    if close == -1:
+        raise ValueError(f"</w:{container}> tidak ditemukan pada style")
+    return match.start(), match.end(), close
+
+
+def ensure_container(style_block, container):
+    span = find_container_span(style_block, container)
+    if span is not None:
+        return style_block, span
+
+    if container == "pPr":
+        rpr_span = find_container_span(style_block, "rPr")
+        insert_at = (
+            rpr_span[0]
+            if rpr_span is not None
+            else style_block.rfind("</w:style>")
+        )
+    else:
+        insert_at = style_block.rfind("</w:style>")
+    if insert_at == -1:
+        raise ValueError("</w:style> tidak ditemukan")
+
+    new_container = f"<w:{container}>\n  </w:{container}>\n"
+    style_block = style_block[:insert_at] + new_container + style_block[insert_at:]
+    span = find_container_span(style_block, container)
+    if span is None:  # pragma: no cover - tidak mungkin bila insert berhasil
+        raise ValueError(f"Gagal membuat <w:{container}>")
+    return style_block, span
+
+
+def patch_container(style_block, container, updates, drops=()):
+    """Ubah elemen anak di dalam ``<w:pPr>`` atau ``<w:rPr>``."""
+    style_block, (_, inner_start, inner_end) = ensure_container(
+        style_block, container
+    )
+    inner = style_block[inner_start:inner_end]
+
+    for tag in drops:
+        inner = remove_top_level_child(inner, tag)
+
+    for child_tag, attrs in updates:
+        span = find_top_level_span(inner, child_tag)
+        if span is None:
+            new_tag = set_tag_attrs(f"<w:{child_tag}/>", attrs)
+            inner = inner.rstrip() + "\n    " + new_tag
+            continue
+        start, end = span
+        replacement = set_tag_attrs(inner[start:end], attrs)
+        inner = inner[:start] + replacement + inner[end:]
+
+    inner = reorder_container_children(inner, container)
+    return style_block[:inner_start] + inner + style_block[inner_end:]
+
+
+def patch_style_block(styles_xml, style_id, *, ppr=None, rpr=None,
+                      ppr_drops=(), rpr_drops=()):
+    match = None
+    for candidate in STYLE_RE.finditer(styles_xml):
+        if candidate.group(1) == style_id:
+            match = candidate
+            break
+    if match is None:
+        return styles_xml, False
+
+    block = match.group(0)
+    if ppr or ppr_drops:
+        block = patch_container(block, "pPr", ppr or [], ppr_drops)
+    if rpr or rpr_drops:
+        block = patch_container(block, "rPr", rpr or [], rpr_drops)
+    styles_xml = styles_xml[: match.start()] + block + styles_xml[match.end():]
+    return styles_xml, True
+
+
+def style_exists(styles_xml, style_id):
+    return bool(
+        re.search(
+            rf'<w:style\b[^>]*w:styleId="{re.escape(style_id)}"', styles_xml
+        )
+    )
+
+
+def ensure_code_style(styles_xml, style_id):
+    """Tambahkan definisi style kode yang belum ada di styles.xml."""
+    if style_exists(styles_xml, style_id):
+        return styles_xml
+
+    name = CODE_STYLE_NAMES[style_id]
+    rpr = (
+        f'<w:rFonts w:ascii="{CODE_FONT}" w:hAnsi="{CODE_FONT}" '
+        f'w:cs="{CODE_FONT}"/>'
+        '<w:color w:val="000000"/>'
+        f'<w:sz w:val="{CODE_SIZE_HALF_POINTS}"/>'
+        f'<w:szCs w:val="{CODE_SIZE_HALF_POINTS}"/>'
+    )
+    if CODE_STYLE_TYPES[style_id] == "character":
+        block = (
+            f'<w:style w:type="character" w:customStyle="1" '
+            f'w:styleId="{style_id}">\n'
+            f'  <w:name w:val="{name}"/>\n'
+            '  <w:basedOn w:val="DefaultParagraphFont"/>\n'
+            f"  <w:rPr>\n    {rpr}\n  </w:rPr>\n"
+            "</w:style>\n"
+        )
+    else:
+        block = (
+            f'<w:style w:type="paragraph" w:styleId="{style_id}">\n'
+            f'  <w:name w:val="{name}"/>\n'
+            '  <w:basedOn w:val="Normal"/>\n'
+            "  <w:qFormat/>\n"
+            "  <w:pPr>\n"
+            '    <w:spacing w:before="0" w:after="0" w:line="240" '
+            'w:lineRule="auto"/>\n'
+            '    <w:ind w:left="0" w:right="0" w:firstLine="0"/>\n'
+            '    <w:jc w:val="left"/>\n'
+            "  </w:pPr>\n"
+            f"  <w:rPr>\n    {rpr}\n  </w:rPr>\n"
+            "</w:style>\n"
+        )
+    closing = styles_xml.rfind("</w:styles>")
+    if closing == -1:
+        raise ValueError("</w:styles> tidak ditemukan")
+    return styles_xml[:closing] + block + styles_xml[closing:]
+
+
+def fix_document_styles(styles):
+    """Patch style Hyperlink, style kode, dan jarak Heading1-3."""
+    for style_id in CODE_STYLE_IDS:
+        styles = ensure_code_style(styles, style_id)
+
+    for style_id in CODE_STYLE_IDS:
+        is_paragraph = CODE_STYLE_TYPES[style_id] == "paragraph"
+        styles, _ = patch_style_block(
+            styles,
+            style_id,
+            rpr=[
+                (
+                    "rFonts",
+                    {
+                        "ascii": CODE_FONT,
+                        "hAnsi": CODE_FONT,
+                        "cs": CODE_FONT,
+                        "asciiTheme": None,
+                        "hAnsiTheme": None,
+                        "cstheme": None,
+                        "eastAsiaTheme": None,
+                    },
+                ),
+                (
+                    "color",
+                    {
+                        "val": "000000",
+                        "themeColor": None,
+                        "themeShade": None,
+                        "themeTint": None,
+                    },
+                ),
+                ("sz", {"val": CODE_SIZE_HALF_POINTS}),
+                ("szCs", {"val": CODE_SIZE_HALF_POINTS}),
+            ],
+            rpr_drops=("shd",),
+            ppr_drops=("shd",) if is_paragraph else (),
+        )
+
+    styles, _ = patch_style_block(
+        styles,
+        "Hyperlink",
+        rpr=[
+            (
+                "color",
+                {
+                    "val": "000000",
+                    "themeColor": None,
+                    "themeShade": None,
+                    "themeTint": None,
+                },
+            ),
+            ("u", {"val": "none"}),
+        ],
+    )
+
+    # Satu baris kosong sebelum subbab/subbab-sub. Jarak ke subbab pertama
+    # berasal dari before Heading2, bukan dari after Heading1.
+    for style_id, before, after in (
+        ("Heading1", 0, 0),
+        ("Heading2", 240, 0),
+        ("Heading3", 240, 0),
+    ):
+        styles, _ = patch_style_block(
+            styles,
+            style_id,
+            ppr=[
+                (
+                    "spacing",
+                    {
+                        "before": before,
+                        "after": after,
+                        "line": 360,
+                        "lineRule": "auto",
+                    },
+                )
+            ],
+        )
+    return styles
+
+
+def ensure_run_rpr(run):
+    """Pastikan run punya ``<w:rPr>`` dan kembalikan (run, inner, span)."""
+    match = re.search(r"<w:rPr(?:\s[^>]*)?>.*?</w:rPr>", run, re.S)
+    if match:
+        inner_start = match.start() + len(
+            re.match(r"<w:rPr(?:\s[^>]*)?>", match.group(0)).group(0)
+        )
+        inner_end = match.end() - len("</w:rPr>")
+        return run, run[inner_start:inner_end], (match.start(), match.end())
+    open_match = re.match(r"<w:r\b[^>]*>", run)
+    if not open_match:
+        return run, None, None
+    insert = open_match.end()
+    run = run[:insert] + "<w:rPr></w:rPr>" + run[insert:]
+    inner_start = insert + len("<w:rPr>")
+    inner_end = inner_start
+    return run, "", (insert, insert + len("<w:rPr></w:rPr>"))
+
+
+def patch_run_rpr(run, updates, drops=()):
+    run, inner, span = ensure_run_rpr(run)
+    if inner is None:
+        return run
+    for tag in drops:
+        inner = remove_top_level_child(inner, tag)
+    for child_tag, attrs in updates:
+        child_span = find_top_level_span(inner, child_tag)
+        if child_span is None:
+            inner = inner.rstrip() + set_tag_attrs(
+                f"<w:{child_tag}/>", attrs
+            )
+        else:
+            start, end = child_span
+            inner = (
+                inner[:start]
+                + set_tag_attrs(inner[start:end], attrs)
+                + inner[end:]
+            )
+    inner = reorder_container_children(inner, "rPr")
+    start, end = span
+    rpr_open = re.match(r"<w:rPr(?:\s[^>]*)?>", run[start:end]).group(0)
+    return run[:start] + rpr_open + inner + "</w:rPr>" + run[end:]
+
+
+def is_monospace_run(run):
+    for style_id in re.findall(r'<w:rStyle w:val="([^"]+)"/>', run):
+        if style_id in CODE_STYLE_IDS:
+            return True
+    for font_tag in re.findall(r"<w:rFonts\b[^>]*/>", run):
+        values = re.findall(
+            r'w:(?:ascii|hAnsi|cs|eastAsia)="([^"]*)"', font_tag
+        )
+        if any(value.strip().lower() in MONOSPACE_FONTS for value in values):
+            return True
+    return False
+
+
+def patch_hyperlink_runs(doc):
+    def patch_block(match):
+        return RUN_RE.sub(
+            lambda run: patch_run_rpr(
+                run.group(0),
+                [
+                    (
+                        "color",
+                        {
+                            "val": "000000",
+                            "themeColor": None,
+                            "themeShade": None,
+                            "themeTint": None,
+                        },
+                    ),
+                    ("u", {"val": "none"}),
+                ],
+            ),
+            match.group(0),
+        )
+
+    return HYPERLINK_RE.sub(patch_block, doc)
+
+
+def restore_toc_istilah_style(run):
+    """Kembalikan IstilahAsing yang diratakan Word menjadi italic manual.
+
+    Saat memperbarui TOC, Word menyalin format heading sebagai direct
+    ``w:i`` + ``w:lang en-US``. ``tools/istilah.py verify`` menganggap itu
+    pelanggaran, jadi run TOC seperti ini dikembalikan ke character style
+    IstilahAsing.
+    """
+    match = re.search(r"<w:rPr(?:\s[^>]*)?>.*?</w:rPr>", run, re.S)
+    if not match:
+        return run
+    rpr = match.group(0)
+    open_tag = re.match(r"<w:rPr(?:\s[^>]*)?>", rpr).group(0)
+    inner = rpr[len(open_tag):-len("</w:rPr>")]
+    if re.search(
+        r'<w:rStyle w:val="(?:IstilahAsing|IstilahReview)"/>', inner
+    ):
+        return run
+    if not re.search(r"<w:i\b", inner):
+        return run
+    if not re.search(r'<w:lang\b[^>]*w:val="en-US"', inner):
+        return run
+
+    if "<w:rStyle" in inner:
+        inner = re.sub(
+            r'(<w:rStyle\b[^>]*w:val=")[^"]*(")',
+            r"\g<1>IstilahAsing\g<2>",
+            inner,
+            count=1,
+        )
+    else:
+        inner = '<w:rStyle w:val="IstilahAsing"/>' + inner
+    inner = reorder_container_children(inner, "rPr")
+    new_rpr = open_tag + inner + "</w:rPr>"
+    return run[: match.start()] + new_rpr + run[match.end():]
+
+
+def restore_toc_istilah_styles(doc):
+    def fix_paragraph(match):
+        paragraph = match.group(0)
+        ppr = re.search(
+            r"<w:pPr(?:\s[^>]*)?>.*?</w:pPr>", paragraph, re.S
+        )
+        if not ppr or not re.search(
+            r'<w:pStyle w:val="TOC\d+"/>', ppr.group(0)
+        ):
+            return paragraph
+        return RUN_RE.sub(
+            lambda run: restore_toc_istilah_style(run.group(0)), paragraph
+        )
+
+    return PARA_RE.sub(fix_paragraph, doc)
+
+
+def patch_code_run(run):
+    return patch_run_rpr(
+        run,
+        [
+            (
+                "rFonts",
+                {
+                    "ascii": CODE_FONT,
+                    "hAnsi": CODE_FONT,
+                    "cs": CODE_FONT,
+                    "asciiTheme": None,
+                    "hAnsiTheme": None,
+                    "cstheme": None,
+                    "eastAsiaTheme": None,
+                },
+            ),
+            (
+                "color",
+                {
+                    "val": "000000",
+                    "themeColor": None,
+                    "themeShade": None,
+                    "themeTint": None,
+                },
+            ),
+            ("sz", {"val": CODE_SIZE_HALF_POINTS}),
+            ("szCs", {"val": CODE_SIZE_HALF_POINTS}),
+        ],
+        drops=("shd",),
+    )
+
+
+def patch_code_paragraph(paragraph):
+    ppr = re.search(r"<w:pPr(?:\s[^>]*)?>.*?</w:pPr>", paragraph, re.S)
+    if not ppr:
+        return paragraph
+    style = re.search(r'<w:pStyle w:val="([^"]+)"/>', ppr.group(0))
+    if not style or style.group(1) not in CODE_STYLE_IDS:
+        return paragraph
+
+    ppr_inner = re.sub(r"<w:shd\b[^>]*/>", "", ppr.group(0))
+    paragraph = paragraph[: ppr.start()] + ppr_inner + paragraph[ppr.end():]
+    return RUN_RE.sub(lambda m: patch_code_run(m.group(0)), paragraph)
+
+
+def fix_document_formatting(doc):
+    """Bersihkan direct formatting biru Konsolas/DejaVu dari Pandoc/Word."""
+    doc = patch_hyperlink_runs(doc)
+    doc = restore_toc_istilah_styles(doc)
+    doc = PARA_RE.sub(
+        lambda match: patch_code_paragraph(match.group(0)), doc
+    )
+    return RUN_RE.sub(
+        lambda match: (
+            patch_code_run(match.group(0))
+            if is_monospace_run(match.group(0))
+            else match.group(0)
+        ),
+        doc,
+    )
+
+
+def fix_settings(settings):
+    """Hapus prompt update field dan paksa Compatibility Mode 15."""
+    settings = UPDATE_FIELDS_RE.sub("", settings)
+
+    def drop_compat_mode(match):
+        if re.search(r'w:name="compatibilityMode"', match.group(0)):
+            return ""
+        return match.group(0)
+
+    settings = COMPAT_SETTING_RE.sub(drop_compat_mode, settings)
+    match = COMPAT_RE.search(settings)
+    if match:
+        block = match.group(0)
+        if block.rstrip().endswith("/>"):
+            new_block = f"<w:compat>{COMPAT_MODE_TAG}</w:compat>"
+        else:
+            new_block = (
+                block[: block.rfind("</w:compat>")]
+                + COMPAT_MODE_TAG
+                + "</w:compat>"
+            )
+        settings = settings[: match.start()] + new_block + settings[match.end():]
+    else:
+        compat = f"<w:compat>{COMPAT_MODE_TAG}</w:compat>"
+        insert_at = None
+        for tag in ("w:rsids", "w:mathPr", "w:themeFontLang", "w:clrSchemeMapping"):
+            position = settings.find(f"<{tag}")
+            if position != -1:
+                insert_at = position
+                break
+        if insert_at is None:
+            insert_at = settings.rfind("</w:settings>")
+        if insert_at == -1:
+            raise ValueError("</w:settings> tidak ditemukan")
+        settings = settings[:insert_at] + compat + settings[insert_at:]
+
+    return settings
 
 
 def heading1_paragraphs(doc):
@@ -724,40 +1425,125 @@ def fix_toc_styles(styles, tab_pos):
     return styles
 
 
-def main():
-    src = sys.argv[1]
-    dst = sys.argv[2]
-
-    with zipfile.ZipFile(src, "r") as zin:
-        names = zin.namelist()
-        items = {n: zin.read(n) for n in names}
-
-    doc = items["word/document.xml"].decode("utf-8")
-    tab_pos = get_tab_pos(doc)
-    doc = fix_daftar_isi_title(doc)
-    # Sesuaikan tab leader pada cached TOC entries agar tepat di margin kanan
-    doc = re.sub(
-        r'(<w:pStyle w:val="TOC[123]"/>.*?<w:tab w:val="right" w:leader="dot" w:pos=)"\d+"',
+def align_toc_tabs(doc, tab_pos):
+    """Sesuaikan tab leader cached TOC agar tepat di margin kanan."""
+    return re.sub(
+        r'(<w:pStyle w:val="TOC[123]"/>.*?<w:tab w:val="right" '
+        r'w:leader="dot" w:pos=)"\d+"',
         rf'\g<1>"{tab_pos}"',
         doc,
     )
+
+
+def write_items(path, items):
+    """Tulis ulang DOCX secara atomik (dipakai mode in-place)."""
+    directory = os.path.dirname(os.path.abspath(path)) or "."
+    fd, temp_name = tempfile.mkstemp(
+        prefix=".finalize-", suffix=".docx", dir=directory
+    )
+    os.close(fd)
+    try:
+        with zipfile.ZipFile(temp_name, "w", zipfile.ZIP_DEFLATED) as zout:
+            for name, data in items.items():
+                zout.writestr(name, data)
+        os.replace(temp_name, path)
+    finally:
+        if os.path.exists(temp_name):
+            os.unlink(temp_name)
+
+
+def read_items(path):
+    with zipfile.ZipFile(path, "r") as zin:
+        return {name: zin.read(name) for name in zin.namelist()}
+
+
+def finalize_items(items):
+    """Terapkan seluruh finalisasi (section, style, settings) ke items."""
+    doc = items["word/document.xml"].decode("utf-8")
+    tab_pos = get_tab_pos(doc)
+    doc = fix_daftar_isi_title(doc)
+    doc = fix_document_formatting(doc)
+    doc = align_toc_tabs(doc, tab_pos)
     new_doc, changed, stats = process(doc, items)
     items["word/document.xml"] = new_doc.encode("utf-8")
 
     if "word/styles.xml" in items:
         styles = items["word/styles.xml"].decode("utf-8")
-        items["word/styles.xml"] = fix_toc_styles(styles, tab_pos).encode("utf-8")
+        styles = fix_toc_styles(fix_document_styles(styles), tab_pos)
+        items["word/styles.xml"] = styles.encode("utf-8")
 
+    if "word/settings.xml" in items:
+        settings = items["word/settings.xml"].decode("utf-8")
+        items["word/settings.xml"] = fix_settings(settings).encode("utf-8")
+    return items, changed, stats, tab_pos
+
+
+def in_place(path):
+    """Finalisasi penuh lalu tulis kembali ke berkas yang sama.
+
+    Dipakai setelah Word COM memperbarui field: Word menormalkan ulang
+    pgNumType/ukuran font footer, sehingga section dan part nomor halaman
+    perlu dibangun ulang agar tetap sesuai spesifikasi.
+    """
+    items = read_items(path)
+    items, changed, stats, tab_pos = finalize_items(items)
+    write_items(path, items)
+    zones = ", ".join(f"{k}={v}" for k, v in stats.items())
+    print(
+        f"[OK] finalize-docx --in-place: {changed} sectPr disesuaikan "
+        f"({zones}; tab={tab_pos}) -> {path}"
+    )
+
+
+def settings_only(path):
+    """Hapus updateFields dan paksa compatibilityMode 15 saja."""
+    items = read_items(path)
+    if "word/settings.xml" not in items:
+        raise ValueError("word/settings.xml tidak ditemukan")
+    settings = items["word/settings.xml"].decode("utf-8")
+    items["word/settings.xml"] = fix_settings(settings).encode("utf-8")
+    write_items(path, items)
+    print(f"[OK] finalize-docx --settings-only: {path}")
+
+
+def main():
+    argv = sys.argv[1:]
+    if argv[:1] in (["--in-place"], ["--settings-only"]):
+        if len(argv) != 2:
+            print(
+                "Usage: finalize-docx.py "
+                "--in-place|--settings-only DOKUMEN.docx",
+                file=sys.stderr,
+            )
+            return 2
+        if argv[0] == "--in-place":
+            in_place(argv[1])
+        else:
+            settings_only(argv[1])
+        return 0
+
+    if len(argv) != 2:
+        print(
+            "Usage: finalize-docx.py INPUT.docx OUTPUT.docx\n"
+            "       finalize-docx.py --in-place|--settings-only DOKUMEN.docx",
+            file=sys.stderr,
+        )
+        return 2
+
+    src, dst = argv
+    items = read_items(src)
+    items, changed, stats, tab_pos = finalize_items(items)
     with zipfile.ZipFile(dst, "w", zipfile.ZIP_DEFLATED) as zout:
-        for n in items:
-            zout.writestr(n, items[n])
+        for name, data in items.items():
+            zout.writestr(name, data)
 
     zones = ", ".join(f"{k}={v}" for k, v in stats.items())
     print(
         f"[OK] finalize-docx: {changed} sectPr disesuaikan "
         f"({zones}; tab={tab_pos}) -> {dst}"
     )
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
