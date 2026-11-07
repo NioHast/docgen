@@ -1,0 +1,235 @@
+# Daftar larangan naskah
+# Format: regex<TAB>alasan
+# Diperiksa oleh tools/periksa_prosa.py. Jalankan: make lint-prosa
+#
+# Kalimat efektif (KE)
+(?:^|(?<=[.!?])\s+)(?:Dari|Dalam|Pada|Bagi|Menurut|Berdasarkan)\s(?:(?!\b(?:kami|penulis|peneliti|saya|kita)\b)[^.?!,;:]){1,60}?\s(?:menunjukkan|membahas|memperlihatkan|menjelaskan|mengatakan|menyatakan|menggambarkan|menyajikan|menyimpulkan|membuktikan)\b	KE-01 K [flag m; min 1] subjek hilang karena kata depan; buang kata depannya atau pakai verba pasif
+\badalah merupakan\b	KE-02 K [flag m,i; min 1] pilih salah satu: adalah atau merupakan
+\b(?:agar supaya|demi untuk|sejak dari)\b	KE-03 K [flag m,i; min 1] pleonasme; pakai satu kata saja
+\bsangat\s+\w+\s+sekali\b	KE-04 K [flag m,i; min 1] pleonasme: sangat … atau … sekali
+\b(?:para|banyak|berbagai|beberapa)\s+(\w+)-\1\b	KE-05 K [flag m,i; min 1] penanda jamak ganda; hapus ulangan
+\bberbagai macam\b	KE-06 K [flag m,i; min 1] pleonasme: berbagai atau bermacam-macam
+\b(?:naik ke atas|turun ke bawah|mundur ke belakang|maju ke depan)\b	KE-07 K [flag m,i; min 1] pleonasme arah
+\bsaling\s+\w+-me\w+\b	KE-08 K [flag m,i; min 1] pleonasme: saling … atau bentuk ulang, bukan keduanya
+\bseperti\b[^.;]{1,80}?\b(?:dan lain-lain|dll\.?|dan sebagainya|dsb\.?)	KE-09 K [flag m,i; min 1] seperti dan dll. sama-sama penanda contoh; pakai salah satu
+\bberdasarkan pada\b	KE-10 K [flag m,i; min 1] cukup: berdasarkan
+\bantara\s+(?!lain\b)[^.,;]{1,40}?\sdengan\b	KE-11 K [flag m,i; min 1] pasangan baku: antara … dan …
+\bbaik\s[^.,;]{1,40}?\sataupun\b	KE-12 K [flag m,i; min 1] pasangan baku: baik … maupun …
+\bbukan\s(?!hanya\b|saja\b|sekadar\b|cuma\b)[^.;]{1,60}?,\s*tetapi\b	KE-13 K [flag m,i; min 1] bukan … melainkan …; tidak … tetapi …
+\b(?:meskipun|walaupun|walau|biarpun|kendatipun)\b[^.;]{1,120}?,\s*(?:tetapi|namun)\b	KE-14 K [flag m,i; min 1] dua konjungsi untuk satu hubungan; buang tetapi/namun
+(?:^|(?<=[.!?])\s+)(?:Karena|Sebab|Oleh karena|Berdasarkan|Mengingat)\b[^.;]{1,120}?,\s*maka\b	KE-15 K [flag m; min 1] anak kalimat di depan sudah menandai hubungan; buang maka
+(?:^|(?<=[.!?])\s+)(?:Sehingga|Sedangkan)\b	KE-16 K [flag m; min 1] konjungsi intrakalimat di awal kalimat; gabungkan atau pakai Akibatnya/Adapun
+\blebih\s+(?!dari\b)\w+\s+dari\b(?!\s+(?:pada|sekadar)\b)	KE-17 K [flag m,i; min 1] perbandingan memakai daripada
+
+# Nominalisasi (NM)
+\b(?:melakukan|mengalami|memberikan|mengadakan|melaksanakan)\s+(?:pe\w{3,}an|ke\w{3,}an)\b	NM-01 G [flag m,i; min 1] nominalisasi; pakai verbanya langsung (mengukur, turun, memengaruhi)
+
+# Kekuatan klaim (KK)
+\bmembuktikan\b	KK-01 G [flag m,i; min 1] cek kekuatan klaim: menunjukkan atau mengindikasikan bila buktinya statistik/korelasi
+
+# Singkatan dan akronim (SG)
+\b(?:di|ber|se|ke|ter|me[mn]?g?|pe[rn]?)[A-Z]{2,}\b|\b[A-Z]{2,}(?:nya|kan|an|lah|ku|mu)\b	SG-01 K [flag m; min 1] imbuhan dan singkatan dirangkai tanda hubung (koreksi dihitung dinamis)
+\b(?:dll|dsb|dst|dkk|hlm|tsb|yth)\b(?!\.)|(?<![\w/])(?:s/d|a/n|d/a|u/p)(?![\w/])	SG-02 K [flag m; min 1] singkatan umum: tambahkan titik (koreksi dihitung dinamis)
+\b([A-Z][A-Za-z]*[A-Z])-\1\b	SG-03 G [flag m; min 1] jamak singkatan tidak diulang: banyak UMKM, para pelaku UMKM
+
+# Ejaan (EJ)
+\bdimana(?:-mana)?\b	EJ-01 K [flag m,i; min 1] kata depan ditulis terpisah: di mana
+\bdi\s(?:analisis|analisa|uji|lakukan|gunakan|ukur|ambil|peroleh|buat|hitung|kembangkan|rancang|teliti|bahas|amati|olah|kumpulkan|terapkan|jelaskan|tentukan|sajikan|tampilkan)\b	EJ-02 K [flag m,i; min 1] awalan di- ditulis serangkai
+\b(?:di(?:atas|bawah|dalam|luar|depan|belakang|samping|antara|sini|sana|situ)|ke(?:atas|bawah|dalam|depan|belakang|samping|sini|sana|situ))\b	EJ-03 K [flag m,i; min 1] kata depan di/ke ditulis terpisah
+\b(?:kerjasama|tanggungjawab|bertanggungjawab|pertanggung jawaban|kerja-sama|tanggung-jawab)\b	EJ-04 K [flag m,i; min 1] kerja sama, tanggung jawab, bertanggung jawab, pertanggungjawaban
+\b(?:(?i:antar|pasca|non|multi|sub|pra|semi|swa|tuna|ultra|inter|intra|ekstra|mikro|makro|nano|mono|poli|purna)|dwi|tri|eka) (?=[a-z]{3,})	EJ-05 K [flag m; min 1] bentuk terikat ditulis serangkai: antarmuka, pascasarjana
+(?:^|(?<=[.!?])\s+)\d+\s+[a-z]	EJ-06 K [flag m; min 1] awal kalimat tidak dengan angka; tulis dengan huruf atau susun ulang
+\b\d+\.\d{1,2}\s?(?:%|V|mV|kV|A|mA|W|kW|Hz|kHz|MHz|kg|g|mg|cm|mm|km|m|s|ms|°C)(?!\w)	EJ-07 K [flag m; min 1] desimal memakai koma (koreksi dihitung dinamis)
+(?<![\d.,])\d+(?:[.,]\d+)?(?:V|mV|kV|mA|kW|Hz|kHz|MHz|GHz|kg|mg|cm|mm|km|ms)\b	EJ-08 K [flag m; min 1] beri spasi antara angka dan lambang satuan (koreksi dihitung dinamis)
+,\s+sehingga\b	EJ-10 K [flag m; min 1] tanpa koma bila anak kalimat mengikuti induk kalimat (EYD V, tanda koma kaidah 4)
+\d\s?(?:Volt|Ampere|Watt|Hertz|Celcius|Celsius|C)\b	EJ-09 K [flag m; min 1] pakai lambang satuan: V, A, W, Hz, °C
+
+# Klise mesin dan kalke (AI)
+\b[Dd]i era (?:digital|modern|globalisasi|teknologi|revolusi|serba)	AI-01 AI [flag m; min 1] pembuka generik; mulai dari masalah konkret
+\bseiring (?:dengan )?(?:perkembangan|kemajuan|berjalannya) (?:zaman|teknologi|waktu)	AI-02 AI [flag m,i; min 1] pembuka generik; sebut perubahan yang spesifik
+\bt(?:idak|ak) dapat dipungkiri\b	AI-03 AI [flag m,i; min 1] penegas tanpa isi; ganti dengan bukti
+\bseperti yang (?:kita )?(?:ketahui|diketahui) bersama\b	AI-04 AI [flag m,i; min 1] pembuka kosong; hapus
+\bmemainkan perana?n?\b	AI-05 AI [flag m,i; min 1] kalke play a role; pakai berperan
+\bmengambil tempat\b	AI-06 AI [flag m,i; min 1] kalke take place; pakai berlangsung
+\bmemegang peranan (?:yang )?(?:sangat )?(?:penting|krusial|vital|sentral)	AI-07 AI [flag m,i; min 1] penguat bertumpuk; pakai berperan penting atau jelaskan perannya
+\badalah penting untuk\b|\bitu adalah mungkin\b	AI-08 AI [flag m,i; min 1] kalke it is … to; nyatakan langsung
+\bsolusi (?:yang )?(?:inovatif|tepat guna dan inovatif|revolusioner)\b	AI-09 AI [flag m,i; min 1] klaim promosi; tunjukkan dengan angka
+\blebih dari sekadar\b	AI-10 AI [flag m,i; min 1] struktur retoris; nyatakan langsung
+\bmari kita\b|\bperlu diingat bahwa\b	AI-11 AI [flag m,i; min 1] nada ceramah; hapus
+\bsangat signifikan\b	AI-12 AI [flag m,i; min 1] signifikan bermakna statistik; sebut nilai uji, jangan diperkuat
+\byang mana\b	AI-13 AI [flag m,i; min 1] kalke which; pakai yang atau pecah kalimat
+(?<=\w)[,]?\s+di mana\s+(?!pun\b|saja\b)(?!.{0,80}\?)(?=[a-z])	AI-14 AI [flag m; min 1] di mana sebagai penghubung; pakai yang, tempat, atau saat
+\bhal ini\b	AI-15 AI [flag m,i; min 3] hal ini berulang; sebut subjeknya
+\bselain itu\b	AI-16 AI [flag m,i; min 3] penghubung pembuka berulang; variasikan atau buang
+\boleh karena itu\b	AI-17 AI [flag m,i; min 3] penghubung berulang; buang bila logika sudah jelas
+\bsecara keseluruhan\b	AI-18 AI [flag m,i; min 2] penutup ritual; hanya di simpulan bila perlu
+\bdengan kata lain\b	AI-19 AI [flag m,i; min 2] pengisi berulang
+
+# Kata tidak baku (KB)
+analisa	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: analisis
+dianalisa	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: dianalisis
+menganalisa	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: menganalisis
+hipotesa	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: hipotesis
+sintesa	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: sintesis
+diagnosa	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: diagnosis
+praktek	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: praktik
+mempraktekkan	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: mempraktikkan
+dipraktekkan	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: dipraktikkan
+tehnik	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: teknik
+metoda	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: metode
+sistim	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: sistem
+sistimatis	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: sistematis
+ekosistim	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: ekosistem
+resiko	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: risiko
+kwalitas	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: kualitas
+kwantitas	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: kuantitas
+frekwensi	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: frekuensi
+kwalifikasi	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: kualifikasi
+kwota	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: kuota
+kwartal	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: kuartal
+kwadrat	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: kuadrat
+kwitansi	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: kuitansi
+prosentase	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: persentase
+presentase	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: persentase
+obyek	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: objek
+subyek	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: subjek
+obyektif	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: objektif
+subyektif	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: subjektif
+projek	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: proyek
+aktifitas	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: aktivitas
+efektifitas	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: efektivitas
+produktifitas	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: produktivitas
+kreatifitas	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: kreativitas
+sensitifitas	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: sensitivitas
+reaktifitas	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: reaktivitas
+konektifitas	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: konektivitas
+standarisasi	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: standardisasi
+ekstrim	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: ekstrem
+katagori	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: kategori
+komplek	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: kompleks
+komplit	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: komplet
+teoritis	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: teoretis
+konkrit	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: konkret
+orisinil	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: orisinal
+realita	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: realitas
+respon	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: respons
+hirarki	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: hierarki
+kuisioner	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: kuesioner
+komoditi	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: komoditas
+otentik	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: autentik
+karir	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: karier
+managemen	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: manajemen
+manajement	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: manajemen
+detil	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: detail
+varitas	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: varietas
+kontinyu	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: kontinu
+apotik	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: apotek
+atlit	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: atlet
+cidera	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: cedera
+syaraf	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: saraf
+atmosfir	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: atmosfer
+kadaluarsa	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: kedaluwarsa
+kadaluwarsa	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: kedaluwarsa
+legalisir	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: legalisasi
+amandemen	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: amendemen
+propinsi	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: provinsi
+pebruari	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: Februari
+nopember	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: November
+kharisma	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: karisma
+celcius	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: celsius
+seksama	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: saksama
+sekedar	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: sekadar
+tolak ukur	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: tolok ukur
+silahkan	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: silakan
+ijin	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: izin
+diijinkan	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: diizinkan
+mengijinkan	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: mengizinkan
+nasehat	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: nasihat
+menasehati	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: menasihati
+jaman	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: zaman
+jadual	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: jadwal
+hakekat	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: hakikat
+ijasah	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: ijazah
+nampak	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: tampak
+terlanjur	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: telanjur
+faham	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: paham
+pondasi	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: fondasi
+kaedah	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: kaidah
+himbau	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: imbau
+menghimbau	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: mengimbau
+himbauan	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: imbauan
+trampil	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: terampil
+ketrampilan	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: keterampilan
+handal	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: andal
+kehandalan	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: keandalan
+berfikir	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: berpikir
+perduli	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: peduli
+memperdulikan	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: memedulikan
+antri	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: antre
+antrian	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: antrean
+lembab	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: lembap
+kelembaban	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: kelembapan
+nafas	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: napas
+bernafas	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: bernapas
+pernafasan	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: pernapasan
+menunjukan	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: menunjukkan
+ditunjukan	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: ditunjukkan
+azas	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: asas
+kosa kata	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: kosakata
+merubah	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: mengubah
+dirubah	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: diubah
+mempengaruhi	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: memengaruhi
+mengkonsumsi	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: mengonsumsi
+mengkonfirmasi	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: mengonfirmasi
+mengkoordinasikan	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: mengoordinasikan
+mengkategorikan	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: mengategorikan
+mengkombinasikan	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: mengombinasikan
+mengkomunikasikan	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: mengomunikasikan
+mengkoreksi	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: mengoreksi
+mensukseskan	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: menyukseskan
+mensosialisasikan	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: menyosialisasikan
+mensimulasikan	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: menyimulasikan
+mentaati	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: menaati
+menterjemahkan	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: menerjemahkan
+mentargetkan	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: menargetkan
+mentelaah	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: menelaah
+mempopulerkan	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: memopulerkan
+mempublikasikan	KB-01 K [flag i; bukan regex: kunci kamus, dicocokkan sebagai kata utuh] baku: memublikasikan
+
+# Akronim (SG-05)
+BAPPENAS	SG-05 K [bukan regex: token kapital penuh; kecuali baris judul kapital] akronim: Bappenas
+BAPPEDA	SG-05 K [bukan regex: token kapital penuh; kecuali baris judul kapital] akronim: Bappeda
+BULOG	SG-05 K [bukan regex: token kapital penuh; kecuali baris judul kapital] akronim: Bulog
+POLRI	SG-05 K [bukan regex: token kapital penuh; kecuali baris judul kapital] akronim: Polri
+DISHUB	SG-05 K [bukan regex: token kapital penuh; kecuali baris judul kapital] akronim: Dishub
+DINKES	SG-05 K [bukan regex: token kapital penuh; kecuali baris judul kapital] akronim: Dinkes
+DISDIK	SG-05 K [bukan regex: token kapital penuh; kecuali baris judul kapital] akronim: Disdik
+KEMENHUB	SG-05 K [bukan regex: token kapital penuh; kecuali baris judul kapital] akronim: Kemenhub
+KEMENKES	SG-05 K [bukan regex: token kapital penuh; kecuali baris judul kapital] akronim: Kemenkes
+KEMENKEU	SG-05 K [bukan regex: token kapital penuh; kecuali baris judul kapital] akronim: Kemenkeu
+KEMENDIKBUD	SG-05 K [bukan regex: token kapital penuh; kecuali baris judul kapital] akronim: Kemendikbud
+KEMENDIKBUDRISTEK	SG-05 K [bukan regex: token kapital penuh; kecuali baris judul kapital] akronim: Kemendikbudristek
+KEMDIKTISAINTEK	SG-05 K [bukan regex: token kapital penuh; kecuali baris judul kapital] akronim: Kemdiktisaintek
+KEMENDIKTISAINTEK	SG-05 K [bukan regex: token kapital penuh; kecuali baris judul kapital] akronim: Kemendiktisaintek
+KEMENDIKDASMEN	SG-05 K [bukan regex: token kapital penuh; kecuali baris judul kapital] akronim: Kemendikdasmen
+BUMDES	SG-05 K [bukan regex: token kapital penuh; kecuali baris judul kapital] akronim: BUMDes
+PERPRES	SG-05 K [bukan regex: token kapital penuh; kecuali baris judul kapital] akronim: Perpres
+PERMEN	SG-05 K [bukan regex: token kapital penuh; kecuali baris judul kapital] akronim: Permen
+PERDA	SG-05 K [bukan regex: token kapital penuh; kecuali baris judul kapital] akronim: Perda
+PUSKESMAS	SG-05 K [bukan regex: token kapital penuh; kecuali baris judul kapital] akronim: puskesmas (Puskesmas bila nama)
+POSYANDU	SG-05 K [bukan regex: token kapital penuh; kecuali baris judul kapital] akronim: posyandu (Posyandu bila nama)
+IPTEK	SG-05 K [bukan regex: token kapital penuh; kecuali baris judul kapital] akronim: iptek
+PEMILU	SG-05 K [bukan regex: token kapital penuh; kecuali baris judul kapital] akronim: pemilu
+BALITA	SG-05 K [bukan regex: token kapital penuh; kecuali baris judul kapital] akronim: balita
+AMDAL	SG-05 K [bukan regex: token kapital penuh; kecuali baris judul kapital] akronim: amdal
+TILANG	SG-05 K [bukan regex: token kapital penuh; kecuali baris judul kapital] akronim: tilang
+RUDAL	SG-05 K [bukan regex: token kapital penuh; kecuali baris judul kapital] akronim: rudal
+PEMDA	SG-05 K [bukan regex: token kapital penuh; kecuali baris judul kapital] akronim: pemda (Pemda bila nama)
+PEMKOT	SG-05 K [bukan regex: token kapital penuh; kecuali baris judul kapital] akronim: pemkot (Pemkot bila nama)
+PEMKAB	SG-05 K [bukan regex: token kapital penuh; kecuali baris judul kapital] akronim: pemkab (Pemkab bila nama)
+PEMPROV	SG-05 K [bukan regex: token kapital penuh; kecuali baris judul kapital] akronim: pemprov (Pemprov bila nama)
+GAPOKTAN	SG-05 K [bukan regex: token kapital penuh; kecuali baris judul kapital] akronim: gapoktan (Gapoktan bila nama)
+
+# Aturan dinamis yang tidak punya baris regex tetap:
+# SG-04 singkatan belum dijelaskan, SG-06 kepanjangan bukan nama diri,
+# KL-01 kalimat lebih dari 35 kata, IS-01 penanda {{?istilah?}}.

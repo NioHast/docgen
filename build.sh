@@ -2,6 +2,9 @@
 set -e
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
+# Siapkan Pandoc/Typst (PATH Windows/WSL) sebelum perkakas dipanggil.
+# shellcheck source=tools/env.sh
+source "$DIR/tools/env.sh"
 if [ -n "$1" ]; then
   OUTDIR="$(cd "$1" && pwd)"
 elif [ -f "$(pwd)/metadata.yml" ] && [ -d "$(pwd)/chapters" ]; then
@@ -41,6 +44,7 @@ copy_asset "logo.jpg" "$TMPDIR" || true
 copy_asset "metadata.yml" "$TMPDIR" || true
 copy_asset "references.bib" "$TMPDIR" || true
 copy_asset "apa.csl" "$TMPDIR" || true
+copy_asset "refs" "$TMPDIR" || true
 copy_asset "presets" "$TMPDIR" || true
 
 if [ -d "$OUTDIR/chapters" ]; then
@@ -77,17 +81,17 @@ elif [ -f "$TMPDIR/presets/standard.yml" ]; then
   PRESET_OPTS=("--metadata-file=$TMPDIR/presets/standard.yml")
 fi
 
-if ! pandoc \
+if ! "${LAPORAN_PANDOC:-pandoc}" \
   "${INPUT_FILES[@]}" \
   --template="template.typ" \
   "${PRESET_OPTS[@]}" \
   --metadata-file="metadata.yml" \
   --citeproc \
   --bibliography="references.bib" \
-  --csl="apa.csl" \
+  --csl="refs/ieee.csl" \
   --metadata=reference-section-title="DAFTAR PUSTAKA" \
   --top-level-division=chapter \
-  --pdf-engine=typst \
+  --pdf-engine="${LAPORAN_TYPST:-typst}" \
   --no-highlight \
   -o "$REPORT" 2>&1; then
   echo ""

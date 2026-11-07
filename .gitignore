@@ -1,9 +1,12 @@
 .venv/
 __pycache__/
 *.pyc
+~$*
 review/
+acuan/
 Laporan.docx
 Laporan.pdf
 dist/
 .build/
+build/
 .pytest_cache/

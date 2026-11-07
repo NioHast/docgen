@@ -13,6 +13,22 @@ Nilai preset yang diterapkan:
   - first_line_indent -> w:ind/@w:firstLine pada BodyText dan FirstParagraph
   - line_spacing      -> spasi 1,5 baris (w:line="360" w:lineRule="auto")
 
+Selain itu, generator menerapkan spesifikasi format acuan ke style berikut.
+Semua nilai punya default sesuai acuan dan dapat dioverride lewat kunci
+preset ``<prefix>_<field>`` (mis. ``heading1_font_size: 11pt``):
+
+  - Normal       : TNR 12 pt, line 360, before/after 0, jc both, firstLine 709
+  - Heading1     : TNR 12 pt bold hitam, center, 0/0, line 360, keepNext,
+                   keepLines, outlineLvl 0
+  - Heading2/3   : TNR 12 pt bold hitam, both, 0/0, line 360, keepNext,
+                   hanging 709/709, outlineLvl 1/2
+  - TOCHeading   : TNR 12 pt bold, center, 0/0, line 360
+  - ImageCaption : TNR 10 pt tegak, center, 0/0, line 240
+  - TableCaption : TNR 10 pt tegak, both, 0/0, line 240, keepNext
+  - SourceCode   : Courier New 10 pt, line 240, 0/0, tanpa shading, kiri
+  - Bibliography : TNR 12 pt, line 360, 0/0, hanging 720 twip
+  - Figure       : center, 0/0
+
 Catatan pemetaan yang disengaja:
   - ``line_spacing: 0.75em`` adalah satuan Typst dan tidak punya padanan
     langsung di Word. Supaya konsisten dengan tampilan PDF laporan, DOCX
@@ -22,6 +38,8 @@ Catatan pemetaan yang disengaja:
     tidak terpasang di Windows. Word akan menggantinya secara diam-diam
     dengan font lain, sehingga DOCX default memakai "Times New Roman".
     Gunakan ``--font`` bila ingin memilih font DOCX lain secara eksplisit.
+    Bila ``--font`` diberikan, kunci ``*_font_family`` per style diabaikan
+    (kecuali SourceCode, yang tetap memakai font monospace).
 
 Contoh:
   python tools/build_style.py --preset presets/skripsi-4433.yml \\
@@ -44,6 +62,7 @@ from xml.etree import ElementTree
 CM_TO_TWIP = 566.929  # 1 cm = 566.929 twip
 DEFAULT_DOCX_FONT = "Times New Roman"
 DOCX_LINE_SPACING = 360  # 1,5 baris; lihat catatan pemetaan di docstring.
+SOURCE_CODE_FONT = "Courier New"
 
 STYLE_RE = re.compile(
     r'<w:style\b[^>]*w:styleId="([^"]+)"[^>]*>.*?</w:style>', re.S
@@ -51,6 +70,7 @@ STYLE_RE = re.compile(
 RFONTS_RE = re.compile(r"<w:rFonts\b[^>]*/>")
 SIZE_RE = re.compile(r"<w:(sz|szCs)\b[^>]*/>")
 PGMAR_RE = re.compile(r"<w:pgMar\b[^>]*/>")
+W_TAG_RE = re.compile(r"<(/?)(w:[A-Za-z0-9]+)\b([^>]*)>")
 
 # Font monospace tidak ikut diubah oleh --font supaya blok kode tetap
 # terbaca sebagai kode.
@@ -69,6 +89,214 @@ DIMENSION_RE = re.compile(
     r"^\s*([0-9]+(?:\.[0-9]+)?)\s*(cm|mm|in|pt)\s*$", re.I
 )
 FONT_SIZE_RE = re.compile(r"^\s*([0-9]+(?:\.[0-9]+)?)\s*(?:pt)?\s*$", re.I)
+
+# Urutan anak elemen sesuai skema OOXML. Dipakai saat menambah elemen baru
+# agar styles.xml tetap valid dan dapat dibaca Word.
+CONTAINER_ORDER: dict[str, tuple[str, ...]] = {
+    "pPr": (
+        "pStyle",
+        "keepNext",
+        "keepLines",
+        "pageBreakBefore",
+        "framePr",
+        "widowControl",
+        "numPr",
+        "suppressLineNumbers",
+        "pBdr",
+        "shd",
+        "tabs",
+        "suppressAutoHyphens",
+        "kinsoku",
+        "wordWrap",
+        "overflowPunct",
+        "topLinePunct",
+        "autoSpaceDE",
+        "autoSpaceDN",
+        "bidi",
+        "adjustRightInd",
+        "snapToGrid",
+        "spacing",
+        "ind",
+        "contextualSpacing",
+        "mirrorIndents",
+        "suppressOverlap",
+        "jc",
+        "textDirection",
+        "textAlignment",
+        "textboxTightWrap",
+        "outlineLvl",
+        "divId",
+        "cnfStyle",
+        "rPr",
+        "sectPr",
+        "pPrChange",
+    ),
+    "rPr": (
+        "rStyle",
+        "rFonts",
+        "b",
+        "bCs",
+        "i",
+        "iCs",
+        "caps",
+        "smallCaps",
+        "strike",
+        "dstrike",
+        "outline",
+        "shadow",
+        "emboss",
+        "imprint",
+        "noProof",
+        "snapToGrid",
+        "vanish",
+        "webHidden",
+        "color",
+        "spacing",
+        "w",
+        "kern",
+        "position",
+        "sz",
+        "szCs",
+        "highlight",
+        "u",
+        "effect",
+        "bdr",
+        "shd",
+        "fitText",
+        "vertAlign",
+        "rtl",
+        "cs",
+        "em",
+        "lang",
+        "eastAsianLayout",
+        "specVanish",
+        "oMath",
+    ),
+}
+
+# Default spesifikasi format acuan. Setiap field dapat dioverride lewat
+# preset memakai kunci ``<prefix>_<field>``.
+STYLE_SPEC_DEFAULTS: dict[str, dict[str, object]] = {
+    "Normal": {
+        "prefix": "normal",
+        "font_family": DEFAULT_DOCX_FONT,
+        "font_size": "12pt",
+        "line_spacing": 360,
+        "space_before": "0pt",
+        "space_after": "0pt",
+        "alignment": "both",
+        "first_line_indent": "1.25cm",
+    },
+    "Heading1": {
+        "prefix": "heading1",
+        "font_family": DEFAULT_DOCX_FONT,
+        "font_size": "12pt",
+        "bold": True,
+        "color": "000000",
+        "alignment": "center",
+        "space_before": "0pt",
+        "space_after": "0pt",
+        "line_spacing": 360,
+        "keep_next": True,
+        "keep_lines": True,
+        "outline_level": 0,
+        "first_line_indent": "0cm",
+    },
+    "Heading2": {
+        "prefix": "heading2",
+        "font_family": DEFAULT_DOCX_FONT,
+        "font_size": "12pt",
+        "bold": True,
+        "color": "000000",
+        "alignment": "both",
+        "space_before": "0pt",
+        "space_after": "0pt",
+        "line_spacing": 360,
+        "keep_next": True,
+        "keep_lines": True,
+        "outline_level": 1,
+        "indent_left": "1.25cm",
+        "indent_hanging": "1.25cm",
+    },
+    "Heading3": {
+        "prefix": "heading3",
+        "font_family": DEFAULT_DOCX_FONT,
+        "font_size": "12pt",
+        "bold": True,
+        "color": "000000",
+        "alignment": "both",
+        "space_before": "0pt",
+        "space_after": "0pt",
+        "line_spacing": 360,
+        "keep_next": True,
+        "keep_lines": True,
+        "outline_level": 2,
+        "indent_left": "1.25cm",
+        "indent_hanging": "1.25cm",
+    },
+    "TOCHeading": {
+        "prefix": "toc_heading",
+        "font_family": DEFAULT_DOCX_FONT,
+        "font_size": "12pt",
+        "bold": True,
+        "color": "000000",
+        "alignment": "center",
+        "space_before": "0pt",
+        "space_after": "0pt",
+        "line_spacing": 360,
+        "first_line_indent": "0cm",
+    },
+    "ImageCaption": {
+        "prefix": "image_caption",
+        "font_family": DEFAULT_DOCX_FONT,
+        "font_size": "10pt",
+        "bold": False,
+        "italic": False,
+        "alignment": "center",
+        "space_before": "0pt",
+        "space_after": "0pt",
+        "line_spacing": 240,
+    },
+    "TableCaption": {
+        "prefix": "table_caption",
+        "font_family": DEFAULT_DOCX_FONT,
+        "font_size": "10pt",
+        "bold": False,
+        "italic": False,
+        "alignment": "both",
+        "space_before": "0pt",
+        "space_after": "0pt",
+        "line_spacing": 240,
+        "keep_next": True,
+    },
+    "SourceCode": {
+        "prefix": "source_code",
+        "font_family": SOURCE_CODE_FONT,
+        "font_size": "10pt",
+        "line_spacing": 240,
+        "space_before": "0pt",
+        "space_after": "0pt",
+        "shading": "none",
+        "alignment": "left",
+    },
+    "Bibliography": {
+        "prefix": "bibliography",
+        "font_family": DEFAULT_DOCX_FONT,
+        "font_size": "12pt",
+        "line_spacing": 360,
+        "space_before": "0pt",
+        "space_after": "0pt",
+        "indent_left": "1.27cm",
+        "indent_hanging": "1.27cm",
+    },
+    "Figure": {
+        "prefix": "figure",
+        "alignment": "center",
+        "space_before": "0pt",
+        "space_after": "0pt",
+        "first_line_indent": "0cm",
+    },
+}
 
 
 def load_preset(path: Path) -> dict[str, str]:
@@ -133,25 +361,37 @@ def xml_attr(value: object) -> str:
 
 
 def set_tag_attrs(tag: str, attrs: dict[str, object]) -> str:
-    """Ganti/tambah atribut ``w:*`` pada satu elemen XML self-closing."""
+    """Ganti/tambah/hapus atribut ``w:*`` pada satu elemen XML.
+
+    Nilai ``None`` berarti atribut dihapus bila ada.
+    """
     for name, value in attrs.items():
-        pattern = re.compile(rf'(\bw:{re.escape(name)}=")[^"]*(")')
+        pattern = re.compile(rf'(\s+w:{re.escape(name)}=")[^"]*(")')
+        if value is None:
+            tag = pattern.sub("", tag, count=1)
+            continue
         if pattern.search(tag):
             tag = pattern.sub(
                 lambda match: f"{match.group(1)}{xml_attr(value)}{match.group(2)}",
                 tag,
                 count=1,
             )
+            continue
+        stripped = tag.rstrip()
+        if stripped.endswith("/>"):
+            tag = stripped[:-2].rstrip() + f' w:{name}="{xml_attr(value)}"/>'
+        elif stripped.endswith(">"):
+            tag = stripped[:-1].rstrip() + f' w:{name}="{xml_attr(value)}">'
         else:
-            tag = tag.rstrip()
-            if not tag.endswith("/>"):
-                raise ValueError(f"Elemen bukan self-closing: {tag[:80]}")
-            tag = tag[:-2].rstrip() + f' w:{name}="{xml_attr(value)}"/>'
+            raise ValueError(f"Elemen bukan tag XML yang valid: {tag[:80]}")
     return tag
 
 
 def dimension_to_twips(value: str, field: str) -> int:
-    match = DIMENSION_RE.match(value)
+    text = str(value).strip()
+    if re.fullmatch(r"0(?:\.0+)?", text):
+        return 0
+    match = DIMENSION_RE.match(text)
     if not match:
         raise ValueError(
             f"Nilai {field} '{value}' tidak valid. Gunakan satuan cm, mm, in, atau pt."
@@ -167,16 +407,125 @@ def dimension_to_twips(value: str, field: str) -> int:
     return int(round(number * factor))
 
 
-def font_size_to_half_points(value: str) -> int:
-    match = FONT_SIZE_RE.match(value)
+def font_size_to_half_points(value: str, field: str = "font_size") -> int:
+    match = FONT_SIZE_RE.match(str(value))
     if not match:
         raise ValueError(
-            f"Nilai font_size '{value}' tidak valid. Contoh yang benar: 12pt."
+            f"Nilai {field} '{value}' tidak valid. Contoh yang benar: 12pt."
         )
     half_points = int(round(float(match.group(1)) * 2))
     if half_points <= 0:
-        raise ValueError(f"font_size harus lebih besar dari nol: '{value}'")
+        raise ValueError(f"{field} harus lebih besar dari nol: '{value}'")
     return half_points
+
+
+def parse_bool(value: object, field: str) -> bool:
+    text = str(value).strip().lower()
+    if text in {"1", "true", "yes", "on"}:
+        return True
+    if text in {"0", "false", "no", "off"}:
+        return False
+    raise ValueError(f"Nilai {field} '{value}' bukan boolean yang valid")
+
+
+def parse_line_spacing(value: object, field: str) -> int:
+    text = str(value).strip()
+    if re.fullmatch(r"[0-9]+", text):
+        return int(text)
+    try:
+        multiple = float(text)
+    except ValueError as exc:
+        raise ValueError(
+            f"Nilai {field} '{value}' tidak valid. Gunakan twip (mis. 360) "
+            "atau kelipatan baris (mis. 1.5)."
+        ) from exc
+    if multiple <= 0:
+        raise ValueError(f"Nilai {field} harus lebih besar dari nol: '{value}'")
+    return int(round(multiple * 240))
+
+
+def parse_alignment(value: object, field: str) -> str:
+    text = str(value).strip().lower()
+    text = {"justify": "both", "justified": "both"}.get(text, text)
+    if text not in {"both", "center", "left", "right", "distribute"}:
+        raise ValueError(f"Nilai {field} '{value}' bukan alignment yang valid")
+    return text
+
+
+def parse_color(value: object, field: str) -> str:
+    text = str(value).strip().lstrip("#").upper()
+    if text == "AUTO":
+        return "auto"
+    if not re.fullmatch(r"[0-9A-F]{6}", text):
+        raise ValueError(
+            f"Nilai {field} '{value}' bukan warna heksadesimal 6 digit"
+        )
+    return text
+
+
+def parse_outline_level(value: object, field: str) -> int:
+    text = str(value).strip()
+    if not re.fullmatch(r"[0-9]+", text):
+        raise ValueError(f"Nilai {field} '{value}' bukan level outline yang valid")
+    level = int(text)
+    if level > 9:
+        raise ValueError(f"Nilai {field} harus antara 0 dan 9: '{value}'")
+    return level
+
+
+def parse_shading(value: object, field: str) -> str:
+    text = str(value).strip().lower()
+    if text in {"", "none", "off", "false"}:
+        return "none"
+    return parse_color(text, field)
+
+
+def normalize_spec_field(style_id: str, field: str, value: object) -> object:
+    """Normalisasi satu nilai style dari preset/default ke tipe internal."""
+    label = f"{style_id}.{field}"
+    if field == "font_family":
+        text = str(value).strip()
+        if not text:
+            raise ValueError(f"Nilai {label} tidak boleh kosong")
+        return text
+    if field == "font_size":
+        return font_size_to_half_points(str(value), label)
+    if field in {"bold", "italic", "keep_next", "keep_lines"}:
+        return parse_bool(value, label)
+    if field == "color":
+        return parse_color(value, label)
+    if field == "alignment":
+        return parse_alignment(value, label)
+    if field in {
+        "space_before",
+        "space_after",
+        "first_line_indent",
+        "indent_left",
+        "indent_hanging",
+    }:
+        return dimension_to_twips(str(value), label)
+    if field == "line_spacing":
+        return parse_line_spacing(value, label)
+    if field == "outline_level":
+        return parse_outline_level(value, label)
+    if field == "shading":
+        return parse_shading(value, label)
+    raise ValueError(f"Field style tidak dikenal: {field}")
+
+
+def resolve_style_specs(preset: dict[str, str]) -> dict[str, dict[str, object]]:
+    """Gabungkan default acuan dengan override ``<prefix>_<field>`` preset."""
+    resolved: dict[str, dict[str, object]] = {}
+    for style_id, defaults in STYLE_SPEC_DEFAULTS.items():
+        prefix = str(defaults["prefix"])
+        spec: dict[str, object] = {}
+        for field, default in defaults.items():
+            if field == "prefix":
+                continue
+            raw = preset.get(f"{prefix}_{field}", default)
+            spec[field] = normalize_spec_field(style_id, field, raw)
+        resolved[style_id] = spec
+    return resolved
 
 
 def find_style(styles_xml: str, style_id: str) -> re.Match[str]:
@@ -188,34 +537,162 @@ def find_style(styles_xml: str, style_id: str) -> re.Match[str]:
     raise ValueError(f"Style '{style_id}' tidak ditemukan di reference.docx")
 
 
+def iter_top_level_spans(inner: str):
+    """Hasilkan (start, end, tag) untuk elemen top-level di dalam container."""
+    depth = 0
+    start: int | None = None
+    tag: str | None = None
+
+    for match in W_TAG_RE.finditer(inner):
+        closing = match.group(1) == "/"
+        tag_name = match.group(2).split(":", 1)[1]
+        self_closing = (not closing) and match.group(3).rstrip().endswith("/")
+
+        if closing:
+            if depth == 0:
+                continue
+            depth -= 1
+            if depth == 0 and start is not None and tag is not None:
+                yield start, match.end(), tag
+                start = None
+                tag = None
+            continue
+
+        if depth == 0:
+            start = match.start()
+            tag = tag_name
+            if self_closing:
+                yield start, match.end(), tag
+                start = None
+                tag = None
+            else:
+                depth = 1
+        elif not self_closing:
+            depth += 1
+
+
+def find_top_level_span(inner: str, tag: str) -> tuple[int, int] | None:
+    for start, end, name in iter_top_level_spans(inner):
+        if name == tag:
+            return start, end
+    return None
+
+
+def remove_top_level_child(inner: str, tag: str) -> str:
+    spans = [
+        (start, end)
+        for start, end, name in iter_top_level_spans(inner)
+        if name == tag
+    ]
+    for start, end in reversed(spans):
+        inner = inner[:start] + inner[end:]
+    return inner
+
+
+def reorder_container_children(inner: str, container: str) -> str:
+    """Urutkan anak container sesuai skema agar Word menerimanya."""
+    order = CONTAINER_ORDER.get(container)
+    if not order:
+        return inner
+    spans = list(iter_top_level_spans(inner))
+    if len(spans) < 2:
+        return inner
+
+    chunks: list[dict[str, object]] = []
+    last = 0
+    for position, (start, end, tag) in enumerate(spans):
+        chunks.append(
+            {
+                "tag": tag,
+                "leading": inner[last:start],
+                "xml": inner[start:end],
+                "position": position,
+            }
+        )
+        last = end
+    tail = inner[last:]
+
+    order_index = {tag: index for index, tag in enumerate(order)}
+    chunks.sort(
+        key=lambda chunk: (
+            order_index.get(str(chunk["tag"]), len(order)),
+            int(chunk["position"]),
+        )
+    )
+    return (
+        "".join(f"{chunk['leading']}{chunk['xml']}" for chunk in chunks) + tail
+    )
+
+
+def find_container_span(
+    style_block: str, container: str
+) -> tuple[int, int, int] | None:
+    pattern = re.compile(rf"<w:{re.escape(container)}(?:\s[^>]*)?>")
+    match = pattern.search(style_block)
+    if not match:
+        return None
+    if match.group(0).rstrip().endswith("/>"):
+        return match.start(), match.end(), match.end()
+    close = style_block.find(f"</w:{container}>", match.end())
+    if close == -1:
+        raise ValueError(f"</w:{container}> tidak ditemukan pada style")
+    return match.start(), match.end(), close
+
+
+def ensure_container(
+    style_block: str, container: str
+) -> tuple[str, tuple[int, int, int]]:
+    span = find_container_span(style_block, container)
+    if span is not None:
+        return style_block, span
+
+    if container == "pPr":
+        rpr_span = find_container_span(style_block, "rPr")
+        insert_at = (
+            rpr_span[0]
+            if rpr_span is not None
+            else style_block.rfind("</w:style>")
+        )
+    else:
+        insert_at = style_block.rfind("</w:style>")
+    if insert_at == -1:
+        raise ValueError("</w:style> tidak ditemukan")
+
+    new_container = f"<w:{container}>\n  </w:{container}>\n"
+    style_block = style_block[:insert_at] + new_container + style_block[insert_at:]
+    span = find_container_span(style_block, container)
+    if span is None:  # pragma: no cover - tidak mungkin bila insert berhasil
+        raise ValueError(f"Gagal membuat <w:{container}>")
+    return style_block, span
+
+
 def patch_container(
     style_block: str,
     container: str,
     updates: list[tuple[str, dict[str, object]]],
+    drops: tuple[str, ...] = (),
 ) -> str:
     """Ubah elemen anak di dalam ``<w:pPr>`` atau ``<w:rPr>``."""
-    open_tag = f"<w:{container}>"
-    close_tag = f"</w:{container}>"
-    start = style_block.find(open_tag)
-    if start == -1:
-        raise ValueError(f"<w:{container}> tidak ditemukan pada style")
-    start += len(open_tag)
-    end = style_block.find(close_tag, start)
-    if end == -1:
-        raise ValueError(f"</w:{container}> tidak ditemukan pada style")
+    style_block, (_, inner_start, inner_end) = ensure_container(
+        style_block, container
+    )
+    inner = style_block[inner_start:inner_end]
 
-    inner = style_block[start:end]
+    for tag in drops:
+        inner = remove_top_level_child(inner, tag)
+
     for child_tag, attrs in updates:
-        child_re = re.compile(rf"<w:{re.escape(child_tag)}\b[^>]*/>")
-        match = child_re.search(inner)
-        if match:
-            replacement = set_tag_attrs(match.group(0), attrs)
-            inner = inner[: match.start()] + replacement + inner[match.end() :]
-        else:
+        span = find_top_level_span(inner, child_tag)
+        if span is None:
             new_tag = set_tag_attrs(f"<w:{child_tag}/>", attrs)
             inner = inner.rstrip() + "\n    " + new_tag
+            continue
+        start, end = span
+        replacement = set_tag_attrs(inner[start:end], attrs)
+        inner = inner[:start] + replacement + inner[end:]
 
-    return style_block[:start] + inner + style_block[end:]
+    inner = reorder_container_children(inner, container)
+    return style_block[:inner_start] + inner + style_block[inner_end:]
 
 
 def patch_style(
@@ -224,14 +701,132 @@ def patch_style(
     *,
     ppr: list[tuple[str, dict[str, object]]] | None = None,
     rpr: list[tuple[str, dict[str, object]]] | None = None,
+    ppr_drops: tuple[str, ...] = (),
+    rpr_drops: tuple[str, ...] = (),
 ) -> str:
     match = find_style(styles_xml, style_id)
     block = match.group(0)
-    if ppr:
-        block = patch_container(block, "pPr", ppr)
-    if rpr:
-        block = patch_container(block, "rPr", rpr)
+    if ppr or ppr_drops:
+        block = patch_container(block, "pPr", ppr or [], ppr_drops)
+    if rpr or rpr_drops:
+        block = patch_container(block, "rPr", rpr or [], rpr_drops)
     return styles_xml[: match.start()] + block + styles_xml[match.end() :]
+
+
+def build_style_patch(
+    spec: dict[str, object],
+) -> tuple[
+    list[tuple[str, dict[str, object]]],
+    list[tuple[str, dict[str, object]]],
+    tuple[str, ...],
+    tuple[str, ...],
+]:
+    """Terjemahkan satu spec hasil resolve menjadi update pPr/rPr."""
+    ppr: list[tuple[str, dict[str, object]]] = []
+    rpr: list[tuple[str, dict[str, object]]] = []
+    ppr_drops: list[str] = []
+    rpr_drops: list[str] = []
+
+    spacing_attrs: dict[str, object] = {}
+    if "space_before" in spec:
+        spacing_attrs["before"] = spec["space_before"]
+    if "space_after" in spec:
+        spacing_attrs["after"] = spec["space_after"]
+    if "line_spacing" in spec:
+        spacing_attrs["line"] = spec["line_spacing"]
+        spacing_attrs["lineRule"] = "auto"
+    if spacing_attrs:
+        ppr.append(("spacing", spacing_attrs))
+
+    ind_attrs: dict[str, object] = {}
+    if "first_line_indent" in spec:
+        ind_attrs["firstLine"] = spec["first_line_indent"]
+    if "indent_left" in spec:
+        ind_attrs["left"] = spec["indent_left"]
+    if "indent_hanging" in spec:
+        ind_attrs["hanging"] = spec["indent_hanging"]
+        if "first_line_indent" not in spec:
+            # Hanging indent tidak boleh bertabrakan dengan firstLine warisan.
+            ind_attrs["firstLine"] = None
+    if ind_attrs:
+        ppr.append(("ind", ind_attrs))
+
+    if "alignment" in spec:
+        ppr.append(("jc", {"val": spec["alignment"]}))
+
+    for field, tag in (("keep_next", "keepNext"), ("keep_lines", "keepLines")):
+        if field in spec:
+            ppr.append(
+                (tag, {"val": None} if spec[field] else {"val": "0"})
+            )
+
+    if "outline_level" in spec:
+        ppr.append(("outlineLvl", {"val": spec["outline_level"]}))
+
+    if "font_family" in spec:
+        family = spec["font_family"]
+        rpr.append(
+            ("rFonts", {"ascii": family, "hAnsi": family, "cs": family})
+        )
+
+    for field, tag in (("bold", "b"), ("italic", "i")):
+        if field in spec:
+            toggle = {"val": None} if spec[field] else {"val": "0"}
+            rpr.append((tag, dict(toggle)))
+            rpr.append((f"{tag}Cs", dict(toggle)))
+
+    if "color" in spec:
+        rpr.append(("color", {"val": spec["color"]}))
+
+    if "font_size" in spec:
+        size = spec["font_size"]
+        rpr.append(("sz", {"val": size}))
+        rpr.append(("szCs", {"val": size}))
+
+    if "shading" in spec:
+        if spec["shading"] == "none":
+            ppr_drops.append("shd")
+            rpr_drops.append("shd")
+        else:
+            rpr.append(
+                (
+                    "shd",
+                    {
+                        "val": "clear",
+                        "color": "auto",
+                        "fill": spec["shading"],
+                    },
+                )
+            )
+
+    return ppr, rpr, tuple(ppr_drops), tuple(rpr_drops)
+
+
+def apply_style_specs(
+    styles_xml: str,
+    specs: dict[str, dict[str, object]],
+    *,
+    apply_font_family: bool,
+) -> str:
+    """Terapkan seluruh spec style; font per style opsional agar --font menang."""
+    for style_id, spec in specs.items():
+        active = spec
+        if not apply_font_family and style_id != "SourceCode":
+            active = {
+                key: value
+                for key, value in spec.items()
+                if key != "font_family"
+            }
+        ppr, rpr, ppr_drops, rpr_drops = build_style_patch(active)
+        styles_xml = patch_style(
+            styles_xml,
+            style_id,
+            ppr=ppr,
+            rpr=rpr,
+            ppr_drops=ppr_drops,
+            rpr_drops=rpr_drops,
+        )
+    return styles_xml
 
 
 def current_normal_size(styles_xml: str) -> int | None:
@@ -394,6 +989,7 @@ def main(argv: list[str] | None = None) -> int:
 
         font = (args.font or "").strip() or DEFAULT_DOCX_FONT
         preset_font = preset.get("font_family", "").strip()
+        explicit_font = bool((args.font or "").strip())
 
         with zipfile.ZipFile(base_docx, "r") as archive:
             styles_xml = archive.read("word/styles.xml").decode("utf-8")
@@ -434,6 +1030,13 @@ def main(argv: list[str] | None = None) -> int:
                     ppr=[("ind", {"firstLine": indent_twips})],
                 )
 
+        style_specs = resolve_style_specs(preset)
+        styles_xml = apply_style_specs(
+            styles_xml,
+            style_specs,
+            apply_font_family=not explicit_font,
+        )
+
         document_xml = apply_margins(document_xml, margins)
 
         styles_xml, added_isng = ensure_character_style(
@@ -466,7 +1069,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"ERROR: gagal membuat reference.docx: {exc}", file=sys.stderr)
         return 1
 
-    if preset_font and not args.font:
+    if preset_font and not explicit_font:
         print(
             f"[INFO] font_family preset '{preset_font}' diabaikan untuk DOCX; "
             f"memakai '{font}'. Gunakan --font untuk override."
@@ -492,6 +1095,11 @@ def main(argv: list[str] | None = None) -> int:
         )
     if indent_twips is not None:
         print(f"     first_line_indent: {indent_twips} twip")
+    print(
+        "     style acuan: "
+        + ", ".join(style_specs)
+        + " (dapat dioverride lewat preset)"
+    )
     print(
         "     style: "
         f"{style_count_before} -> {style_count_after} "

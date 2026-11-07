@@ -1,7 +1,7 @@
 -- docx.lua: penomoran heading dan cover page untuk output DOCX.
 --  - Heading 1: "BAB I PENDAHULUAN" (huruf kapital, angka romawi)
---  - Heading 2: "1.1. Sub Bab" (titik di akhir nomor)
---  - Heading 3: "1.1.1 Sub Sub Bab"
+--  - Heading 2: "1.1." + TAB + "Sub Bab" (titik di akhir nomor)
+--  - Heading 3: "1.1.1." + TAB + "Sub Sub Bab" (titik di akhir nomor)
 --  - Heading dengan atribut {-} (unnumbered) dilewati tanpa penomoran.
 --  - Cover page dibangun dari metadata (logo, judul, penulis, institusi)
 --    meniru cover PDF, menggantikan title block bawaan pandoc.
@@ -15,7 +15,7 @@ local toc_entries = {}
 local chapter_prefix = "BAB "
 local chapter_num_fmt = "roman"
 local sub_dot = true
-local subsub_dot = false
+local subsub_dot = true
 local doc_margins = { top = 1134, right = 1417, bottom = 1701, left = 1417 }
 
 local function dim_to_twips(val, fallback)
@@ -135,6 +135,12 @@ local function balance_title(text)
     return two
   end
   return best_for(3)
+end
+
+-- TAB nyata di dalam run. Tab stop dan hanging indent 1,25 cm disediakan
+-- oleh style Heading2/Heading3, bukan oleh filter ini.
+local function heading_tab()
+  return pandoc.RawInline("openxml", "<w:r><w:tab/></w:r>")
 end
 
 local function para(content, style)
@@ -264,22 +270,22 @@ function Header(el)
   elseif el.level == 2 then
     sub = sub + 1
     subsub = 0
-    local sep2 = sub_dot and ". " or " "
+    local num2 = bab .. "." .. sub .. (sub_dot and "." or "")
     toc_entries[#toc_entries + 1] = {
       level = 2,
       id = el.identifier,
-      text = bab .. "." .. sub .. sep2 .. title,
+      text = num2 .. " " .. title,
     }
-    el.content = pandoc.Str(bab .. "." .. sub .. sep2 .. title)
+    el.content = pandoc.List{ pandoc.Str(num2), heading_tab(), pandoc.Str(title) }
   elseif el.level == 3 then
     subsub = subsub + 1
-    local sep3 = subsub_dot and ". " or " "
+    local num3 = bab .. "." .. sub .. "." .. subsub .. (subsub_dot and "." or "")
     toc_entries[#toc_entries + 1] = {
       level = 3,
       id = el.identifier,
-      text = bab .. "." .. sub .. "." .. subsub .. sep3 .. title,
+      text = num3 .. " " .. title,
     }
-    el.content = pandoc.Str(bab .. "." .. sub .. "." .. subsub .. sep3 .. title)
+    el.content = pandoc.List{ pandoc.Str(num3), heading_tab(), pandoc.Str(title) }
   end
   return el
 end
@@ -313,7 +319,7 @@ local function daftar_isi()
   out[#out + 1] = pandoc.RawBlock(
     "openxml",
     '<w:p><w:pPr><w:pStyle w:val="TOCHeading"/><w:jc w:val="center"/><w:outlineLvl w:val="9"/></w:pPr>' ..
-      '<w:r><w:rPr><w:b/><w:sz w:val="28"/><w:szCs w:val="28"/></w:rPr><w:t>DAFTAR ISI</w:t></w:r></w:p>'
+      '<w:r><w:rPr><w:b/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>DAFTAR ISI</w:t></w:r></w:p>'
   )
   out[#out + 1] = pandoc.RawBlock(
     "openxml",
@@ -339,7 +345,7 @@ local function daftar_gambar()
   out[#out + 1] = pandoc.RawBlock(
     "openxml",
     '<w:p><w:pPr><w:pStyle w:val="TOCHeading"/><w:jc w:val="center"/><w:outlineLvl w:val="9"/></w:pPr>' ..
-      '<w:r><w:rPr><w:b/><w:sz w:val="28"/><w:szCs w:val="28"/></w:rPr><w:t>DAFTAR GAMBAR</w:t></w:r></w:p>'
+      '<w:r><w:rPr><w:b/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>DAFTAR GAMBAR</w:t></w:r></w:p>'
   )
   out[#out + 1] = pandoc.RawBlock(
     "openxml",
@@ -358,7 +364,7 @@ local function daftar_tabel()
   out[#out + 1] = pandoc.RawBlock(
     "openxml",
     '<w:p><w:pPr><w:pStyle w:val="TOCHeading"/><w:jc w:val="center"/><w:outlineLvl w:val="9"/></w:pPr>' ..
-      '<w:r><w:rPr><w:b/><w:sz w:val="28"/><w:szCs w:val="28"/></w:rPr><w:t>DAFTAR TABEL</w:t></w:r></w:p>'
+      '<w:r><w:rPr><w:b/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>DAFTAR TABEL</w:t></w:r></w:p>'
   )
   out[#out + 1] = pandoc.RawBlock(
     "openxml",

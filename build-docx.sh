@@ -2,6 +2,19 @@
 set -e
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# Build DOCX harus dijalankan dari Git Bash di Windows. WSL tidak dapat
+# memanggil venv Windows dan path /mnt/c memicu WinError 5 pada python-docx.
+if [ -r /proc/version ] && grep -qi "microsoft" /proc/version 2>/dev/null; then
+  case "$DIR" in
+    /mnt/c/*|/mnt/c)
+      echo "ERROR: Jalankan build dari Git Bash, bukan WSL bash." >&2
+      echo "       Alasan: venv Windows tidak bisa dipanggil dari WSL dan path /mnt/c memicu WinError 5." >&2
+      exit 1
+      ;;
+  esac
+fi
+
 if [ -n "$1" ]; then
   OUTDIR="$(cd "$1" && pwd)"
 elif [ -f "$(pwd)/metadata.yml" ] && [ -d "$(pwd)/chapters" ]; then
@@ -13,13 +26,21 @@ else
 fi
 REPORT="$OUTDIR/Laporan.docx"
 
-# Resolve Python (handle WindowsApps stub redirector on Windows)
+# Resolve Python (handle WindowsApps stub redirector on Windows).
+# Utamakan venv repo bila ada karena add_paragraph_ids.py membutuhkan
+# python-docx/lxml; python sistem belum tentu memilikinya.
 PYTHON_BIN="python3"
 if ! command -v python3 >/dev/null 2>&1 || ! python3 -V >/dev/null 2>&1; then
   if command -v python >/dev/null 2>&1 && python -V >/dev/null 2>&1; then
     PYTHON_BIN="python"
   fi
 fi
+for VENV_PYTHON in "$DIR/.venv/Scripts/python.exe" "$DIR/.venv/bin/python"; do
+  if [ -x "$VENV_PYTHON" ] && "$VENV_PYTHON" -V >/dev/null 2>&1; then
+    PYTHON_BIN="$VENV_PYTHON"
+    break
+  fi
+done
 
 if [ ! -d "$OUTDIR/chapters" ]; then
   echo "ERROR: Direktori chapters/ tidak ditemukan."
@@ -55,9 +76,16 @@ copy_asset "docx.lua" "$TMPDIR" || true
 copy_asset "metadata.yml" "$TMPDIR" || true
 copy_asset "references.bib" "$TMPDIR" || true
 copy_asset "apa.csl" "$TMPDIR" || true
+copy_asset "refs" "$TMPDIR" || true
 copy_asset "presets" "$TMPDIR" || true
 copy_asset "scripts" "$TMPDIR" || true
 copy_asset "tools" "$TMPDIR" || true
+
+if [ ! -f "$TMPDIR/refs/ieee.csl" ]; then
+  echo "ERROR: refs/ieee.csl tidak ditemukan; sitasi tidak dapat diproses." >&2
+  echo "       Letakkan berkas CSL di refs/ieee.csl." >&2
+  exit 1
+fi
 
 if [ -d "$OUTDIR/gambar" ]; then
   cp -r "$OUTDIR/gambar" "$TMPDIR/"
@@ -172,7 +200,7 @@ pandoc \
   --metadata-file="metadata.yml" \
   --citeproc \
   --bibliography="references.bib" \
-  --csl="apa.csl" \
+  --csl="refs/ieee.csl" \
   --metadata=reference-section-title="DAFTAR PUSTAKA" \
   --top-level-division=chapter \
   --reference-doc="$GENERATED_REFERENCE" \
@@ -201,8 +229,34 @@ fi
 export PYTHONUTF8=1
 "$PYTHON_BIN" "$FINALIZE_SCRIPT" "$TMPDIR/Laporan-tmp.docx" "$TMPDIR/Laporan-sect.docx"
 
+# --- Caption/gambar/tabel (setelah finalize, sebelum istilah) --------------
+FIGURES_SCRIPT="$TMPDIR/tools/format_figures.py"
+if [ ! -f "$FIGURES_SCRIPT" ]; then
+  for base in "${FALLBACK_DIRS[@]}"; do
+    if [ -f "$base/tools/format_figures.py" ]; then
+      FIGURES_SCRIPT="$base/tools/format_figures.py"
+      break
+    fi
+  done
+fi
+if [ ! -f "$FIGURES_SCRIPT" ]; then
+  echo "ERROR: tools/format_figures.py tidak ditemukan." >&2
+  exit 1
+fi
+
+FIGURES_DOCX="$TMPDIR/Laporan-figs.docx"
+if ! "$PYTHON_BIN" "$FIGURES_SCRIPT" --docx "$TMPDIR/Laporan-sect.docx" --out "$FIGURES_DOCX"; then
+  echo "ERROR: format_figures.py gagal; build dihentikan." >&2
+  echo "       Periksa pesan di atas untuk caption/gambar/tabel yang bermasalah." >&2
+  exit 1
+fi
+if [ ! -s "$FIGURES_DOCX" ]; then
+  echo "ERROR: format_figures.py tidak menghasilkan DOCX: $FIGURES_DOCX" >&2
+  exit 1
+fi
+
 if ! "$ISTILAH_PYTHON" "$ISTILAH_SCRIPT" apply \
-  "$TMPDIR/Laporan-sect.docx" \
+  "$FIGURES_DOCX" \
   --glossary "$GLOSSARY" \
   --review-file "$ISTILAH_REVIEW"; then
   echo "ERROR: apply istilah gagal; build dihentikan." >&2
@@ -210,13 +264,53 @@ if ! "$ISTILAH_PYTHON" "$ISTILAH_SCRIPT" apply \
 fi
 
 if ! "$ISTILAH_PYTHON" "$ISTILAH_SCRIPT" verify \
-  "$TMPDIR/Laporan-sect.docx" \
+  "$FIGURES_DOCX" \
   --glossary "$GLOSSARY"; then
   echo "ERROR: verify istilah gagal; build dihentikan. Lihat temuan di atas." >&2
   exit 1
 fi
 
-"$PYTHON_BIN" "$PAGENUM_SCRIPT" "$TMPDIR/Laporan-sect.docx" "$REPORT"
+"$PYTHON_BIN" "$PAGENUM_SCRIPT" "$FIGURES_DOCX" "$REPORT"
+
+# --- ID paragraf + manifest Adeu (setelah finalize/istilah/pagenum) --------
+mkdir -p "$OUTDIR/build"
+
+PARAGRAPH_IDS_SCRIPT="$TMPDIR/tools/add_paragraph_ids.py"
+if [ ! -f "$PARAGRAPH_IDS_SCRIPT" ]; then
+  for base in "${FALLBACK_DIRS[@]}"; do
+    if [ -f "$base/tools/add_paragraph_ids.py" ]; then
+      PARAGRAPH_IDS_SCRIPT="$base/tools/add_paragraph_ids.py"
+      break
+    fi
+  done
+fi
+if [ ! -f "$PARAGRAPH_IDS_SCRIPT" ]; then
+  echo "ERROR: tools/add_paragraph_ids.py tidak ditemukan." >&2
+  exit 1
+fi
+
+if ! "$PYTHON_BIN" -c "import docx, lxml" >/dev/null 2>&1; then
+  echo "ERROR: python-docx/lxml tidak tersedia untuk $PYTHON_BIN." >&2
+  echo "       tools/add_paragraph_ids.py memerlukan keduanya." >&2
+  echo "       Pasang dependensi dengan: pip install -r tools/requirements.txt" >&2
+  exit 1
+fi
+
+IDS_DOCX="$TMPDIR/Laporan-ids.docx"
+if ! "$PYTHON_BIN" "$PARAGRAPH_IDS_SCRIPT" "$REPORT" \
+  --out-docx "$IDS_DOCX" \
+  --manifest "$OUTDIR/build/manifest.json" \
+  --docx-name "Laporan.docx" \
+  --source-dir "$OUTDIR/chapters"; then
+  echo "ERROR: Gagal menambahkan ID paragraf ke $REPORT; build dihentikan." >&2
+  exit 1
+fi
+if ! mv -f "$IDS_DOCX" "$REPORT"; then
+  echo "ERROR: Gagal memindahkan DOCX ber-ID paragraf ke $REPORT." >&2
+  exit 1
+fi
+rm -f "$IDS_DOCX"
 
 echo "=== DOCX BERHASIL DIBUAT ==="
 echo "Lokasi: $REPORT"
+echo "Manifest: $OUTDIR/build/manifest.json"

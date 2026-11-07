@@ -1,4 +1,4 @@
-.PHONY: build clean lint-deps watch docx html crossref test docker-build init view reference-docx
+.PHONY: build clean lint-deps lint-prosa watch docx html crossref test docker-build init view reference-docx finalize-word
 
 build:
 	./build.sh
@@ -25,6 +25,12 @@ lint-deps:
 	@command -v typst >/dev/null 2>&1 || { echo "ERROR: typst not found"; exit 1; }
 	@command -v magick >/dev/null 2>&1 || command -v convert >/dev/null 2>&1 || { echo "ERROR: ImageMagick (magick/convert) not found"; exit 1; }
 	@echo "All dependencies OK."
+
+lint-prosa:
+	@if [ -x .venv/Scripts/python.exe ]; then PY=.venv/Scripts/python.exe; \
+	elif [ -x .venv/bin/python ]; then PY=.venv/bin/python; \
+	else PY=python; fi; \
+	$$PY tools/periksa_prosa.py chapters/*.md
 
 watch:
 	@command -v inotifywait >/dev/null 2>&1 || { echo "ERROR: inotifywait not found. Install inotify-tools."; exit 1; }
@@ -92,3 +98,8 @@ docker-run:
 
 docker-watch:
 	docker compose run --rm watch
+
+# Perbarui field Word (termasuk nomor halaman TOC) memakai Microsoft Word COM.
+# Hanya Windows + Word desktop; tidak tersedia di Linux/CI.
+finalize-word:
+	powershell -ExecutionPolicy Bypass -File tools/update_fields.ps1 -DocxPath Laporan.docx

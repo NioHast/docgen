@@ -2,23 +2,27 @@
 """Finalisasi document.xml hasil pandoc agar penomoran halaman DOCX
 mengikuti kaidah laporan akademik Indonesia:
 
-  - Sampul                 : tanpa nomor halaman
-  - Front matter           : i, ii, iii ... (lowerRoman, mulai 1), bawah tengah
-  - Body (BAB I s.d. akhir): 1, 2, 3 ... (decimal, mulai 1), kanan atas
+  - Sampul + pernyataan   : tanpa nomor halaman
+  - Front matter          : i, ii, iii ... (lowerRoman, mulai 1), bawah tengah,
+                            12 pt, tanpa header
+  - Body (BAB I s.d. akhir): 1, 2, 3 ... (decimal, mulai 1), header kanan 10 pt
+  - Halaman pertama bab   : nomor lanjut di footer tengah 12 pt, header kosong
+                            (setiap section body memakai `w:titlePg`)
 
-Pandoc/docx.lua hanya menyisipkan satu section break di akhir sampul.
-Script ini:
+Pandoc/docx.lua hanya menyisipkan section break di akhir sampul dan di
+setiap awal bab (karena `--top-level-division=chapter`). Script ini:
 
   1. Menambahkan section break baru tepat sebelum Heading1 body pertama
-     (BAB I) bila belum ada, sehingga dokumen memiliki tiga seksi.
+     (BAB I) bila belum ada, sehingga dokumen memiliki tiga zona.
   2. Menulis ulang setiap `w:sectPr` agar memiliki `w:pgNumType` yang
-     sesuai zona.
+     sesuai zona dan `w:titlePg` pada setiap section body.
   3. Membuat part header/footer baru yang tidak saling di-link antar
-     seksi: footer front matter (PAGE, tengah), header body (PAGE, kanan),
-     header kosong untuk front matter, serta footer body kosong secara
-     visual. Footer body tetap memuat field PAGE tersembunyi sebagai probe
-     agar `docx-pagenum.py` (yang membaca footer PDF) tetap dapat mengisi
-     nomor halaman daftar isi.
+     seksi: footer front matter (PAGE, tengah, 12 pt), header body
+     (PAGE, kanan, 10 pt), header first body kosong, footer first body
+     (PAGE, tengah, 12 pt), serta footer default body yang kosong secara
+     visual. Footer default body tetap memuat field PAGE tersembunyi
+     sebagai probe agar `docx-pagenum.py` (yang membaca baris terakhir
+     PDF) tetap dapat mengisi nomor halaman daftar isi.
   4. Membersihkan part header/footer lama yang tidak lagi dipakai.
 
 Field PAGE ditulis sebagai field OpenXML asli (fldChar begin/separate/end),
@@ -74,6 +78,23 @@ FRONT_MATTER_HEADINGS = {
 
 BODY_CHAPTER_RE = re.compile(r"^BAB\s+(?:[IVXLCDM]+|\d+)\b", re.I)
 
+# Halaman pernyataan/pengesahan berada di zona sampul: tidak diberi nomor.
+# Dipakai untuk section terpisah yang hanya berisi heading pernyataan
+# (mis. saat metadata `approval` diaktifkan).
+NO_NUMBER_HEADING_PREFIXES = (
+    "LEMBAR PENGESAHAN",
+    "HALAMAN PENGESAHAN",
+    "LEMBAR PERSETUJUAN",
+    "HALAMAN PERSETUJUAN",
+    "LEMBAR PERNYATAAN",
+    "HALAMAN PERNYATAAN",
+    "PERNYATAAN ",
+)
+
+FRONT_FOOTER_SIZE_PT = 12
+BODY_HEADER_SIZE_PT = 10
+BODY_FOOTER_SIZE_PT = 12
+
 # Urutan elemen CT_SectPr: pgNumType harus berada setelah pgMar dan sebelum
 # elemen-elemen berikut.
 PGNUM_BEFORE = (
@@ -110,6 +131,30 @@ def is_front_matter_heading(text):
     return text.strip().upper() in FRONT_MATTER_HEADINGS
 
 
+def is_no_number_heading(text):
+    """Heading halaman pernyataan/pengesahan (zona sampul)."""
+    upper = text.strip().upper()
+    return any(upper.startswith(prefix) for prefix in NO_NUMBER_HEADING_PREFIXES)
+
+
+def heading_texts_in_section(doc, section):
+    return [
+        text.strip()
+        for start, _end, text in heading1_paragraphs(doc)
+        if section["start"] <= start < section["end"] and text.strip()
+    ]
+
+
+def is_no_number_section(doc, section):
+    """True bila section hanya berisi heading pernyataan/pengesahan.
+
+    Section seperti ini berada sebelum front matter dan mengikuti aturan
+    sampul: tanpa header/footer dan tanpa nomor halaman.
+    """
+    headings = heading_texts_in_section(doc, section)
+    return bool(headings) and all(is_no_number_heading(text) for text in headings)
+
+
 def first_body_heading(doc):
     """Posisi paragraf Heading1 pertama milik body (BAB I), atau None."""
     headings = heading1_paragraphs(doc)
@@ -121,6 +166,15 @@ def first_body_heading(doc):
         if text.strip() and not is_front_matter_heading(text):
             return start
     return None
+
+
+def body_chapter_positions(doc):
+    """Posisi semua Heading1 bab bernomor (BAB I, BAB II, ...)."""
+    return [
+        start
+        for start, _end, text in heading1_paragraphs(doc)
+        if BODY_CHAPTER_RE.match(text.strip())
+    ]
 
 
 def is_cover_section(text):
@@ -222,32 +276,65 @@ def set_pgnum(sect, fmt, start=None):
     return sect.replace("</w:sectPr>", tag + "</w:sectPr>")
 
 
-def set_references(sect, header_rid=None, footer_rid=None):
+def set_titlepg(sect):
+    """Aktifkan header/footer halaman pertama yang berbeda."""
+    sect = TITLEPG_RE.sub("", sect)
+    tag = "<w:titlePg/>"
+    for name in ("textDirection", "bidi", "rtlGutter", "docGrid", "printerSettings"):
+        match = re.search(rf"<w:{name}\b", sect)
+        if match:
+            return sect[:match.start()] + tag + sect[match.start():]
+    return sect.replace("</w:sectPr>", tag + "</w:sectPr>")
+
+
+def set_references(
+    sect,
+    header_default=None,
+    header_first=None,
+    footer_default=None,
+    footer_first=None,
+):
     sect = HEADER_FOOTER_REF_RE.sub("", sect)
     refs = ""
-    if header_rid:
-        refs += f'<w:headerReference w:type="default" r:id="{header_rid}"/>'
-    if footer_rid:
-        refs += f'<w:footerReference w:type="default" r:id="{footer_rid}"/>'
+    if header_default:
+        refs += f'<w:headerReference w:type="default" r:id="{header_default}"/>'
+    if header_first:
+        refs += f'<w:headerReference w:type="first" r:id="{header_first}"/>'
+    if footer_default:
+        refs += f'<w:footerReference w:type="default" r:id="{footer_default}"/>'
+    if footer_first:
+        refs += f'<w:footerReference w:type="first" r:id="{footer_first}"/>'
     return re.sub(
         r"(<w:sectPr\b[^>]*>)", lambda m: m.group(1) + refs, sect, count=1
     )
 
 
-def make_page_part(kind, align, hidden=False):
-    """Part header/footer berisi field PAGE asli."""
+def make_page_part(kind, align, hidden=False, size_pt=None):
+    """Part header/footer berisi field PAGE asli.
+
+    `size_pt` ditulis eksplisit ke run properties agar nomor header body
+    tetap 10 pt dan footer 12 pt, tidak bergantung pada style Normal.
+    """
     root = "hdr" if kind == "header" else "ftr"
-    rpr = ""
+    rpr_parts = []
     if hidden:
-        # Dipakai hanya oleh footer body. Nomor body yang terlihat berada di
-        # header kanan atas. docx-pagenum.py membaca nomor body dari baris
-        # terakhir PDF (footer), jadi footer tetap memuat field PAGE yang
-        # disembunyikan di Word (vanish + putih). LibreOffice mengabaikan
-        # formatting field PAGE, sehingga nilainya masih terekstrak pdftotext.
-        rpr = '<w:rPr><w:vanish/><w:color w:val="FFFFFF"/></w:rPr>'
+        # Footer default body harus kosong secara visual. Namun
+        # docx-pagenum.py membaca nomor body dari baris terakhir PDF
+        # (footer), jadi field PAGE tetap ditulis lalu disembunyikan di
+        # Word dengan vanish + warna putih. LibreOffice mengabaikan
+        # formatting field PAGE, sehingga nilainya masih terekstrak
+        # pdftotext dan daftar isi tetap terisi.
+        rpr_parts.append("<w:vanish/>")
+        rpr_parts.append('<w:color w:val="FFFFFF"/>')
+    if size_pt is not None:
+        half_points = int(size_pt * 2)
+        rpr_parts.append(f'<w:sz w:val="{half_points}"/>')
+        rpr_parts.append(f'<w:szCs w:val="{half_points}"/>')
+    rpr = f"<w:rPr>{''.join(rpr_parts)}</w:rPr>" if rpr_parts else ""
     run_open = f"<w:r>{rpr}"
     body = (
-        f'<w:p><w:pPr><w:jc w:val="{align}"/>{rpr}</w:pPr>'
+        f'<w:p><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/>'
+        f'<w:ind w:firstLine="0"/><w:jc w:val="{align}"/>{rpr}</w:pPr>'
         + run_open
         + '<w:fldChar w:fldCharType="begin"/></w:r>'
         + run_open
@@ -369,7 +456,8 @@ def process(doc, items):
                 changed += 1
 
     # Tambahkan section break baru sebelum BAB I jika heading body belum
-    # menjadi awal seksi. Template pandoc hanya membuat break setelah sampul.
+    # menjadi awal seksi. Pandoc mungkin hanya membuat break setelah sampul
+    # bila `--top-level-division=chapter` tidak dipakai.
     if body_pos is not None and body_idx is not None:
         if not section_starts_at(sections[body_idx], body_pos, doc):
             insert_at = bookmark_aware_start(doc, body_pos)
@@ -382,42 +470,111 @@ def process(doc, items):
             body_idx = section_index_at(sections, body_pos) if body_pos is not None else None
             changed += 1
 
+    # Pastikan setiap bab bernomor menjadi awal section. Dengan begitu
+    # `w:titlePg` berlaku untuk halaman pertama tiap bab, bukan hanya bab
+    # pertama. Pandoc dengan `--top-level-division=chapter` biasanya sudah
+    # melakukannya; langkah ini menjaga dokumen yang tidak memakai opsi itu.
+    chapter_positions = body_chapter_positions(doc)
+    if chapter_positions:
+        for pos in reversed(chapter_positions):
+            sections = find_sections(doc)
+            index = section_index_at(sections, pos)
+            if index is None or section_starts_at(sections[index], pos, doc):
+                continue
+            insert_at = bookmark_aware_start(doc, pos)
+            template = SECT_RE.search(doc, sections[0]["sect_start"]).group(0)
+            new_sect = set_section_type_next_page(strip_section_props(template))
+            break_para = f"<w:p><w:pPr>{new_sect}</w:pPr></w:p>"
+            doc = doc[:insert_at] + break_para + doc[insert_at:]
+            changed += 1
+        sections = find_sections(doc)
+        body_pos = first_body_heading(doc)
+        body_idx = section_index_at(sections, body_pos) if body_pos is not None else None
+
+    # Section yang hanya berisi halaman pernyataan/pengesahan mengikuti
+    # aturan sampul: tanpa header/footer dan tanpa nomor halaman.
+    statement_idxs = {
+        i
+        for i, section in enumerate(sections)
+        if i != cover_idx
+        and (body_idx is None or i < body_idx)
+        and is_no_number_section(doc, section)
+    }
+
     front_seen = 0
     body_seen = 0
+    statement_seen = 0
     mods = []
     for index, section in enumerate(sections):
         sect = doc[section["sect_start"]:section["sect_end"]]
         sect = strip_section_props(sect)
 
-        if cover_idx is not None and index == cover_idx:
-            # Sampul: tidak ada header/footer sama sekali dan tidak ada nomor.
+        if (cover_idx is not None and index == cover_idx) or index in statement_idxs:
+            # Sampul + halaman pernyataan: tanpa header/footer dan nomor.
             sect = set_references(sect)
             new_sect = sect
+            if index in statement_idxs:
+                statement_seen += 1
         elif body_idx is not None and index >= body_idx:
             start = "1" if body_seen == 0 else None
             sect = set_pgnum(sect, "decimal", start)
             header_rid, ct_xml, rels_xml = create_part(
-                items, "header", make_page_part("header", "right"),
-                ct_xml, rels_xml
+                items,
+                "header",
+                make_page_part(
+                    "header", "right", size_pt=BODY_HEADER_SIZE_PT
+                ),
+                ct_xml,
+                rels_xml,
+            )
+            header_first_rid, ct_xml, rels_xml = create_part(
+                items, "header", make_empty_part("header"), ct_xml, rels_xml
             )
             footer_rid, ct_xml, rels_xml = create_part(
-                items, "footer", make_page_part("footer", "center", hidden=True),
-                ct_xml, rels_xml
+                items,
+                "footer",
+                make_page_part(
+                    "footer", "center", hidden=True,
+                    size_pt=BODY_FOOTER_SIZE_PT,
+                ),
+                ct_xml,
+                rels_xml,
             )
-            sect = set_references(sect, header_rid, footer_rid)
+            footer_first_rid, ct_xml, rels_xml = create_part(
+                items,
+                "footer",
+                make_page_part(
+                    "footer", "center", size_pt=BODY_FOOTER_SIZE_PT
+                ),
+                ct_xml,
+                rels_xml,
+            )
+            sect = set_references(
+                sect,
+                header_default=header_rid,
+                header_first=header_first_rid,
+                footer_default=footer_rid,
+                footer_first=footer_first_rid,
+            )
+            # Header tidak boleh muncul di halaman pertama bab: varian
+            # first-page header kosong, footer first-page berisi PAGE.
+            sect = set_titlepg(sect)
             new_sect = sect
             body_seen += 1
         else:
             start = "1" if front_seen == 0 else None
             sect = set_pgnum(sect, "lowerRoman", start)
-            header_rid, ct_xml, rels_xml = create_part(
-                items, "header", make_empty_part("header"), ct_xml, rels_xml
-            )
             footer_rid, ct_xml, rels_xml = create_part(
-                items, "footer", make_page_part("footer", "center"),
-                ct_xml, rels_xml
+                items,
+                "footer",
+                make_page_part(
+                    "footer", "center", size_pt=FRONT_FOOTER_SIZE_PT
+                ),
+                ct_xml,
+                rels_xml,
             )
-            sect = set_references(sect, header_rid, footer_rid)
+            # Front matter tidak memakai header sama sekali.
+            sect = set_references(sect, footer_default=footer_rid)
             new_sect = sect
             front_seen += 1
 
@@ -432,6 +589,7 @@ def process(doc, items):
     items["word/_rels/document.xml.rels"] = rels_xml.encode("utf-8")
     stats = {
         "cover": 1 if cover_idx is not None else 0,
+        "statement": statement_seen,
         "front": front_seen,
         "body": body_seen,
     }
@@ -473,15 +631,16 @@ def fix_toc_styles(styles, tab_pos):
   <w:uiPriority w:val="39"/>
   <w:qFormat/>
   <w:pPr>
-    <w:spacing w:before="360" w:after="360" w:line="240" w:lineRule="auto"/>
+    <w:spacing w:before="0" w:after="0" w:line="360" w:lineRule="auto"/>
+    <w:ind w:firstLine="0"/>
     <w:jc w:val="center"/>
     <w:outlineLvl w:val="9"/>
   </w:pPr>
   <w:rPr>
     {tnr}
     <w:color w:val="000000"/>
-    <w:sz w:val="28"/>
-    <w:szCs w:val="28"/>
+    <w:sz w:val="24"/>
+    <w:szCs w:val="24"/>
     <w:b/>
     <w:bCs/>
   </w:rPr>

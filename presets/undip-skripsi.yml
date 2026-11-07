@@ -15,11 +15,112 @@ font_size: 12pt
 line_spacing: 0.75em
 first_line_indent: 1.25cm
 
+# 2b. Gaya paragraf DOCX sesuai acuan/skripsi-asli.docx
+# Semua nilai di bawah dapat dioverride; defaultnya sudah sesuai acuan.
+normal_font_family: "Times New Roman"
+normal_font_size: 12pt
+normal_line_spacing: 360
+normal_space_before: 0pt
+normal_space_after: 0pt
+normal_alignment: both
+normal_first_line_indent: 1.25cm
+
+heading1_font_family: "Times New Roman"
+heading1_font_size: 12pt
+heading1_bold: true
+heading1_color: "000000"
+heading1_alignment: center
+heading1_space_before: 0pt
+heading1_space_after: 0pt
+heading1_line_spacing: 360
+heading1_keep_next: true
+heading1_keep_lines: true
+heading1_outline_level: 0
+heading1_first_line_indent: 0cm
+
+heading2_font_family: "Times New Roman"
+heading2_font_size: 12pt
+heading2_bold: true
+heading2_color: "000000"
+heading2_alignment: both
+heading2_space_before: 0pt
+heading2_space_after: 0pt
+heading2_line_spacing: 360
+heading2_keep_next: true
+heading2_keep_lines: true
+heading2_outline_level: 1
+heading2_indent_left: 1.25cm
+heading2_indent_hanging: 1.25cm
+
+heading3_font_family: "Times New Roman"
+heading3_font_size: 12pt
+heading3_bold: true
+heading3_color: "000000"
+heading3_alignment: both
+heading3_space_before: 0pt
+heading3_space_after: 0pt
+heading3_line_spacing: 360
+heading3_keep_next: true
+heading3_keep_lines: true
+heading3_outline_level: 2
+heading3_indent_left: 1.25cm
+heading3_indent_hanging: 1.25cm
+
+toc_heading_font_family: "Times New Roman"
+toc_heading_font_size: 12pt
+toc_heading_bold: true
+toc_heading_color: "000000"
+toc_heading_alignment: center
+toc_heading_space_before: 0pt
+toc_heading_space_after: 0pt
+toc_heading_line_spacing: 360
+toc_heading_first_line_indent: 0cm
+
+image_caption_font_family: "Times New Roman"
+image_caption_font_size: 10pt
+image_caption_bold: false
+image_caption_italic: false
+image_caption_alignment: center
+image_caption_space_before: 0pt
+image_caption_space_after: 0pt
+image_caption_line_spacing: 240
+
+table_caption_font_family: "Times New Roman"
+table_caption_font_size: 10pt
+table_caption_bold: false
+table_caption_italic: false
+table_caption_alignment: both
+table_caption_space_before: 0pt
+table_caption_space_after: 0pt
+table_caption_line_spacing: 240
+table_caption_keep_next: true
+
+source_code_font_family: "Courier New"
+source_code_font_size: 10pt
+source_code_line_spacing: 240
+source_code_space_before: 0pt
+source_code_space_after: 0pt
+source_code_shading: none
+source_code_alignment: left
+
+bibliography_font_family: "Times New Roman"
+bibliography_font_size: 12pt
+bibliography_line_spacing: 360
+bibliography_space_before: 0pt
+bibliography_space_after: 0pt
+bibliography_indent_left: 1.27cm
+bibliography_indent_hanging: 1.27cm
+
+figure_alignment: center
+figure_space_before: 0pt
+figure_space_after: 0pt
+figure_first_line_indent: 0cm
+
 # 3. Penomoran Heading
 heading_chapter_prefix: "BAB "
 heading_chapter_num_format: "roman"
 heading_sub_dot: true
-heading_subsub_dot: false
+heading_subsub_dot: true
 
 # 4. Pengaturan Halaman Sampul
 cover_show_lecturer: true

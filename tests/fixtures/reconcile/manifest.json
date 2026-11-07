@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "docx": "Laporan.docx",
+  "built_at": "2026-11-06T00:00:00+00:00",
+  "paragraphs": [
+    {
+      "id": "p0001",
+      "index": 0,
+      "kind": "heading",
+      "heading_path": [
+        "BAB I PENDAHULUAN"
+      ],
+      "text": "BAB I PENDAHULUAN",
+      "text_sha256": "981479353f99cc834f352db2681751436489a221ab28b9376559e96b5be28d5d",
+      "protected": false,
+      "protected_reason": null
+    },
+    {
+      "id": "p0002",
+      "index": 1,
+      "kind": "body",
+      "heading_path": [
+        "BAB I PENDAHULUAN",
+        "1.1 Latar Belakang"
+      ],
+      "text": "Penulisan laporan akademik merupakan kegiatan fundamental dalam penelitian.",
+      "text_sha256": "ffb97581c754fe8f386928b2abb79025cc27d4227f0e6e1a5cfae0e57ac78bd9",
+      "protected": false,
+      "protected_reason": null
+    },
+    {
+      "id": "p0003",
+      "index": 2,
+      "kind": "body",
+      "heading_path": [
+        "BAB I PENDAHULUAN",
+        "1.2 Rumusan Masalah"
+      ],
+      "text": "Berdasarkan latar belakang di atas, rumusan masalah penelitian ini adalah bagaimana merancang pipeline dokumentasi yang konsisten.",
+      "text_sha256": "ec699f918275eb937cb843c1eaa9655cc2057453b420f7f1c1168fa0409eed69",
+      "protected": false,
+      "protected_reason": null
+    },
+    {
+      "id": "p0004",
+      "index": 3,
+      "kind": "heading",
+      "heading_path": [
+        "BAB II TINJAUAN PUSTAKA"
+      ],
+      "text": "BAB II TINJAUAN PUSTAKA",
+      "text_sha256": "edf7de788f3f660612e60f4ccd8fc825923c9481a74fc2d07b3fb4e5906fd880",
+      "protected": false,
+      "protected_reason": null
+    },
+    {
+      "id": "p0005",
+      "index": 4,
+      "kind": "caption",
+      "heading_path": [],
+      "text": "Tabel 2.1 Ringkasan Pipeline",
+      "text_sha256": "0ffa9ab398d47abeb392d483504d1710b8ab1261550d9b2e152a5707efca9507",
+      "protected": true,
+      "protected_reason": "caption_style"
+    },
+    {
+      "id": "p0006",
+      "index": 5,
+      "kind": "body",
+      "heading_path": [
+        "BAB II TINJAUAN PUSTAKA",
+        "2.1 Landasan Teori"
+      ],
+      "text": "Landasan teori merupakan fondasi utama dalam penyusunan laporan akademik yang dapat dipertanggungjawabkan.",
+      "text_sha256": "261cc0a12b926b61df545aa7ac8490611816f3f320d75ba40387f83d598b5508",
+      "protected": false,
+      "protected_reason": null
+    },
+    {
+      "id": "p0007",
+      "index": 6,
+      "kind": "body",
+      "heading_path": [
+        "BAB II TINJAUAN PUSTAKA",
+        "2.2 Kerangka Pemikiran"
+      ],
+      "text": "Kerangka pemikiran menghubungkan teori dengan kebutuhan implementasi pipeline.",
+      "text_sha256": "05edd8739c00e7bea59e53b0b1627dd42ee649267272796b8cc034f48657e416",
+      "protected": false,
+      "protected_reason": null
+    }
+  ]
+}
