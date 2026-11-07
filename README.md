@@ -51,10 +51,10 @@ python3 -m venv .venv
 `tools/requirements.txt` memasang `python-docx`, `lxml`, dan `pytest`.
 
 Pandoc dan Typst tidak dipasang oleh perintah di atas. Pasang keduanya dan
-pastikan dapat dipanggil dari shell. `build.sh` memuat `tools/env.sh` untuk
-mencari Pandoc/Typst di lokasi instalasi Windows, WinGet, dan WSL. Untuk
-`build-docx.sh`, Pandoc harus sudah ada di `PATH` Git Bash; skrip DOCX tidak
-memuat `tools/env.sh`.
+pastikan dapat dipanggil dari shell. `build.sh` dan `build-docx.sh` memuat
+`tools/env.sh` untuk mencari Pandoc/Typst di lokasi instalasi Windows, WinGet,
+dan WSL. `build-docx.sh` melewati syarat Typst karena build DOCX hanya
+membutuhkan Pandoc.
 
 ## Build
 

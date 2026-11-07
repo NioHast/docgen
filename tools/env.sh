@@ -12,10 +12,11 @@
 #     distro Linux bisa lebih lama daripada Typst yang terpasang di Windows.
 #   - Tidak mengubah direktori kerja dan tidak mencetak apa pun bila berhasil.
 #   - Bila perkakas tidak ditemukan: pesan jelas + exit 1.
+#   - LAPORAN_ENV_SKIP_TYPST=1 melewati pengecekan Typst dan tidak menyetel
+#     LAPORAN_TYPST; dipakai build DOCX yang hanya membutuhkan Pandoc.
 #
 # Build PDF memakai Typst, build DOCX memakai pandoc + reference.docx.
-# Keduanya berbagi file ini, tetapi hanya variabel LAPORAN_* yang dipakai
-# build.sh; skrip DOCX tetap memakai perintah `pandoc` biasa.
+# Keduanya berbagi file ini; build-docx.sh menyalakan LAPORAN_ENV_SKIP_TYPST.
 
 # Aman bila di-source dua kali.
 if [ "${_LAPORAN_ENV_LOADED:-0}" = "1" ]; then
@@ -122,6 +123,11 @@ case "$_LAPORAN_PLATFORM" in
     ;;
 esac
 
+_LAPORAN_SKIP_TYPST=0
+if [ "${LAPORAN_ENV_SKIP_TYPST:-0}" = "1" ]; then
+  _LAPORAN_SKIP_TYPST=1
+fi
+
 _LAPORAN_PANDOC_EXE=""
 _LAPORAN_TYPST_EXE=""
 for _win_dir in "${_LAPORAN_WIN_DIRS[@]}"; do
@@ -136,7 +142,8 @@ done
 # Di WSL, executable Windows tidak ikut ditemukan oleh pencarian PATH Linux.
 # Karena itu path lengkapnya diekspor agar build.sh bisa memberikannya ke
 # pandoc (--pdf-engine) dan pandoc Windows.
-if [ -n "$_LAPORAN_TYPST_EXE" ] && ! command -v typst >/dev/null 2>&1; then
+if [ "$_LAPORAN_SKIP_TYPST" -eq 0 ] &&
+  [ -n "$_LAPORAN_TYPST_EXE" ] && ! command -v typst >/dev/null 2>&1; then
   LAPORAN_TYPST="$_LAPORAN_TYPST_EXE"
 fi
 
@@ -208,7 +215,8 @@ if [ -z "${LAPORAN_PANDOC:-}" ] && ! command -v pandoc >/dev/null 2>&1; then
     "$(_laporan_searched_dirs)"
 fi
 
-if [ -z "${LAPORAN_TYPST:-}" ] && ! command -v typst >/dev/null 2>&1; then
+if [ "$_LAPORAN_SKIP_TYPST" -eq 0 ] &&
+  [ -z "${LAPORAN_TYPST:-}" ] && ! command -v typst >/dev/null 2>&1; then
   _laporan_error \
     "Typst tidak ditemukan." \
     "Platform terdeteksi: $_LAPORAN_PLATFORM." \

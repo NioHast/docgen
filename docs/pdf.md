@@ -108,9 +108,9 @@ lebih lama daripada Typst yang terpasang (mis. Pandoc 3.1.3 menghasilkan
 ```
 
 Di Windows/Git Bash dan Linux native, kedua variabel tidak diset sehingga
-perintah biasa `pandoc` dan `typst` yang dipakai. `build-docx.sh` tidak
-memakai `LAPORAN_PANDOC`, jadi sourcing `env.sh` tidak mengubah cara DOCX
-dibangun.
+perintah biasa `pandoc` dan `typst` yang dipakai. `build-docx.sh` memuat
+`env.sh` dengan `LAPORAN_ENV_SKIP_TYPST=1` dan memakai
+`"${LAPORAN_PANDOC:-pandoc}"`, sehingga build DOCX hanya membutuhkan Pandoc.
 
 ### Bila perkakas tidak ditemukan
 

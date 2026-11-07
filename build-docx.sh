@@ -3,6 +3,11 @@ set -e
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
 
+# Build DOCX hanya membutuhkan Pandoc; lewati syarat Typst milik build PDF.
+LAPORAN_ENV_SKIP_TYPST=1
+# shellcheck source=tools/env.sh
+source "$DIR/tools/env.sh"
+
 # Build DOCX harus dijalankan dari Git Bash di Windows. WSL tidak dapat
 # memanggil venv Windows dan path /mnt/c memicu WinError 5 pada python-docx.
 if [ -r /proc/version ] && grep -qi "microsoft" /proc/version 2>/dev/null; then
@@ -194,7 +199,7 @@ for CHAPTER in "$OUTDIR"/chapters/*.md; do
   fi
 done
 
-pandoc \
+"${LAPORAN_PANDOC:-pandoc}" \
   "${INPUT_FILES[@]}" \
   "${PRESET_OPTS[@]}" \
   --metadata-file="metadata.yml" \
