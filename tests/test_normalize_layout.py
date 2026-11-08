@@ -538,7 +538,8 @@ def test_output_boleh_menimpa_input(source_docx: Path, tmp_path: Path) -> None:
 BODY_BOLD = "Body tebal."
 LIST_BOLD = "Butir list tebal."
 HEADING_BOLD = "1.1 Judul Tebal"
-TABLE_BOLD = "Sel tabel tebal."
+TABLE_HEADER_BOLD = "Header tabel tebal."
+TABLE_BODY_BOLD = "Sel tabel tebal."
 
 
 def add_bold_run(paragraph, text: str):
@@ -547,6 +548,11 @@ def add_bold_run(paragraph, text: str):
     properties = run._r.get_or_add_rPr()
     properties.append(OxmlElement("w:bCs"))
     return run
+
+
+def mark_row_as_header(row) -> None:
+    header = OxmlElement("w:tblHeader")
+    row._tr.get_or_add_trPr().append(header)
 
 
 def build_bold_fixture(path: Path) -> Path:
@@ -573,10 +579,15 @@ def build_bold_fixture(path: Path) -> Path:
     set_style(paragraph, "Heading2")
     add_bold_run(paragraph, HEADING_BOLD)
 
-    table = document.add_table(rows=1, cols=1)
-    cell_paragraph = table.cell(0, 0).paragraphs[0]
+    table = document.add_table(rows=2, cols=1)
+    mark_row_as_header(table.rows[0])
+    header_paragraph = table.cell(0, 0).paragraphs[0]
+    set_style(header_paragraph, "Compact")
+    add_bold_run(header_paragraph, TABLE_HEADER_BOLD)
+
+    cell_paragraph = table.cell(1, 0).paragraphs[0]
     set_style(cell_paragraph, "Normal")
-    add_bold_run(cell_paragraph, TABLE_BOLD)
+    add_bold_run(cell_paragraph, TABLE_BODY_BOLD)
 
     document.save(path)
     return path
@@ -604,7 +615,7 @@ def has_bold(run: etree._Element) -> bool:
     return properties.find(W_B) is not None or properties.find(W_BCS) is not None
 
 
-def test_bold_body_dan_list_dihapus_heading_dan_tabel_dipertahankan(
+def test_bold_body_list_dan_semua_sel_tabel_dihapus_heading_dipertahankan(
     bold_docx: Path, tmp_path: Path
 ) -> None:
     output = tmp_path / "bold-out.docx"
@@ -614,10 +625,11 @@ def test_bold_body_dan_list_dihapus_heading_dan_tabel_dipertahankan(
     assert not has_bold(run_with_text(root, BODY_BOLD))
     assert not has_bold(run_with_text(root, LIST_BOLD))
     assert has_bold(run_with_text(root, HEADING_BOLD))
-    assert has_bold(run_with_text(root, TABLE_BOLD))
+    assert not has_bold(run_with_text(root, TABLE_HEADER_BOLD))
+    assert not has_bold(run_with_text(root, TABLE_BODY_BOLD))
 
-    assert report.bold_paragraphs == 2
-    assert report.bold_runs_removed == 4
+    assert report.bold_paragraphs == 4
+    assert report.bold_runs_removed == 8
     assert justification_of(paragraph_by_marker(output, BODY_BOLD)) == "both"
 
     second = tmp_path / "bold-out-2.docx"

@@ -165,11 +165,12 @@ local function xml_escape(text)
   return s
 end
 
+-- Jarak vertikal cover memakai paragraf kosong fisik, bukan spacing paragraf.
+-- Satu baris kosong Normal (12 pt, spasi 1,5) setara 360 twip; jumlah baris
+-- mengikuti nilai jarak lama agar proporsi sampul tetap terjaga.
 local function spacer(before)
-  return pandoc.RawBlock(
-    "openxml",
-    '<w:p><w:pPr><w:spacing w:before="' .. before .. '"/></w:pPr></w:p>'
-  )
+  local lines = math.max(1, math.floor((before + 359) / 360))
+  return pandoc.RawBlock("openxml", string.rep("<w:p/>", lines))
 end
 
 local function meta_str(meta, key)
@@ -398,11 +399,12 @@ function Pandoc(doc)
   local year = meta_str(meta, "year")
   local show_dg = (meta_bool(meta, "daftar_gambar") or meta_bool(meta, "list_of_figures"))
   local show_dt = (meta_bool(meta, "daftar_tabel") or meta_bool(meta, "list_of_tables"))
-  -- Struktur `toc` menentukan apakah daftar isi DOCX disisipkan. Proyek
-  -- lama tanpa kunci `toc` tetap mendapat daftar isi (default tesis).
+  -- TOC kustom DOCX dikendalikan `docx_toc`; `toc` tetap menjadi milik
+  -- Pandoc/PDF. Proyek lama tanpa kunci `docx_toc` tetap mendapat daftar isi
+  -- (default tesis).
   local show_toc = true
-  if meta["toc"] ~= nil then
-    show_toc = meta_bool(meta, "toc")
+  if meta["docx_toc"] ~= nil then
+    show_toc = meta_bool(meta, "docx_toc")
   end
 
   local blocks = pandoc.List{}

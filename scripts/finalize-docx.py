@@ -58,6 +58,8 @@ SECT_TYPE_RE = re.compile(r"<w:type\b[^>]*/>")
 
 RUN_RE = re.compile(r"<w:r\b[^>]*>.*?</w:r>", re.S)
 HYPERLINK_RE = re.compile(r"<w:hyperlink\b[^>]*>.*?</w:hyperlink>", re.S)
+TOC_ENTRY_STYLE_RE = re.compile(r'<w:pStyle w:val="TOC[1-9]"/>')
+BOLD_TAG_RE = re.compile(r"<w:(?:b|bCs)\b[^>]*/>")
 STYLE_RE = re.compile(
     r'<w:style\b[^>]*w:styleId="([^"]+)"[^>]*>.*?</w:style>', re.S
 )
@@ -713,6 +715,55 @@ def restore_toc_istilah_styles(doc):
     return PARA_RE.sub(fix_paragraph, doc)
 
 
+def strip_toc_run_bold(run):
+    """Hapus bold langsung pada run entri TOC.
+
+    ``docx.lua`` menulis run TOC1 dengan ``<w:b/>``, dan Word dapat menyalin
+    bold heading ke run TOC saat memperbarui field. Bold itu harus dibuang
+    agar entri daftar isi mengikuti style TOC yang tidak bold.
+    """
+    match = re.search(r"<w:rPr(?:\s[^>]*)?>.*?</w:rPr>", run, re.S)
+    if not match:
+        return run
+    rpr = match.group(0)
+    new_rpr = BOLD_TAG_RE.sub("", rpr)
+    if new_rpr == rpr:
+        return run
+    return run[: match.start()] + new_rpr + run[match.end():]
+
+
+def fix_toc_entries(doc):
+    """Setel spacing entri TOC ke 0 dan hapus bold run-nya.
+
+    Spacing direct dari ``docx.lua`` (TOC1 120/40, TOC2 20/20) menimpa style,
+    jadi before/after harus dinolkan juga pada paragraf TOC di document.xml.
+    Heading TOCHeading tidak disentuh; bold judul daftar isi tetap dipertahankan.
+    """
+
+    def fix_paragraph(match):
+        paragraph = match.group(0)
+        ppr = re.search(
+            r"<w:pPr(?:\s[^>]*)?>.*?</w:pPr>", paragraph, re.S
+        )
+        if not ppr or not TOC_ENTRY_STYLE_RE.search(ppr.group(0)):
+            return paragraph
+
+        spacing = re.search(r"<w:spacing\b[^>]*/>", ppr.group(0))
+        if spacing is not None:
+            new_spacing = set_tag_attrs(
+                spacing.group(0), {"before": "0", "after": "0"}
+            )
+            start = ppr.start() + spacing.start()
+            end = ppr.start() + spacing.end()
+            paragraph = paragraph[:start] + new_spacing + paragraph[end:]
+
+        return RUN_RE.sub(
+            lambda run: strip_toc_run_bold(run.group(0)), paragraph
+        )
+
+    return PARA_RE.sub(fix_paragraph, doc)
+
+
 def patch_code_run(run):
     return patch_run_rpr(
         run,
@@ -759,9 +810,14 @@ def patch_code_paragraph(paragraph):
 
 
 def fix_document_formatting(doc):
-    """Bersihkan direct formatting biru Konsolas/DejaVu dari Pandoc/Word."""
+    """Bersihkan direct formatting warisan Pandoc/Word.
+
+    Hyperlink dibuat hitam tanpa underline, istilah asing di TOC dipulihkan,
+    bold/spacing entri TOC dinolkan, dan run kode diseragamkan.
+    """
     doc = patch_hyperlink_runs(doc)
     doc = restore_toc_istilah_styles(doc)
+    doc = fix_toc_entries(doc)
     doc = PARA_RE.sub(
         lambda match: patch_code_paragraph(match.group(0)), doc
     )
@@ -1351,7 +1407,7 @@ def fix_toc_styles(styles, tab_pos):
     <w:tabs>
       <w:tab w:val="right" w:leader="dot" w:pos="{tab_pos}"/>
     </w:tabs>
-    <w:spacing w:before="120" w:after="40" w:line="260" w:lineRule="auto"/>
+    <w:spacing w:before="0" w:after="0" w:line="260" w:lineRule="auto"/>
     <w:ind w:left="0" w:right="0"/>
     <w:jc w:val="left"/>
   </w:pPr>
@@ -1360,8 +1416,6 @@ def fix_toc_styles(styles, tab_pos):
     <w:color w:val="000000"/>
     <w:sz w:val="24"/>
     <w:szCs w:val="24"/>
-    <w:b/>
-    <w:bCs/>
   </w:rPr>
 </w:style>""",
         "TOC2": f"""<w:style w:type="paragraph" w:styleId="TOC2">
@@ -1373,7 +1427,7 @@ def fix_toc_styles(styles, tab_pos):
     <w:tabs>
       <w:tab w:val="right" w:leader="dot" w:pos="{tab_pos}"/>
     </w:tabs>
-    <w:spacing w:before="20" w:after="20" w:line="240" w:lineRule="auto"/>
+    <w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/>
     <w:ind w:left="360" w:right="0"/>
     <w:jc w:val="left"/>
   </w:pPr>

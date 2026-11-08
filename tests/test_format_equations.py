@@ -62,6 +62,18 @@ def _add_equation(paragraph, text: str) -> None:
     paragraph._p.append(math_para)
 
 
+def _add_inline_equation(paragraph, text: str) -> None:
+    """Tiru Word yang menyimpan ulang persamaan display sebagai m:oMath."""
+
+    math = OxmlElement("m:oMath")
+    run = OxmlElement("m:r")
+    math_text = OxmlElement("m:t")
+    math_text.text = text
+    run.append(math_text)
+    math.append(run)
+    paragraph._p.append(math)
+
+
 def _add_equation_paragraph(
     document: Document, text: str, first_line_indent: bool = False
 ):
@@ -218,6 +230,7 @@ def equation_paragraphs(root: etree._Element) -> list[etree._Element]:
         paragraph
         for paragraph in root.iter(api.W_P)
         if paragraph.find(api.M_O_MATH_PARA) is not None
+        or paragraph.find(api.M_O_MATH) is not None
     ]
 
 
@@ -343,8 +356,8 @@ def test_spacing_dan_indent(docs, tmp_path):
 
     spacing = ppr.find(W_SPACING)
     assert spacing is not None
-    assert spacing.get(api.W_BEFORE) == "360"
-    assert spacing.get(api.W_AFTER) == "360"
+    assert spacing.get(api.W_BEFORE) == "0"
+    assert spacing.get(api.W_AFTER) == "0"
 
     justification = ppr.find(W_JC)
     assert justification is not None
@@ -366,7 +379,7 @@ def test_spacing_dan_indent(docs, tmp_path):
 
 
 def test_urutan_normalize_lalu_equations(docs, tmp_path):
-    """Normalisasi lebih dulu, lalu equations: jc=left dan spacing 360 bertahan."""
+    """Normalisasi lebih dulu, lalu equations: jc=left dan spacing 0 bertahan."""
 
     normalized = tmp_path / "normalized.docx"
     assert layout_api.main(
@@ -394,8 +407,8 @@ def test_urutan_normalize_lalu_equations(docs, tmp_path):
         ppr = paragraph.find(api.W_PPR)
         spacing = ppr.find(W_SPACING)
         justification = ppr.find(W_JC)
-        assert spacing.get(api.W_BEFORE) == "360"
-        assert spacing.get(api.W_AFTER) == "360"
+        assert spacing.get(api.W_BEFORE) == "0"
+        assert spacing.get(api.W_AFTER) == "0"
         assert justification.get(api.W_VAL) == "left"
 
 
@@ -420,6 +433,40 @@ def test_tab_kanan_mengikuti_lebar_konten(docs, tmp_path):
 def test_content_width_fallback_9072():
     body = OxmlElement("w:body")
     assert api._content_width(body) == 9072
+
+
+def test_persamaan_hasil_normalisasi_word_tetap_diformat(tmp_path):
+    """Paragraf m:oMath langsung (hasil simpan ulang Word) tetap dianggap display."""
+
+    document = Document()
+    _configure_section(document)
+    heading1 = _ensure_style(document, "Heading 1")
+    document.add_paragraph("BAB II TINJAUAN PUSTAKA", style=heading1)
+
+    paragraph = document.add_paragraph()
+    _add_inline_equation(paragraph, "p = q")
+    run = paragraph.add_run()
+    run.add_tab()
+    run.add_text("(2.1)")
+
+    source = tmp_path / "word-normalized.docx"
+    document.save(source)
+
+    output = run_tool(source, tmp_path, "word-normalized-out")
+    paragraphs = equation_paragraphs(document_root(output))
+    assert len(paragraphs) == 1
+
+    paragraph = paragraphs[0]
+    assert direct_run_text(paragraph) == "(2.1)"
+    ppr = paragraph.find(api.W_PPR)
+    spacing = ppr.find(W_SPACING)
+    assert spacing is not None
+    assert spacing.get(api.W_BEFORE) == "0"
+    assert spacing.get(api.W_AFTER) == "0"
+    indent = ppr.find(W_IND)
+    assert indent.get(api.W_LEFT) == "1440"
+    tabs = ppr.find(W_TABS)
+    assert tabs.find(api.W_TAB).get(api.W_POS) == "9072"
 
 
 # ---------------------------------------------------------------------------

@@ -384,14 +384,20 @@ for CHAPTER in "$CHAPTERS_PATH"/*.md; do
   fi
 done
 
-# `python -m laporan build` meneruskan toc dari struktur lewat environment.
-# Nilai ini adalah metadata Pandoc eksplisit sehingga menimpa metadata.yml;
-# build langsung tanpa env tetap memakai kunci `toc` di metadata proyek
-# (docx.lua memakai default true bila kunci tidak ada).
-TOC_OPTS=()
-if [ -n "${LAPORAN_TOC:-}" ]; then
-  TOC_OPTS=("--metadata=toc=${LAPORAN_TOC}")
+# `python -m laporan build` meneruskan nilai `toc` struktur lewat environment.
+# Untuk DOCX, TOC writer Pandoc selalu dimatikan agar tidak menghasilkan daftar
+# isi ganda di awal dokumen. TOC kustom docx.lua memakai metadata terpisah
+# `docx_toc`; nilai LAPORAN_TOC tetap menjadi sumber utamanya, sedangkan build
+# langsung menghormati kunci `toc` di metadata proyek (default true).
+TOC="${LAPORAN_TOC:-}"
+if [ -z "$TOC" ]; then
+  TOC=$(grep -E '^[[:space:]]*toc[[:space:]]*:' "$TMPDIR/$METADATA_BASENAME" 2>/dev/null | head -n 1 | cut -d: -f2- | tr -d '"'\''\r\n ')
 fi
+TOC="${TOC:-true}"
+TOC_OPTS=(
+  "--metadata=toc=false"
+  "--metadata=docx_toc=${TOC}"
+)
 
 if ! pandoc \
   "${INPUT_FILES[@]}" \

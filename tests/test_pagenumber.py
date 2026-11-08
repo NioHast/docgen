@@ -16,6 +16,8 @@ bisa dioverride lewat environment variable LAPORAN_DOCX) dan memeriksa:
     nomor halaman dari baris terakhir PDF;
   - settings.xml tanpa `w:updateFields` dan compatibilityMode 15;
   - style Hyperlink hitam tanpa underline, Heading1/2/3 before/after 0;
+  - style TOC1/TOC2 before/after 0 dan entri TOC tidak bold (TOCHeading
+    tetap bold);
   - caption 10 pt (TableCaption rata kiri, ImageCaption tengah);
   - tabel data dan tabel kode memakai border ilmiah: garis atas/bawah
     1 pt (`w:sz 8`), tanpa garis vertikal, padding horizontal 108 twip;
@@ -55,6 +57,15 @@ TBL_CELL_MAR_RE = re.compile(r"<w:tblCellMar\b[^>]*>.*?</w:tblCellMar>", re.S)
 
 def _attrs(tag):
     return dict(re.findall(r'([\w:]+)="([^"]*)"', tag))
+
+
+def _active_bold(xml):
+    """True bila XML memuat bold aktif (bukan ``w:val="0"``)."""
+    for match in re.finditer(r"<w:(?:b|bCs)\b[^>]*/>", xml):
+        value = _attrs(match.group(0)).get("w:val", "true").lower()
+        if value not in ("0", "false", "off"):
+            return True
+    return False
 
 
 def _style_xml(styles, style_id):
@@ -541,6 +552,55 @@ class PageNumberTest(unittest.TestCase):
 
         heading1 = _style_xml(self.styles, "Heading1")
         self.assertEqual(_style_value(heading1, "jc"), "center")
+
+    def test_toc_spacing_nol_dan_tanpa_bold(self):
+        for style_id in ("TOC1", "TOC2"):
+            style = _style_xml(self.styles, style_id)
+            self.assertIsNotNone(style, f"style {style_id} tidak ditemukan")
+            spacing = re.search(r"<w:spacing\b[^>]*/>", style)
+            self.assertIsNotNone(spacing)
+            spacing_attrs = _attrs(spacing.group(0))
+            self.assertEqual(
+                int(spacing_attrs.get("w:before", "0")), 0,
+                f"{style_id} before harus 0",
+            )
+            self.assertEqual(
+                int(spacing_attrs.get("w:after", "0")), 0,
+                f"{style_id} after harus 0",
+            )
+
+        toc1 = _style_xml(self.styles, "TOC1")
+        self.assertFalse(
+            _active_bold(toc1), "style TOC1 tidak boleh bold",
+        )
+        toc_heading = _style_xml(self.styles, "TOCHeading")
+        self.assertTrue(
+            _active_bold(toc_heading), "TOCHeading (judul) tetap bold",
+        )
+
+        entries = [
+            paragraph
+            for paragraph in PARA_RE.findall(self.document)
+            if re.search(r'<w:pStyle w:val="TOC[1-9]"/>', paragraph)
+        ]
+        self.assertTrue(entries, "tidak ada paragraf entri TOC")
+        for entry in entries:
+            spacing = re.search(r"<w:spacing\b[^>]*/>", entry)
+            if spacing is not None:
+                spacing_attrs = _attrs(spacing.group(0))
+                self.assertEqual(
+                    int(spacing_attrs.get("w:before", "0")), 0,
+                    "spacing before entri TOC harus 0",
+                )
+                self.assertEqual(
+                    int(spacing_attrs.get("w:after", "0")), 0,
+                    "spacing after entri TOC harus 0",
+                )
+            for run in RUN_RE.findall(entry):
+                self.assertFalse(
+                    _active_bold(run),
+                    "run entri TOC tidak boleh bold",
+                )
 
     def test_caption_10pt_dan_tablecaption_kiri(self):
         image_caption = _style_xml(self.styles, "ImageCaption")

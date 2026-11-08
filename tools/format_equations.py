@@ -1,9 +1,12 @@
 """Beri nomor persamaan display DOCX (OMML) per bab.
 
-Alat ini mencari paragraf yang memiliki ``m:oMathPara`` (persamaan display
-OMML). Untuk setiap paragraf tersebut, alat menambahkan tab stop kanan pada
-tepi kanan area teks, run teks ``(bab.n)`` setelah persamaan, indentasi kiri
-1440 twip (dua tab default), dan spasi sebelum/sesudah 360 twip.
+Alat ini mencari paragraf persamaan display OMML (``m:oMathPara``, atau
+``m:oMath`` yang berdiri sendiri tanpa prosa selain nomor). Untuk setiap
+paragraf tersebut, alat menambahkan tab stop kanan pada tepi kanan area teks,
+run teks ``(bab.n)`` setelah persamaan, indentasi kiri 1440 twip (dua tab
+default), dan spasi sebelum/sesudah 0 twip. Jarak vertikal di sekitar
+persamaan dibuat memakai paragraf kosong oleh ``tools/insert_blank_lines.py``,
+sesuai aturan tanpa spacing before/after.
 
 Nomor bab diambil dari Heading1 terakhir yang berformat ``BAB <romawi/arab>``.
 Counter persamaan dimulai dari 1 pada setiap bab dan direset ketika Heading1
@@ -20,7 +23,7 @@ Jalankan:
 
 Posisi pipeline: jalankan **setelah** ``tools/normalize_layout.py`` (dan
 ``tools/format_code.py``). Urutan ini penting agar ``normalize_layout.py``
-tidak menimpa spacing 360 twip dan ``w:jc="left"`` yang disetel alat ini.
+tidak menimpa spacing 0 twip dan ``w:jc="left"`` yang disetel alat ini.
 """
 
 from __future__ import annotations
@@ -43,6 +46,7 @@ from lxml.etree import _Element
 DOCUMENT_PART = "word/document.xml"
 
 M_O_MATH_PARA = qn("m:oMathPara")
+M_O_MATH = qn("m:oMath")
 
 W_BODY = qn("w:body")
 W_P = qn("w:p")
@@ -155,9 +159,9 @@ ROMAN_VALUES = {
 # persamaan sesuai panduan ("menjorok ke kanan 2 tabulasi").
 EQUATION_LEFT_INDENT_TWIPS = 1440
 
-# Spasi sebelum/sesudah. Spasi baris body 1,5 = 360 twip; 360 twip sebelum
-# ditambah 360 twip sesudah menghasilkan total 720 twip = 2 kali jarak baris.
-EQUATION_SPACING_TWIPS = 360
+# Spasi sebelum/sesudah. Aturan dokumen: tidak ada spacing before/after.
+# Jarak antarbagian dibuat memakai paragraf kosong fisik (insert_blank_lines).
+EQUATION_SPACING_TWIPS = 0
 
 # Rata kiri (bukan justify) agar tab kanan dan nomor (bab.n) tetap pada
 # posisinya; w:jc=both akan membuat Word ikut meregangkan baris persamaan.
@@ -421,10 +425,27 @@ def _chapter_number(text: str) -> int | None:
 
 
 def _display_equation(paragraph: _Element) -> _Element | None:
-    """Kembalikan ``m:oMathPara`` terakhir, hanya bila anak langsung w:p."""
+    """Kembalikan elemen persamaan display anak langsung ``w:p``.
+
+    Pandoc menulis persamaan display sebagai ``m:oMathPara``. Setelah Word
+    menyimpan ulang dokumen (mis. saat finalisasi field), persamaan yang
+    paragrafnya juga memuat tab dan nomor dapat dinormalkan menjadi
+    ``m:oMath`` biasa. Paragraf seperti itu tetap dianggap persamaan display
+    bila teks non-matematikanya kosong atau hanya berupa nomor ``(bab.n)``;
+    persamaan inline di tengah prosa tidak ikut diproses.
+    """
 
     equations = paragraph.findall(M_O_MATH_PARA)
-    return equations[-1] if equations else None
+    if equations:
+        return equations[-1]
+
+    equations = paragraph.findall(M_O_MATH)
+    if not equations:
+        return None
+    text = _paragraph_text(paragraph).strip()
+    if text and EQUATION_NUMBER_RE.fullmatch(text) is None:
+        return None
+    return equations[-1]
 
 
 def _has_field(paragraph: _Element) -> bool:
@@ -690,7 +711,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
             "Beri nomor persamaan display OMML DOCX per bab: (bab.n) di tepi "
-            "kanan, indentasi dua tab, dan spasi before/after 360 twip."
+            "kanan, indentasi dua tab, dan spasi before/after 0 twip."
         )
     )
     parser.add_argument("--docx", type=Path, required=True, help="file DOCX input")

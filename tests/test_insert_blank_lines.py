@@ -31,6 +31,8 @@ W_INSTR = qn("w:instr")
 W_FLDCHAR = qn("w:fldChar")
 W_FLDCHARTYPE = qn("w:fldCharType")
 W_INSTRTEXT = qn("w:instrText")
+M_O_MATH_PARA = qn("m:oMathPara")
+M_O_MATH = qn("m:oMath")
 
 
 # ---------------------------------------------------------------------------
@@ -76,6 +78,28 @@ def add_dummy_image(paragraph) -> None:
     paragraph._p.append(drawing)
 
 
+def add_display_equation(paragraph, text: str = "x = y") -> None:
+    math_para = OxmlElement("m:oMathPara")
+    math = OxmlElement("m:oMath")
+    run = OxmlElement("m:r")
+    math_text = OxmlElement("m:t")
+    math_text.text = text
+    run.append(math_text)
+    math.append(run)
+    math_para.append(math)
+    paragraph._p.append(math_para)
+
+
+def add_inline_equation(paragraph, text: str = "x = y") -> None:
+    math = OxmlElement("m:oMath")
+    run = OxmlElement("m:r")
+    math_text = OxmlElement("m:t")
+    math_text.text = text
+    run.append(math_text)
+    math.append(run)
+    paragraph._p.append(math)
+
+
 def build_fixture(path: Path) -> Path:
     document = Document()
     section = document.sections[0]
@@ -111,6 +135,10 @@ def build_fixture(path: Path) -> Path:
     paragraph = document.add_paragraph("Gambar 1.1 Diagram")
     set_style(paragraph, "ImageCaption")
     document.add_paragraph("Isi setelah gambar.")
+
+    paragraph = document.add_paragraph()
+    add_display_equation(paragraph)
+    document.add_paragraph("Isi setelah persamaan.")
 
     paragraph = document.add_paragraph("BAB II TINJAUAN PUSTAKA")
     set_style(paragraph, "Heading1")
@@ -184,6 +212,16 @@ def find_image_index(children: list[etree._Element]) -> int:
     return matches[0]
 
 
+def find_equation_index(children: list[etree._Element]) -> int:
+    matches = [
+        index
+        for index, element in enumerate(children)
+        if element.tag == W_P and element.find(f".//{M_O_MATH_PARA}") is not None
+    ]
+    assert len(matches) == 1, "fixture harus punya tepat satu persamaan uji"
+    return matches[0]
+
+
 def zip_hashes(path: Path) -> dict[str, str]:
     with zipfile.ZipFile(path) as archive:
         return {
@@ -229,10 +267,15 @@ def test_posisi_paragraf_kosong(source_docx: Path, tmp_path: Path) -> None:
     assert paragraph_style(children[image_index + 1]) == "ImageCaption"
     assert is_blank(children[image_index + 2])
 
+    # Persamaan display: kosong sebelum dan sesudah paragraf persamaan.
+    equation_index = find_equation_index(children)
+    assert is_blank(children[equation_index - 1])
+    assert is_blank(children[equation_index + 1])
+
     assert report.inserted > 0
     assert report.before_heading >= 1
-    assert report.before_object >= 2
-    assert report.after_object >= 2
+    assert report.before_object >= 3
+    assert report.after_object >= 3
 
 
 def test_paragraf_kosong_format_tnr_12_line_360(
@@ -261,6 +304,58 @@ def test_paragraf_kosong_format_tnr_12_line_360(
     assert fonts.get(qn("w:cs")) == "Times New Roman"
     assert properties.find(W_SZ).get(W_VAL) == "24"
     assert properties.find(W_SZCS).get(W_VAL) == "24"
+
+
+def test_paragraf_kosong_persamaan_format_sama(tmp_path: Path) -> None:
+    document = Document()
+    document.add_paragraph("Isi sebelum persamaan.")
+    equation = document.add_paragraph()
+    add_display_equation(equation)
+    document.add_paragraph("Isi sesudah persamaan.")
+    source = tmp_path / "equation.docx"
+    document.save(source)
+
+    output, _ = run_tool(source, tmp_path, stem="equation-out")
+    children = body_children(output)
+    equation_index = find_equation_index(children)
+
+    for blank in (children[equation_index - 1], children[equation_index + 1]):
+        assert is_blank(blank)
+        spacing = blank.find(f"{W_PPR}/{W_SPACING}")
+        assert spacing is not None
+        assert spacing.get(qn("w:before")) == "0"
+        assert spacing.get(qn("w:after")) == "0"
+        assert spacing.get(qn("w:line")) == "360"
+        properties = blank.find(f"{W_PPR}/{W_RPR}")
+        assert properties is not None
+        assert properties.find(W_SZ).get(W_VAL) == "24"
+
+
+def test_persamaan_oMath_langsung_tetap_diberi_jarak(tmp_path: Path) -> None:
+    """Word dapat menyimpan persamaan display sebagai m:oMath langsung."""
+
+    document = Document()
+    document.add_paragraph("Isi sebelum persamaan.")
+    equation = document.add_paragraph()
+    add_inline_equation(equation, "p = q")
+    equation.add_run("(2.1)")
+    document.add_paragraph("Isi sesudah persamaan.")
+    source = tmp_path / "word-equation.docx"
+    document.save(source)
+
+    output, report = run_tool(source, tmp_path, stem="word-equation-out")
+    children = body_children(output)
+    matches = [
+        index
+        for index, element in enumerate(children)
+        if element.tag == W_P and element.find(f".//{M_O_MATH}") is not None
+    ]
+    assert len(matches) == 1
+    equation_index = matches[0]
+    assert is_blank(children[equation_index - 1])
+    assert is_blank(children[equation_index + 1])
+    assert report.before_object == 1
+    assert report.after_object == 1
 
 
 def test_tidak_duplikasi_dan_idempoten(source_docx: Path, tmp_path: Path) -> None:

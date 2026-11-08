@@ -6,10 +6,10 @@ paragraf body dan sel tabel:
 - ``w:spacing/@w:before = 0`` dan ``@w:after = 0``;
 - ``w:spacing/@w:line = 360`` dengan ``@w:lineRule = auto`` (1,5 baris);
 - ``w:jc/@w:val = both`` (justify);
-- menghapus bold langsung (``w:b``/``w:bCs``) dari run body, daftar, dan field
-  cover ``CoverCourse``/``CoverLecturer``/``CoverName``. Paragraf ber-style
-  heading dan judul sampul ``CoverTitle`` dipertahankan bold, dan sel tabel
-  tidak disentuh.
+- menghapus bold langsung (``w:b``/``w:bCs``) dari run body, daftar, semua sel
+  tabel (termasuk baris header), dan field cover
+  ``CoverCourse``/``CoverLecturer``/``CoverName``. Paragraf ber-style heading
+  dan judul sampul ``CoverTitle`` dipertahankan bold.
 
 Paragraf dengan style blok kode, caption, heading (``Heading1``–``Heading9``
 dan style heading kustom seperti ``ChapterTitle``), daftar isi, cover selain
@@ -53,7 +53,6 @@ W_R = qn("w:r")
 W_RPR = qn("w:rPr")
 W_B = qn("w:b")
 W_BCS = qn("w:bCs")
-W_TBL = qn("w:tbl")
 W_PSTYLE = qn("w:pStyle")
 W_SPACING = qn("w:spacing")
 W_JC = qn("w:jc")
@@ -392,17 +391,6 @@ def _iter_target_paragraphs(body: _Element) -> Iterator[_Element]:
             yield paragraph
 
 
-def _is_in_table(paragraph: _Element, body: _Element) -> bool:
-    """True bila paragraf berada di dalam ``w:tbl`` (termasuk tabel bersarang)."""
-
-    parent = paragraph.getparent()
-    while parent is not None and parent is not body:
-        if parent.tag == W_TBL:
-            return True
-        parent = parent.getparent()
-    return False
-
-
 def _iter_paragraph_runs(paragraph: _Element) -> Iterator[_Element]:
     """Iterasi run milik paragraf ini, tanpa menembus text box/nested paragraph."""
 
@@ -504,11 +492,13 @@ def normalize_layout(
             report.skipped_style += 1
             continue
 
-        if not _is_in_table(paragraph, body):
-            removed = _strip_paragraph_bold(paragraph)
-            if removed:
-                report.bold_paragraphs += 1
-                report.bold_runs_removed += removed
+        # Bold langsung dibersihkan dari body, daftar, dan semua sel tabel
+        # (termasuk header). Paragraf ber-style heading/CoverTitle sudah
+        # dilewati di atas sehingga bold-nya tetap dipertahankan.
+        removed = _strip_paragraph_bold(paragraph)
+        if removed:
+            report.bold_paragraphs += 1
+            report.bold_runs_removed += removed
 
         if _has_exempt_field(paragraph):
             report.skipped_field += 1

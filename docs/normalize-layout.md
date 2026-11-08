@@ -62,8 +62,8 @@ Bold hanya dipertahankan pada paragraf ber-style heading dan judul sampul
 (`CoverTitle`). Run body, daftar, serta field cover `CoverCourse`,
 `CoverLecturer`, dan `CoverName` yang memakai `w:b`/`w:bCs` aktif kehilangan
 properti itu; nilai `w:val="0"` yang sudah eksplisit tidak diubah. Bold run di
-dalam sel tabel tidak dihapus karena header tabel ditangani
-`format_figures.py`; layout sel tabel tetap dinormalisasi seperti sebelumnya.
+dalam semua sel tabel—baik baris header maupun body—juga dihapus, dan layout
+sel tabel tetap dinormalisasi seperti paragraf lain.
 
 Direct formatting lama ditimpa, bukan ditambahkan sebagai elemen kedua:
 

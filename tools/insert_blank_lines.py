@@ -11,7 +11,8 @@ posisi yang diterapkan (Opsi A):
 - nol paragraf kosong antara Heading2 yang langsung diikuti Heading3 tanpa
   isi (begitu pula antarheading lain tanpa isi);
 - satu paragraf kosong sebelum tabel/gambar ber-caption;
-- satu paragraf kosong setelah tabel/gambar.
+- satu paragraf kosong setelah tabel/gambar;
+- satu paragraf kosong sebelum dan sesudah paragraf persamaan display.
 
 Paragraf kosong yang disisipkan memakai Times New Roman 12 pt, line 360
 (1,5 baris), dan before/after 0. Alat ini idempoten dan aditif: paragraf
@@ -74,12 +75,15 @@ W_CR = qn("w:cr")
 W_TAB = qn("w:tab")
 W_FOOTNOTE_REFERENCE = qn("w:footnoteReference")
 W_ENDNOTE_REFERENCE = qn("w:endnoteReference")
+M_O_MATH_PARA = qn("m:oMathPara")
+M_O_MATH = qn("m:oMath")
 
 STYLE_ID_RE = re.compile(r"[^a-z0-9]+")
 HEADING_STYLE_RE = re.compile(r"^heading([1-9])$")
 TOC_STYLE_RE = re.compile(r"^toc[1-9]$|^tocheading$")
 FIELD_NAME_RE = re.compile(r"\s*([A-Za-z]+)")
 CAPTION_LABEL_RE = re.compile(r"^\s*(tabel|table|gambar|figure)\b", re.I)
+EQUATION_NUMBER_RE = re.compile(r"\(\d+\.\d+\)")
 
 CUSTOM_HEADING_STYLES = frozenset({"chaptertitle"})
 COVER_PREFIX = "cover"
@@ -107,6 +111,7 @@ IGNORE = "ignore"
 CONTENT = "content"
 TABLE = "table"
 IMAGE = "image"
+EQUATION = "equation"
 H1 = "h1"
 H2 = "h2"
 H3 = "h3"
@@ -321,6 +326,23 @@ def _has_image(paragraph: _Element) -> bool:
     )
 
 
+def _is_equation_paragraph(paragraph: _Element) -> bool:
+    """True bila paragraf berisi persamaan display, bukan prosa + math inline.
+
+    Pandoc menulis persamaan display sebagai ``m:oMathPara``. Word dapat
+    menyimpannya ulang sebagai ``m:oMath`` langsung di paragraf setelah
+    finalisasi. Paragraf seperti itu dianggap persamaan jika teks non-matematik
+    kosong atau hanya nomor ``(bab.n)``.
+    """
+
+    if paragraph.find(M_O_MATH_PARA) is not None:
+        return True
+    if paragraph.find(M_O_MATH) is None:
+        return False
+    text = _paragraph_text(paragraph).strip()
+    return not text or EQUATION_NUMBER_RE.fullmatch(text) is not None
+
+
 def _caption_kind(paragraph: _Element, style_id: str) -> str | None:
     if style_id in IMAGE_CAPTION_STYLES:
         return "image"
@@ -368,6 +390,8 @@ def _classify(element: _Element) -> str:
             return COVER
         if _has_image(element):
             return IMAGE
+        if _is_equation_paragraph(element):
+            return EQUATION
         if _is_empty_paragraph(element):
             return EMPTY
         caption = _caption_kind(element, style_id)
@@ -467,16 +491,18 @@ def _desired_gap(previous: _Block | None, current: _Block) -> int:
     if current.kind in (H2, H3):
         if previous is None:
             return 0
-        if previous.kind in (CONTENT, TABLE, IMAGE):
+        if previous.kind in (CONTENT, TABLE, IMAGE, EQUATION):
             return 1
         if previous.kind == H1:
             return 1
         return 0
 
     if current.kind == H1:
-        return 1 if previous is not None and previous.kind in (TABLE, IMAGE) else 0
+        if previous is not None and previous.kind in (TABLE, IMAGE, EQUATION):
+            return 1
+        return 0
 
-    if current.kind in (TABLE, IMAGE):
+    if current.kind in (TABLE, IMAGE, EQUATION):
         if previous is None:
             return 0
         if previous.kind in (TOC, COVER, SECTION, SECTPR, OTHER):
@@ -486,7 +512,7 @@ def _desired_gap(previous: _Block | None, current: _Block) -> int:
     # Blok isi biasa.
     if previous is not None and previous.kind == H1:
         return 1
-    if previous is not None and previous.kind in (TABLE, IMAGE):
+    if previous is not None and previous.kind in (TABLE, IMAGE, EQUATION):
         return 1
     return 0
 
@@ -495,14 +521,14 @@ def _gap_reason(previous: _Block | None, current: _Block) -> str:
     if (
         current.kind in (H2, H3)
         and previous is not None
-        and previous.kind in (CONTENT, TABLE, IMAGE)
+        and previous.kind in (CONTENT, TABLE, IMAGE, EQUATION)
     ):
         return "before_heading"
     if previous is not None and previous.kind == H1:
         return "after_h1"
-    if current.kind in (TABLE, IMAGE):
+    if current.kind in (TABLE, IMAGE, EQUATION):
         return "before_object"
-    if previous is not None and previous.kind in (TABLE, IMAGE):
+    if previous is not None and previous.kind in (TABLE, IMAGE, EQUATION):
         return "after_object"
     return "other"
 
@@ -617,8 +643,8 @@ def _summary(report: BlankLineReport) -> str:
             f"Paragraf kosong disisipkan: {report.inserted}",
             f"  setelah Heading1: {report.after_h1}",
             f"  sebelum Heading2/3: {report.before_heading}",
-            f"  sebelum tabel/gambar: {report.before_object}",
-            f"  setelah tabel/gambar: {report.after_object}",
+            f"  sebelum tabel/gambar/persamaan: {report.before_object}",
+            f"  setelah tabel/gambar/persamaan: {report.after_object}",
             f"Paragraf kosong total: {report.empty_paragraphs}",
             f"Paragraf TOC diabaikan: {report.skipped_toc}",
             f"Paragraf cover diabaikan: {report.skipped_cover}",
@@ -635,7 +661,7 @@ def _build_parser() -> argparse.ArgumentParser:
         description=(
             "Sisipkan paragraf kosong TNR 12 pt (line 360, before/after 0) "
             "setelah Heading1, sebelum Heading2/3 berisi konteks, serta di "
-            "sekitar tabel/gambar."
+            "sekitar tabel/gambar/persamaan."
         )
     )
     parser.add_argument("--docx", type=Path, required=True, help="file DOCX input")

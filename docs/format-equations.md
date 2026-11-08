@@ -2,9 +2,11 @@
 
 `tools/format_equations.py` memberi nomor persamaan display OMML pada DOCX
 hasil build sesuai panduan MSI: nomor `(bab.n)` di tepi kanan, persamaan
-menjorok dua tabulasi, dan jarak dua kali jarak baris. Alat ini hanya menulis
-ulang `word/document.xml`; seluruh part lain (header, footer, style,
-numbering, media, relasi, dan section) disalin byte-per-byte dari DOCX asli.
+menjorok dua tabulasi, dan tanpa spasi before/after. Jarak vertikal di sekitar
+persamaan dibuat memakai paragraf kosong fisik oleh
+`tools/insert_blank_lines.py`. Alat ini hanya menulis ulang
+`word/document.xml`; seluruh part lain (header, footer, style, numbering,
+media, relasi, dan section) disalin byte-per-byte dari DOCX asli.
 
 ## Pemakaian
 
@@ -39,19 +41,22 @@ pandoc + docx.lua
 
 Alasannya: `normalize_layout.py` menyetel ulang `w:spacing` dan `w:jc` pada
 paragraf biasa. Dengan menjalankan `format_equations.py` sesudahnya, nilai
-spacing 360 twip dan `w:jc="left"` untuk paragraf persamaan tidak ditimpa.
+spacing 0 twip dan `w:jc="left"` untuk paragraf persamaan tidak ditimpa.
 `format_code.py` tidak menyentuh paragraf persamaan, sehingga struktur OMML
 tetap stabil saat alat ini bekerja.
 
 ## Deteksi persamaan
 
 Paragraf dianggap persamaan display bila memiliki anak langsung
-`m:oMathPara`. Persamaan inline (`m:oMath` di tengah teks tanpa
-`m:oMathPara`) tidak diberi nomor. Paragraf di dalam text box dilewati.
+`m:oMathPara`. Selain itu, paragraf dengan `m:oMath` anak langsung juga
+dianggap persamaan display bila teks non-matematiknya kosong atau hanya
+berupa nomor `(bab.n)`. Bentuk kedua muncul ketika Word menyimpan ulang
+dokumen hasil finalisasi field. Persamaan inline yang berada di tengah prosa
+tetap tidak diberi nomor. Paragraf di dalam text box dilewati.
 
 Isi OMML **tidak diubah**. Nomor ditulis sebagai run `w:r` biasa setelah
-`m:oMathPara`, bukan sebagai `m:t`, sehingga tidak menjadi bagian dari objek
-equation dan tidak merusak struktur matematika.
+`m:oMathPara`/`m:oMath`, bukan sebagai `m:t`, sehingga tidak menjadi bagian
+dari objek equation dan tidak merusak struktur matematika.
 
 ## Nomor bab dan counter
 
@@ -67,8 +72,8 @@ Romawi dikonversi ke arab (I → 1, IV → 4, XII → 12). Heading1 lain, misaln
 mereset counter.
 
 Counter persamaan dimulai dari 1, direset setiap kali Heading1 `BAB ...`
-ditemukan, dan bertambah untuk setiap paragraf `m:oMathPara`. Nomor ditulis
-sebagai `(bab.n)`:
+ditemukan, dan bertambah untuk setiap paragraf persamaan display. Nomor
+ditulis sebagai `(bab.n)`:
 
 | Posisi | Nomor |
 | --- | --- |
@@ -94,8 +99,8 @@ Untuk setiap paragraf yang diberi nomor:
 | Indentasi kiri | `w:ind @w:left="1440"` (dua tab default) |
 | Indentasi baris pertama | `w:ind @w:firstLine="0"` |
 | Perataan | `w:jc @w:val="left"` |
-| Spasi sebelum | `w:spacing @w:before="360"` |
-| Spasi sesudah | `w:spacing @w:after="360"` |
+| Spasi sebelum | `w:spacing @w:before="0"` |
+| Spasi sesudah | `w:spacing @w:after="0"` |
 | Run nomor | `w:r` berisi `w:tab` lalu `w:t` `(bab.n)` |
 
 `w:pos` pada tab stop diukur dari margin kiri, bukan dari indentasi paragraf.
@@ -120,14 +125,17 @@ meregangkan baris persamaan dan dapat menggeser posisi tab kanan serta nomor
 `(bab.n)`. Dengan `left`, tab kanan tetap mengunci nomor di tepi kanan area
 teks.
 
-### Mengapa spacing 360 twip
+### Spasi sebelum/sesudah nol
 
-Spasi baris body adalah 1,5 baris = 360 twip. Panduan meminta jarak persamaan
-dan teks **dua kali jarak baris**. Nilai yang dipakai di sini adalah 360 twip
-sebelum dan 360 twip sesudah; totalnya 720 twip = 2 × 360 twip. Dengan begitu
-satu persamaan dikelilingi total dua jarak baris, sesuai permintaan tugas dan
-tetap mudah diperiksa di XML. Nilai 360 dipakai eksplisit, bukan 720 di
-masing-masing sisi.
+Aturan dokumen melarang spacing before/after pada paragraf. Karena itu
+`w:spacing @w:before` dan `@w:after` pada paragraf persamaan disetel `0`.
+Jarak vertikal di sekitar persamaan dibuat eksplisit oleh
+`tools/insert_blank_lines.py`, yang menyisipkan satu paragraf kosong sebelum
+dan satu paragraf kosong sesudah setiap paragraf persamaan. Paragraf kosong
+itu memakai Times New Roman 12 pt, line 360 (1,5 baris), dan before/after 0.
+
+Dengan pemisahan ini, satu-satunya sumber jarak adalah paragraf kosong fisik;
+style dan paragraf persamaan sendiri tidak menyimpan spacing tambahan.
 
 ## Idempotensi
 
@@ -151,7 +159,7 @@ run pertama.
   dihapus. Paragraf persamaan yang memuat field **dilewati seluruhnya** dan
   dilaporkan sebagai peringatan; counter tetap maju.
 - **Bookmark** (`w:bookmarkStart`/`w:bookmarkEnd`) tidak dihapus. Run nomor
-  disisipkan setelah `m:oMathPara`; bookmark yang mengapit persamaan tetap
+  disisipkan setelah elemen persamaan; bookmark yang mengapit persamaan tetap
   valid.
 - **Section properties** (`w:sectPr`) tidak disentuh. Elemen baru pada
   `w:pPr` disisipkan mengikuti urutan schema (`w:tabs` → `w:spacing` →
@@ -162,12 +170,13 @@ run pertama.
 
 ## Batasan
 
-1. **Hanya persamaan display dengan `m:oMathPara` sebagai anak langsung
-   `w:p`.** Persamaan di dalam text box, atau `m:oMathPara` yang dibungkus
-   tracked change (`w:ins`/`w:del`) sehingga bukan anak langsung paragraf,
-   tidak diproses.
+1. **Persamaan display dengan `m:oMathPara` atau `m:oMath` anak langsung
+   `w:p`.** `m:oMath` hanya diproses bila paragrafnya tidak memuat prosa
+   (selain nomor `(bab.n)`), sehingga persamaan inline di tengah teks aman.
+   Persamaan di dalam text box, atau elemen yang dibungkus tracked change
+   (`w:ins`/`w:del`) sehingga bukan anak langsung paragraf, tidak diproses.
 2. **Satu nomor per paragraf.** Bila satu paragraf memuat lebih dari satu
-   `m:oMathPara`, nomor dipasang sekali setelah persamaan terakhir.
+   elemen persamaan, nomor dipasang sekali setelah persamaan terakhir.
 3. **Variabel italic tidak ditulis ulang.** Alat tidak mengubah OMML. Huruf
    miring variabel berasal dari mesin matematika Word atau authoring equation,
    bukan dari pascaproses ini.
@@ -200,12 +209,14 @@ Fixture dibuat di direktori sementara oleh `tests/test_format_equations.py`
 2. nomor berada di run terpisah, bukan di dalam OMML;
 3. idempotensi: run kedua menghasilkan `word/document.xml` yang identik;
 4. tanpa Heading1: tidak menomori, tidak crash, dan `pPr` tidak diubah;
-5. spacing sebelum/sesudah 360 twip, indent kiri 1440 twip, tab kanan pada
+5. spacing sebelum/sesudah 0 twip, indent kiri 1440 twip, tab kanan pada
    9072 twip sesuai lebar konten fixture, tab kanan 7937 twip pada A4
    bermargin 4/3 cm, serta fallback 9072 twip bila `sectPr` tidak terbaca;
+   paragraf kosong sebelum/sesudah persamaan diperiksa di
+   `tests/test_insert_blank_lines.py`;
 6. ZIP hasil valid, dapat dibuka `python-docx`, dan part selain
    `document.xml` tidak berubah;
 7. field, bookmark, dan `sectPr` tetap aman; persamaan ber-field dilewati
    dengan counter tetap maju;
 8. urutan `normalize_layout.py` → `format_equations.py`: setelah normalisasi,
-   `w:jc` menjadi `left` dan spacing 360 twip tidak berubah.
+   `w:jc` menjadi `left` dan spacing 0 twip tidak berubah.

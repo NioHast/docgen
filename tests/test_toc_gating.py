@@ -1,13 +1,15 @@
-"""Regresi kunci struktur ``toc`` pada keluaran DOCX dan PDF.
+"""Regresi pemisahan ``toc`` (Pandoc/PDF) dan ``docx_toc`` (DOCX).
 
-``docx.lua`` dan ``template.typ`` tidak boleh merender DAFTAR ISI/TOC field
-ketika metadata menetapkan ``toc: false``. Tanpa kunci tersebut, perilaku lama
-(tesis) tetap menyisipkan daftar isi.
+``build-docx.sh`` selalu mematikan TOC writer Pandoc untuk DOCX agar tidak
+menghasilkan daftar isi ganda. TOC kustom ``docx.lua`` dikendalikan metadata
+``docx_toc``: ``true`` menghasilkan tepat satu DAFTAR ISI setelah sampul,
+``false`` menghasilkan nol daftar isi. Template PDF tetap memakai ``toc``.
 """
 
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
 import zipfile
@@ -33,6 +35,15 @@ MARKDOWN = """\
 Teks.
 """
 
+COVER_METADATA = (
+    "--metadata=title=Judul Sampul",
+    "--metadata=author=Nama Penulis",
+    "--metadata=course=Mata Kuliah",
+    "--metadata=institution=Universitas Uji",
+    "--metadata=faculty=Fakultas Uji",
+    "--metadata=year=2026",
+)
+
 
 def _pandoc() -> tuple[str, dict[str, str]]:
     """Cari Pandoc dan siapkan PATH yang menyertakan instalasi Windows."""
@@ -56,11 +67,29 @@ def _pandoc() -> tuple[str, dict[str, str]]:
     pytest.skip("pandoc tidak tersedia")
 
 
-def _build_docx(tmp_path: Path, *metadata: str) -> bytes:
+def _build_docx(
+    tmp_path: Path,
+    *,
+    docx_toc: bool | None = None,
+    cover: bool = False,
+) -> bytes:
+    """Bangun DOCX dengan kontrak flag yang sama seperti ``build-docx.sh``.
+
+    ``--metadata=toc=false`` selalu dikirim agar TOC writer Pandoc tidak
+    menulis daftar isi. Nilai proyek ``toc`` diterjemahkan oleh build script
+    menjadi ``docx_toc``; ``docx_toc=None`` menguji default ``docx.lua``.
+    """
+
     source = tmp_path / "toc.md"
     source.write_text(MARKDOWN, encoding="utf-8")
     output = tmp_path / "toc.docx"
     pandoc, env = _pandoc()
+
+    metadata = ["--metadata=toc=false"]
+    if docx_toc is not None:
+        metadata.append(f"--metadata=docx_toc={'true' if docx_toc else 'false'}")
+    if cover:
+        metadata.extend(COVER_METADATA)
 
     command = [
         pandoc,
@@ -96,46 +125,75 @@ def _style_id(paragraph: ElementTree.Element) -> str:
     return style.get(f"{W}val", "") if style is not None else ""
 
 
+def _paragraphs(root: ElementTree.Element) -> list[ElementTree.Element]:
+    return list(root.iter(f"{W}p"))
+
+
+def _texts(paragraphs: list[ElementTree.Element]) -> list[str]:
+    return [
+        "".join(node.text or "" for node in paragraph.iter(f"{W}t"))
+        for paragraph in paragraphs
+    ]
+
+
+def _toc_fields(root: ElementTree.Element) -> list[str]:
+    instructions = [node.text or "" for node in root.iter(f"{W}instrText")]
+    return [instruction for instruction in instructions if re.search(r"\bTOC\b", instruction)]
+
+
 def _assert_no_toc(document: bytes) -> None:
     root = ElementTree.fromstring(document)
-    paragraphs = list(root.iter(f"{W}p"))
+    paragraphs = _paragraphs(root)
+    texts = _texts(paragraphs)
 
-    texts = [
-        "".join(node.text or "" for node in paragraph.iter(f"{W}t"))
-        for paragraph in paragraphs
-    ]
     assert "DAFTAR ISI" not in texts
+    assert "Table of Contents" not in texts
     assert all(not _style_id(paragraph).startswith("TOC") for paragraph in paragraphs)
-
-    instructions = [node.text or "" for node in root.iter(f"{W}instrText")]
-    assert all(" TOC " not in instruction for instruction in instructions)
+    assert _toc_fields(root) == []
 
 
-def _assert_has_toc(document: bytes) -> None:
+def _assert_exactly_one_toc(
+    document: bytes, *, after_cover: bool = False
+) -> None:
     root = ElementTree.fromstring(document)
-    paragraphs = list(root.iter(f"{W}p"))
+    paragraphs = _paragraphs(root)
+    texts = _texts(paragraphs)
 
-    texts = [
-        "".join(node.text or "" for node in paragraph.iter(f"{W}t"))
-        for paragraph in paragraphs
-    ]
-    assert "DAFTAR ISI" in texts
-    assert any(_style_id(paragraph) == "TOCHeading" for paragraph in paragraphs)
+    assert texts.count("DAFTAR ISI") == 1
+    assert "Table of Contents" not in texts
+    assert len(_toc_fields(root)) == 1
 
-    instructions = [node.text or "" for node in root.iter(f"{W}instrText")]
-    assert any(" TOC " in instruction for instruction in instructions)
+    toc_index = texts.index("DAFTAR ISI")
+    assert _style_id(paragraphs[toc_index]) == "TOCHeading"
+
+    if after_cover:
+        cover_indices = [
+            index
+            for index, paragraph in enumerate(paragraphs)
+            if _style_id(paragraph).startswith("Cover")
+        ]
+        assert cover_indices, "sampul tidak terbentuk dari metadata"
+        assert toc_index > max(cover_indices), "DAFTAR ISI harus setelah sampul"
+
+
+def test_toc_true_tepat_satu_daftar_isi_setelah_sampul(tmp_path: Path) -> None:
+    document = _build_docx(tmp_path, docx_toc=True, cover=True)
+
+    _assert_exactly_one_toc(document, after_cover=True)
 
 
 def test_toc_false_tidak_menyisipkan_daftar_isi(tmp_path: Path) -> None:
-    document = _build_docx(tmp_path, "--metadata=toc=false")
+    document = _build_docx(tmp_path, docx_toc=False, cover=True)
 
     _assert_no_toc(document)
 
 
-def test_toc_tanpa_metadata_tetap_default_tesis(tmp_path: Path) -> None:
+def test_docx_tanpa_metadata_tetap_default_tesis(tmp_path: Path) -> None:
+    # ``toc=false`` dari writer tidak boleh mematikan TOC kustom: default
+    # ``docx_toc`` tetap true untuk proyek lama.
     document = _build_docx(tmp_path)
 
-    _assert_has_toc(document)
+    _assert_exactly_one_toc(document)
 
 
 TEMPLATE_BODY = """\
