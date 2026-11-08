@@ -628,3 +628,60 @@ def test_bold_body_dan_list_dihapus_heading_dan_tabel_dipertahankan(
     with zipfile.ZipFile(second) as archive:
         second_xml = archive.read(DOCUMENT_PART)
     assert first_xml == second_xml
+
+
+# ---------------------------------------------------------------------------
+# Penghapusan bold pada field cover
+
+
+COVER_COURSE_BOLD = "Proyek Perangkat Lunak"
+COVER_LECTURER_BOLD = "Dr. Nama Dosen Pengampu, M.Kom."
+COVER_NAME_BOLD = "Nama Mahasiswa 1"
+COVER_TITLE_BOLD = "Judul Sampul"
+
+
+def build_cover_bold_fixture(path: Path) -> Path:
+    document = Document()
+
+    for marker, style_id in (
+        (COVER_COURSE_BOLD, "CoverCourse"),
+        (COVER_LECTURER_BOLD, "CoverLecturer"),
+        (COVER_NAME_BOLD, "CoverName"),
+        (COVER_TITLE_BOLD, "CoverTitle"),
+    ):
+        paragraph = document.add_paragraph()
+        set_style(paragraph, style_id)
+        add_bold_run(paragraph, marker)
+
+    document.save(path)
+    return path
+
+
+@pytest.fixture()
+def cover_bold_docx(tmp_path: Path) -> Path:
+    return build_cover_bold_fixture(tmp_path / "cover-bold-input.docx")
+
+
+def test_bold_field_cover_dihapus_kecuali_cover_title(
+    cover_bold_docx: Path, tmp_path: Path
+) -> None:
+    title_before = canonical(paragraph_by_marker(cover_bold_docx, COVER_TITLE_BOLD))
+    output = tmp_path / "cover-bold-out.docx"
+    report = api.normalize_layout(cover_bold_docx, output)
+    root = document_root(output)
+
+    for marker in (COVER_COURSE_BOLD, COVER_LECTURER_BOLD, COVER_NAME_BOLD):
+        assert not has_bold(run_with_text(root, marker)), marker
+
+    # Judul sampul tetap bold dan paragrafnya tidak berubah sama sekali.
+    assert has_bold(run_with_text(root, COVER_TITLE_BOLD))
+    assert canonical(paragraph_by_marker(output, COVER_TITLE_BOLD)) == title_before
+
+    # Field cover tetap mempertahankan layout aslinya (tidak dinormalisasi).
+    for marker in (COVER_COURSE_BOLD, COVER_LECTURER_BOLD, COVER_NAME_BOLD):
+        paragraph = paragraph_by_marker(output, marker)
+        assert paragraph.find(f"{W_PPR}/{W_SPACING}") is None
+        assert paragraph.find(f"{W_PPR}/{W_JC}") is None
+
+    assert report.bold_paragraphs == 3
+    assert report.bold_runs_removed == 6

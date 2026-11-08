@@ -398,6 +398,12 @@ function Pandoc(doc)
   local year = meta_str(meta, "year")
   local show_dg = (meta_bool(meta, "daftar_gambar") or meta_bool(meta, "list_of_figures"))
   local show_dt = (meta_bool(meta, "daftar_tabel") or meta_bool(meta, "list_of_tables"))
+  -- Struktur `toc` menentukan apakah daftar isi DOCX disisipkan. Proyek
+  -- lama tanpa kunci `toc` tetap mendapat daftar isi (default tesis).
+  local show_toc = true
+  if meta["toc"] ~= nil then
+    show_toc = meta_bool(meta, "toc")
+  end
 
   local blocks = pandoc.List{}
 
@@ -604,8 +610,10 @@ function Pandoc(doc)
       and blk.level == 1
       and not is_unnumbered(blk)
     then
-      for _, b in ipairs(daftar_isi()) do
-        body[#body + 1] = b
+      if show_toc then
+        for _, b in ipairs(daftar_isi()) do
+          body[#body + 1] = b
+        end
       end
       if show_dg then
         for _, b in ipairs(daftar_gambar()) do

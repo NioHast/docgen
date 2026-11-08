@@ -2,7 +2,7 @@
 set -e
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
-# Siapkan Pandoc/Typst (PATH Windows/WSL) sebelum perkakas dipanggil.
+# Siapkan Pandoc/Typst native platform (Windows atau Linux) sebelum dipanggil.
 # shellcheck source=tools/env.sh
 source "$DIR/tools/env.sh"
 
@@ -57,53 +57,35 @@ FALLBACK_DIRS=(
   "$DIR"
 )
 
-# Preprocessing istilah Markdown membutuhkan Python 3. Venv proyek dipakai
-# bila tersedia; bila tidak, gunakan python3/python sistem.
-PYTHON_BIN=""
-PYTHON_IS_WINDOWS=0
-
-# Di WSL, utamakan Python Linux agar path /mnt/c dan /tmp bisa dibaca
-# langsung. Venv Windows hanya dipakai bila Python Linux tidak tersedia.
-if [ "${_LAPORAN_PLATFORM:-}" = "wsl" ]; then
-  if command -v python3 >/dev/null 2>&1 && python3 -V >/dev/null 2>&1; then
+# Preprocessing istilah Markdown membutuhkan Python 3 native platform.
+# LAPORAN_PYTHON menang; default memakai venv proyek (.venv/Scripts/python.exe
+# di Windows, .venv/bin/python di Linux), lalu python3/python sistem.
+PYTHON_BIN="${LAPORAN_PYTHON:-}"
+if [ -z "$PYTHON_BIN" ]; then
+  if [ "${_LAPORAN_PLATFORM:-}" = "windows" ]; then
+    VENV_PYTHON="$DIR/.venv/Scripts/python.exe"
+  else
+    VENV_PYTHON="$DIR/.venv/bin/python"
+  fi
+  if [ -x "$VENV_PYTHON" ] && "$VENV_PYTHON" -V >/dev/null 2>&1; then
+    PYTHON_BIN="$VENV_PYTHON"
+  elif [ "${_LAPORAN_PLATFORM:-}" = "windows" ]; then
+    if command -v python >/dev/null 2>&1 && python -V >/dev/null 2>&1; then
+      PYTHON_BIN="python"
+    fi
+  elif command -v python3 >/dev/null 2>&1 && python3 -V >/dev/null 2>&1; then
     PYTHON_BIN="python3"
   elif command -v python >/dev/null 2>&1 && python -V >/dev/null 2>&1; then
     PYTHON_BIN="python"
   fi
 fi
 
-if [ -z "$PYTHON_BIN" ]; then
-  PYTHON_BIN="python3"
-  if ! command -v python3 >/dev/null 2>&1 || ! python3 -V >/dev/null 2>&1; then
-    if command -v python >/dev/null 2>&1 && python -V >/dev/null 2>&1; then
-      PYTHON_BIN="python"
-    fi
-  fi
-  for VENV_PYTHON in "$DIR/.venv/Scripts/python.exe" "$DIR/.venv/bin/python"; do
-    if [ -x "$VENV_PYTHON" ] && "$VENV_PYTHON" -V >/dev/null 2>&1; then
-      PYTHON_BIN="$VENV_PYTHON"
-      break
-    fi
-  done
-fi
-
-case "$PYTHON_BIN" in
-  *.exe|[A-Za-z]:*) PYTHON_IS_WINDOWS=1 ;;
-esac
-
-# Python Windows tidak mengenal path /mnt/c; konversi saat build berjalan di WSL.
-python_path() {
-  local path="$1"
-  if [ "$PYTHON_IS_WINDOWS" = "1" ] && [ "${_LAPORAN_PLATFORM:-}" = "wsl" ]; then
-    wslpath -w -- "$path" 2>/dev/null || printf '%s' "$path"
-  else
-    printf '%s' "$path"
-  fi
-}
-
-if ! "$PYTHON_BIN" -V >/dev/null 2>&1; then
+if [ -z "$PYTHON_BIN" ] || ! "$PYTHON_BIN" -V >/dev/null 2>&1; then
   echo "ERROR: Python 3 tidak ditemukan untuk preprocessing istilah Markdown." >&2
-  echo "       Instal Python 3 atau sediakan .venv di direktori proyek." >&2
+  if [ -n "${LAPORAN_PYTHON:-}" ]; then
+    echo "       LAPORAN_PYTHON=$LAPORAN_PYTHON tidak dapat dijalankan." >&2
+  fi
+  echo "       Instal Python 3 atau sediakan .venv native platform." >&2
   exit 1
 fi
 
@@ -209,10 +191,10 @@ if [ -z "$ISTILAH_MD_SCRIPT" ]; then
 fi
 
 PREPROCESSED_DIR="$TMPDIR/chapters-pre"
-if ! "$PYTHON_BIN" "$(python_path "$ISTILAH_MD_SCRIPT")" \
-  --src "$(python_path "$CHAPTERS_PATH")" \
-  --glossary "$(python_path "$GLOSSARY")" \
-  --out "$(python_path "$PREPROCESSED_DIR")"; then
+if ! "$PYTHON_BIN" "$ISTILAH_MD_SCRIPT" \
+  --src "$CHAPTERS_PATH" \
+  --glossary "$GLOSSARY" \
+  --out "$PREPROCESSED_DIR"; then
   echo "ERROR: Preprocessing istilah Markdown gagal." >&2
   echo "       Periksa $GLOSSARY dan berkas .md di $CHAPTERS_DIR." >&2
   exit 1
@@ -285,17 +267,28 @@ if [ ! -f "$CSL_FILE" ]; then
   exit 1
 fi
 
-if ! "${LAPORAN_PANDOC:-pandoc}" \
+# `python -m laporan build` meneruskan toc dari struktur/metadata lewat
+# environment. Tanpa env, metadata proyek menang; proyek lama tanpa kunci
+# `toc` memakai default tesis (true).
+TOC_OPTS=()
+if [ -n "${LAPORAN_TOC:-}" ]; then
+  TOC_OPTS=("--metadata=toc=${LAPORAN_TOC}")
+elif ! grep -Eq '^[[:space:]]*toc[[:space:]]*:' "$TMPDIR/$METADATA_BASENAME"; then
+  TOC_OPTS=("--metadata=toc=true")
+fi
+
+if ! pandoc \
   "${INPUT_FILES[@]}" \
   --template="template.typ" \
   "${PRESET_OPTS[@]}" \
   --metadata-file="$METADATA_BASENAME" \
+  "${TOC_OPTS[@]}" \
   --citeproc \
   --bibliography="references.bib" \
   --csl="$CSL_PATH" \
   --metadata=reference-section-title="DAFTAR PUSTAKA" \
   --top-level-division=chapter \
-  --pdf-engine="${LAPORAN_TYPST:-typst}" \
+  --pdf-engine=typst \
   --no-highlight \
   -o "$REPORT" 2>&1; then
   echo ""

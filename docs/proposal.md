@@ -75,8 +75,8 @@ bash build-docx.sh
 Keluaran yang diharapkan adalah `Proposal.docx` di root repositori. Wrapper
 tidak menduplikasi logika `build-docx.sh`; seluruh pemrosesan preset, sitasi,
 finalisasi, caption, istilah, nomor halaman, dan ID paragraf tetap dilakukan
-oleh `build-docx.sh`. Di Windows, jalankan dari Git Bash, bukan WSL, karena
-`build-docx.sh` memanggil venv Windows.
+oleh `build-docx.sh`. Jalankan dari Git Bash dengan venv Windows di Windows,
+atau dari bash dengan venv Debian di Debian/Linux; tidak ada interop lintas OS.
 
 Build proposal memerlukan `build-docx.sh` yang mendukung variabel
 `LAPORAN_METADATA` dan `LAPORAN_REPORT_NAME`, serta membaca bab dari

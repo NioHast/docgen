@@ -6,12 +6,15 @@ paragraf body dan sel tabel:
 - ``w:spacing/@w:before = 0`` dan ``@w:after = 0``;
 - ``w:spacing/@w:line = 360`` dengan ``@w:lineRule = auto`` (1,5 baris);
 - ``w:jc/@w:val = both`` (justify);
-- menghapus bold langsung (``w:b``/``w:bCs``) dari run body dan daftar.
-  Paragraf ber-style heading dipertahankan bold, dan sel tabel tidak disentuh.
+- menghapus bold langsung (``w:b``/``w:bCs``) dari run body, daftar, dan field
+  cover ``CoverCourse``/``CoverLecturer``/``CoverName``. Paragraf ber-style
+  heading dan judul sampul ``CoverTitle`` dipertahankan bold, dan sel tabel
+  tidak disentuh.
 
 Paragraf dengan style blok kode, caption, heading (``Heading1``–``Heading9``
-dan style heading kustom seperti ``ChapterTitle``), daftar isi, cover,
-``Title``, atau yang memuat field TOC/PAGEREF/SEQ tidak disentuh sama sekali.
+dan style heading kustom seperti ``ChapterTitle``), daftar isi, cover selain
+field cover yang disebut di atas, ``Title``, atau yang memuat field
+TOC/PAGEREF/SEQ tidak disentuh sama sekali.
 Teks, run, style, section, field, dan bookmark tidak diubah; hanya
 ``word/document.xml`` yang ditulis ulang, sedangkan part lain disalin
 byte-per-byte dari DOCX asli.
@@ -129,6 +132,11 @@ HEADING_STYLE_RE = re.compile(r"^heading[1-9]$")
 CUSTOM_HEADING_STYLES = frozenset({"chaptertitle"})
 COVER_PREFIX = "cover"
 TITLE_STYLE = "title"
+
+# Field cover yang tetap dikecualikan dari spacing/justify, tetapi bold
+# langsungnya dihapus. CoverTitle sengaja tidak termasuk agar judul sampul
+# tetap bold.
+COVER_BOLD_STRIP_STYLES = frozenset({"covercourse", "coverlecturer", "covername"})
 
 # Field yang membuat paragrafnya dikecualikan dari normalisasi.
 EXEMPT_FIELDS = frozenset({"TOC", "PAGEREF", "SEQ"})
@@ -310,6 +318,12 @@ def _has_exempt_style(style_id: str | None) -> bool:
     return TOC_STYLE_RE.fullmatch(normalized) is not None
 
 
+def _has_cover_bold_to_strip(style_id: str | None) -> bool:
+    """True untuk field cover yang bold langsungnya harus dihapus."""
+
+    return _normalize_style_id(style_id) in COVER_BOLD_STRIP_STYLES
+
+
 def _iter_field_markers(paragraph: _Element) -> Iterator[_Element]:
     """Iterasi fldChar/instrText/fldSimple secara berurutan.
 
@@ -480,7 +494,13 @@ def normalize_layout(
 
         style_id = _paragraph_style_id(paragraph)
         if _has_exempt_style(style_id):
-            # Heading, caption, kode, TOC, cover, dan figure dipertahankan.
+            # Heading, caption, kode, TOC, cover, dan figure dipertahankan;
+            # bold langsung field cover tetap dibersihkan.
+            if _has_cover_bold_to_strip(style_id):
+                removed = _strip_paragraph_bold(paragraph)
+                if removed:
+                    report.bold_paragraphs += 1
+                    report.bold_runs_removed += removed
             report.skipped_style += 1
             continue
 

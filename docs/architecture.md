@@ -100,7 +100,7 @@ sampul/kata pengantar proyek lain. Contoh lengkap ada di
 | Modul | Isi |
 | --- | --- |
 | `manifest.py` | Pembaca YAML (PyYAML atau fallback subset), model struktur/format, validasi, dan pembuatan proyek. |
-| `platform.py` | Deteksi Windows/WSL/Linux/macOS, pencarian bash Git Bash, Pandoc, Typst, Word, LibreOffice. |
+| `platform.py` | Deteksi Windows/Linux, pencarian Git Bash di Windows, serta Pandoc, Typst, Word, dan LibreOffice native. |
 | `cli.py` | Perintah `list`, `new`, `check`, `build`, `doctor`. |
 | `__main__.py` | Titik masuk bila `src/` berada di `sys.path`. |
 
@@ -148,31 +148,32 @@ menampilkan environment dan perintah tanpa menjalankan build.
 
 ## Batas dan gap integrasi
 
-Fondasi ini sengaja belum mengubah pipeline lama. Gap yang masih terbuka:
+Kontrak `toc` sudah diterapkan: `docx.lua` dan `template.typ` mengikuti
+metadata `toc` (default true untuk proyek lama), `new` menuliskannya ke
+`metadata.yml`, dan `build` meneruskannya lewat `LAPORAN_TOC`.
 
-1. **`toc: false` belum dipaksa di DOCX.** `docx.lua` selalu menyisipkan daftar
-   isi sebelum Heading 1 pertama. Nilai `toc` pada struktur baru dipakai untuk
-   memilih isi `cover.md`; DOCX tetap memuat daftar isi.
-2. **Front matter terstruktur belum dirender.** `approval`, `statement`,
+Gap yang masih terbuka:
+
+1. **Front matter terstruktur belum dirender.** `approval`, `statement`,
    `abstract_id`, dan `abstract_en` baru berupa daftar di struktur. Pipeline
    lama membangun komponen ini dari metadata dan `cover.md`, bukan dari
    `front_matter`.
-3. **`body_numbering` belum diteruskan sebagai metadata.** Penomoran tetap
+2. **`body_numbering` belum diteruskan sebagai metadata.** Penomoran tetap
    mengikuti preset (`undip-skripsi` untuk `BAB_ROMAN`,
    `undip-msi-proposal` untuk `ARABIC_DOTTED`). Struktur dan preset harus
    dijaga konsisten.
-4. **`blank_line` belum ditegakkan.** Nilai disimpan dan divalidasi sebagai
+3. **`blank_line` belum ditegakkan.** Nilai disimpan dan divalidasi sebagai
    teks, tetapi belum ada linter yang menolak baris kosong di posisi terlarang.
-5. **Glosarium DOCX disediakan saat build.** `build-docx.sh` tidak memakai
+4. **Glosarium DOCX disediakan saat build.** `build-docx.sh` tidak memakai
    fallback untuk `writing/istilah.tsv`. `build` menyalin glosarium repo ke
    proyek konten bila belum ada. Bila glosarium repo juga tidak ada, DOCX gagal
    dengan pesan dari pipeline lama.
-6. **Format baru belum tentu punya preset lama.** `format.yml` hanya memetakan
+5. **Format baru belum tentu punya preset lama.** `format.yml` hanya memetakan
    ke berkas di `presets/`. Format kampus baru memerlukan preset dan CSL yang
    sesuai agar build dapat berjalan. Kunci `csl`/`bibliography` di `format.yml`
    belum diteruskan ke pipeline; build tetap membaca `csl:` dari preset atau
    memakai `refs/undip-msi.csl`.
-7. **Urutan bab mengikuti nama berkas, bukan daftar manifest.** Pipeline lama
+6. **Urutan bab mengikuti nama berkas, bukan daftar manifest.** Pipeline lama
    menyalin semua `*.md` di `LAPORAN_CHAPTERS` lalu mengurutkannya dengan
    `sort -V`. Daftar `chapters` pada manifest/struktur dipakai `check` untuk
    memastikan berkas ada, tetapi berkas tambahan di direktori yang sama tetap

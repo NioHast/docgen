@@ -3,6 +3,10 @@
   author: ($for(author)$"$author.name$"$sep$,$endfor$),
 )
 
+// Daftar isi dirender dari template agar kunci `toc` pada struktur berlaku
+// untuk PDF maupun DOCX. Nilai berasal dari metadata proyek.
+#let toc-enabled = "$if(toc)$true$else$false$endif$" == "true"
+
 $if(margin_top)$
 #let doc-margin = (
   top: $margin_top$,
@@ -445,5 +449,38 @@ $endif$
 
 #let opt-daftar-gambar = $if(daftar_gambar)$$daftar_gambar$$else$$if(list_of_figures)$$list_of_figures$$else$false$endif$$endif$
 #let opt-daftar-tabel = $if(daftar_tabel)$$daftar_tabel$$else$$if(list_of_tables)$$list_of_tables$$else$false$endif$$endif$
+
+// Isi DAFTAR ISI + daftar gambar/tabel. Dipanggil cover.md pada posisi front
+// matter yang tepat; tidak merender apa pun bila `toc: false`.
+#let daftar-isi() = {
+  if toc-enabled {
+    outline(
+      title: [#align(center)[#text(size: 14pt, weight: "bold")[DAFTAR ISI]]],
+      depth: 3,
+    )
+    context {
+      if opt-daftar-gambar {
+        let imgs = query(figure.where(kind: image))
+        if imgs.len() > 0 {
+          pagebreak()
+          outline(
+            title: align(center)[#text(size: 14pt, weight: "bold")[DAFTAR GAMBAR]],
+            target: figure.where(kind: image),
+          )
+        }
+      }
+      if opt-daftar-tabel {
+        let tbls = query(figure.where(kind: table))
+        if tbls.len() > 0 {
+          pagebreak()
+          outline(
+            title: align(center)[#text(size: 14pt, weight: "bold")[DAFTAR TABEL]],
+            target: figure.where(kind: table),
+          )
+        }
+      }
+    }
+  }
+}
 
 $body$

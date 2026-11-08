@@ -137,11 +137,35 @@ def command_check(args: argparse.Namespace) -> int:
     return 1
 
 
+def _toc_enabled(project: manifest_mod.Project) -> bool:
+    """Nilai `toc` proyek; metadata menang, struktur menjadi fallback.
+
+    ``new`` menulis nilai struktur ke metadata. Proyek lama yang belum punya
+    kunci tersebut tetap mengikuti struktur agar build tidak berubah diam-diam.
+    """
+
+    fallback = project.structure.toc
+    try:
+        metadata = manifest_mod.load_yaml(project.metadata_path)
+    except manifest_mod.ManifestError:
+        return fallback
+    if "toc" not in metadata:
+        return fallback
+    value = metadata["toc"]
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in {"true", "yes", "on", "1"}
+
+
 def _build_env(project: manifest_mod.Project) -> dict[str, str]:
     env = dict(os.environ)
-    env["LAPORAN_METADATA"] = platform_mod.to_posix_path(project.metadata_path)
-    env["LAPORAN_CHAPTERS"] = platform_mod.to_posix_path(project.chapters_dir)
+    env["LAPORAN_METADATA"] = os.fspath(project.metadata_path)
+    env["LAPORAN_CHAPTERS"] = os.fspath(project.chapters_dir)
     env["LAPORAN_REPORT_NAME"] = project.report_name
+    # Diteruskan sebagai metadata Pandoc eksplisit oleh build-docx.sh/build.sh
+    # agar nilai `toc` sampai ke docx.lua/template.typ tanpa bergantung pada
+    # urutan pembacaan metadata file.
+    env["LAPORAN_TOC"] = "true" if _toc_enabled(project) else "false"
     env["PYTHONUTF8"] = "1"
     return env
 
@@ -191,12 +215,13 @@ def _run_build(script_name: str, project: manifest_mod.Project, dry_run: bool) -
         _ensure_docx_glossary(project)
 
     env = _build_env(project)
-    command = [bash, script_name, platform_mod.to_posix_path(project.content_dir)]
+    command = [bash, script_name, os.fspath(project.content_dir)]
     print(f"[BUILD] {script_name} untuk {project.content_dir}")
     print(
         "        LAPORAN_METADATA="
         f"{env['LAPORAN_METADATA']} LAPORAN_CHAPTERS={env['LAPORAN_CHAPTERS']} "
-        f"LAPORAN_REPORT_NAME={env['LAPORAN_REPORT_NAME']}"
+        f"LAPORAN_REPORT_NAME={env['LAPORAN_REPORT_NAME']} "
+        f"LAPORAN_TOC={env['LAPORAN_TOC']}"
     )
     if dry_run:
         print("        (dry-run) " + " ".join(shlex.quote(part) for part in command))

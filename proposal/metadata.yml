@@ -6,4 +6,5 @@ institution: "Universitas Diponegoro"
 faculty: "Program Studi Magister Sistem Informasi"
 year: "2026"
 preset: "undip-msi-proposal"
+toc: true
 ...

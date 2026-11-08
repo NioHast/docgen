@@ -16,3 +16,5 @@ memproses DOCX, meninjau, lalu mendistribusikan. Kembali ke
 | 8 | [paragraph-ids.md](paragraph-ids.md) | Bookmark `pNNNN`, bentuk `build/manifest.json`, deteksi `kind`, dan aturan `protected`. |
 | 9 | [adeu-integration.md](adeu-integration.md) | Alur rekonsiliasi edit Word ke Markdown, exit code `reconcile.py`, dan blok yang dilindungi. |
 | 10 | [dotx.md](dotx.md) | Ekspor DOCX ke `.dotx`, perbedaan content type, distribusi template, dan batasan `python-docx`. |
+| 11 | [deployment/windows.md](deployment/windows.md) | Deployment Windows-native dengan Git Bash: prasyarat, perintah build, dan finalisasi field Word. |
+| 12 | [deployment/debian.md](deployment/debian.md) | Deployment Debian-native: prasyarat apt, Pandoc/Typst native, LibreOffice/Poppler, dan tanpa Word. |

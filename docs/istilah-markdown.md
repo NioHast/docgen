@@ -62,10 +62,11 @@ Pandoc kemudian memakai berkas di `$TMPDIR/chapters-pre`, bukan `chapters/`
 asli. `cover.md` tetap dipakai sebagai berkas terpisah. Build DOCX
 (`build-docx.sh`) tidak berubah dan tetap memakai `tools/istilah.py`.
 
-Build PDF memilih interpreter Python dari `.venv` bila tersedia (Windows/Git
-Bash), lalu `python3`/`python`. Di WSL, Python Linux diutamakan agar path
-`/mnt/c` dan `/tmp` bisa dibaca langsung. Glosarium dicari di
-`writing/istilah.tsv` pada direktori keluaran atau direktori proyek.
+Build PDF memilih interpreter Python native platform: `.venv/Scripts/python.exe`
+di Windows/Git Bash atau `.venv/bin/python` di Debian/Linux, lalu
+`python3`/`python`. Setiap platform memakai path native-nya sendiri tanpa
+terjemahan lintas OS. Glosarium dicari di `writing/istilah.tsv` pada direktori
+keluaran atau direktori proyek.
 
 ## Tes
 

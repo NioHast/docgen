@@ -1,3 +1,3 @@
 ```{=openxml}
-<!-- Contoh tugas tanpa daftar isi. Sampul DOCX dibuat dari metadata.yml. -->
+<!-- Contoh tugas tanpa daftar isi (toc: false). Sampul DOCX dibuat dari metadata.yml. -->
 ```

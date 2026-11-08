@@ -49,7 +49,7 @@ sumber tersebut menjadi PDF. Tidak ada LaTeX di pipeline ini.
 | Berkas | Peran |
 | --- | --- |
 | `build.sh` | Orkestrasi: salin aset ke direktori sementara, preprocessing glosarium, susun urutan bab, pilih preset, panggil Pandoc + Typst, tulis `Laporan.pdf`. |
-| `tools/env.sh` | Menemukan Pandoc/Typst dan menyiapkannya di `PATH` (Windows, WSL, Linux). |
+| `tools/env.sh` | Menemukan Pandoc/Typst native dan menyiapkannya di `PATH` (Windows dan Debian/Linux). |
 | `tools/istilah_markdown.py` | Preprocessing glosarium: membungkus istilah `italic=yes` dengan `*...*` agar penulisan PDF sama dengan DOCX. |
 | `writing/istilah.tsv` | Glosarium wajib berisi istilah, status italic, dan status review. |
 | Python 3 / `.venv` | Runtime preprocessing glosarium; `.venv` dipakai bila tersedia, fallback ke `python3`/`python` sistem. |
@@ -96,8 +96,10 @@ Catatan:
 ## Cara kerja `tools/env.sh`
 
 Masalah yang diselesaikan: installer Windows menambahkan Pandoc/Typst ke
-`PATH` Windows, tetapi Git Bash (MSYS) dan WSL memiliki `PATH` sendiri. Akibatnya
-`pandoc` atau `typst` tidak ditemukan walaupun aplikasinya terpasang.
+`PATH` Windows, tetapi sesi Git Bash yang sudah berjalan belum tentu memuat
+entri baru. Akibatnya `pandoc` atau `typst` tidak ditemukan walaupun
+aplikasinya terpasang. `env.sh` memeriksa lokasi instalasi Windows yang umum
+dan menambahkannya ke `PATH`.
 
 `build.sh` memanggil:
 
@@ -110,59 +112,47 @@ source "$DIR/tools/env.sh"
 
 | `uname -s` | Platform | Perlakuan |
 | --- | --- | --- |
-| `MINGW*`, `MSYS*`, `CYGWIN*` | `windows` | Cari `pandoc.exe`/`typst.exe` di direktori Windows, konversi path dengan `cygpath`. |
-| `Linux*` + `/proc/version` mengandung `microsoft` | `wsl` | Cari executable Windows lewat `/mnt/c/...`; sediakan jembatan path POSIX → Windows. |
-| `Linux*` lainnya | `linux` | Andalkan `PATH` native; tidak menambahkan direktori Windows. |
+| `MINGW*`, `MSYS*`, `CYGWIN*` | `windows` | Cari `pandoc.exe`/`typst.exe` di direktori instalasi Windows; path Windows dari environment dikonversi dengan `cygpath`. |
+| `Linux*` | `linux` | Andalkan `PATH` native; tidak mencari executable Windows atau lokasi instalasi Windows. |
 
-Direktori yang diperiksa (bila ada):
+Direktori yang diperiksa di Windows (bila ada):
 
 - `%LOCALAPPDATA%\Pandoc`
 - `%LOCALAPPDATA%\Microsoft\WinGet\Links`
 - `%LOCALAPPDATA%\Microsoft\WinGet\Packages\Typst.Typst_*\*\`
 - `%PROGRAMFILES%\Pandoc`
-- Di WSL: padanan di atas melalui `/mnt/c/Users/<user>/AppData/...`
+- `%USERPROFILE%\.cargo\bin`
 
 Direktori hanya ditambahkan bila benar-benar ada dan belum ada di `PATH`.
 Sourcing ulang tidak menggandakan entri `PATH` dan tidak mengubah direktori
-kerja.
+kerja. Di Debian/Linux tidak ada direktori tambahan yang diperiksa: `env.sh`
+hanya memakai Pandoc dan Typst native dari `PATH`.
 
-### Khusus WSL
+### Pemilihan executable
 
-Di WSL, executable Windows tidak ditemukan oleh pencarian `PATH` Linux
-(`typst` ≠ `typst.exe`). `env.sh` karena itu mengekspor dua variabel:
+`env.sh` tidak menyediakan pembungkus lintas OS. `build.sh` memanggil `pandoc`
+dan `typst` langsung dari `PATH` native masing-masing platform, sedangkan
+`build-docx.sh` hanya memanggil `pandoc`:
 
-- `LAPORAN_TYPST`: path lengkap ke `typst.exe`.
-- `LAPORAN_PANDOC`: nama fungsi pembungkus `_laporan_pandoc_windows`.
+- Windows: Git Bash memakai `pandoc.exe` dan `typst.exe` dari toolchain
+  Windows-native.
+- Debian/Linux: bash memakai `pandoc` dan `typst` native Debian.
 
-Fungsi pembungkus meneruskan argumen ke `pandoc.exe`, tetapi mengubah argumen
-path absolut POSIX (`/mnt/c/...`, `/tmp/...`) menjadi path Windows memakai
-`wslpath -w`, termasuk nilai `-o`/`--output`. Ini diperlukan karena Pandoc
-Windows tidak memahami `/mnt/c/...`, sedangkan Pandoc Linux bawaan distro bisa
-lebih lama daripada Typst yang terpasang (mis. Pandoc 3.1.3 menghasilkan
-`#cite("kunci")`, sedangkan Typst 0.15 memakai `#cite(<kunci>)`).
-
-`build.sh` memakai variabel tersebut secara eksplisit:
-
-```bash
-"${LAPORAN_PANDOC:-pandoc}" ... --pdf-engine="${LAPORAN_TYPST:-typst}"
-```
-
-Di Windows/Git Bash dan Linux native, kedua variabel tidak diset sehingga
-perintah biasa `pandoc` dan `typst` yang dipakai. `build-docx.sh` memuat
-`env.sh` dengan `LAPORAN_ENV_SKIP_TYPST=1` dan memakai
-`"${LAPORAN_PANDOC:-pandoc}"`, sehingga build DOCX hanya membutuhkan Pandoc.
+`build-docx.sh` memuat `env.sh` dengan `LAPORAN_ENV_SKIP_TYPST=1`, sehingga
+build DOCX hanya membutuhkan Pandoc.
 
 ### Bila perkakas tidak ditemukan
 
-`env.sh` mencetak pesan ke stderr lalu `exit 1`, misalnya:
+`env.sh` mencetak pesan ke stderr lalu `exit 1`, misalnya di Windows:
 
 ```text
-[env] ERROR: Typst tidak ditemukan.
-[env]        Platform terdeteksi: wsl.
-[env]        Instal Typst dari https://typst.app/, atau pastikan typst/typst.exe ada di PATH.
+[env] ERROR: Typst Windows tidak ditemukan.
+[env]        Platform terdeteksi: windows.
+[env]        Instal Typst dari https://typst.app/ atau jalankan
+[env]        'winget install Typst.Typst', lalu buka Git Bash baru.
 [env]        Build PDF membutuhkan Typst; build DOCX tidak.
 [env]        Direktori yang diperiksa:
-[env]        <tidak ada direktori Windows yang terdeteksi>
+[env]        /c/Users/<user>/AppData/Local/Microsoft/WinGet/Links
 ```
 
 Karena `build.sh` memakai `set -e`, build berhenti sebelum Pandoc dipanggil.
@@ -194,7 +184,7 @@ Pandoc 3.13 masih mencetak peringatan berikut; ini bukan error:
 ```
 
 Untuk menguji jalur gagal, sembunyikan Typst dari `PATH` sementara, misalnya di
-WSL:
+Debian/Linux:
 
 ```bash
 env PATH=/usr/bin:/bin bash build.sh
@@ -235,7 +225,7 @@ Konsekuensinya:
 | --- | --- |
 | `[env] ERROR: Pandoc tidak ditemukan` | Instal Pandoc, atau pastikan `pandoc.exe` ada di `%LOCALAPPDATA%\Pandoc`. |
 | `[env] ERROR: Typst tidak ditemukan` | Instal Typst, atau pastikan `typst.exe` ada di `%LOCALAPPDATA%\Microsoft\WinGet\Links`. |
-| Pandoc Linux terlalu lama untuk Typst baru | Jalankan lewat Git Bash, atau biarkan `env.sh` memakai Pandoc Windows di WSL. |
+| Pandoc native terlalu lama untuk Typst baru | Pasang Pandoc native terbaru di platform yang sama; `env.sh` tidak mencampur executable lintas OS. |
 | `refs/undip-msi.csl` tidak ditemukan | Pastikan berkas ada; `build.sh` menyalin direktori `refs/` ke direktori kerja sementara. |
 | `Glosarium writing/istilah.tsv tidak ditemukan` | Sediakan `writing/istilah.tsv`; build PDF memakainya untuk preprocessing istilah. |
 | `Python 3 tidak ditemukan` | Instal Python 3 atau sediakan `.venv` proyek. |

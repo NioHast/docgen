@@ -178,10 +178,10 @@ bergeser karena font atau layout berbeda.
 ## Batasan
 
 - **Hanya Windows + Microsoft Word desktop untuk tahap Word.** COM
-  `Word.Application` tidak tersedia di Linux, macOS, WSL tanpa Word, atau
-  runner CI standar. Di lingkungan tersebut `word_finalize.py` melewati
-  pembaruan field dengan peringatan.
-- **Bukan pengganti `docx-pagenum.py` di CI.** Build lintas platform tetap
+  `Word.Application` tidak tersedia di Debian/Linux, macOS, atau runner CI
+  standar. Di lingkungan tersebut `word_finalize.py` melewati pembaruan field
+  dengan peringatan.
+- **Bukan pengganti `docx-pagenum.py` di Debian/Linux.** Build Debian tetap
   memakai `docx-pagenum.py` sebagai jalur utama pengisian nomor halaman.
 - **Butuh Word yang tidak diblokir dialog.** Bila Word menampilkan dialog
   tersembunyi (misalnya file sedang dikunci atau ada add-in bermasalah),

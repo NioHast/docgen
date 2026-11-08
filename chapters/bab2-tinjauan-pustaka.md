@@ -82,7 +82,7 @@ Dependensi Python untuk pengolahan DOCX dan pengujian, yaitu `python-docx`, `lxm
 
 ### Dukungan Lingkungan Build Lintas Platform
 
-Build dijalankan melalui Git Bash di Windows atau shell Bash pada Linux dan macOS. Pandoc menangani konversi Markdown, pemrosesan sitasi, dan keluaran DOCX, sedangkan Typst menghasilkan PDF. Kedua perkakas dipanggil melalui `tools/env.sh` yang membantu menemukan instalasi Pandoc dan Typst pada PATH Windows, WinGet, maupun WSL. Build DOCX memerlukan Git Bash di Windows karena venv Windows tidak dapat dipanggil dari WSL dan path `/mnt/c` memicu `WinError 5` pada `python-docx`; build PDF dapat dijalankan di Git Bash, WSL, Linux, maupun macOS.
+Build dijalankan melalui Git Bash di Windows atau bash di Debian/Linux. Pandoc menangani konversi Markdown, pemrosesan sitasi, dan keluaran DOCX, sedangkan Typst menghasilkan PDF. Kedua perkakas dipanggil melalui `tools/env.sh` yang mencari instalasi native pada `PATH`: Pandoc dan Typst Windows di Git Bash, atau Pandoc dan Typst native Debian. Tidak ada interop lintas OS; build DOCX memakai venv dan path native platform masing-masing, sehingga Windows memakai Git Bash dengan venv Windows dan Debian memakai bash dengan venv Debian.
 
 ## Standar Sitasi Akademik Author-Date
 

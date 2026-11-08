@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Finalisasi tahap Word untuk Laporan.docx.
+"""Finalisasi tahap field Word untuk Laporan.docx.
 
 Urutan kerja:
 
-  1. Bila PowerShell dan Microsoft Word tersedia, jalankan
+  1. Hanya di Windows: bila PowerShell dan Microsoft Word tersedia, jalankan
      ``tools/update_fields.ps1`` supaya seluruh field (TOC/PAGEREF/PAGE)
      memakai hasil perhitungan Word.
   2. Selalu jalankan ``scripts/finalize-docx.py --in-place`` untuk
@@ -12,8 +12,9 @@ Urutan kerja:
      ``compatibilityMode`` 15, dan merapikan hyperlink/font kode serta
      struktur section yang dinormalkan Word.
 
-Bila Word tidak tersedia, langkah 1 dilewati dengan warning. TOC tetap
-memakai cache terakhir, tetapi prompt update field tidak akan muncul.
+Di Linux (termasuk WSL) Word tidak tersedia: langkah 1 dilewati dengan
+warning, dan hanya settings DOCX yang dibersihkan. TOC tetap memakai cache
+terakhir. Finalisasi field Word dilakukan belakangan di Windows.
 
 Hook di ``build-docx.sh`` dijalankan setelah ``docx-pagenum.py`` dan
 sebelum ``add_paragraph_ids.py`` agar manifest mencerminkan DOCX final:
@@ -28,6 +29,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import platform
 import shutil
 import subprocess
 import sys
@@ -36,6 +38,10 @@ from pathlib import Path
 
 def warn(message: str) -> None:
     print(f"[word_finalize] WARNING: {message}", file=sys.stderr)
+
+
+def is_windows() -> bool:
+    return platform.system().lower() == "windows"
 
 
 def find_powershell() -> str | None:
@@ -58,6 +64,13 @@ def find_finalize_script() -> Path | None:
 
 def update_fields_with_word(docx: Path, timeout: int) -> bool:
     """Jalankan update_fields.ps1; False bila Word/PowerShell tidak siap."""
+    if not is_windows():
+        warn(
+            "Microsoft Word hanya tersedia di Windows; field DOCX tidak "
+            "diperbarui. TOC memakai cache terakhir."
+        )
+        return False
+
     powershell = find_powershell()
     if powershell is None:
         warn(
@@ -136,8 +149,8 @@ def clear_update_fields(docx: Path) -> bool:
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Perbarui field DOCX lewat Word (opsional), lalu bersihkan "
-            "updateFields dan compatibility mode."
+            "Di Windows, perbarui field DOCX lewat Word (opsional); di Linux "
+            "lewati Word. Selalu bersihkan updateFields dan compatibility mode."
         )
     )
     parser.add_argument("docx", help="Path ke Laporan.docx")
@@ -165,7 +178,12 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 1
 
-    if args.skip_word:
+    if not is_windows():
+        warn(
+            "Word tidak tersedia di platform ini; field DOCX tidak diperbarui. "
+            "TOC memakai cache terakhir. Finalisasi field Word dilakukan di Windows."
+        )
+    elif args.skip_word:
         warn(
             "Word dilewati (--skip-word); field DOCX tidak diperbarui. "
             "TOC memakai cache terakhir."

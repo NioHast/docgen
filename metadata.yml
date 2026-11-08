@@ -31,4 +31,5 @@ daftar_tabel: false
 #   - Keyword 1
 #   - Keyword 2
 preset: "undip-skripsi"
+toc: true
 ...

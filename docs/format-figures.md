@@ -114,11 +114,11 @@ tanpa garis vertikal, dan tanpa garis horizontal antarbaris body.
 | Sisi | `w:val` | `w:sz` | `w:color` |
 | --- | --- | --- | --- |
 | `top` | `single` | `8` | `000000` |
-| `left` | `nil` | — | `000000` |
+| `left` | `nil` | - | `000000` |
 | `bottom` | `single` | `8` | `000000` |
-| `right` | `nil` | — | `000000` |
-| `insideH` | `nil` | — | `000000` |
-| `insideV` | `nil` | — | `000000` |
+| `right` | `nil` | - | `000000` |
+| `insideH` | `nil` | - | `000000` |
+| `insideV` | `nil` | - | `000000` |
 
 `w:sz="8"` berarti 1 pt. Elemen border dibuat baru sehingga atribut tema
 (`w:themeColor`, `w:themeTint`, dan sejenisnya) dari border lama tidak

@@ -22,15 +22,17 @@ Markdown.
 
 - **Python 3.12** untuk DOCX dan PDF. Build PDF memakai Python untuk
   preprocessing glosarium Markdown; `.venv` proyek dipakai bila tersedia.
-- **Git Bash** di Windows untuk build DOCX. **`bash` WSL tidak didukung**
-  untuk `build-docx.sh`: venv Windows tidak dapat dipanggil dari WSL dan path
-  `/mnt/c` memicu `WinError 5` pada python-docx. Build PDF dapat dijalankan di
-  Git Bash, WSL, atau Linux/macOS.
+- **Windows**: Git for Windows (Git Bash) dengan Pandoc, Typst, dan Microsoft
+  Word native. Semua build dijalankan dari Git Bash. Lihat
+  [docs/deployment/windows.md](docs/deployment/windows.md).
+- **Debian/Linux**: bash dengan Pandoc, Typst, dan LibreOffice native. Word
+  tidak tersedia; finalisasi field Word dilakukan di Windows. Lihat
+  [docs/deployment/debian.md](docs/deployment/debian.md).
 - **Pandoc** dengan `--citeproc`.
 - **Typst** untuk build PDF.
-- **Microsoft Word desktop** (opsional) untuk finalisasi field otomatis oleh
-  `tools/word_finalize.py` saat `build-docx.sh`; tanpa Word, build tetap
-  berjalan dengan peringatan.
+- **Microsoft Word desktop** (opsional, Windows) untuk finalisasi field
+  otomatis oleh `tools/word_finalize.py` saat `build-docx.sh`; tanpa Word,
+  build tetap berjalan dengan peringatan.
 - **LibreOffice** dan utilitas **Poppler** (`pdftotext`, `pdfinfo`) (opsional)
   untuk mengisi nomor halaman daftar isi saat build DOCX.
 - **ImageMagick** (opsional) untuk membersihkan alpha PNG saat build PDF.
@@ -44,7 +46,7 @@ python -m venv .venv
 .venv/Scripts/pip install -r tools/requirements.txt
 ```
 
-Di Linux/macOS/WSL:
+Di Debian/Linux:
 
 ```bash
 python3 -m venv .venv
@@ -55,8 +57,9 @@ python3 -m venv .venv
 
 Pandoc dan Typst tidak dipasang oleh perintah di atas. Pasang keduanya dan
 pastikan dapat dipanggil dari shell. `build.sh` dan `build-docx.sh` memuat
-`tools/env.sh` untuk mencari Pandoc/Typst di lokasi instalasi Windows, WinGet,
-dan WSL. `build-docx.sh` melewati syarat Typst karena build DOCX hanya
+`tools/env.sh`: di Windows skrip itu mencari Pandoc/Typst di lokasi instalasi
+Windows dan WinGet, sedangkan di Debian/Linux hanya memakai executable native
+dari `PATH`. `build-docx.sh` melewati syarat Typst karena build DOCX hanya
 membutuhkan Pandoc.
 
 ## Build
@@ -86,8 +89,9 @@ direktori sementara. Urutan pascaprosesnya adalah `scripts/finalize-docx.py`,
 `tools/add_paragraph_ids.py`.
 
 Build PDF membutuhkan Python 3, glosarium `writing/istilah.tsv`, Pandoc, dan
-Typst. `build.sh` memakai `.venv` proyek bila tersedia (Windows atau
-Linux/macOS); bila tidak, ia memakai `python3`/`python` sistem. Sebelum Pandoc,
+Typst. `build.sh` memakai `.venv` native platform bila tersedia (Windows atau
+Linux); bila tidak, ia memakai `python3`/`python` sistem. `LAPORAN_PYTHON`
+dapat menimpa pilihan itu. Sebelum Pandoc,
 `build.sh` menjalankan `tools/istilah_markdown.py` untuk preprocessing istilah
 glosarium ke direktori sementara, lalu menyalin aset, memilih preset dari
 `metadata.yml`, memproses sitasi dengan `refs/undip-msi.csl`, dan menjalankan
@@ -109,7 +113,7 @@ LAPORAN_METADATA=metadata-proposal.yml LAPORAN_REPORT_NAME=Proposal bash build.s
 ## Perintah penting
 
 `PY` di bawah adalah `.venv/Scripts/python.exe` di Windows/Git Bash atau
-`.venv/bin/python` di Linux/macOS.
+`.venv/bin/python` di Debian/Linux.
 
 | Keperluan | Perintah |
 | --- | --- |
@@ -168,9 +172,11 @@ dipanggil oleh build.
 6. Jalankan `tools/reconcile.py` untuk menghasilkan
    `review/manual-edits.md`. Baca saran, lalu terapkan sendiri ke
    `chapters/*.md`; alat ini tidak menulis Markdown.
-7. Build ulang. Untuk rilis Word, cukup `bash build-docx.sh`; Word dijalankan
-   otomatis oleh `tools/word_finalize.py` bila tersedia. Untuk distribusi
-   template, ekspor `.dotx` dari DOCX yang sudah final.
+7. Build ulang. Untuk rilis Word, cukup `bash build-docx.sh`; di Windows Word
+   dijalankan otomatis oleh `tools/word_finalize.py` bila tersedia. Di
+   Debian/Linux tahap itu dilewati dengan warning dan field difinalkan di
+   Windows. Untuk distribusi template, ekspor `.dotx` dari DOCX yang sudah
+   final.
 
 Artefak `Laporan.docx`, `Laporan.pdf`, `build/`, dan `review/` tidak dilacak
 Git. Yang perlu dipertahankan adalah Markdown, metadata, preset, referensi,

@@ -48,18 +48,6 @@ resolve_path() {
   esac
 }
 
-# Build DOCX harus dijalankan dari Git Bash di Windows. WSL tidak dapat
-# memanggil venv Windows dan path /mnt/c memicu WinError 5 pada python-docx.
-if [ -r /proc/version ] && grep -qi "microsoft" /proc/version 2>/dev/null; then
-  case "$DIR" in
-    /mnt/c/*|/mnt/c)
-      echo "ERROR: Jalankan build dari Git Bash, bukan WSL bash." >&2
-      echo "       Alasan: venv Windows tidak bisa dipanggil dari WSL dan path /mnt/c memicu WinError 5." >&2
-      exit 1
-      ;;
-  esac
-fi
-
 if [ -n "$1" ]; then
   OUTDIR="$(cd "$1" && pwd)"
 elif [ -f "$(resolve_path "$METADATA_NAME" "$(pwd)")" ] && [ -d "$(resolve_path "$CHAPTERS_DIR" "$(pwd)")" ]; then
@@ -80,21 +68,37 @@ fi
 CHAPTERS_PATH="$(resolve_path "$CHAPTERS_DIR" "$OUTDIR")"
 CHAPTERS_PARENT="$(dirname "$CHAPTERS_PATH")"
 
-# Resolve Python (handle WindowsApps stub redirector on Windows).
-# Utamakan venv repo bila ada karena add_paragraph_ids.py membutuhkan
-# python-docx/lxml; python sistem belum tentu memilikinya.
-PYTHON_BIN="python3"
-if ! command -v python3 >/dev/null 2>&1 || ! python3 -V >/dev/null 2>&1; then
-  if command -v python >/dev/null 2>&1 && python -V >/dev/null 2>&1; then
+# Resolve Python native platform. LAPORAN_PYTHON menang; default memakai venv
+# proyek (.venv/Scripts/python.exe di Windows, .venv/bin/python di Linux)
+# karena add_paragraph_ids.py membutuhkan python-docx/lxml.
+PYTHON_BIN="${LAPORAN_PYTHON:-}"
+if [ -z "$PYTHON_BIN" ]; then
+  if [ "${_LAPORAN_PLATFORM:-}" = "windows" ]; then
+    VENV_PYTHON="$DIR/.venv/Scripts/python.exe"
+  else
+    VENV_PYTHON="$DIR/.venv/bin/python"
+  fi
+  if [ -x "$VENV_PYTHON" ] && "$VENV_PYTHON" -V >/dev/null 2>&1; then
+    PYTHON_BIN="$VENV_PYTHON"
+  elif [ "${_LAPORAN_PLATFORM:-}" = "windows" ]; then
+    if command -v python >/dev/null 2>&1 && python -V >/dev/null 2>&1; then
+      PYTHON_BIN="python"
+    fi
+  elif command -v python3 >/dev/null 2>&1 && python3 -V >/dev/null 2>&1; then
+    PYTHON_BIN="python3"
+  elif command -v python >/dev/null 2>&1 && python -V >/dev/null 2>&1; then
     PYTHON_BIN="python"
   fi
 fi
-for VENV_PYTHON in "$DIR/.venv/Scripts/python.exe" "$DIR/.venv/bin/python"; do
-  if [ -x "$VENV_PYTHON" ] && "$VENV_PYTHON" -V >/dev/null 2>&1; then
-    PYTHON_BIN="$VENV_PYTHON"
-    break
+
+if [ -z "$PYTHON_BIN" ] || ! "$PYTHON_BIN" -V >/dev/null 2>&1; then
+  echo "ERROR: Python 3 tidak ditemukan untuk pipeline DOCX." >&2
+  if [ -n "${LAPORAN_PYTHON:-}" ]; then
+    echo "       LAPORAN_PYTHON=$LAPORAN_PYTHON tidak dapat dijalankan." >&2
   fi
-done
+  echo "       Instal Python 3 atau sediakan .venv native platform." >&2
+  exit 1
+fi
 
 if [ ! -d "$CHAPTERS_PATH" ]; then
   echo "ERROR: Direktori $CHAPTERS_DIR tidak ditemukan." >&2
@@ -334,7 +338,7 @@ ISTILAH_REVIEW="$OUTDIR/review/istilah-baru.txt"
 
 # Pakai Python yang sudah dipilih di awal build. PYTHON_BIN sudah
 # memprioritaskan .venv/Scripts/python.exe (Windows) atau .venv/bin/python
-# (Linux/macOS), lalu fallback ke python3/python sistem.
+# (Linux), lalu fallback ke python3/python sistem.
 ISTILAH_PYTHON="$PYTHON_BIN"
 
 if ! "$ISTILAH_PYTHON" -c "import docx, lxml" >/dev/null 2>&1; then
@@ -380,10 +384,20 @@ for CHAPTER in "$CHAPTERS_PATH"/*.md; do
   fi
 done
 
-if ! "${LAPORAN_PANDOC:-pandoc}" \
+# `python -m laporan build` meneruskan toc dari struktur lewat environment.
+# Nilai ini adalah metadata Pandoc eksplisit sehingga menimpa metadata.yml;
+# build langsung tanpa env tetap memakai kunci `toc` di metadata proyek
+# (docx.lua memakai default true bila kunci tidak ada).
+TOC_OPTS=()
+if [ -n "${LAPORAN_TOC:-}" ]; then
+  TOC_OPTS=("--metadata=toc=${LAPORAN_TOC}")
+fi
+
+if ! pandoc \
   "${INPUT_FILES[@]}" \
   "${PRESET_OPTS[@]}" \
   --metadata-file="$METADATA_BASENAME" \
+  "${TOC_OPTS[@]}" \
   --citeproc \
   --bibliography="references.bib" \
   --csl="$CSL_PATH" \
@@ -560,19 +574,29 @@ if ! "$PYTHON_BIN" "$PAGENUM_SCRIPT" "$ISTILAH_DOCX" "$REPORT"; then
   exit 1
 fi
 
-# --- Finalisasi Word (in-place pada $REPORT, sebelum ID paragraf) ----------
-# Word memperbarui field TOC/PAGEREF dan dapat menghapus paragraf cache TOC.
+# --- Finalisasi field Word (Windows) / pembersihan settings (Linux) -------
+# Word hanya dipakai di Windows. Di Linux, field TOC memakai cache terakhir
+# dan updateFields dibersihkan langsung oleh scripts/finalize-docx.py.
 # Jalankan sebelum add_paragraph_ids.py agar manifest mencerminkan DOCX final.
-WORD_FINALIZE_SCRIPT="$(resolve_tool word_finalize.py)" || {
-  echo "ERROR: tools/word_finalize.py tidak ditemukan." >&2
-  exit 1
-}
-if ! "$PYTHON_BIN" "$WORD_FINALIZE_SCRIPT" "$REPORT"; then
-  echo "ERROR: word_finalize.py gagal; build dihentikan." >&2
-  exit 1
+if [ "${_LAPORAN_PLATFORM:-}" = "windows" ]; then
+  WORD_FINALIZE_SCRIPT="$(resolve_tool word_finalize.py)" || {
+    echo "ERROR: tools/word_finalize.py tidak ditemukan." >&2
+    exit 1
+  }
+  if ! "$PYTHON_BIN" "$WORD_FINALIZE_SCRIPT" "$REPORT"; then
+    echo "ERROR: word_finalize.py gagal; build dihentikan." >&2
+    exit 1
+  fi
+else
+  echo "[WARN] Word dilewati: finalisasi field Word hanya tersedia di Windows." >&2
+  echo "[WARN] TOC memakai cache terakhir; updateFields dibersihkan tanpa Word." >&2
+  if ! "$PYTHON_BIN" "$FINALIZE_SCRIPT" --in-place "$REPORT"; then
+    echo "ERROR: gagal membersihkan updateFields pada $REPORT." >&2
+    exit 1
+  fi
 fi
 
-# --- Verifikasi istilah pada DOCX final setelah Word -----------------------
+# --- Verifikasi istilah pada DOCX final setelah finalisasi field -----------
 # Word dapat mengubah run/style saat memperbarui field; verifikasi ulang agar
 # penandaan istilah yang rusak tidak lolos ke manifest.
 if ! "$ISTILAH_PYTHON" "$ISTILAH_SCRIPT" verify \

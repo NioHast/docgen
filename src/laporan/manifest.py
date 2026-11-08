@@ -633,6 +633,7 @@ def _yaml_quote(value: str) -> str:
 
 def _metadata_text(structure: Structure, format_: Format, title: str) -> str:
     preset = format_.preset_for(structure.name)
+    toc = "true" if structure.toc else "false"
     return f"""# Metadata proyek. Ubah nilai, pertahankan kunci `preset`.
 title: {_yaml_quote(title)}
 subtitle: ""
@@ -648,6 +649,7 @@ year: "2026"
 date: "Agustus 2026"
 lang: "id-ID"
 preset: {_yaml_quote(preset)}
+toc: {toc}
 daftar_gambar: false
 daftar_tabel: false
 """
@@ -695,17 +697,17 @@ def _cover_text(structure: Structure) -> str:
     if structure.toc:
         parts.append(
             """```{=typst}
-#outline(
-  title: [#align(center)[#text(size: 14pt, weight: "bold")[DAFTAR ISI]]],
-  depth: 3,
-)
-#pagebreak()
+#if toc-enabled {
+  pagebreak()
+  daftar-isi()
+  pagebreak()
+}
 #set page(numbering: "1")
 #counter(page).update(1)
 ```
 
 ```{=openxml}
-<!-- Daftar isi DOCX disisipkan otomatis oleh docx.lua pada heading bab pertama. -->
+<!-- Daftar isi DOCX disisipkan otomatis oleh docx.lua bila metadata toc: true. -->
 ```
 """
         )

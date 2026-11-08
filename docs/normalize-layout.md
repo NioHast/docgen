@@ -2,7 +2,8 @@
 
 `tools/normalize_layout.py` menyeragamkan layout paragraf DOCX hasil build:
 spasi sebelum/sesudah paragraf menjadi 0, jarak antarbaris 1,5, paragraf
-dirata kanan-kiri (justify), dan bold langsung pada run body/daftar dihapus.
+dirata kanan-kiri (justify), dan bold langsung pada run body/daftar serta field
+cover (`CoverCourse`, `CoverLecturer`, `CoverName`) dihapus.
 
 Alat ini hanya menulis ulang `word/document.xml`. Semua part lain (styles,
 numbering, header, footer, media, relasi, dan properti dokumen) disalin
@@ -57,11 +58,12 @@ Untuk setiap paragraf body dan sel tabel yang **tidak** masuk pengecualian:
 `w:line="360"` dengan `w:lineRule="auto"` sama dengan 1,5 baris
 (1,5 × 240 twip).
 
-Bold hanya dipertahankan pada paragraf ber-style heading. Run body dan daftar
-yang memakai `w:b`/`w:bCs` aktif kehilangan properti itu; nilai `w:val="0"`
-yang sudah eksplisit tidak diubah. Bold run di dalam sel tabel tidak dihapus
-karena header tabel ditangani `format_figures.py`; layout sel tabel tetap
-dinormalisasi seperti sebelumnya.
+Bold hanya dipertahankan pada paragraf ber-style heading dan judul sampul
+(`CoverTitle`). Run body, daftar, serta field cover `CoverCourse`,
+`CoverLecturer`, dan `CoverName` yang memakai `w:b`/`w:bCs` aktif kehilangan
+properti itu; nilai `w:val="0"` yang sudah eksplisit tidak diubah. Bold run di
+dalam sel tabel tidak dihapus karena header tabel ditangani
+`format_figures.py`; layout sel tabel tetap dinormalisasi seperti sebelumnya.
 
 Direct formatting lama ditimpa, bukan ditambahkan sebagai elemen kedua:
 
@@ -78,7 +80,7 @@ part XML lain.
 
 ## Pengecualian
 
-Paragraf berikut tidak diubah sama sekali, termasuk `w:pPr`-nya:
+Paragraf berikut tidak diubah layoutnya, termasuk `w:pPr`-nya:
 
 | Kelompok | Style / kondisi |
 | --- | --- |
@@ -86,7 +88,7 @@ Paragraf berikut tidak diubah sama sekali, termasuk `w:pPr`-nya:
 | Caption | `ImageCaption`, `TableCaption` |
 | Gambar | `Figure`, `CaptionedFigure`, `FigureCaption` |
 | Daftar isi | `TOC1`–`TOC9`, `TOCHeading` |
-| Cover | style yang diawali `Cover` (mis. `CoverTitle`, `CoverName`) |
+| Cover | style yang diawali `Cover` (mis. `CoverTitle`, `CoverName`); field `CoverCourse`, `CoverLecturer`, dan `CoverName` tetap kehilangan bold langsung pada run |
 | Judul | `Title` |
 | Field | paragraf yang memuat field `TOC`, `PAGEREF`, atau `SEQ` |
 

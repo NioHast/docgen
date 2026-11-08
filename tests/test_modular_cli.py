@@ -77,12 +77,29 @@ def test_new_assignment_menghasilkan_berkas_lengkap(tmp_path: Path) -> None:
     metadata = manifest_mod.load_yaml(out / "metadata.yml")
     assert metadata["preset"] == "undip-msi-proposal"
     assert metadata["lang"] == "id-ID"
+    assert metadata["toc"] is False
+
+    cover = (out / "cover.md").read_text(encoding="utf-8")
+    assert "DAFTAR ISI" not in cover
+    assert "outline(" not in cover
 
     project = manifest_mod.load_project(out)
     assert project.structure.name == "assignment"
     assert project.format.name == "undip-msi"
     assert len(project.chapter_paths) == 3
     assert all(path.is_file() for path in project.chapter_paths)
+
+
+def test_new_thesis_menghasilkan_toc_true(tmp_path: Path) -> None:
+    out = tmp_path / "tesis"
+    completed = run_cli("new", "thesis", "--format", "undip-msi", "--out", str(out))
+    assert completed.returncode == 0, completed.stderr
+
+    metadata = manifest_mod.load_yaml(out / "metadata.yml")
+    assert metadata["toc"] is True
+
+    cover = (out / "cover.md").read_text(encoding="utf-8")
+    assert "daftar-isi()" in cover
 
 
 def test_check_gagal_jika_bab_hilang(tmp_path: Path) -> None:
@@ -130,6 +147,7 @@ def test_manifest_parsing_valid() -> None:
     assert project.format.name == "undip-msi"
     assert project.format.preset_for("assignment") == "undip-msi-proposal"
     assert project.report_name == "Tugas"
+    assert manifest_mod.load_yaml(project.metadata_path)["toc"] is False
 
 
 def test_check_contoh_assignment_lulus() -> None:
@@ -149,8 +167,34 @@ def test_build_dry_run_memakai_env_pipeline_lama(tmp_path: Path) -> None:
     assert "LAPORAN_METADATA=" in completed.stdout
     assert "LAPORAN_CHAPTERS=" in completed.stdout
     assert "LAPORAN_REPORT_NAME=Tugas" in completed.stdout
+    assert "LAPORAN_TOC=false" in completed.stdout
     assert "metadata.yml" in completed.stdout
     assert "chapters" in completed.stdout
+
+
+def test_build_dry_run_thesis_meneruskan_toc_true(tmp_path: Path) -> None:
+    out = tmp_path / "tesis"
+    completed = run_cli("new", "thesis", "--format", "undip-msi", "--out", str(out))
+    assert completed.returncode == 0, completed.stderr
+
+    completed = run_cli("build", str(out), "--dry-run")
+
+    assert completed.returncode == 0, completed.stderr
+    assert "LAPORAN_TOC=true" in completed.stdout
+
+
+def test_build_dry_run_metadata_toc_menimpa_struktur(tmp_path: Path) -> None:
+    out = create_assignment(tmp_path)
+    metadata_path = out / "metadata.yml"
+    metadata_path.write_text(
+        metadata_path.read_text(encoding="utf-8").replace("toc: false", "toc: true"),
+        encoding="utf-8",
+    )
+
+    completed = run_cli("build", str(out), "--dry-run")
+
+    assert completed.returncode == 0, completed.stderr
+    assert "LAPORAN_TOC=true" in completed.stdout
 
 
 @pytest.mark.parametrize("structure", ["thesis", "proposal"])

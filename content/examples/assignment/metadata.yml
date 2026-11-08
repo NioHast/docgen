@@ -13,5 +13,6 @@ year: "2026"
 date: "Agustus 2026"
 lang: "id-ID"
 preset: "undip-msi-proposal"
+toc: false
 daftar_gambar: false
 daftar_tabel: false
