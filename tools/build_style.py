@@ -30,6 +30,9 @@ preset ``<prefix>_<field>`` (mis. ``heading1_font_size: 11pt``):
   - Hyperlink    : hitam 000000, tanpa garis bawah
   - Bibliography : TNR 12 pt, line 360, 0/0, hanging 720 twip
   - Figure       : center, 0/0
+  - Cover*       : before/after 0; CoverTitle tetap bold, field cover lain
+                   (CoverSubtitle, CoverCourse, CoverLecturer, CoverName,
+                   CoverLine, CoverInstitution) tidak bold
 
 Catatan pemetaan yang disengaja:
   - ``line_spacing: 0.75em`` adalah satuan Typst dan tidak punya padanan
@@ -334,6 +337,55 @@ STYLE_SPEC_DEFAULTS: dict[str, dict[str, object]] = {
         "space_before": "0pt",
         "space_after": "0pt",
         "first_line_indent": "0cm",
+    },
+    # Cover memakai paragraf kosong fisik (docx.lua) untuk jarak vertikal.
+    # Spacing style harus 0 agar tidak menambah jarak ganda.
+    "CoverTitle": {
+        "prefix": "cover_title",
+        "bold": True,
+        "space_before": "0pt",
+        "space_after": "0pt",
+    },
+    "CoverSubtitle": {
+        "prefix": "cover_subtitle",
+        "bold": False,
+        "space_before": "0pt",
+        "space_after": "0pt",
+    },
+    "CoverCourse": {
+        "prefix": "cover_course",
+        "bold": False,
+        "space_before": "0pt",
+        "space_after": "0pt",
+    },
+    "CoverLecturer": {
+        "prefix": "cover_lecturer",
+        "bold": False,
+        "space_before": "0pt",
+        "space_after": "0pt",
+    },
+    "CoverName": {
+        "prefix": "cover_name",
+        "bold": False,
+        "space_before": "0pt",
+        "space_after": "0pt",
+    },
+    "CoverLine": {
+        "prefix": "cover_line",
+        "bold": False,
+        "space_before": "0pt",
+        "space_after": "0pt",
+    },
+    "CoverInstitution": {
+        "prefix": "cover_institution",
+        "bold": False,
+        "space_before": "0pt",
+        "space_after": "0pt",
+    },
+    "CoverImage": {
+        "prefix": "cover_image",
+        "space_before": "0pt",
+        "space_after": "0pt",
     },
 }
 

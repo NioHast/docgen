@@ -47,6 +47,7 @@ W_INSTR = qn("w:instr")
 W_FLDCHARTYPE = qn("w:fldCharType")
 
 NORMAL_MARKER = "Paragraf normal dengan spasi satu."
+RIGHT_MARKER = "Agustus 2026"
 TABLE_MARKER = "Paragraf dalam sel tabel."
 
 
@@ -133,6 +134,12 @@ def build_fixture(path: Path) -> Path:
     set_style(paragraph, "Normal")
     set_conflicting_layout(paragraph)
     add_spacing_overrides(paragraph)
+
+    paragraph = document.add_paragraph(RIGHT_MARKER)
+    set_style(paragraph, "Normal")
+    set_conflicting_layout(
+        paragraph, before=12, after=6, line=1.0, alignment=WD_ALIGN_PARAGRAPH.RIGHT
+    )
 
     for marker, style_id in (
         ("print('halo')", "SourceCode"),
@@ -299,6 +306,21 @@ def test_paragraf_normal_dinormalisasi(source_docx: Path, tmp_path: Path) -> Non
     assert justification_of(paragraph) == "both"
     assert style_of(paragraph) == "Normal"
     assert paragraph_text(paragraph) == NORMAL_MARKER
+
+
+def test_paragraf_jc_right_tetap_right_saat_spacing_dinolkan(
+    source_docx: Path, tmp_path: Path
+) -> None:
+    output = run_tool(source_docx, tmp_path)
+
+    paragraph = paragraph_by_marker(output, RIGHT_MARKER)
+    spacing = spacing_of(paragraph)
+
+    assert justification_of(paragraph) == "right"
+    assert spacing.get(W_BEFORE) == "0"
+    assert spacing.get(W_AFTER) == "0"
+    assert spacing.get(W_LINE) == "360"
+    assert spacing.get(W_LINE_RULE) == "auto"
 
 
 @pytest.mark.parametrize(
@@ -649,6 +671,9 @@ def test_bold_body_list_dan_semua_sel_tabel_dihapus_heading_dipertahankan(
 COVER_COURSE_BOLD = "Proyek Perangkat Lunak"
 COVER_LECTURER_BOLD = "Dr. Nama Dosen Pengampu, M.Kom."
 COVER_NAME_BOLD = "Nama Mahasiswa 1"
+COVER_SUBTITLE_BOLD = "Subjudul Sampul"
+COVER_LINE_BOLD = "Baris Sampul"
+COVER_INSTITUTION_BOLD = "Institusi Sampul"
 COVER_TITLE_BOLD = "Judul Sampul"
 
 
@@ -659,6 +684,9 @@ def build_cover_bold_fixture(path: Path) -> Path:
         (COVER_COURSE_BOLD, "CoverCourse"),
         (COVER_LECTURER_BOLD, "CoverLecturer"),
         (COVER_NAME_BOLD, "CoverName"),
+        (COVER_SUBTITLE_BOLD, "CoverSubtitle"),
+        (COVER_LINE_BOLD, "CoverLine"),
+        (COVER_INSTITUTION_BOLD, "CoverInstitution"),
         (COVER_TITLE_BOLD, "CoverTitle"),
     ):
         paragraph = document.add_paragraph()
@@ -674,7 +702,7 @@ def cover_bold_docx(tmp_path: Path) -> Path:
     return build_cover_bold_fixture(tmp_path / "cover-bold-input.docx")
 
 
-def test_bold_field_cover_dihapus_kecuali_cover_title(
+def test_bold_semua_style_cover_dihapus_kecuali_cover_title(
     cover_bold_docx: Path, tmp_path: Path
 ) -> None:
     title_before = canonical(paragraph_by_marker(cover_bold_docx, COVER_TITLE_BOLD))
@@ -682,18 +710,26 @@ def test_bold_field_cover_dihapus_kecuali_cover_title(
     report = api.normalize_layout(cover_bold_docx, output)
     root = document_root(output)
 
-    for marker in (COVER_COURSE_BOLD, COVER_LECTURER_BOLD, COVER_NAME_BOLD):
+    stripped_markers = (
+        COVER_COURSE_BOLD,
+        COVER_LECTURER_BOLD,
+        COVER_NAME_BOLD,
+        COVER_SUBTITLE_BOLD,
+        COVER_LINE_BOLD,
+        COVER_INSTITUTION_BOLD,
+    )
+    for marker in stripped_markers:
         assert not has_bold(run_with_text(root, marker)), marker
 
     # Judul sampul tetap bold dan paragrafnya tidak berubah sama sekali.
     assert has_bold(run_with_text(root, COVER_TITLE_BOLD))
     assert canonical(paragraph_by_marker(output, COVER_TITLE_BOLD)) == title_before
 
-    # Field cover tetap mempertahankan layout aslinya (tidak dinormalisasi).
-    for marker in (COVER_COURSE_BOLD, COVER_LECTURER_BOLD, COVER_NAME_BOLD):
+    # Paragraf cover tetap mempertahankan layout aslinya (tidak dinormalisasi).
+    for marker in stripped_markers:
         paragraph = paragraph_by_marker(output, marker)
         assert paragraph.find(f"{W_PPR}/{W_SPACING}") is None
         assert paragraph.find(f"{W_PPR}/{W_JC}") is None
 
-    assert report.bold_paragraphs == 3
-    assert report.bold_runs_removed == 6
+    assert report.bold_paragraphs == 6
+    assert report.bold_runs_removed == 12

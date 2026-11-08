@@ -421,7 +421,7 @@ STYLES = {
   <w:basedOn w:val="Normal"/>
   <w:qFormat/>
   <w:pPr>
-    <w:spacing w:after="0"/>
+    <w:spacing w:before="0" w:after="0"/>
     <w:jc w:val="center"/>
   </w:pPr>
 </w:style>""",
@@ -430,7 +430,7 @@ STYLES = {
   <w:basedOn w:val="Normal"/>
   <w:qFormat/>
   <w:pPr>
-    <w:spacing w:before="567" w:after="0" w:line="300" w:lineRule="auto"/>
+    <w:spacing w:before="0" w:after="0" w:line="300" w:lineRule="auto"/>
     <w:jc w:val="center"/>
   </w:pPr>
   <w:rPr>
@@ -447,7 +447,7 @@ STYLES = {
   <w:basedOn w:val="Normal"/>
   <w:qFormat/>
   <w:pPr>
-    <w:spacing w:before="170" w:after="0" w:line="300" w:lineRule="auto"/>
+    <w:spacing w:before="0" w:after="0" w:line="300" w:lineRule="auto"/>
     <w:jc w:val="center"/>
   </w:pPr>
   <w:rPr>
@@ -455,8 +455,6 @@ STYLES = {
     <w:color w:val="000000"/>
     <w:sz w:val="28"/>
     <w:szCs w:val="28"/>
-    <w:b/>
-    <w:bCs/>
   </w:rPr>
 </w:style>""",
     "CoverCourse": f"""<w:style w:type="paragraph" w:customStyle="1" w:styleId="CoverCourse">
@@ -464,7 +462,7 @@ STYLES = {
   <w:basedOn w:val="CoverLine"/>
   <w:qFormat/>
   <w:pPr>
-    <w:spacing w:before="454" w:after="0" w:line="300" w:lineRule="auto"/>
+    <w:spacing w:before="0" w:after="0" w:line="300" w:lineRule="auto"/>
   </w:pPr>
 </w:style>""",
     "CoverLecturer": f"""<w:style w:type="paragraph" w:customStyle="1" w:styleId="CoverLecturer">
@@ -472,7 +470,7 @@ STYLES = {
   <w:basedOn w:val="CoverLine"/>
   <w:qFormat/>
   <w:pPr>
-    <w:spacing w:before="227" w:after="0" w:line="300" w:lineRule="auto"/>
+    <w:spacing w:before="0" w:after="0" w:line="300" w:lineRule="auto"/>
   </w:pPr>
 </w:style>""",
     "CoverName": f"""<w:style w:type="paragraph" w:customStyle="1" w:styleId="CoverName">
@@ -480,7 +478,7 @@ STYLES = {
   <w:basedOn w:val="CoverLine"/>
   <w:qFormat/>
   <w:pPr>
-    <w:spacing w:before="170" w:after="0" w:line="300" w:lineRule="auto"/>
+    <w:spacing w:before="0" w:after="0" w:line="300" w:lineRule="auto"/>
   </w:pPr>
 </w:style>""",
     "CoverLine": f"""<w:style w:type="paragraph" w:customStyle="1" w:styleId="CoverLine">
@@ -488,7 +486,7 @@ STYLES = {
   <w:basedOn w:val="Normal"/>
   <w:qFormat/>
   <w:pPr>
-    <w:spacing w:after="0" w:line="300" w:lineRule="auto"/>
+    <w:spacing w:before="0" w:after="0" w:line="300" w:lineRule="auto"/>
     <w:jc w:val="center"/>
   </w:pPr>
   <w:rPr>
@@ -503,7 +501,7 @@ STYLES = {
   <w:basedOn w:val="Normal"/>
   <w:qFormat/>
   <w:pPr>
-    <w:spacing w:after="0" w:line="300" w:lineRule="auto"/>
+    <w:spacing w:before="0" w:after="0" w:line="300" w:lineRule="auto"/>
     <w:jc w:val="center"/>
   </w:pPr>
   <w:rPr>
@@ -511,8 +509,6 @@ STYLES = {
     <w:color w:val="000000"/>
     <w:sz w:val="28"/>
     <w:szCs w:val="28"/>
-    <w:b/>
-    <w:bCs/>
   </w:rPr>
 </w:style>""",
     "Bibliography": f"""<w:style w:type="paragraph" w:styleId="Bibliography">

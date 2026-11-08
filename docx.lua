@@ -507,7 +507,7 @@ function Pandoc(doc)
     if app_date == "" then app_date = meta_str(meta, "date") end
     blocks[#blocks + 1] = pandoc.Header(1, { pandoc.Str("LEMBAR PENGESAHAN") }, pandoc.Attr("lembar-pengesahan", { "unnumbered" }, {}))
     if title ~= "" then
-      blocks[#blocks + 1] = para({ pandoc.Strong(pandoc.Str(string.upper(title))) }, "CoverLine")
+      blocks[#blocks + 1] = para({ pandoc.Str(string.upper(title)) }, "CoverLine")
     end
     local date_line = (app_city ~= "" and (app_city .. ", ") or "") .. app_date
     if date_line ~= "" then
@@ -547,7 +547,7 @@ function Pandoc(doc)
   if abs_id ~= "" then
     blocks[#blocks + 1] = pandoc.Header(1, { pandoc.Str("ABSTRAK") }, pandoc.Attr("abstrak", { "unnumbered" }, {}))
     if title ~= "" then
-      blocks[#blocks + 1] = para({ pandoc.Strong(pandoc.Str(string.upper(title))) }, "CoverLine")
+      blocks[#blocks + 1] = para({ pandoc.Str(string.upper(title)) }, "CoverLine")
     end
     blocks[#blocks + 1] = pandoc.Para({ pandoc.Str(abs_id) })
     if meta["keywords_id"] ~= nil then
@@ -574,7 +574,7 @@ function Pandoc(doc)
   if abs_en ~= "" then
     blocks[#blocks + 1] = pandoc.Header(1, { pandoc.Str("ABSTRACT") }, pandoc.Attr("abstract", { "unnumbered" }, {}))
     if title ~= "" then
-      blocks[#blocks + 1] = para({ pandoc.Strong(pandoc.Emph(pandoc.Str(string.upper(title)))) }, "CoverLine")
+      blocks[#blocks + 1] = para({ pandoc.Emph(pandoc.Str(string.upper(title))) }, "CoverLine")
     end
     blocks[#blocks + 1] = pandoc.Para({ pandoc.Emph(pandoc.Str(abs_en)) })
     if meta["keywords_en"] ~= nil then

@@ -94,6 +94,52 @@ def on_off(parent: ElementTree.Element, tag: str) -> bool:
     return value.strip().lower() not in {"0", "false", "off"}
 
 
+def style_chain(styles_root: ElementTree.Element, style_id: str):
+    """Hasilkan style beserta leluhur ``w:basedOn``-nya."""
+    current: str | None = style_id
+    seen: set[str] = set()
+    while current and current not in seen:
+        seen.add(current)
+        style = get_style(styles_root, current)
+        yield style
+        based_on = style.find(f"{W}basedOn")
+        current = based_on.get(f"{W}val") if based_on is not None else None
+
+
+def effective_style_attr(
+    styles_root: ElementTree.Element,
+    style_id: str,
+    container: str,
+    tag: str,
+    attr: str,
+) -> str | None:
+    """Ambil atribut efektif pertama dari rantai style."""
+    for style in style_chain(styles_root, style_id):
+        parent = style.find(f"{W}{container}")
+        if parent is None:
+            continue
+        element = parent.find(f"{W}{tag}")
+        if element is not None and element.get(f"{W}{attr}") is not None:
+            return element.get(f"{W}{attr}")
+    return None
+
+
+def effective_style_on_off(
+    styles_root: ElementTree.Element, style_id: str, tag: str
+) -> bool:
+    """Nilai on/off efektif (b/bCs) dari rantai style; absen berarti mati."""
+    for style in style_chain(styles_root, style_id):
+        properties = style.find(f"{W}rPr")
+        if properties is None:
+            continue
+        element = properties.find(f"{W}{tag}")
+        if element is None:
+            continue
+        value = element.get(f"{W}val")
+        return value is None or value.strip().lower() not in {"0", "false", "off"}
+    return False
+
+
 def assert_spacing(
     style: ElementTree.Element, *, before: int, after: int, line: int | None = None
 ) -> None:
@@ -231,6 +277,46 @@ def test_undip_matches_reference_spec(generated: Path) -> None:
     figure = get_style(styles, "Figure")
     assert_alignment(figure, "center")
     assert_spacing(figure, before=0, after=0)
+
+
+COVER_STYLE_IDS = (
+    "CoverTitle",
+    "CoverSubtitle",
+    "CoverCourse",
+    "CoverLecturer",
+    "CoverName",
+    "CoverLine",
+    "CoverInstitution",
+    "CoverImage",
+)
+
+
+def test_cover_styles_zero_spacing_and_effective_bold(generated: Path) -> None:
+    """Style cover tidak boleh menyisakan spacing atau bold efektif."""
+    styles = read_xml(generated, "word/styles.xml")
+
+    for style_id in COVER_STYLE_IDS:
+        for attr in ("before", "after"):
+            value = effective_style_attr(
+                styles, style_id, "pPr", "spacing", attr
+            )
+            assert value is not None, f"{style_id}.{attr} tidak ditemukan"
+            assert int(value) == 0, f"{style_id}.{attr} harus 0, bukan {value}"
+
+    for style_id in (
+        "CoverSubtitle",
+        "CoverCourse",
+        "CoverLecturer",
+        "CoverName",
+        "CoverLine",
+        "CoverInstitution",
+    ):
+        assert effective_style_on_off(styles, style_id, "b") is False
+        assert effective_style_on_off(styles, style_id, "bCs") is False
+
+    # Judul sampul tetap bold.
+    assert effective_style_on_off(styles, "CoverTitle", "b") is True
+    assert effective_style_on_off(styles, "CoverTitle", "bCs") is True
 
 
 def test_no_legacy_monospace_fonts(generated: Path) -> None:

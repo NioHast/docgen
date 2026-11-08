@@ -7,9 +7,11 @@ paragraf body dan sel tabel:
 - ``w:spacing/@w:line = 360`` dengan ``@w:lineRule = auto`` (1,5 baris);
 - ``w:jc/@w:val = both`` (justify);
 - menghapus bold langsung (``w:b``/``w:bCs``) dari run body, daftar, semua sel
-  tabel (termasuk baris header), dan field cover
-  ``CoverCourse``/``CoverLecturer``/``CoverName``. Paragraf ber-style heading
-  dan judul sampul ``CoverTitle`` dipertahankan bold.
+  tabel (termasuk baris header), dan seluruh style cover kecuali
+  ``CoverTitle``. Paragraf ber-style heading dan judul sampul ``CoverTitle``
+  dipertahankan bold;
+- mempertahankan perataan kanan langsung (``w:jc="right"``) saat spacing
+  paragraf dinolkan, alih-alih memaksanya menjadi justify.
 
 Paragraf dengan style blok kode, caption, heading (``Heading1``–``Heading9``
 dan style heading kustom seperti ``ChapterTitle``), daftar isi, cover selain
@@ -132,10 +134,9 @@ CUSTOM_HEADING_STYLES = frozenset({"chaptertitle"})
 COVER_PREFIX = "cover"
 TITLE_STYLE = "title"
 
-# Field cover yang tetap dikecualikan dari spacing/justify, tetapi bold
-# langsungnya dihapus. CoverTitle sengaja tidak termasuk agar judul sampul
-# tetap bold.
-COVER_BOLD_STRIP_STYLES = frozenset({"covercourse", "coverlecturer", "covername"})
+# Seluruh paragraf cover tetap dikecualikan dari spacing/justify, tetapi bold
+# langsungnya dihapus kecuali pada judul sampul CoverTitle.
+COVER_TITLE_STYLE = "covertitle"
 
 # Field yang membuat paragrafnya dikecualikan dari normalisasi.
 EXEMPT_FIELDS = frozenset({"TOC", "PAGEREF", "SEQ"})
@@ -318,9 +319,13 @@ def _has_exempt_style(style_id: str | None) -> bool:
 
 
 def _has_cover_bold_to_strip(style_id: str | None) -> bool:
-    """True untuk field cover yang bold langsungnya harus dihapus."""
+    """True untuk paragraf cover yang bold langsungnya harus dihapus.
 
-    return _normalize_style_id(style_id) in COVER_BOLD_STRIP_STYLES
+    Semua style ``Cover*`` kehilangan bold langsung kecuali ``CoverTitle``.
+    """
+
+    normalized = _normalize_style_id(style_id)
+    return normalized.startswith(COVER_PREFIX) and normalized != COVER_TITLE_STYLE
 
 
 def _iter_field_markers(paragraph: _Element) -> Iterator[_Element]:
@@ -460,7 +465,10 @@ def _normalize_paragraph(paragraph: _Element) -> bool:
         spacing.attrib.pop(attribute, None)
 
     justification = _get_or_add_child(ppr, "w:jc", PPR_ORDER)
-    justification.set(W_VAL, JUSTIFICATION)
+    # Perataan kanan langsung (mis. blok tanda tangan sampul) dipertahankan;
+    # hanya paragraf lain yang dipaksa justify.
+    if (justification.get(W_VAL) or "").strip().lower() != "right":
+        justification.set(W_VAL, JUSTIFICATION)
 
     return etree.tostring(ppr) != before
 

@@ -26,6 +26,10 @@ Penulis menyadari bahwa laporan ini masih jauh dari sempurna. Oleh karena itu, k
 ```
 
 ```{=openxml}
-<w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="454"/></w:pPr><w:r><w:t>Agustus 2026</w:t></w:r></w:p>
-<w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="567"/></w:pPr><w:r><w:t>Tim Penyusun</w:t></w:r></w:p>
+<w:p/>
+<w:p/>
+<w:p><w:pPr><w:jc w:val="right"/></w:pPr><w:r><w:t>Agustus 2026</w:t></w:r></w:p>
+<w:p/>
+<w:p/>
+<w:p><w:pPr><w:jc w:val="right"/></w:pPr><w:r><w:t>Tim Penyusun</w:t></w:r></w:p>
 ```

@@ -34,6 +34,7 @@ import re
 import unittest
 import zipfile
 from pathlib import Path
+from xml.etree import ElementTree
 
 import pytest
 
@@ -54,6 +55,8 @@ TBL_PR_RE = re.compile(r"<w:tblPr\b[^>]*>.*?</w:tblPr>", re.S)
 TBL_BORDERS_RE = re.compile(r"<w:tblBorders\b[^>]*>.*?</w:tblBorders>", re.S)
 TBL_CELL_MAR_RE = re.compile(r"<w:tblCellMar\b[^>]*>.*?</w:tblCellMar>", re.S)
 
+W_NS = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+
 
 def _attrs(tag):
     return dict(re.findall(r'([\w:]+)="([^"]*)"', tag))
@@ -66,6 +69,84 @@ def _active_bold(xml):
         if value not in ("0", "false", "off"):
             return True
     return False
+
+
+def _style_elements(styles_xml):
+    root = ElementTree.fromstring(styles_xml)
+    return root, {
+        style.get(W_NS + "styleId", ""): style
+        for style in root.findall(W_NS + "style")
+    }
+
+
+def _style_chain(style_map, style_id):
+    current = style_id
+    seen = set()
+    while current and current not in seen:
+        seen.add(current)
+        style = style_map.get(current)
+        if style is None:
+            return
+        yield style
+        based_on = style.find(W_NS + "basedOn")
+        current = based_on.get(W_NS + "val") if based_on is not None else None
+
+
+def _toggle_on(element):
+    value = element.get(W_NS + "val")
+    return value is None or value.strip().lower() not in {"0", "false", "off"}
+
+
+def _effective_style_bold(style_map, style_id):
+    for style in _style_chain(style_map, style_id):
+        properties = style.find(W_NS + "rPr")
+        if properties is None:
+            continue
+        marker = properties.find(W_NS + "b")
+        if marker is not None:
+            return _toggle_on(marker)
+    return False
+
+
+def _effective_run_bold(style_map, paragraph_style, run):
+    properties = run.find(W_NS + "rPr")
+    if properties is not None:
+        marker = properties.find(W_NS + "b")
+        if marker is not None:
+            return _toggle_on(marker)
+        character_style = properties.find(W_NS + "rStyle")
+        if character_style is not None and _effective_style_bold(
+            style_map, character_style.get(W_NS + "val")
+        ):
+            return True
+    return _effective_style_bold(style_map, paragraph_style)
+
+
+def _bold_allowed_style(style_id):
+    """Heading, TOCHeading, dan CoverTitle tetap boleh bold."""
+    normalized = re.sub(r"[^a-z0-9]+", "", (style_id or "").lower())
+    if normalized in {"covertitle", "chaptertitle", "tocheading"}:
+        return True
+    return re.fullmatch(r"heading[1-9]", normalized) is not None
+
+
+def _effective_paragraph_spacing(style_map, paragraph, attr):
+    properties = paragraph.find(W_NS + "pPr")
+    if properties is not None:
+        spacing = properties.find(W_NS + "spacing")
+        if spacing is not None and spacing.get(W_NS + attr) is not None:
+            return int(spacing.get(W_NS + attr))
+
+    style = paragraph.find(f"{W_NS}pPr/{W_NS}pStyle")
+    style_id = style.get(W_NS + "val") if style is not None else None
+    for current in _style_chain(style_map, style_id):
+        properties = current.find(W_NS + "pPr")
+        if properties is None:
+            continue
+        spacing = properties.find(W_NS + "spacing")
+        if spacing is not None and spacing.get(W_NS + attr) is not None:
+            return int(spacing.get(W_NS + attr))
+    return 0
 
 
 def _style_xml(styles, style_id):
@@ -601,6 +682,54 @@ class PageNumberTest(unittest.TestCase):
                     _active_bold(run),
                     "run entri TOC tidak boleh bold",
                 )
+
+    def test_cover_spacing_before_after_efektif_nol(self):
+        _, style_map = _style_elements(self.styles)
+        root = ElementTree.fromstring(self.document)
+
+        covers = []
+        for paragraph in root.iter(W_NS + "p"):
+            style = paragraph.find(f"{W_NS}pPr/{W_NS}pStyle")
+            if style is not None and style.get(W_NS + "val", "").startswith("Cover"):
+                covers.append(paragraph)
+        self.assertTrue(covers, "tidak ada paragraf cover di Laporan.docx")
+
+        for paragraph in covers:
+            style = paragraph.find(f"{W_NS}pPr/{W_NS}pStyle")
+            style_id = style.get(W_NS + "val") if style is not None else ""
+            for attr in ("before", "after"):
+                self.assertEqual(
+                    _effective_paragraph_spacing(style_map, paragraph, attr),
+                    0,
+                    f"{style_id} spacing {attr} efektif harus 0",
+                )
+
+    def test_bold_efektif_di_luar_heading_dan_cover_title_nol(self):
+        _, style_map = _style_elements(self.styles)
+        root = ElementTree.fromstring(self.document)
+
+        offenders = []
+        for paragraph in root.iter(W_NS + "p"):
+            style = paragraph.find(f"{W_NS}pPr/{W_NS}pStyle")
+            style_id = style.get(W_NS + "val") if style is not None else None
+            if _bold_allowed_style(style_id):
+                continue
+            text = "".join(
+                node.text or "" for node in paragraph.iter(W_NS + "t")
+            )
+            if not text:
+                continue
+            for run in paragraph.iter(W_NS + "r"):
+                if _effective_run_bold(style_map, style_id, run):
+                    offenders.append((style_id or "(tanpa style)", text[:60]))
+                    break
+
+        self.assertEqual(
+            offenders,
+            [],
+            "masih ada bold efektif di luar Heading/CoverTitle: "
+            f"{offenders[:5]}",
+        )
 
     def test_caption_10pt_dan_tablecaption_kiri(self):
         image_caption = _style_xml(self.styles, "ImageCaption")
