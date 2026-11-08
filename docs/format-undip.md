@@ -197,6 +197,7 @@ yang sama untuk PDF.
      --out /tmp/reference-generated.docx
    ```
 
-Jika nama preset tidak ditemukan, `build-docx.sh` memakai
-`presets/standard.yml` bila tersedia; bila tidak ada, build berhenti dengan
-error. Periksa ejaan nama preset agar tidak jatuh ke fallback tersebut.
+Jika kunci `preset`/`margin_preset` berisi nama yang tidak ada di `presets/`,
+build berhenti dengan error (exit 1); tidak ada fallback ke preset lain.
+Fallback hanya berlaku bila kunci preset kosong atau tidak ada, yaitu memakai
+`presets/standard.yml`. Periksa ejaan nama preset sebelum build.

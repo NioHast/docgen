@@ -20,7 +20,8 @@ Markdown.
 
 ## Prasyarat
 
-- **Python 3.12**.
+- **Python 3.12** untuk DOCX dan PDF. Build PDF memakai Python untuk
+  preprocessing glosarium Markdown; `.venv` proyek dipakai bila tersedia.
 - **Git Bash** di Windows untuk build DOCX. **`bash` WSL tidak didukung**
   untuk `build-docx.sh`: venv Windows tidak dapat dipanggil dari WSL dan path
   `/mnt/c` memicu `WinError 5` pada python-docx. Build PDF dapat dijalankan di
@@ -84,10 +85,14 @@ direktori sementara. Urutan pascaprosesnya adalah `scripts/finalize-docx.py`,
 `scripts/docx-pagenum.py`, `tools/word_finalize.py`, lalu
 `tools/add_paragraph_ids.py`.
 
-Build PDF tidak memerlukan Python, tetapi membutuhkan Pandoc dan Typst.
-`build.sh` menyalin aset ke direktori sementara, memilih preset dari
-`metadata.yml`, memproses sitasi dengan `refs/undip-msi.csl`, lalu menjalankan
-Pandoc dengan `--pdf-engine=typst`.
+Build PDF membutuhkan Python 3, glosarium `writing/istilah.tsv`, Pandoc, dan
+Typst. `build.sh` memakai `.venv` proyek bila tersedia (Windows atau
+Linux/macOS); bila tidak, ia memakai `python3`/`python` sistem. Sebelum Pandoc,
+`build.sh` menjalankan `tools/istilah_markdown.py` untuk preprocessing istilah
+glosarium ke direktori sementara, lalu menyalin aset, memilih preset dari
+`metadata.yml`, memproses sitasi dengan `refs/undip-msi.csl`, dan menjalankan
+Pandoc dengan `--pdf-engine=typst`. `logo.jpg` wajib ada karena template sampul
+selalu merujuknya; build berhenti dengan error bila aset itu hilang.
 
 Gaya sitasi default adalah **author-date alfabetis** dari
 `refs/undip-msi.csl` (turunan APA 7): dua penulis memakai `dan`, tiga penulis

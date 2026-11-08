@@ -225,8 +225,9 @@ if [ -n "$COVER_SOURCE" ]; then
 else
   require_asset "cover.md"
 fi
-# logo.jpg opsional: laporan tanpa logo tetap dapat dibangun.
-copy_asset "logo.jpg" "$TMPDIR" || true
+# Logo wajib: cover selalu merujuk logo.jpg, jadi build harus berhenti bila
+# aset ini hilang agar tidak menghasilkan sampul tanpa logo.
+require_asset "logo.jpg"
 require_asset "reference.docx"
 require_asset "docx.lua"
 if ! copy_metadata "$METADATA_NAME" "$TMPDIR"; then
@@ -334,11 +335,10 @@ fi
 GLOSSARY="$OUTDIR/writing/istilah.tsv"
 ISTILAH_REVIEW="$OUTDIR/review/istilah-baru.txt"
 
-if [ -f "$DIR/.venv/Scripts/python.exe" ]; then
-  ISTILAH_PYTHON="$DIR/.venv/Scripts/python.exe"
-else
-  ISTILAH_PYTHON="python"
-fi
+# Pakai Python yang sudah dipilih di awal build. PYTHON_BIN sudah
+# memprioritaskan .venv/Scripts/python.exe (Windows) atau .venv/bin/python
+# (Linux/macOS), lalu fallback ke python3/python sistem.
+ISTILAH_PYTHON="$PYTHON_BIN"
 
 if ! "$ISTILAH_PYTHON" -c "import docx, lxml" >/dev/null 2>&1; then
   echo "ERROR: python-docx/lxml tidak tersedia untuk $ISTILAH_PYTHON." >&2

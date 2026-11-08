@@ -10,11 +10,15 @@ bash build.sh          # menghasilkan Laporan.pdf di root repo
 bash build.sh outdir/  # opsional: tulis Laporan.pdf ke direktori lain
 ```
 
-Pipeline PDF memakai **Typst** sebagai mesin tata letak:
+Prasyarat PDF: **Python 3** (utamakan `.venv` proyek), `writing/istilah.tsv`,
+**Pandoc**, dan **Typst**. Pipeline PDF memakai **Typst** sebagai mesin tata
+letak dan menjalankan preprocessing glosarium sebelum Pandoc:
 
 ```text
-cover.md + chapters/bab*.md
+cover.md + chapters/bab*.md + writing/istilah.tsv
         │
+        ├── tools/istilah_markdown.py            (preprocessing glosarium)
+        │        └── chapters-pre/*.md
         ├── metadata.yml
         ├── presets/<preset>.yml
         ├── references.bib + refs/undip-msi.csl   (citeproc)
@@ -30,16 +34,25 @@ cover.md + chapters/bab*.md
    Laporan.pdf
 ```
 
-Pandoc membaca Markdown dan menghasilkan sumber Typst memakai `template.typ`.
-Setelah itu Pandoc memanggil Typst untuk mengompilasi sumber tersebut menjadi
-PDF. Tidak ada LaTeX di pipeline ini.
+Sebelum Pandoc, `build.sh` menjalankan `tools/istilah_markdown.py` dengan
+Python 3 dari `.venv` (bila tersedia) atau `python3`/`python` sistem. Skrip ini
+membaca `writing/istilah.tsv` dan menulis salinan bab ke `chapters-pre/` di
+direktori sementara; `chapters/` asli tidak diubah. Glosarium wajib: build
+berhenti bila `writing/istilah.tsv` tidak ditemukan.
+
+Pandoc membaca Markdown hasil preprocessing dan menghasilkan sumber Typst
+memakai `template.typ`. Setelah itu Pandoc memanggil Typst untuk mengompilasi
+sumber tersebut menjadi PDF. Tidak ada LaTeX di pipeline ini.
 
 ## Berkas yang terlibat
 
 | Berkas | Peran |
 | --- | --- |
-| `build.sh` | Orkestrasi: salin aset ke direktori sementara, susun urutan bab, pilih preset, panggil Pandoc + Typst, tulis `Laporan.pdf`. |
+| `build.sh` | Orkestrasi: salin aset ke direktori sementara, preprocessing glosarium, susun urutan bab, pilih preset, panggil Pandoc + Typst, tulis `Laporan.pdf`. |
 | `tools/env.sh` | Menemukan Pandoc/Typst dan menyiapkannya di `PATH` (Windows, WSL, Linux). |
+| `tools/istilah_markdown.py` | Preprocessing glosarium: membungkus istilah `italic=yes` dengan `*...*` agar penulisan PDF sama dengan DOCX. |
+| `writing/istilah.tsv` | Glosarium wajib berisi istilah, status italic, dan status review. |
+| Python 3 / `.venv` | Runtime preprocessing glosarium; `.venv` dipakai bila tersedia, fallback ke `python3`/`python` sistem. |
 | `template.typ` | Template Pandoc yang menghasilkan markup Typst (halaman, margin, heading, daftar isi, dsb.). |
 | `metadata.yml` | Judul, penulis, institusi, dan nama preset. |
 | `presets/*.yml` | Margin, font, spasi, dan opsi tata letak per kampus. |
@@ -210,9 +223,11 @@ Konsekuensinya:
 - Keduanya berbagi sumber isi (`cover.md`, `chapters/`, `metadata.yml`,
   `references.bib`, `refs/undip-msi.csl`). Perubahan isi/sitasi harus diverifikasi
   di kedua keluaran.
-- `build.sh` tidak memerlukan Python/docx; `build-docx.sh` tidak memerlukan
-  Typst. `tools/env.sh` dipakai bersama hanya untuk menemukan Pandoc (dan
-  Typst bila build PDF).
+- `build.sh` membutuhkan Python 3 dan `writing/istilah.tsv` untuk preprocessing
+  glosarium, tetapi tidak membutuhkan `python-docx`; `build-docx.sh` tidak
+  memerlukan Typst dan membutuhkan Python dengan `python-docx`/`lxml`.
+  `tools/env.sh` dipakai bersama hanya untuk menemukan Pandoc (dan Typst bila
+  build PDF).
 
 ## Troubleshooting singkat
 
@@ -222,4 +237,6 @@ Konsekuensinya:
 | `[env] ERROR: Typst tidak ditemukan` | Instal Typst, atau pastikan `typst.exe` ada di `%LOCALAPPDATA%\Microsoft\WinGet\Links`. |
 | Pandoc Linux terlalu lama untuk Typst baru | Jalankan lewat Git Bash, atau biarkan `env.sh` memakai Pandoc Windows di WSL. |
 | `refs/undip-msi.csl` tidak ditemukan | Pastikan berkas ada; `build.sh` menyalin direktori `refs/` ke direktori kerja sementara. |
+| `Glosarium writing/istilah.tsv tidak ditemukan` | Sediakan `writing/istilah.tsv`; build PDF memakainya untuk preprocessing istilah. |
+| `Python 3 tidak ditemukan` | Instal Python 3 atau sediakan `.venv` proyek. |
 | Peringatan `--no-highlight` | Tidak berbahaya; hanya deprecation dari Pandoc 3.13. |

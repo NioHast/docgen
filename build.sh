@@ -61,8 +61,8 @@ FALLBACK_DIRS=(
   "$HOME/.agents/skills/laporan-generator/resources"
 )
 
-# Preprocessing istilah Markdown membutuhkan Python. Build PDF sebelumnya
-# tidak memerlukan Python, jadi tetap dukung python sistem bila .venv tidak ada.
+# Preprocessing istilah Markdown membutuhkan Python 3. Venv proyek dipakai
+# bila tersedia; bila tidak, gunakan python3/python sistem.
 PYTHON_BIN=""
 PYTHON_IS_WINDOWS=0
 
@@ -123,6 +123,22 @@ copy_asset() {
   return 1
 }
 
+# Aset inti tidak boleh hilang diam-diam: tanpa aset ini build akan memakai
+# default Pandoc atau menghasilkan dokumen yang salah format.
+require_asset() {
+  local asset="$1"
+  if copy_asset "$asset" "$TMPDIR"; then
+    return 0
+  fi
+  echo "ERROR: Aset wajib '$asset' tidak ditemukan." >&2
+  echo "       Dicari di:" >&2
+  for base in "${FALLBACK_DIRS[@]}"; do
+    printf '         - %s/%s\n' "$base" "$asset" >&2
+  done
+  echo "       Build dihentikan agar tidak memakai aset dari proyek lain." >&2
+  exit 1
+}
+
 # Salin metadata dengan nama aslinya. LAPORAN_METADATA boleh berupa path
 # relatif terhadap OUTDIR/DIR atau path absolut.
 copy_metadata() {
@@ -149,7 +165,8 @@ copy_metadata() {
 
 copy_asset "cover.md" "$TMPDIR" || true
 copy_asset "template.typ" "$TMPDIR" || true
-copy_asset "logo.jpg" "$TMPDIR" || true
+# Logo wajib: template.typ selalu merujuk logo.jpg pada sampul.
+require_asset "logo.jpg"
 if ! copy_metadata "$METADATA_NAME" "$TMPDIR"; then
   echo "ERROR: Berkas metadata '$METADATA_NAME' tidak ditemukan." >&2
   echo "       Sediakan metadata.yml atau set LAPORAN_METADATA." >&2
