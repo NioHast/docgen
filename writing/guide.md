@@ -120,8 +120,9 @@ cara membaca temuan.
 5. `bukan hanya ... tetapi juga ...` dan `bukan ... melainkan ...` adalah
    pasangan baku. Jangan mengubahnya menjadi klaim langsung bila maknanya
    berubah.
-6. `bukan X, tetapi Y` adalah bentuk yang salah dan dilaporkan sebagai `KE-13`.
-   Ganti dengan `bukan X, melainkan Y` atau `tidak X, tetapi Y`.
+6. `bukan X, tetapi Y` dan `bukan X, tapi Y` adalah bentuk yang salah dan
+   dilaporkan sebagai `KE-13`. Ganti dengan `bukan X, melainkan Y` atau
+   `tidak X, tetapi Y`.
 
 ## 9. Memeriksa naskah
 

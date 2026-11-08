@@ -379,7 +379,7 @@ aturan:
   - kode: KE-13
     label: K
     jenis: regex
-    pola: '\bbukan\s(?!hanya\b|saja\b|sekadar\b|cuma\b)[^.;]{1,60}?,\s*tetapi\b'
+    pola: '\bbukan\s(?!hanya\b|saja\b|sekadar\b|cuma\b)[^.;]{1,60}?,\s*(?:tetapi|tapi)\b'
     flag: i
     min: 1
     saran: 'bukan … melainkan …; tidak … tetapi …'

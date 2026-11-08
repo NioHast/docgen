@@ -120,6 +120,12 @@ class TesKE13(unittest.TestCase):
         hasil = temuan("Ini bukan galat acak, tetapi galat sistematis.", "KE-13")
         self.assertEqual(len(hasil), 1)
 
+    def test_bukan_tapi_dilaporkan(self):
+        for teks in ("Bukan kualitas, tapi harga.", "Bukan kualitas, TAPI harga."):
+            with self.subTest(teks=teks):
+                hasil = temuan(teks, "KE-13")
+                self.assertEqual(len(hasil), 1)
+
     def test_bukan_melainkan_tetap_diterima(self):
         self.assertEqual(temuan("Ini bukan solusi murah, melainkan solusi cepat.", "KE-13"), [])
 
