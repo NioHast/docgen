@@ -12,6 +12,7 @@ import sys
 from . import __version__
 from . import manifest as manifest_mod
 from . import platform as platform_mod
+from . import singlefile as singlefile_mod
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -61,8 +62,27 @@ def build_parser() -> argparse.ArgumentParser:
         help="Tampilkan perintah dan environment tanpa menjalankan build.",
     )
 
+    build_file_parser = subparsers.add_parser(
+        "build-file",
+        help="Bangun DOCX/PDF dari satu berkas Markdown (front matter + body).",
+    )
+    build_file_parser.add_argument(
+        "document", help="Berkas Markdown sumber, mis. tugas.md."
+    )
+    build_file_parser.add_argument(
+        "--target",
+        choices=("docx", "pdf", "both"),
+        default="docx",
+        help="Keluaran yang dibangun (default: docx).",
+    )
+    build_file_parser.add_argument(
+        "--keep",
+        action="store_true",
+        help="Pertahankan workspace .laporan-build untuk diagnosis.",
+    )
+
     subparsers.add_parser(
-        "doctor", help="Periksa Python, Pandoc, Typst, dan Word/LibreOffice."
+        "doctor", help="Periksa Python, Pandoc, Word/LibreOffice, dan toolchain build."
     )
     return parser
 
@@ -163,8 +183,8 @@ def _build_env(project: manifest_mod.Project) -> dict[str, str]:
     env["LAPORAN_CHAPTERS"] = os.fspath(project.chapters_dir)
     env["LAPORAN_REPORT_NAME"] = project.report_name
     # Diteruskan sebagai metadata Pandoc eksplisit oleh build-docx.sh/build.sh
-    # agar nilai `toc` sampai ke docx.lua/template.typ tanpa bergantung pada
-    # urutan pembacaan metadata file.
+    # agar nilai `toc` sampai ke docx.lua tanpa bergantung pada urutan
+    # pembacaan metadata file.
     env["LAPORAN_TOC"] = "true" if _toc_enabled(project) else "false"
     env["PYTHONUTF8"] = "1"
     return env
@@ -259,6 +279,30 @@ def command_build(args: argparse.Namespace) -> int:
     return 0
 
 
+def command_build_file(args: argparse.Namespace) -> int:
+    try:
+        result = singlefile_mod.build_file(
+            args.document,
+            target=args.target,
+            keep=args.keep,
+        )
+    except singlefile_mod.SingleFileError as exc:
+        print(f"[ERROR] {exc}", file=sys.stderr)
+        if args.keep:
+            print(
+                "[INFO] Workspace build dipertahankan di folder berkas "
+                "(.laporan-build).",
+                file=sys.stderr,
+            )
+        return 1
+
+    for output in result.outputs:
+        print(f"[OK] Keluaran: {output}")
+    if result.kept:
+        print(f"[INFO] Workspace dipertahankan: {result.workspace}")
+    return 0
+
+
 def _status(ok: bool, label: str, detail: str) -> str:
     marker = "[OK]" if ok else "[--]"
     return f"{marker} {label:<18} {detail}"
@@ -268,12 +312,10 @@ def command_doctor(_args: argparse.Namespace) -> int:
     os_name = platform_mod.detect_os()
     bash = platform_mod.find_bash()
     pandoc = platform_mod.find_tool("pandoc")
-    typst = platform_mod.find_tool("typst")
     word = platform_mod.find_word()
     libreoffice = platform_mod.find_libreoffice()
 
     pandoc_version = platform_mod.tool_version(pandoc, "--version")
-    typst_version = platform_mod.tool_version(typst, "--version")
     python_ok = sys.version_info >= (3, 9)
     python_detail = f"{platform_mod.python_version()} - {platform_mod.python_executable()}"
     if not python_ok:
@@ -286,14 +328,7 @@ def command_doctor(_args: argparse.Namespace) -> int:
         _status(
             bool(pandoc),
             "Pandoc",
-            f"{pandoc_version} - {pandoc}" if pandoc else "tidak ditemukan (wajib untuk DOCX/PDF)",
-        )
-    )
-    print(
-        _status(
-            bool(typst),
-            "Typst",
-            f"{typst_version} - {typst}" if typst else "tidak ditemukan (wajib untuk PDF)",
+            f"{pandoc_version} - {pandoc}" if pandoc else "tidak ditemukan (wajib untuk DOCX)",
         )
     )
     if os_name == "windows":
@@ -301,7 +336,7 @@ def command_doctor(_args: argparse.Namespace) -> int:
             _status(
                 bool(word),
                 "Microsoft Word",
-                word or "tidak ditemukan (opsional; finalisasi field TOC)",
+                word or "tidak ditemukan (wajib untuk ekspor PDF)",
             )
         )
     else:
@@ -310,10 +345,19 @@ def command_doctor(_args: argparse.Namespace) -> int:
         _status(
             bool(libreoffice),
             "LibreOffice",
-            libreoffice or "tidak ditemukan (opsional; nomor halaman TOC DOCX)",
+            libreoffice
+            or (
+                "tidak ditemukan (wajib untuk ekspor PDF di Debian/Linux)"
+                if os_name != "windows"
+                else "tidak ditemukan (opsional di Windows; wajib di Debian/Linux)"
+            ),
         )
     )
 
+    if os_name == "windows":
+        pdf_ready = bool(word)
+    else:
+        pdf_ready = bool(libreoffice)
     required_ok = bool(python_ok and bash and pandoc)
     print()
     if not required_ok:
@@ -321,7 +365,11 @@ def command_doctor(_args: argparse.Namespace) -> int:
         return 1
     print(
         "Kesimpulan: siap untuk DOCX."
-        + (" PDF juga siap." if typst else " PDF belum siap (Typst tidak ditemukan).")
+        + (
+            " PDF juga siap."
+            if pdf_ready
+            else " PDF belum siap (Word/LibreOffice tidak ditemukan)."
+        )
     )
     return 0
 
@@ -340,6 +388,7 @@ def main(argv: list[str] | None = None) -> int:
         "new": command_new,
         "check": command_check,
         "build": command_build,
+        "build-file": command_build_file,
         "doctor": command_doctor,
     }
     try:

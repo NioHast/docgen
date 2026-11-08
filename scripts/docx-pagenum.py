@@ -30,7 +30,9 @@ DECIMAL = re.compile(r"^\d+$")
 
 
 def page_count(pdf):
-    out = subprocess.check_output(["pdfinfo", pdf], text=True, timeout=15)
+    out = subprocess.check_output(
+        ["pdfinfo", pdf], text=True, encoding="utf-8", timeout=15
+    )
     m = re.search(r"^Pages:\s+(\d+)", out, re.M)
     return int(m.group(1)) if m else 0
 
@@ -42,6 +44,7 @@ def page_texts(pdf):
         out = subprocess.check_output(
             ["pdftotext", "-f", str(p), "-l", str(p), "-layout", pdf, "-"],
             text=True,
+            encoding="utf-8",
             timeout=15,
         )
         lines = [l.strip() for l in out.splitlines() if l.strip()]

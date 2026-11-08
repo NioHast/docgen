@@ -665,7 +665,7 @@ def restore_toc_istilah_style(run):
     """Kembalikan IstilahAsing yang diratakan Word menjadi italic manual.
 
     Saat memperbarui TOC, Word menyalin format heading sebagai direct
-    ``w:i`` + ``w:lang en-US``. ``tools/istilah.py verify`` menganggap itu
+    ``w:i`` + ``w:lang en-US``. ``tools/terms.py verify`` menganggap itu
     pelanggaran, jadi run TOC seperti ini dikembalikan ke character style
     IstilahAsing.
     """
@@ -732,11 +732,68 @@ def strip_toc_run_bold(run):
     return run[: match.start()] + new_rpr + run[match.end():]
 
 
-def fix_toc_entries(doc):
-    """Setel spacing entri TOC ke 0 dan hapus bold run-nya.
+# Indent dan tab entri TOC mengikuti acuan skripsi-asli.docx. Left tab
+# dibutuhkan karena heading H2/H3 memuat TAB literal setelah nomor; tanpa tab
+# kiri itu judul TOC melompat ke tab kanan dan nomor halaman pindah baris.
+TOC_ENTRY_GEOMETRY = {
+    "TOC1": {"left": 0, "left_tab": None},
+    "TOC2": {"left": 240, "left_tab": 993},
+    "TOC3": {"left": 480, "left_tab": 1418},
+}
 
-    Spacing direct dari ``docx.lua`` (TOC1 120/40, TOC2 20/20) menimpa style,
-    jadi before/after harus dinolkan juga pada paragraf TOC di document.xml.
+# Urutan anak w:pPr sesudah w:ind. Dipakai agar elemen yang disisipkan tetap
+# berada pada posisi yang sah menurut skema OOXML.
+PPR_AFTER_IND = (
+    "contextualSpacing",
+    "mirrorIndents",
+    "suppressOverlap",
+    "jc",
+    "textDirection",
+    "textAlignment",
+    "textboxTightWrap",
+    "outlineLvl",
+    "divId",
+    "cnfStyle",
+    "rPr",
+    "sectPr",
+    "pPrChange",
+)
+PPR_AFTER_TABS = ("spacing", "ind") + PPR_AFTER_IND
+
+
+def _replace_or_insert_ppr_child(inner, tag, new_xml, before_tags):
+    """Ganti ``<w:tag>`` di pPr, atau sisipkan sebelum tag berikutnya."""
+    block = re.search(rf"<w:{tag}\b[^>]*>.*?</w:{tag}>", inner, re.S)
+    if block is not None:
+        return inner[: block.start()] + new_xml + inner[block.end():]
+    empty = re.search(rf"<w:{tag}\b[^>]*/>", inner)
+    if empty is not None:
+        return inner[: empty.start()] + new_xml + inner[empty.end():]
+    for name in before_tags:
+        match = re.search(rf"<w:{name}\b", inner)
+        if match is not None:
+            return inner[: match.start()] + new_xml + inner[match.start():]
+    return inner.rstrip() + new_xml
+
+
+def toc_entry_tabs_xml(style_id, tab_pos):
+    geometry = TOC_ENTRY_GEOMETRY.get(style_id)
+    if geometry is None:
+        return None
+    tabs = []
+    if geometry["left_tab"] is not None:
+        tabs.append(f'<w:tab w:val="left" w:pos="{geometry["left_tab"]}"/>')
+    tabs.append(f'<w:tab w:val="right" w:leader="dot" w:pos="{tab_pos}"/>')
+    return "<w:tabs>" + "".join(tabs) + "</w:tabs>"
+
+
+def fix_toc_entries(doc, tab_pos):
+    """Setel geometri dan tipografi entri TOC agar seragam dengan acuan.
+
+    Spacing direct dari ``docx.lua``/Word, indent warisan ``Normal``
+    (firstLine 709), dan tab kiri lama menimpa style TOC. Semua nilai direct
+    itu dinormalkan di sini: before/after 0, indent kiri 0/240/480 dengan
+    firstLine 0, tab kiri 993/1418, dan tab kanan dot leader di lebar teks.
     Heading TOCHeading tidak disentuh; bold judul daftar isi tetap dipertahankan.
     """
 
@@ -748,14 +805,39 @@ def fix_toc_entries(doc):
         if not ppr or not TOC_ENTRY_STYLE_RE.search(ppr.group(0)):
             return paragraph
 
-        spacing = re.search(r"<w:spacing\b[^>]*/>", ppr.group(0))
+        open_tag = re.match(
+            r"<w:pPr(?:\s[^>]*)?>", ppr.group(0)
+        ).group(0)
+        inner = ppr.group(0)[len(open_tag):-len("</w:pPr>")]
+
+        spacing = re.search(r"<w:spacing\b[^>]*/>", inner)
         if spacing is not None:
             new_spacing = set_tag_attrs(
                 spacing.group(0), {"before": "0", "after": "0"}
             )
-            start = ppr.start() + spacing.start()
-            end = ppr.start() + spacing.end()
-            paragraph = paragraph[:start] + new_spacing + paragraph[end:]
+            inner = inner[: spacing.start()] + new_spacing + inner[spacing.end():]
+
+        style_id = re.search(
+            r'<w:pStyle w:val="(TOC[1-9])"/>', inner
+        ).group(1)
+        geometry = TOC_ENTRY_GEOMETRY.get(style_id)
+        if geometry is not None:
+            inner = _replace_or_insert_ppr_child(
+                inner,
+                "tabs",
+                toc_entry_tabs_xml(style_id, tab_pos),
+                PPR_AFTER_TABS,
+            )
+            indent = (
+                f'<w:ind w:left="{geometry["left"]}" w:right="0" '
+                'w:firstLine="0"/>'
+            )
+            inner = _replace_or_insert_ppr_child(
+                inner, "ind", indent, PPR_AFTER_IND
+            )
+
+        new_ppr = open_tag + inner + "</w:pPr>"
+        paragraph = paragraph[: ppr.start()] + new_ppr + paragraph[ppr.end():]
 
         return RUN_RE.sub(
             lambda run: strip_toc_run_bold(run.group(0)), paragraph
@@ -809,15 +891,15 @@ def patch_code_paragraph(paragraph):
     return RUN_RE.sub(lambda m: patch_code_run(m.group(0)), paragraph)
 
 
-def fix_document_formatting(doc):
+def fix_document_formatting(doc, tab_pos):
     """Bersihkan direct formatting warisan Pandoc/Word.
 
     Hyperlink dibuat hitam tanpa underline, istilah asing di TOC dipulihkan,
-    bold/spacing entri TOC dinolkan, dan run kode diseragamkan.
+    geometri/tipografi entri TOC dinormalkan, dan run kode diseragamkan.
     """
     doc = patch_hyperlink_runs(doc)
     doc = restore_toc_istilah_styles(doc)
-    doc = fix_toc_entries(doc)
+    doc = fix_toc_entries(doc, tab_pos)
     doc = PARA_RE.sub(
         lambda match: patch_code_paragraph(match.group(0)), doc
     )
@@ -1408,7 +1490,7 @@ def fix_toc_styles(styles, tab_pos):
       <w:tab w:val="right" w:leader="dot" w:pos="{tab_pos}"/>
     </w:tabs>
     <w:spacing w:before="0" w:after="0" w:line="260" w:lineRule="auto"/>
-    <w:ind w:left="0" w:right="0"/>
+    <w:ind w:left="0" w:right="0" w:firstLine="0"/>
     <w:jc w:val="left"/>
   </w:pPr>
   <w:rPr>
@@ -1416,6 +1498,8 @@ def fix_toc_styles(styles, tab_pos):
     <w:color w:val="000000"/>
     <w:sz w:val="24"/>
     <w:szCs w:val="24"/>
+    <w:b w:val="0"/>
+    <w:bCs w:val="0"/>
   </w:rPr>
 </w:style>""",
         "TOC2": f"""<w:style w:type="paragraph" w:styleId="TOC2">
@@ -1425,10 +1509,11 @@ def fix_toc_styles(styles, tab_pos):
   <w:qFormat/>
   <w:pPr>
     <w:tabs>
+      <w:tab w:val="left" w:pos="993"/>
       <w:tab w:val="right" w:leader="dot" w:pos="{tab_pos}"/>
     </w:tabs>
     <w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/>
-    <w:ind w:left="360" w:right="0"/>
+    <w:ind w:left="240" w:right="0" w:firstLine="0"/>
     <w:jc w:val="left"/>
   </w:pPr>
   <w:rPr>
@@ -1447,10 +1532,11 @@ def fix_toc_styles(styles, tab_pos):
   <w:qFormat/>
   <w:pPr>
     <w:tabs>
+      <w:tab w:val="left" w:pos="1418"/>
       <w:tab w:val="right" w:leader="dot" w:pos="{tab_pos}"/>
     </w:tabs>
     <w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/>
-    <w:ind w:left="720" w:right="0"/>
+    <w:ind w:left="480" w:right="0" w:firstLine="0"/>
     <w:jc w:val="left"/>
   </w:pPr>
   <w:rPr>
@@ -1512,7 +1598,7 @@ def finalize_items(items):
     doc = items["word/document.xml"].decode("utf-8")
     tab_pos = get_tab_pos(doc)
     doc = fix_daftar_isi_title(doc)
-    doc = fix_document_formatting(doc)
+    doc = fix_document_formatting(doc, tab_pos)
     doc = align_toc_tabs(doc, tab_pos)
     new_doc, changed, stats = process(doc, items)
     items["word/document.xml"] = new_doc.encode("utf-8")

@@ -3,7 +3,7 @@
 # structures/, sedangkan naskah milik content/.
 format: undip-msi
 name: "Universitas Diponegoro - Magister Sistem Informasi"
-description: "Margin 4-4-3-3 cm, Times New Roman 12 pt, spasi 1,5, sitasi author-date UNDIP MSI."
+description: "Margin 4/3/4/3 cm, Times New Roman 12 pt, spasi 1,5, sitasi author-date UNDIP MSI."
 csl: "refs/undip-msi.csl"
 bibliography: "references.bib"
 

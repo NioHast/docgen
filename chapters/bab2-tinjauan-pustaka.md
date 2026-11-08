@@ -22,6 +22,8 @@ Tabel berikut merangkum pemetaan sintaks Markdown yang digunakan dalam pipeline 
 | Gambar / Diagram | `![Keterangan](path)` | `![Arsitektur](gambar/flow.png)` | Gambar terpusat ber-caption |
 | Persamaan Matematika | `$...$` / `$$...$$` | `$E = m c^2$` | Notasi rumus terformat presisi |
 
+: Pemetaan Sintaks Markdown dalam Pipeline Laporan Akademik
+
 Persamaan display ditulis pada baris tersendiri di antara sepasang tanda dolar ganda. Sebagai contoh, metrik akurasi untuk mengevaluasi hasil klasifikasi dirumuskan sebagai berikut:
 
 $$Accuracy = \frac{TP + TN}{TP + TN + FP + FN}$$

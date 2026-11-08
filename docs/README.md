@@ -1,20 +1,69 @@
 # Indeks Dokumentasi
 
-Dokumen di bawah diurutkan mengikuti alur pemakaian: menulis, membangun,
-memproses DOCX, meninjau, lalu mendistribusikan. Kembali ke
-[README utama](../README.md).
+Dokumentasi dibagi menjadi dua kelompok:
 
-| No | Dokumen | Penjelasan |
+| Kelompok | Untuk siapa | Mulai dari |
 | --- | --- | --- |
-| 1 | [prosa.md](prosa.md) | Panduan dan pemeriksa prosa Indonesia: kode temuan, `make lint-prosa`, `--banding`, dan batasan pemeriksaan berbasis regex. |
-| 2 | [format-undip.md](format-undip.md) | Format target UNDIP: preset `undip-skripsi` final dan teruji, margin 4/3/4/3 cm, aturan heading H1-H3, caption gambar/tabel 12 pt dengan caption tabel rata kiri, kode Courier New 10 pt, bibliografi hanging 1,27 cm, serta sitasi author-date (turunan APA 7) dengan daftar pustaka alfabetis. |
-| 3 | [style-generator.md](style-generator.md) | Cara `tools/build_style.py` menghasilkan `reference.docx` dari preset serta pemetaan margin, font, dan spasi ke DOCX. |
-| 4 | [pdf.md](pdf.md) | Pipeline PDF Pandoc ke Typst, peran `template.typ` dan `tools/env.sh`, serta perbedaan tata letak PDF dan DOCX. |
-| 5 | [istilah.md](istilah.md) | Glosarium `writing/istilah.tsv`, penanda `{{?istilah?}}`, perintah `check`/`apply`/`verify`/`review`, dan batasannya. |
-| 6 | [format-figures.md](format-figures.md) | Penomoran caption per bab, pembatasan lebar gambar 14 cm, dan penyeragaman border serta margin tabel. |
-| 7 | [word-fields.md](word-fields.md) | Sebab nomor TOC bisa `0`, peran `docx-pagenum.py`, dan finalisasi field otomatis oleh `tools/word_finalize.py` di `build-docx.sh`. |
-| 8 | [paragraph-ids.md](paragraph-ids.md) | Bookmark `pNNNN`, bentuk `build/manifest.json`, deteksi `kind`, dan aturan `protected`. |
-| 9 | [adeu-integration.md](adeu-integration.md) | Alur rekonsiliasi edit Word ke Markdown, exit code `reconcile.py`, dan blok yang dilindungi. |
-| 10 | [dotx.md](dotx.md) | Ekspor DOCX ke `.dotx`, perbedaan content type, distribusi template, dan batasan `python-docx`. |
-| 11 | [deployment/windows.md](deployment/windows.md) | Deployment Windows-native dengan Git Bash: prasyarat, perintah build, dan finalisasi field Word. |
-| 12 | [deployment/debian.md](deployment/debian.md) | Deployment Debian-native: prasyarat apt, Pandoc/Typst native, LibreOffice/Poppler, dan tanpa Word. |
+| [dev/](dev/architecture.md) | Pengembang dan pemelihara pipeline | [dev/architecture.md](dev/architecture.md) |
+| [agent/](agent/README.md) | Penulis dan agent yang mengerjakan naskah | [agent/README.md](agent/README.md) |
+
+Kembali ke [README utama](../README.md).
+
+## Untuk agent
+
+| Dokumen | Isi |
+| --- | --- |
+| [agent/README.md](agent/README.md) | Indeks panduan agent. |
+| [agent/quickstart.md](agent/quickstart.md) | Lima langkah memilih struktur, menulis, check, build, dan output. |
+| [agent/document-format.md](agent/document-format.md) | Front matter, heading, caption, gambar, Mermaid, dan sitasi. |
+| [agent/writing-rules.md](agent/writing-rules.md) | Ringkasan aturan prosa dan cara menjalankan checker. |
+| [agent/troubleshooting.md](agent/troubleshooting.md) | Masalah caption, `mmdc`, Word/LibreOffice, `ruamel.yaml`, dan path. |
+| [agent/single-file.md](agent/single-file.md) | Mode satu berkas Markdown dengan `build-file`. |
+| [agent/mermaid.md](agent/mermaid.md) | Diagram Mermaid inline dan renderer `mmdc`. |
+| [../writing/guide.md](../writing/guide.md) | Panduan menulis lengkap. |
+
+## Untuk pengembang
+
+### Arsitektur dan pipeline
+
+| Dokumen | Isi |
+| --- | --- |
+| [dev/architecture.md](dev/architecture.md) | Empat lapis format, struktur, konten, dan platform; kontrak CLI serta build. |
+| [dev/proposal.md](dev/proposal.md) | Pipeline proposal tesis MSI dan preset `undip-msi-proposal`. |
+| [dev/pdf.md](dev/pdf.md) | Ekspor PDF dari DOCX final melalui Word COM atau LibreOffice. |
+| [dev/style-generator.md](dev/style-generator.md) | Generator `reference.docx` dari preset. |
+
+### Format DOCX
+
+| Dokumen | Isi |
+| --- | --- |
+| [dev/format-undip.md](dev/format-undip.md) | Format UNDIP, margin, heading, caption, dan sitasi author-date. |
+| [dev/format-figures.md](dev/format-figures.md) | Caption wajib, penomoran per bab, lebar gambar, dan tabel. |
+| [dev/format-code.md](dev/format-code.md) | Blok kode menjadi tabel 1x1. |
+| [dev/format-equations.md](dev/format-equations.md) | Penomoran persamaan OMML. |
+| [dev/format-numbering.md](dev/format-numbering.md) | Penyeragaman daftar bernomor. |
+| [dev/normalize-layout.md](dev/normalize-layout.md) | Spasi, perataan, dan penghapusan bold langsung. |
+| [dev/word-fields.md](dev/word-fields.md) | Field DOCX dan nomor halaman daftar isi. |
+| [dev/dotx.md](dev/dotx.md) | Ekspor dan distribusi template `.dotx`. |
+
+### Istilah dan prosa
+
+| Dokumen | Isi |
+| --- | --- |
+| [dev/terms.md](dev/terms.md) | Glosarium, penanda `{{?istilah?}}`, dan perintah `terms.py`. |
+| [dev/audit-terms.md](dev/audit-terms.md) | Audit italic istilah pada DOCX hasil build. |
+| [dev/prosa.md](dev/prosa.md) | Pemeriksa prosa dan kode temuan. |
+
+### Review dan paragraf
+
+| Dokumen | Isi |
+| --- | --- |
+| [dev/paragraph-ids.md](dev/paragraph-ids.md) | Bookmark `pNNNN`, manifest, dan status `protected`. |
+| [dev/adeu-integration.md](dev/adeu-integration.md) | Rekonsiliasi edit Word ke Markdown. |
+
+### Deployment
+
+| Dokumen | Isi |
+| --- | --- |
+| [dev/deployment/windows.md](dev/deployment/windows.md) | Deployment Windows-native dengan Git Bash dan Word. |
+| [dev/deployment/debian.md](dev/deployment/debian.md) | Deployment Debian-native dengan Pandoc dan LibreOffice. |

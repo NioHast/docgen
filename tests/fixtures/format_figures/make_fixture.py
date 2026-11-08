@@ -168,6 +168,7 @@ def _add_image(
     align=WD_ALIGN_PARAGRAPH.JUSTIFY,
     before=Pt(6),
     after=Pt(6),
+    alt: str | None = None,
 ):
     paragraph = document.add_paragraph()
     paragraph.alignment = align
@@ -179,7 +180,18 @@ def _add_image(
         width=width,
         height=height,
     )
+    if alt is not None:
+        for doc_pr in paragraph._p.iter(qn("wp:docPr")):
+            doc_pr.set("descr", alt)
     return paragraph
+
+
+def _set_table_caption(table, text: str) -> None:
+    """Tulis caption Pandoc ``w:tblCaption`` pada properti tabel."""
+
+    caption = OxmlElement("w:tblCaption")
+    caption.set(qn("w:val"), text)
+    _insert_ordered(table._tbl.tblPr, caption, TBL_PR_ORDER)
 
 
 def _add_complex_field(paragraph, instruction: str, result: str) -> None:
@@ -422,6 +434,104 @@ def build_field_caption_fixture(path: Path) -> Path:
     caption.add_run(" Diagram field")
 
     document.add_paragraph("Gambar 2. Diagram literal", style=image_caption)
+    document.save(path)
+    return path
+
+
+# ---------------------------------------------------------------------------
+# Fixture caption Pandoc: w:tblCaption, paragraf TableCaption, alt text gambar
+
+
+def build_pandoc_caption_fixture(path: Path) -> Path:
+    document = Document()
+    heading1 = _ensure_style(document, "Heading 1")
+    table_caption = _ensure_style(document, "Table Caption")
+    image_caption = _ensure_style(document, "Image Caption")
+
+    document.add_paragraph("BAB I PENDAHULUAN", style=heading1)
+
+    # Tabel hanya punya w:tblCaption (tanpa paragraf caption).
+    table = document.add_table(rows=2, cols=2)
+    table.style = "Table Grid"
+    _fill_table(table, [["Nama", "Nilai"], ["Ahmad", "90"]])
+    _set_table_caption(table, "Data responden")
+
+    # Tabel dengan paragraf caption Pandoc sebelum tabel.
+    document.add_paragraph("Hasil pengujian", style=table_caption)
+    table = document.add_table(rows=2, cols=2)
+    table.style = "Table Grid"
+    _fill_table(table, [["Skenario", "Hasil"], ["Login", "Berhasil"]])
+    _set_table_caption(table, "Hasil pengujian")
+
+    # Gambar hanya punya alt text (tanpa paragraf caption).
+    _add_image(document, Cm(8), Cm(4), alt="Diagram alur")
+
+    # Gambar punya paragraf ImageCaption kosong; diisi dari alt text.
+    _add_image(document, Cm(6), Cm(3), alt="Foto hasil")
+    document.add_paragraph("", style=image_caption)
+
+    # Caption gambar di atas gambar; harus dipindah ke bawah.
+    document.add_paragraph("Foto tambahan", style=image_caption)
+    _add_image(document, Cm(5), Cm(2.5), alt="Foto tambahan")
+
+    document.save(path)
+    return path
+
+
+# ---------------------------------------------------------------------------
+# Fixture tanpa caption/alt: harus membuat build gagal
+
+
+def build_missing_caption_fixture(path: Path) -> Path:
+    document = Document()
+    heading1 = _ensure_style(document, "Heading 1")
+
+    document.add_paragraph("BAB I PENDAHULUAN", style=heading1)
+
+    table = document.add_table(rows=2, cols=2)
+    table.style = "Table Grid"
+    _fill_table(table, [["Nama", "Nilai"], ["Ahmad", "90"]])
+
+    _add_image(document, Cm(8), Cm(4))
+
+    document.save(path)
+    return path
+
+
+# ---------------------------------------------------------------------------
+# Fixture caption tabel di bawah tabel: harus dipindah ke atas
+
+
+def build_below_table_caption_fixture(path: Path) -> Path:
+    document = Document()
+    heading1 = _ensure_style(document, "Heading 1")
+    table_caption = _ensure_style(document, "Table Caption")
+
+    document.add_paragraph("BAB I PENDAHULUAN", style=heading1)
+
+    table = document.add_table(rows=2, cols=2)
+    table.style = "Table Grid"
+    _fill_table(table, [["Nama", "Nilai"], ["Ahmad", "90"]])
+    document.add_paragraph("Data responden", style=table_caption)
+
+    document.save(path)
+    return path
+
+
+# ---------------------------------------------------------------------------
+# Fixture gambar cover: tidak wajib caption
+
+
+def build_cover_image_fixture(path: Path) -> Path:
+    document = Document()
+    heading1 = _ensure_style(document, "Heading 1")
+    cover_image = _ensure_style(document, "Cover Image")
+
+    paragraph = document.add_paragraph(style=cover_image)
+    paragraph.add_run().add_picture(BytesIO(_png_bytes()), width=Cm(4))
+    document.add_paragraph("BAB I PENDAHULUAN", style=heading1)
+    document.add_paragraph("Isi bab.")
+
     document.save(path)
     return path
 

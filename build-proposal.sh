@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build proposal tesis MSI UNDIP dari proposal/metadata.yml.
+# Build proposal tesis MSI UNDIP dari examples/proposal/metadata.yml.
 #
 # Wrapper ini hanya memilih metadata dan nama keluaran; seluruh logika build
 # tetap berada di build-docx.sh. Kontrak yang dipakai:
@@ -10,9 +10,9 @@ set -e
 DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$DIR"
 
-export LAPORAN_METADATA="proposal/metadata.yml"
+export LAPORAN_METADATA="examples/proposal/metadata.yml"
 export LAPORAN_REPORT_NAME="Proposal"
 # LAPORAN_CHAPTERS tidak perlu diset: build-docx.sh menurunkan
-# proposal/chapters dari direktori proposal/metadata.yml.
+# examples/proposal/chapters dari direktori examples/proposal/metadata.yml.
 
 bash build-docx.sh

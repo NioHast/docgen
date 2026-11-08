@@ -1,22 +1,21 @@
 #!/usr/bin/env bash
-# tools/env.sh — siapkan Pandoc + Typst native sesuai platform.
+# tools/env.sh — siapkan Pandoc native sesuai platform.
 #
 # Pemakaian (di-source dari skrip build):
 #   source "$DIR/tools/env.sh"
 #
 # Windows (Git Bash/MSYS/Cygwin):
 #   - Hanya memakai perkakas Windows-native.
-#   - Direktori instalasi Pandoc/Typst Windows ditambahkan ke PATH.
+#   - Direktori instalasi Pandoc Windows ditambahkan ke PATH.
 #   - Tidak pernah memanggil WSL atau menerjemahkan path lintas platform.
 #
 # Linux (termasuk WSL):
-#   - Hanya mencari `pandoc`/`typst` native di PATH.
+#   - Hanya mencari `pandoc` native di PATH.
 #   - Tidak pernah mencari `.exe` atau lokasi instalasi Windows.
 #
-# LAPORAN_ENV_SKIP_TYPST=1 melewati pengecekan Typst dan dipakai build DOCX
-# yang hanya membutuhkan Pandoc.
-#
-# Build PDF memakai Typst, build DOCX memakai pandoc + reference.docx.
+# Build DOCX memakai pandoc + reference.docx. PDF diekspor dari DOCX melalui
+# Word COM (Windows) atau LibreOffice (Debian/Linux), jadi tidak membutuhkan
+# Typst.
 
 # Aman bila di-source dua kali.
 if [ "${_LAPORAN_ENV_LOADED:-0}" = "1" ]; then
@@ -84,11 +83,6 @@ if [ "$_LAPORAN_PLATFORM" = "windows" ]; then
   if [ -n "$_laporan_local" ]; then
     _laporan_path_add "$_laporan_local/Pandoc"
     _laporan_path_add "$_laporan_local/Microsoft/WinGet/Links"
-    for _typst_dir in "$_laporan_local"/Microsoft/WinGet/Packages/Typst.Typst_*/*/; do
-      if [ -d "$_typst_dir" ]; then
-        _laporan_path_add "${_typst_dir%/}"
-      fi
-    done
   fi
 
   for _laporan_env in PROGRAMFILES PROGRAMW6432; do
@@ -99,16 +93,6 @@ if [ "$_LAPORAN_PLATFORM" = "windows" ]; then
       _laporan_path_add "$_laporan_posix/Pandoc"
     fi
   done
-
-  _laporan_profile="$(_laporan_windows_path "${USERPROFILE:-}" 2>/dev/null || true)"
-  if [ -n "$_laporan_profile" ]; then
-    _laporan_path_add "$_laporan_profile/.cargo/bin"
-  fi
-fi
-
-_LAPORAN_SKIP_TYPST=0
-if [ "${LAPORAN_ENV_SKIP_TYPST:-0}" = "1" ]; then
-  _LAPORAN_SKIP_TYPST=1
 fi
 
 _laporan_searched_dirs() {
@@ -135,25 +119,5 @@ if ! command -v pandoc >/dev/null 2>&1; then
       "Platform terdeteksi: $_LAPORAN_PLATFORM." \
       "Instal paket Debian: sudo apt install pandoc" \
       "atau pasang Pandoc native dan pastikan 'pandoc --version' berhasil."
-  fi
-fi
-
-if [ "$_LAPORAN_SKIP_TYPST" -eq 0 ] && ! command -v typst >/dev/null 2>&1; then
-  if [ "$_LAPORAN_PLATFORM" = "windows" ]; then
-    _laporan_error \
-      "Typst Windows tidak ditemukan." \
-      "Platform terdeteksi: $_LAPORAN_PLATFORM." \
-      "Instal Typst dari https://typst.app/ atau jalankan" \
-      "'winget install Typst.Typst', lalu buka Git Bash baru." \
-      "Build PDF membutuhkan Typst; build DOCX tidak." \
-      "Direktori yang diperiksa:" \
-      "$(_laporan_searched_dirs)"
-  else
-    _laporan_error \
-      "Typst native tidak ditemukan di PATH." \
-      "Platform terdeteksi: $_LAPORAN_PLATFORM." \
-      "Instal Typst native dari https://typst.app/ atau 'cargo install typst-cli'," \
-      "lalu pastikan 'typst --version' berhasil." \
-      "Build PDF membutuhkan Typst; build DOCX tidak."
   fi
 fi

@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 import re
+import shutil
+import subprocess
 import zipfile
 from pathlib import Path
 from types import SimpleNamespace
@@ -14,6 +17,7 @@ from docx.enum.style import WD_STYLE_TYPE
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
+from docx.shared import Pt
 from lxml import etree
 
 import format_figures as api
@@ -45,6 +49,12 @@ def docs(tmp_path_factory):
         no_heading=_builder.build_no_heading_fixture(root / "tanpa_heading.docx"),
         generic=_builder.build_generic_caption_fixture(root / "caption_generic.docx"),
         field=_builder.build_field_caption_fixture(root / "caption_field.docx"),
+        pandoc=_builder.build_pandoc_caption_fixture(root / "caption_pandoc.docx"),
+        missing=_builder.build_missing_caption_fixture(root / "tanpa_caption.docx"),
+        below_table=_builder.build_below_table_caption_fixture(
+            root / "caption_di_bawah.docx"
+        ),
+        cover_image=_builder.build_cover_image_fixture(root / "gambar_cover.docx"),
     )
 
 
@@ -52,6 +62,43 @@ def run_tool(source: Path, tmp_path: Path, stem: str = "out") -> Path:
     output = tmp_path / f"{stem}.docx"
     assert api.main(["--docx", str(source), "--out", str(output)]) == 0
     return output
+
+
+def _pandoc() -> str:
+    candidates = [
+        os.environ.get("PANDOC"),
+        shutil.which("pandoc"),
+        str(Path(os.environ.get("LOCALAPPDATA", "")) / "Pandoc" / "pandoc.exe"),
+        str(Path(os.environ.get("PROGRAMFILES", "")) / "Pandoc" / "pandoc.exe"),
+    ]
+    for candidate in candidates:
+        if candidate and Path(candidate).is_file():
+            return candidate
+    pytest.skip("pandoc tidak tersedia")
+
+
+def _body_index(document: Document, element) -> int:
+    return list(document.element.body).index(element)
+
+
+def _assert_caption_style(paragraph, *, alignment: WD_ALIGN_PARAGRAPH, keep_next: bool):
+    assert paragraph.alignment == alignment
+    properties = paragraph._p.pPr
+    spacing = properties.find(qn("w:spacing"))
+    assert spacing is not None
+    assert spacing.get(qn("w:before")) == "0"
+    assert spacing.get(qn("w:after")) == "0"
+    assert spacing.get(qn("w:line")) == "240"
+    assert spacing.get(qn("w:lineRule")) == "auto"
+    keep = properties.find(qn("w:keepNext"))
+    if keep_next:
+        assert keep is not None
+    else:
+        assert keep is None
+    for run in paragraph.runs:
+        assert run.font.size == Pt(10)
+        assert run.bold is False
+        assert run.italic is False
 
 
 def caption_texts(path: Path, style_id: str) -> list[str]:
@@ -163,12 +210,13 @@ def test_prefix_lama_dihapus_dan_idempoten(docs, tmp_path):
     assert document_xml(first) == document_xml(second)
 
     document = Document(first)
-    italic_caption = next(
+    formatted_caption = next(
         paragraph
         for paragraph in document.paragraphs
         if paragraph.text == "Gambar 1.2 Foto hasil"
     )
-    assert italic_caption.runs[-1].italic is True
+    # Gaya caption final wajib regular, termasuk run judul yang semula italic.
+    assert formatted_caption.runs[-1].italic is False
 
 
 # ---------------------------------------------------------------------------
@@ -210,7 +258,7 @@ def test_gambar_besar_di_clamp_proporsional(docs, tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# 4. Tabel ilmiah: tanpa vertikal, border atas/bawah 1 pt, header 0,5 pt
+# 4. Tabel data ilmiah: tanpa vertikal, border atas/bawah 1 pt, header 0,5 pt
 
 
 def test_tabel_gaya_ilmiah(docs, tmp_path):
@@ -327,7 +375,7 @@ def test_tabel_ilmiah_idempoten(docs, tmp_path):
     assert document_xml(first) == document_xml(second)
 
 
-def test_tabel_kode_tetap_108_dan_border_ilmiah(tmp_path):
+def test_tabel_kode_tetap_108_dan_border_kotak_penuh(tmp_path):
     document = Document()
     code_style = document.styles.add_style(
         "Source Code", WD_STYLE_TYPE.PARAGRAPH
@@ -356,11 +404,11 @@ def test_tabel_kode_tetap_108_dan_border_ilmiah(tmp_path):
 
     result_borders = result_properties.find(qn("w:tblBorders"))
     assert result_borders is not None
-    for side in ("top", "bottom"):
+    for side in ("top", "left", "bottom", "right"):
         border = result_borders.find(qn(f"w:{side}"))
         assert border.get(qn("w:val")) == "single"
         assert border.get(qn("w:sz")) == "8"
-    for side in ("left", "right", "insideH", "insideV"):
+    for side in ("insideH", "insideV"):
         assert result_borders.find(qn(f"w:{side}")).get(qn("w:val")) == "nil"
 
     cell_margins = result_properties.find(qn("w:tblCellMar"))
@@ -466,10 +514,10 @@ def test_caption_generic_style(docs, tmp_path):
         for paragraph in document.paragraphs
         if paragraph.style.style_id == "Caption"
     )
-    # Prefix lama dipecah ke dua run; run judul tetap italic.
+    # Prefix lama dipecah ke dua run; run judul menjadi regular.
     assert first_caption.runs[0].text == "Gambar 4.1 "
     assert first_caption.runs[-1].text == "Diagram generik"
-    assert first_caption.runs[-1].italic is True
+    assert first_caption.runs[-1].italic is False
 
 
 def test_caption_dengan_prefix_field_dilewati(docs, tmp_path, capsys):
@@ -492,3 +540,176 @@ def test_caption_dengan_prefix_field_dilewati(docs, tmp_path, capsys):
 
     # Caption berikutnya tetap mendapat nomor urut berikutnya.
     assert xml_text(captions[1]) == "Gambar 5.2 Diagram literal"
+
+
+# ---------------------------------------------------------------------------
+# 7. Caption wajib: w:tblCaption, paragraf Pandoc, dan alt text gambar
+
+
+def test_caption_dari_tblcaption_paragraf_pandoc_dan_alt(docs, tmp_path):
+    output = run_tool(docs.pandoc, tmp_path)
+
+    assert caption_texts(output, "TableCaption") == [
+        "Tabel 1.1 Data responden",
+        "Tabel 1.2 Hasil pengujian",
+    ]
+    assert caption_texts(output, "ImageCaption") == [
+        "Gambar 1.1 Diagram alur",
+        "Gambar 1.2 Foto hasil",
+        "Gambar 1.3 Foto tambahan",
+    ]
+
+    document = Document(output)
+    table_captions = [
+        paragraph
+        for paragraph in document.paragraphs
+        if paragraph.style.style_id == "TableCaption"
+    ]
+    image_paragraphs = [
+        paragraph
+        for paragraph in document.paragraphs
+        if paragraph._p.findall(".//" + qn("w:drawing"))
+    ]
+    image_captions = [
+        paragraph
+        for paragraph in document.paragraphs
+        if paragraph.style.style_id == "ImageCaption"
+    ]
+
+    # Caption tabel tepat di atas tabel; caption gambar tepat di bawah gambar.
+    for caption, table in zip(table_captions, document.tables):
+        assert _body_index(document, caption._p) + 1 == _body_index(
+            document, table._tbl
+        )
+    for image, caption in zip(image_paragraphs, image_captions):
+        assert _body_index(document, caption._p) == _body_index(
+            document, image._p
+        ) + 1
+
+    _assert_caption_style(
+        table_captions[0],
+        alignment=WD_ALIGN_PARAGRAPH.LEFT,
+        keep_next=True,
+    )
+    _assert_caption_style(
+        image_captions[0],
+        alignment=WD_ALIGN_PARAGRAPH.CENTER,
+        keep_next=False,
+    )
+
+
+def test_caption_pandoc_idempoten(docs, tmp_path):
+    first = run_tool(docs.pandoc, tmp_path, "first")
+    second = run_tool(first, tmp_path, "second")
+
+    assert document_xml(first) == document_xml(second)
+
+
+def test_tabel_gambar_tanpa_caption_menggagalkan_build(docs, tmp_path, capsys):
+    output = tmp_path / "tanpa_caption_out.docx"
+    assert api.main(["--docx", str(docs.missing), "--out", str(output)]) == 1
+    captured = capsys.readouterr()
+
+    assert "Tabel #1" in captured.err
+    assert "Gambar #1" in captured.err
+    assert "tidak memiliki caption" in captured.err
+    assert "Tabel/gambar tanpa caption: 2" in captured.out
+
+    # Caption tidak boleh dikarang saat sumbernya memang tidak ada.
+    document = Document(output)
+    assert not [
+        paragraph
+        for paragraph in document.paragraphs
+        if paragraph.style.style_id in {"TableCaption", "ImageCaption"}
+    ]
+
+
+def test_laporan_tanpa_caption_melaporkan_semua_temuan(docs, tmp_path):
+    report = api.format_figures(docs.missing, tmp_path / "report.docx")
+
+    assert report.created_table_captions == 0
+    assert report.created_image_captions == 0
+    assert len(report.missing_captions) == 2
+    assert any(item.startswith("Tabel #1") for item in report.missing_captions)
+    assert any(item.startswith("Gambar #1") for item in report.missing_captions)
+
+
+def test_caption_tabel_di_bawah_dipindah_ke_atas(docs, tmp_path):
+    output = run_tool(docs.below_table, tmp_path)
+
+    assert caption_texts(output, "TableCaption") == ["Tabel 1.1 Data responden"]
+
+    document = Document(output)
+    caption = next(
+        paragraph
+        for paragraph in document.paragraphs
+        if paragraph.style.style_id == "TableCaption"
+    )
+    table = document.tables[0]
+    assert _body_index(document, caption._p) + 1 == _body_index(document, table._tbl)
+
+
+def test_gambar_cover_tidak_diwajibkan_caption(docs, tmp_path):
+    output = run_tool(docs.cover_image, tmp_path)
+
+    document = Document(output)
+    assert document.paragraphs[0].style.style_id == "CoverImage"
+    assert caption_texts(output, "ImageCaption") == []
+
+
+# ---------------------------------------------------------------------------
+# 8. End-to-end Pandoc: caption Markdown menjadi nomor Tabel/Gambar
+
+
+def test_pandoc_caption_markdown_end_to_end(tmp_path):
+    pandoc = _pandoc()
+    (tmp_path / "gambar.png").write_bytes(_builder._png_bytes())
+    source = tmp_path / "bercaption.md"
+    source.write_text(
+        "# BAB I PENDAHULUAN\n\n"
+        ": Data responden\n\n"
+        "| Nama | Nilai |\n"
+        "| --- | --- |\n"
+        "| Ahmad | 90 |\n\n"
+        "![Diagram alur](gambar.png)\n",
+        encoding="utf-8",
+    )
+    docx = tmp_path / "bercaption.docx"
+    subprocess.run(
+        [pandoc, source.name, "-o", docx.name],
+        cwd=tmp_path,
+        check=True,
+        env={**os.environ, "PYTHONUTF8": "1"},
+    )
+
+    output = run_tool(docx, tmp_path)
+
+    assert caption_texts(output, "TableCaption") == ["Tabel 1.1 Data responden"]
+    assert caption_texts(output, "ImageCaption") == ["Gambar 1.1 Diagram alur"]
+
+
+def test_pandoc_markdown_tanpa_caption_gagal(tmp_path, capsys):
+    pandoc = _pandoc()
+    (tmp_path / "gambar.png").write_bytes(_builder._png_bytes())
+    source = tmp_path / "tanpa_caption.md"
+    source.write_text(
+        "# BAB I PENDAHULUAN\n\n"
+        "| Nama | Nilai |\n"
+        "| --- | --- |\n"
+        "| Ahmad | 90 |\n\n"
+        "![](gambar.png)\n",
+        encoding="utf-8",
+    )
+    docx = tmp_path / "tanpa_caption.docx"
+    subprocess.run(
+        [pandoc, source.name, "-o", docx.name],
+        cwd=tmp_path,
+        check=True,
+        env={**os.environ, "PYTHONUTF8": "1"},
+    )
+
+    output = tmp_path / "tanpa_caption_out.docx"
+    assert api.main(["--docx", str(docx), "--out", str(output)]) == 1
+    captured = capsys.readouterr()
+    assert "Tabel #1" in captured.err
+    assert "Gambar #1" in captured.err

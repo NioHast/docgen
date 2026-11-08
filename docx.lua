@@ -11,7 +11,6 @@
 local bab = 0
 local sub = 0
 local subsub = 0
-local toc_entries = {}
 local chapter_prefix = "BAB "
 local chapter_num_fmt = "roman"
 local sub_dot = true
@@ -154,17 +153,6 @@ local function pagebreak()
   return pandoc.RawBlock("openxml", '<w:p><w:r><w:br w:type="page"/></w:r></w:p>')
 end
 
--- Escape teks yang ditulis ke XML mentah. Teks dari heading bisa memuat
--- karakter seperti &, <, atau > yang membuat document.xml tidak valid bila
--- dimasukkan apa adanya ke <w:t>.
-local function xml_escape(text)
-  local s = tostring(text or "")
-  s = s:gsub("&", "&amp;")
-  s = s:gsub("<", "&lt;")
-  s = s:gsub(">", "&gt;")
-  return s
-end
-
 -- Jarak vertikal cover memakai paragraf kosong fisik, bukan spacing paragraf.
 -- Satu baris kosong Normal (12 pt, spasi 1,5) setara 360 twip; jumlah baris
 -- mengikuti nilai jarak lama agar proporsi sampul tetap terjaga.
@@ -238,13 +226,6 @@ function Header(el)
   end
   local title = pandoc.utils.stringify(el.content)
   if is_unnumbered(el) then
-    if el.level == 1 then
-      toc_entries[#toc_entries + 1] = {
-        level = 1,
-        id = el.identifier,
-        text = string.upper(title),
-      }
-    end
     return nil
   end
   if el.level == 1 then
@@ -255,20 +236,10 @@ function Header(el)
     local full_bab = chapter_prefix .. bnum
     if chapter_prefix == "" then
       full_bab = bnum .. "."
-      toc_entries[#toc_entries + 1] = {
-        level = 1,
-        id = el.identifier,
-        text = full_bab .. " " .. string.upper(title),
-      }
       el.content = pandoc.List{
         pandoc.Str(full_bab .. " " .. string.upper(title)),
       }
     else
-      toc_entries[#toc_entries + 1] = {
-        level = 1,
-        id = el.identifier,
-        text = full_bab .. " " .. string.upper(title),
-      }
       el.content = pandoc.List{
         pandoc.Str(full_bab),
         pandoc.LineBreak(),
@@ -279,72 +250,44 @@ function Header(el)
     sub = sub + 1
     subsub = 0
     local num2 = bab .. "." .. sub .. (sub_dot and "." or "")
-    toc_entries[#toc_entries + 1] = {
-      level = 2,
-      id = el.identifier,
-      text = num2 .. " " .. title,
-    }
     el.content = pandoc.List{ pandoc.Str(num2), heading_tab(), pandoc.Str(title) }
   elseif el.level == 3 then
     subsub = subsub + 1
     local num3 = bab .. "." .. sub .. "." .. subsub .. (subsub_dot and "." or "")
-    toc_entries[#toc_entries + 1] = {
-      level = 3,
-      id = el.identifier,
-      text = num3 .. " " .. title,
-    }
     el.content = pandoc.List{ pandoc.Str(num3), heading_tab(), pandoc.Str(title) }
   end
   return el
 end
 
-local function toc_entry(e)
-  local style, ind, bold, spacing = "TOC1", 0, "<w:rPr><w:b/></w:rPr>", '<w:spacing w:before="120" w:after="40" w:line="260" w:lineRule="auto"/>'
-  if e.level == 2 then
-    style, ind, bold, spacing = "TOC2", 360, "", '<w:spacing w:before="20" w:after="20" w:line="240" w:lineRule="auto"/>'
-  elseif e.level == 3 then
-    style, ind, bold, spacing = "TOC3", 720, "", '<w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/>'
-  end
-  return '<w:p><w:pPr><w:pStyle w:val="' .. style .. '"/>' ..
-    spacing ..
-    '<w:tabs><w:tab w:val="right" w:leader="dot" w:pos="9072"/></w:tabs>' ..
-    '<w:ind w:left="' .. ind .. '" w:right="0"/></w:pPr>' ..
-    '<w:hyperlink w:anchor="' .. e.id .. '" w:history="1">' ..
-    '<w:r>' .. bold .. '<w:t xml:space="preserve">' .. xml_escape(e.text) .. '</w:t></w:r>' ..
-    '</w:hyperlink>' ..
-    '<w:r><w:tab/></w:r>' ..
-    '<w:r><w:fldChar w:fldCharType="begin" w:dirty="true"/></w:r>' ..
-    '<w:r><w:instrText xml:space="preserve"> PAGEREF ' .. e.id .. ' \\h </w:instrText></w:r>' ..
-    '<w:r><w:fldChar w:fldCharType="separate"/></w:r>' ..
-    '<w:r><w:t>0</w:t></w:r>' ..
-    '<w:r><w:fldChar w:fldCharType="end"/></w:r>' ..
-    '</w:p>'
-end
-
+-- Daftar isi DOCX adalah field TOC native di dalam content control TOC
+-- (``w:sdt`` + ``docPartGallery "Table of Contents"``). Word/LibreOffice yang
+-- mengisi entri dan nomor halaman; filter ini hanya menulis field kosong agar
+-- hasilnya tidak pernah menjadi teks statis dan frame "Update Table" muncul.
 local function daftar_isi()
-  local out = pandoc.List{}
-  out[#out + 1] = pagebreak()
-  out[#out + 1] = pandoc.RawBlock(
-    "openxml",
+  local sdt = table.concat({
+    '<w:sdt>',
+    '<w:sdtPr>',
+    '<w:rPr><w:b w:val="0"/><w:bCs w:val="0"/></w:rPr>',
+    '<w:id w:val="1180696141"/>',
+    '<w:docPartObj>',
+    '<w:docPartGallery w:val="Table of Contents"/>',
+    '<w:docPartUnique/>',
+    '</w:docPartObj>',
+    '</w:sdtPr>',
+    '<w:sdtEndPr><w:rPr><w:noProof/></w:rPr></w:sdtEndPr>',
+    '<w:sdtContent>',
     '<w:p><w:pPr><w:pStyle w:val="TOCHeading"/><w:jc w:val="center"/><w:outlineLvl w:val="9"/></w:pPr>' ..
-      '<w:r><w:rPr><w:b/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>DAFTAR ISI</w:t></w:r></w:p>'
-  )
-  out[#out + 1] = pandoc.RawBlock(
-    "openxml",
+      '<w:r><w:rPr><w:b/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>DAFTAR ISI</w:t></w:r></w:p>',
     '<w:p><w:pPr><w:pStyle w:val="TOC1"/></w:pPr>' ..
       '<w:r><w:fldChar w:fldCharType="begin" w:dirty="true"/></w:r>' ..
       '<w:r><w:instrText xml:space="preserve"> TOC \\o "1-3" \\h \\z \\u </w:instrText></w:r>' ..
-      '<w:r><w:fldChar w:fldCharType="separate"/></w:r></w:p>'
-  )
-  for _, e in ipairs(toc_entries) do
-    out[#out + 1] = pandoc.RawBlock("openxml", toc_entry(e))
-  end
-  out[#out + 1] = pandoc.RawBlock(
-    "openxml",
+      '<w:r><w:fldChar w:fldCharType="separate"/></w:r></w:p>',
     '<w:p><w:pPr><w:pStyle w:val="TOC1"/></w:pPr>' ..
-      '<w:r><w:fldChar w:fldCharType="end"/></w:r></w:p>'
-  )
-  return out
+      '<w:r><w:fldChar w:fldCharType="end"/></w:r></w:p>',
+    '</w:sdtContent>',
+    '</w:sdt>',
+  })
+  return pandoc.List{ pagebreak(), pandoc.RawBlock("openxml", sdt) }
 end
 
 local function daftar_gambar()

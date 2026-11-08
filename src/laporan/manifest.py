@@ -19,10 +19,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-try:  # PyYAML tersedia di Python sistem, tetapi tidak selalu di venv proyek.
-    import yaml  # type: ignore[import-untyped]
-except Exception:  # pragma: no cover - jalur fallback diuji lewat venv tanpa PyYAML
-    yaml = None
+try:  # ruamel.yaml adalah dependensi runtime, tetapi tidak selalu di venv lama.
+    from ruamel.yaml import YAML  # type: ignore[import-untyped]
+except Exception:  # pragma: no cover - jalur fallback diuji lewat venv tanpa ruamel.yaml
+    YAML = None  # type: ignore[assignment]
 
 
 MANIFEST_VERSION = 1
@@ -63,7 +63,7 @@ def project_root() -> Path:
 
 
 # ---------------------------------------------------------------------------
-# YAML subset reader (fallback tanpa PyYAML)
+# YAML subset reader (fallback tanpa ruamel.yaml)
 # ---------------------------------------------------------------------------
 
 
@@ -283,9 +283,9 @@ def _parse_yaml_subset(text: str) -> Any:
 def load_yaml(path: str | Path) -> dict[str, Any]:
     """Baca satu berkas YAML menjadi ``dict``.
 
-    PyYAML dipakai bila tersedia. Bila tidak (mis. venv proyek hanya memasang
-    python-docx/lxml/pytest), pembaca subset bawaan menangani bentuk yang
-    dipakai repositori ini: skalar, daftar inline/blok, dan peta bersarang.
+    ruamel.yaml dipakai bila tersedia. Bila tidak (mis. venv proyek hanya
+    memasang python-docx/lxml/pytest), pembaca subset bawaan menangani bentuk
+    yang dipakai repositori ini: skalar, daftar inline/blok, dan peta bersarang.
     """
 
     source = Path(path)
@@ -295,13 +295,13 @@ def load_yaml(path: str | Path) -> dict[str, Any]:
         raise ManifestError(f"Tidak dapat membaca {source}: {exc}") from exc
 
     try:
-        if yaml is not None:
-            data = yaml.safe_load(text)
+        if YAML is not None:
+            data = YAML(typ="safe").load(text)
         else:
             data = _parse_yaml_subset(text)
     except ManifestError:
         raise
-    except Exception as exc:  # pesan PyYAML tetap ramah pengguna
+    except Exception as exc:  # pesan ruamel.yaml tetap ramah pengguna
         raise ManifestError(f"YAML tidak valid di {source}: {exc}") from exc
 
     if data is None:
@@ -356,7 +356,13 @@ class Format:
     source: Path | None = None
 
     def preset_for(self, structure: str) -> str:
-        return self.presets.get(structure) or self.presets.get("default") or "standard"
+        preset = self.presets.get(structure) or self.presets.get("default")
+        if not preset:
+            raise ManifestError(
+                f"Format '{self.name}' tidak memetakan preset untuk struktur "
+                f"'{structure}'. Tambahkan kunci presets di {self.source or 'format.yml'}."
+            )
+        return preset
 
 
 def load_structure(name: str) -> Structure:

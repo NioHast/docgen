@@ -391,17 +391,18 @@ STYLE_SPEC_DEFAULTS: dict[str, dict[str, object]] = {
 
 
 def load_preset(path: Path) -> dict[str, str]:
-    """Baca preset YAML. PyYAML dipakai bila tersedia; jika tidak, fallback
+    """Baca preset YAML. ruamel.yaml dipakai bila tersedia; jika tidak, fallback
     ke parser skalar datar tanpa dependensi tambahan."""
     try:
-        import yaml  # type: ignore
+        from ruamel.yaml import YAML
+        from ruamel.yaml.error import YAMLError
     except ImportError:
         return parse_flat_yaml(path)
 
     try:
         with path.open("r", encoding="utf-8-sig") as handle:
-            data = yaml.safe_load(handle)
-    except yaml.YAMLError as exc:  # type: ignore[attr-defined]
+            data = YAML(typ="safe").load(handle)
+    except YAMLError as exc:
         raise ValueError(f"YAML preset tidak valid: {path}\n{exc}") from exc
 
     if data is None:
@@ -412,7 +413,7 @@ def load_preset(path: Path) -> dict[str, str]:
 
 
 def parse_flat_yaml(path: Path) -> dict[str, str]:
-    """Parser minimal untuk ``key: value`` datar (fallback tanpa PyYAML)."""
+    """Parser minimal untuk ``key: value`` datar (fallback tanpa ruamel.yaml)."""
     data: dict[str, str] = {}
     with path.open("r", encoding="utf-8-sig") as handle:
         for line_number, raw_line in enumerate(handle, 1):

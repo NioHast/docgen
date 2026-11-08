@@ -13,7 +13,6 @@ AKAR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(AKAR / "tools"))
 
 import check_prose  # noqa: E402
-import periksa_prosa  # noqa: E402
 
 
 def temuan(teks, kode):
@@ -132,14 +131,9 @@ class TesKE13(unittest.TestCase):
 
 class TesSelfLint(unittest.TestCase):
     def test_guide_dan_docs_bersih(self):
-        for nama in ("writing/guide.md", "docs/prosa.md"):
+        for nama in ("writing/guide.md", "docs/dev/prosa.md"):
             teks = (AKAR / nama).read_text(encoding="utf-8")
             self.assertEqual(check_prose.periksa(teks), [], nama)
-
-    def test_alias_lama_meneruskan_periksa(self):
-        self.assertIs(periksa_prosa.periksa, check_prose.periksa)
-        hasil = periksa_prosa.periksa("Dari hasil pengujian menunjukkan bahwa galat turun.")
-        self.assertEqual([x[1] for x in hasil if x[1] == "KE-01"], ["KE-01"])
 
     def test_self_test_tetap_109(self):
         buf = io.StringIO()

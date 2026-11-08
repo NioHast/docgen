@@ -2,8 +2,10 @@
 
 ``build-docx.sh`` selalu mematikan TOC writer Pandoc untuk DOCX agar tidak
 menghasilkan daftar isi ganda. TOC kustom ``docx.lua`` dikendalikan metadata
-``docx_toc``: ``true`` menghasilkan tepat satu DAFTAR ISI setelah sampul,
-``false`` menghasilkan nol daftar isi. Template PDF tetap memakai ``toc``.
+``docx_toc``: ``true`` menghasilkan tepat satu DAFTAR ISI setelah sampul
+(dibungkus ``w:sdt`` gallery "Table of Contents" berisi field TOC tanpa entri
+manual), ``false`` menghasilkan nol daftar isi. PDF diekspor dari DOCX final,
+jadi tidak ada jalur template terpisah.
 """
 
 from __future__ import annotations
@@ -141,6 +143,19 @@ def _toc_fields(root: ElementTree.Element) -> list[str]:
     return [instruction for instruction in instructions if re.search(r"\bTOC\b", instruction)]
 
 
+def _toc_content_controls(root: ElementTree.Element) -> list[ElementTree.Element]:
+    """Kembalikan ``w:sdt`` dengan gallery content control TOC."""
+
+    controls = []
+    for sdt in root.iter(f"{W}sdt"):
+        gallery = sdt.find(
+            f"{W}sdtPr/{W}docPartObj/{W}docPartGallery"
+        )
+        if gallery is not None and gallery.get(f"{W}val") == "Table of Contents":
+            controls.append(sdt)
+    return controls
+
+
 def _assert_no_toc(document: bytes) -> None:
     root = ElementTree.fromstring(document)
     paragraphs = _paragraphs(root)
@@ -150,6 +165,7 @@ def _assert_no_toc(document: bytes) -> None:
     assert "Table of Contents" not in texts
     assert all(not _style_id(paragraph).startswith("TOC") for paragraph in paragraphs)
     assert _toc_fields(root) == []
+    assert _toc_content_controls(root) == []
 
 
 def _assert_exactly_one_toc(
@@ -162,6 +178,24 @@ def _assert_exactly_one_toc(
     assert texts.count("DAFTAR ISI") == 1
     assert "Table of Contents" not in texts
     assert len(_toc_fields(root)) == 1
+
+    controls = _toc_content_controls(root)
+    assert len(controls) == 1, "TOC harus dibungkus satu w:sdt gallery TOC"
+    content = controls[0].find(f"{W}sdtContent")
+    assert content is not None, "w:sdt TOC tidak punya w:sdtContent"
+    content_texts = _texts(_paragraphs(content))
+    assert "DAFTAR ISI" in content_texts, "judul TOC harus berada di dalam w:sdtContent"
+    assert len(_toc_fields(content)) == 1, "field TOC harus berada di dalam w:sdtContent"
+
+    # docx.lua hanya menulis field; entri manual (TOC2/TOC3/PAGEREF) tidak
+    # boleh ada. Word/LibreOffice yang mengisi hasil field.
+    manual_entries = [
+        paragraph
+        for paragraph in paragraphs
+        if _style_id(paragraph) in {"TOC2", "TOC3"}
+    ]
+    assert manual_entries == [], "docx.lua tidak boleh menulis entri TOC manual"
+    assert "PAGEREF" not in document.decode("utf-8")
 
     toc_index = texts.index("DAFTAR ISI")
     assert _style_id(paragraphs[toc_index]) == "TOCHeading"
@@ -196,97 +230,4 @@ def test_docx_tanpa_metadata_tetap_default_tesis(tmp_path: Path) -> None:
     _assert_exactly_one_toc(document)
 
 
-TEMPLATE_BODY = """\
-# KATA PENGANTAR {-}
 
-Teks.
-
-```{=typst}
-#if toc-enabled {
-  pagebreak()
-  daftar-isi()
-  pagebreak()
-}
-#set page(numbering: "1")
-#counter(page).update(1)
-```
-
-# PENDAHULUAN
-
-## Latar Belakang
-
-Teks.
-"""
-
-
-def _build_pdf(tmp_path: Path, toc: bool) -> Path:
-    """Render template.typ ke PDF; lewati bila Typst/pypdf tidak tersedia."""
-
-    pytest.importorskip("pypdf")
-    typst = os.environ.get("TYPST") or shutil.which("typst")
-    if not typst:
-        pytest.skip("typst tidak tersedia")
-
-    source = tmp_path / "body.md"
-    source.write_text(TEMPLATE_BODY, encoding="utf-8")
-    metadata = tmp_path / "metadata.yml"
-    metadata.write_text(
-        "\n".join(
-            [
-                'title: "Uji TOC"',
-                "author:",
-                '  - name: "Penulis"',
-                'lecturer: "Dosen"',
-                'course: "Mata Kuliah"',
-                'institution: "Institusi"',
-                'faculty: "Fakultas"',
-                'year: "2026"',
-                f"toc: {'true' if toc else 'false'}",
-                "",
-            ]
-        ),
-        encoding="utf-8",
-    )
-    output = tmp_path / f"toc-{toc}.pdf"
-    pandoc, env = _pandoc()
-
-    result = subprocess.run(
-        [
-            pandoc,
-            str(source),
-            "--template=template.typ",
-            f"--metadata-file={metadata}",
-            f"--pdf-engine={typst}",
-            "--no-highlight",
-            "-o",
-            str(output),
-        ],
-        cwd=str(ROOT),
-        env=env,
-        check=False,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-    )
-    assert result.returncode == 0, result.stderr
-    assert output.is_file(), "pandoc/typst tidak menghasilkan PDF"
-    return output
-
-
-def test_template_toc_false_tidak_merender_daftar_isi(tmp_path: Path) -> None:
-    output = _build_pdf(tmp_path, toc=False)
-    PdfReader = pytest.importorskip("pypdf").PdfReader
-    text = "\n".join(page.extract_text() or "" for page in PdfReader(str(output)).pages)
-
-    assert "DAFTAR ISI" not in text
-    assert "PENDAHULUAN" in text
-
-
-def test_template_toc_true_merender_daftar_isi(tmp_path: Path) -> None:
-    output = _build_pdf(tmp_path, toc=True)
-    PdfReader = pytest.importorskip("pypdf").PdfReader
-    text = "\n".join(page.extract_text() or "" for page in PdfReader(str(output)).pages)
-
-    assert "DAFTAR ISI" in text
-    assert "PENDAHULUAN" in text

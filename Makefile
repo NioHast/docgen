@@ -1,4 +1,4 @@
-.PHONY: build clean lint-deps lint-prosa watch docx html crossref test test-fast docker-build init view reference-docx finalize-word
+.PHONY: build clean lint-deps lint-prosa lint-captions watch docx html crossref test test-fast docker-build init view reference-docx finalize-word
 
 build:
 	./build.sh
@@ -22,15 +22,21 @@ clean:
 lint-deps:
 	@echo "Checking dependencies..."
 	@command -v pandoc >/dev/null 2>&1 || { echo "ERROR: pandoc not found"; exit 1; }
-	@command -v typst >/dev/null 2>&1 || { echo "ERROR: typst not found"; exit 1; }
-	@command -v magick >/dev/null 2>&1 || command -v convert >/dev/null 2>&1 || { echo "ERROR: ImageMagick (magick/convert) not found"; exit 1; }
+	@command -v python >/dev/null 2>&1 || command -v python3 >/dev/null 2>&1 || { echo "ERROR: python not found"; exit 1; }
 	@echo "All dependencies OK."
+	@echo "PDF export: Windows uses Microsoft Word COM; Debian/Linux uses LibreOffice (soffice)."
 
 lint-prosa:
 	@if [ -x .venv/Scripts/python.exe ]; then PY=.venv/Scripts/python.exe; \
 	elif [ -x .venv/bin/python ]; then PY=.venv/bin/python; \
 	else PY=python; fi; \
-	$$PY tools/periksa_prosa.py chapters/*.md
+	$$PY tools/check_prose.py chapters/*.md
+
+lint-captions:
+	@if [ -x .venv/Scripts/python.exe ]; then PY=.venv/Scripts/python.exe; \
+	elif [ -x .venv/bin/python ]; then PY=.venv/bin/python; \
+	else PY=python; fi; \
+	$$PY tools/check_captions.py chapters/*.md
 
 watch:
 	@command -v inotifywait >/dev/null 2>&1 || { echo "ERROR: inotifywait not found. Install inotify-tools."; exit 1; }
@@ -60,17 +66,18 @@ html:
 		exit 1; \
 	fi; \
 	PRESET=$$(grep -E '^[[:space:]]*(preset|margin_preset):' "$$SRC_DIR/metadata.yml" 2>/dev/null | head -n 1 | cut -d: -f2- | tr -d '\"'\''\r\n '); \
-	PRESET_FILE=""; \
-	if [ -n "$$PRESET" ] && [ -f "presets/$${PRESET}.yml" ]; then \
-		PRESET_FILE="--metadata-file=presets/$${PRESET}.yml"; \
-	elif [ -f "presets/standard.yml" ]; then \
-		PRESET_FILE="--metadata-file=presets/standard.yml"; \
+	if [ -z "$$PRESET" ] || [ ! -f "presets/$${PRESET}.yml" ]; then \
+		echo "ERROR: Preset '$$PRESET' tidak ditemukan di presets/."; \
+		exit 1; \
 	fi; \
+	PRESET_FILE="--metadata-file=presets/$${PRESET}.yml"; \
+	CSL=$$(grep -E '^[[:space:]]*csl:' "presets/$${PRESET}.yml" 2>/dev/null | head -n 1 | cut -d: -f2- | tr -d '\"'\''\r\n '); \
+	CSL=$${CSL:-refs/undip-msi.csl}; \
 	pandoc "$$SRC_DIR"/chapters/bab*.md \
 		$$PRESET_FILE \
 		--metadata-file="$$SRC_DIR/metadata.yml" \
 		--citeproc --bibliography="$$SRC_DIR/references.bib" \
-		--csl="$$SRC_DIR/apa.csl" \
+		--csl="$$CSL" \
 		--metadata=reference-section-title="DAFTAR PUSTAKA" \
 		--top-level-division=chapter \
 		--standalone --toc \

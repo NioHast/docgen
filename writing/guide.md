@@ -133,8 +133,7 @@ python tools/check_prose.py --banding asli.md hasil.md
 python tools/check_prose.py --abaikan SG-04 chapters/*.md
 ```
 
-Label `K` memblokir. Label `G` dan `AI` memberi anjuran. Alias lama
-`tools/periksa_prosa.py` tetap bekerja.
+Label `K` memblokir. Label `G` dan `AI` memberi anjuran.
 
 `AI-20` melaporkan butir berlabel tebal minimal dua kali per berkas. Label
 prosedur dan definisi dikecualikan lewat daftar di `writing/rules.yml`.

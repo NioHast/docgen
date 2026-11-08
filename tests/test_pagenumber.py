@@ -16,11 +16,13 @@ bisa dioverride lewat environment variable LAPORAN_DOCX) dan memeriksa:
     nomor halaman dari baris terakhir PDF;
   - settings.xml tanpa `w:updateFields` dan compatibilityMode 15;
   - style Hyperlink hitam tanpa underline, Heading1/2/3 before/after 0;
-  - style TOC1/TOC2 before/after 0 dan entri TOC tidak bold (TOCHeading
-    tetap bold);
+  - TOC dibungkus `w:sdt` gallery "Table of Contents";
+  - style TOC1/TOC2/TOC3 memakai indent/tab acuan, before/after 0, dan
+    entri TOC tidak bold (TOCHeading tetap bold);
   - caption 10 pt (TableCaption rata kiri, ImageCaption tengah);
-  - tabel data dan tabel kode memakai border ilmiah: garis atas/bawah
-    1 pt (`w:sz 8`), tanpa garis vertikal, padding horizontal 108 twip;
+  - tabel data memakai border ilmiah: garis atas/bawah 1 pt (`w:sz 8`),
+    kiri/kanan `nil`; tabel kode memakai kotak penuh 1 pt di keempat sisi;
+    padding horizontal 108 twip;
   - style kode memakai Courier New 10 pt hitam tanpa shading;
   - field TOC/PAGEREF tidak rusak.
 
@@ -584,6 +586,100 @@ class PageNumberTest(unittest.TestCase):
         self.assertIn('w:fldCharType="begin"', self.document)
         self.assertIn('w:fldCharType="end"', self.document)
 
+    def test_toc_dibungkus_content_control_gallery(self):
+        controls = [
+            match.group(0)
+            for match in re.finditer(r"<w:sdt>.*?</w:sdt>", self.document, re.S)
+            if '<w:docPartGallery w:val="Table of Contents"/>' in match.group(0)
+        ]
+        self.assertEqual(
+            len(controls), 1,
+            "TOC harus dibungkus tepat satu w:sdt gallery Table of Contents",
+        )
+        control = controls[0]
+        content = re.search(r"<w:sdtContent>.*?</w:sdtContent>", control, re.S)
+        self.assertIsNotNone(content, "w:sdt TOC tidak punya w:sdtContent")
+        self.assertIn("DAFTAR ISI", content.group(0))
+        self.assertIn('TOC \\o "1-3"', content.group(0))
+        self.assertGreaterEqual(
+            content.group(0).count("PAGEREF"), 1,
+            "hasil field TOC harus berada di dalam w:sdtContent",
+        )
+
+    def test_style_toc_geometri_acuan(self):
+        tab_pos = int(
+            re.search(r'<w:pgSz\b[^>]*w:w="(\d+)"', self.document).group(1)
+        ) - int(
+            re.search(r'<w:pgMar\b[^>]*w:left="(\d+)"', self.document).group(1)
+        ) - int(
+            re.search(r'<w:pgMar\b[^>]*w:right="(\d+)"', self.document).group(1)
+        )
+        expected = {
+            "TOC1": {"left": 0, "left_tab": None},
+            "TOC2": {"left": 240, "left_tab": 993},
+            "TOC3": {"left": 480, "left_tab": 1418},
+        }
+        for style_id, geometry in expected.items():
+            style = _style_xml(self.styles, style_id)
+            self.assertIsNotNone(style, f"style {style_id} tidak ditemukan")
+
+            tabs = re.search(r"<w:tabs\b[^>]*>.*?</w:tabs>", style, re.S)
+            self.assertIsNotNone(tabs, f"{style_id} tidak punya w:tabs")
+            right = re.search(
+                r'<w:tab\b[^>]*w:val="right"[^>]*w:leader="dot"'
+                r'[^>]*w:pos="(\d+)"',
+                tabs.group(0),
+            )
+            self.assertIsNotNone(
+                right, f"{style_id} tidak punya right dot leader tab"
+            )
+            self.assertEqual(int(right.group(1)), tab_pos)
+            if geometry["left_tab"] is None:
+                self.assertNotIn('w:val="left"', tabs.group(0))
+            else:
+                self.assertIn(
+                    f'<w:tab w:val="left" w:pos="{geometry["left_tab"]}"/>',
+                    tabs.group(0),
+                )
+
+            indent = re.search(r"<w:ind\b[^>]*/>", style)
+            self.assertIsNotNone(indent, f"{style_id} tidak punya w:ind")
+            indent_attrs = _attrs(indent.group(0))
+            self.assertEqual(int(indent_attrs.get("w:left", "0")), geometry["left"])
+            self.assertEqual(indent_attrs.get("w:firstLine"), "0")
+
+            spacing = re.search(r"<w:spacing\b[^>]*/>", style)
+            spacing_attrs = _attrs(spacing.group(0))
+            self.assertEqual(int(spacing_attrs.get("w:before", "0")), 0)
+            self.assertEqual(int(spacing_attrs.get("w:after", "0")), 0)
+            self.assertFalse(_active_bold(style), f"{style_id} tidak boleh bold")
+
+    def test_toc_judul_panjang_tetap_punya_tab_dot(self):
+        tab_pos = int(
+            re.search(r'<w:pgSz\b[^>]*w:w="(\d+)"', self.document).group(1)
+        ) - int(
+            re.search(r'<w:pgMar\b[^>]*w:left="(\d+)"', self.document).group(1)
+        ) - int(
+            re.search(r'<w:pgMar\b[^>]*w:right="(\d+)"', self.document).group(1)
+        )
+        long_title = "Manajemen Dependensi dengan Python Virtual Environment"
+        entries = [
+            paragraph
+            for paragraph in PARA_RE.findall(self.document)
+            if re.search(r'<w:pStyle w:val="TOC[1-9]"/>', paragraph)
+            and long_title in paragraph
+        ]
+        self.assertEqual(len(entries), 1, "entri TOC judul panjang tidak ditemukan")
+        entry = entries[0]
+        tabs = re.search(r"<w:tabs\b[^>]*>.*?</w:tabs>", entry, re.S)
+        self.assertIsNotNone(tabs, "entri TOC judul panjang tidak punya w:tabs")
+        self.assertIn(
+            f'<w:tab w:val="right" w:leader="dot" w:pos="{tab_pos}"/>',
+            tabs.group(0),
+        )
+        self.assertIn("PAGEREF", entry)
+        self.assertRegex(entry, r"<w:t>\d+[ivxlcdm]*</w:t>")
+
     def test_settings_tanpa_update_fields_dan_compat_15(self):
         self.assertNotIn(
             "updateFields", self.settings,
@@ -789,14 +885,30 @@ class PageNumberTest(unittest.TestCase):
                     f"border {side} harus 1 pt (w:sz 8)",
                 )
                 self.assertEqual(borders[side].get("w:color"), "000000")
-            for side in ("left", "right", "insideH", "insideV"):
+            for side in ("insideH", "insideV"):
                 self.assertIsNotNone(
                     borders.get(side), f"border {side} tabel tidak ada"
                 )
                 self.assertEqual(
                     borders[side].get("w:val"), "nil",
-                    f"tabel ilmiah tidak boleh punya garis {side}",
+                    f"tabel tidak boleh punya garis {side}",
                 )
+            for side in ("left", "right"):
+                self.assertIsNotNone(
+                    borders.get(side), f"border {side} tabel tidak ada"
+                )
+                if table["code"]:
+                    self.assertEqual(borders[side].get("w:val"), "single")
+                    self.assertEqual(
+                        borders[side].get("w:sz"), "8",
+                        f"border {side} tabel kode harus 1 pt (w:sz 8)",
+                    )
+                    self.assertEqual(borders[side].get("w:color"), "000000")
+                else:
+                    self.assertEqual(
+                        borders[side].get("w:val"), "nil",
+                        f"tabel data tidak boleh punya garis {side}",
+                    )
             for side in ("left", "right"):
                 self.assertEqual(
                     _table_margin(table, side), "108",

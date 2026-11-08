@@ -17,8 +17,6 @@ Pemakaian:
     python check_prose.py --validasi                    # cek SKILL.md dan rujukannya (opsional)
     python check_prose.py --abaikan SG-04,KL-01 naskah.md  # lewati kode tertentu
 
-Alias lama tools/periksa_prosa.py tetap tersedia dan memanggil skrip ini.
-
 Pada berkas .docx, teks diambil per paragraf dari word/document.xml dan nomor baris laporan
 adalah nomor paragraf. Paragraf bergaya Heading1/Heading2/Heading3 diberi penanda Markdown
 (#, ##, ###) agar batas bagian tetap terbaca seperti pada berkas Markdown.

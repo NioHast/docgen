@@ -14,9 +14,7 @@ margin_left: 4cm
 margin_right: 3cm
 
 # 2. Tipografi & Spasi
-font_family: "Libertinus Serif"
 font_size: 12pt
-line_spacing: 0.75em
 first_line_indent: 1.25cm
 
 # 2b. Gaya paragraf DOCX sesuai acuan/skripsi-asli.docx

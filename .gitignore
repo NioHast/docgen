@@ -1,6 +1,8 @@
 .venv/
+.venv315/
 __pycache__/
 *.pyc
+*.egg-info/
 ~$*
 review/
 acuan/
@@ -11,7 +13,10 @@ Laporan-edited.docx
 Proposal.docx
 Proposal.pdf
 content/**/Tugas.docx
+examples/**/Tugas.docx
+examples/**/Tugas.pdf
 dist/
 .build/
 build/
+.laporan-build/
 .pytest_cache/

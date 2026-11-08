@@ -11,8 +11,7 @@ if [ ! -d "$DIR/tools" ]; then
   exit 1
 fi
 
-# Build DOCX hanya membutuhkan Pandoc; lewati syarat Typst milik build PDF.
-LAPORAN_ENV_SKIP_TYPST=1
+# Build DOCX hanya membutuhkan Pandoc.
 # shellcheck source=tools/env.sh
 source "$DIR/tools/env.sh"
 
@@ -22,7 +21,8 @@ METADATA_NAME="${LAPORAN_METADATA:-metadata.yml}"
 REPORT_NAME="${LAPORAN_REPORT_NAME:-Laporan}"
 
 # Direktori bab: LAPORAN_CHAPTERS eksplisit menang. Bila metadata berada di
-# subdirektori (mis. proposal/metadata.yml), default-nya <dir metadata>/chapters.
+# subdirektori (mis. examples/proposal/metadata.yml), default-nya
+# <dir metadata>/chapters.
 if [ -n "${LAPORAN_CHAPTERS:-}" ]; then
   CHAPTERS_DIR="$LAPORAN_CHAPTERS"
 else
@@ -205,8 +205,9 @@ resolve_tool() {
   return 1
 }
 
-# Cover mengikuti direktori metadata bila tersedia (mis. proposal/cover.md).
-# Default tetap cover.md root agar perilaku tesis tidak berubah.
+# Cover mengikuti direktori metadata bila tersedia (mis.
+# examples/proposal/cover.md). Default tetap cover.md root agar perilaku tesis
+# tidak berubah.
 COVER_SOURCE=""
 case "$METADATA_NAME" in
   */*)
@@ -242,10 +243,8 @@ if ! copy_metadata "$METADATA_NAME" "$TMPDIR"; then
 fi
 METADATA_BASENAME="$(basename "$METADATA_NAME")"
 require_asset "references.bib"
-copy_asset "apa.csl" "$TMPDIR" || true
 require_asset_path "refs/undip-msi.csl"
-# refs/ lainnya (mis. ieee.csl) tetap disalin bila ada agar preset lain bisa
-# memakai CSL alternatif; refs/undip-msi.csl sudah diwajibkan di atas.
+# Seluruh refs/ disalin agar preset lain dapat menambahkan CSL alternatif.
 copy_asset "refs" "$TMPDIR" || true
 require_asset "presets"
 require_asset "scripts"
@@ -270,6 +269,27 @@ if [ -z "$CHAPTER_FILES" ]; then
   echo "ERROR: Tidak ada berkas .md di direktori $CHAPTERS_DIR." >&2
   exit 1
 fi
+
+# Caption tabel/gambar wajib di sumber Markdown. Hentikan build sebelum
+# Pandoc agar daftar temuan menunjuk berkas asli, bukan salinan sementara.
+CAPTIONS_SCRIPT="$TMPDIR/tools/check_captions.py"
+if [ ! -f "$CAPTIONS_SCRIPT" ]; then
+  CAPTIONS_SCRIPT="$(resolve_tool check_captions.py)" || {
+    echo "ERROR: tools/check_captions.py tidak ditemukan." >&2
+    exit 1
+  }
+fi
+CAPTION_FILES=()
+while IFS= read -r f; do
+  [ -n "$f" ] || continue
+  CAPTION_FILES+=("$CHAPTERS_PATH/$(basename "$f")")
+done <<< "$CHAPTER_FILES"
+if ! "$PYTHON_BIN" "$CAPTIONS_SCRIPT" "${CAPTION_FILES[@]}"; then
+  echo "ERROR: Caption tabel/gambar belum lengkap; build dihentikan." >&2
+  echo "       Tambahkan ': Judul tabel' pada tabel dan alt text pada gambar." >&2
+  exit 1
+fi
+
 INPUT_FILES=("$TMPDIR/cover.md")
 while IFS= read -r f; do
   [ -n "$f" ] && INPUT_FILES+=("$f")
@@ -287,12 +307,9 @@ if [ -n "$PRESET_NAME" ]; then
   fi
   PRESET_PATH="$TMPDIR/presets/${PRESET_NAME}.yml"
   PRESET_OPTS=("--metadata-file=$PRESET_PATH")
-elif [ -f "$TMPDIR/presets/standard.yml" ]; then
-  PRESET_PATH="$TMPDIR/presets/standard.yml"
-  PRESET_OPTS=("--metadata-file=$PRESET_PATH")
 else
   echo "ERROR: Preset format tidak ditemukan (metadata: '<kosong>')." >&2
-  echo "       Sediakan presets/standard.yml." >&2
+  echo "       Isi kunci 'preset:' di $METADATA_BASENAME." >&2
   exit 1
 fi
 
@@ -353,24 +370,24 @@ if [ ! -f "$GLOSSARY" ]; then
   exit 1
 fi
 
-ISTILAH_SCRIPT="$TMPDIR/tools/istilah.py"
-if [ ! -f "$ISTILAH_SCRIPT" ]; then
+TERMS_SCRIPT="$TMPDIR/tools/terms.py"
+if [ ! -f "$TERMS_SCRIPT" ]; then
   for base in "${FALLBACK_DIRS[@]}"; do
-    if [ -f "$base/tools/istilah.py" ]; then
-      ISTILAH_SCRIPT="$base/tools/istilah.py"
+    if [ -f "$base/tools/terms.py" ]; then
+      TERMS_SCRIPT="$base/tools/terms.py"
       break
     fi
   done
 fi
-if [ ! -f "$ISTILAH_SCRIPT" ]; then
-  echo "ERROR: tools/istilah.py tidak ditemukan." >&2
+if [ ! -f "$TERMS_SCRIPT" ]; then
+  echo "ERROR: tools/terms.py tidak ditemukan." >&2
   exit 1
 fi
 
 for CHAPTER in "$CHAPTERS_PATH"/*.md; do
   [ -e "$CHAPTER" ] || continue
   CHECK_STATUS=0
-  "$ISTILAH_PYTHON" "$ISTILAH_SCRIPT" check "$CHAPTER" \
+  "$ISTILAH_PYTHON" "$TERMS_SCRIPT" check "$CHAPTER" \
     --glossary "$GLOSSARY" --review-file "$ISTILAH_REVIEW" || CHECK_STATUS=$?
   if [ "$CHECK_STATUS" -eq 2 ]; then
     echo "" >&2
@@ -548,7 +565,7 @@ if [ ! -s "$BLANK_LINES_DOCX" ]; then
 fi
 
 # --- Istilah (setelah format kode/persamaan/numbering/blank lines) ----------
-# istilah.py apply bekerja in-place; pakai salinan agar output tahap sebelumnya
+# terms.py apply bekerja in-place; pakai salinan agar output tahap sebelumnya
 # tetap utuh dan rantai tidak menimpa input di tengah jalan.
 ISTILAH_DOCX="$TMPDIR/Laporan-istilah.docx"
 if ! cp "$BLANK_LINES_DOCX" "$ISTILAH_DOCX"; then
@@ -556,7 +573,7 @@ if ! cp "$BLANK_LINES_DOCX" "$ISTILAH_DOCX"; then
   exit 1
 fi
 
-if ! "$ISTILAH_PYTHON" "$ISTILAH_SCRIPT" apply \
+if ! "$ISTILAH_PYTHON" "$TERMS_SCRIPT" apply \
   "$ISTILAH_DOCX" \
   --glossary "$GLOSSARY" \
   --review-file "$ISTILAH_REVIEW"; then
@@ -564,7 +581,7 @@ if ! "$ISTILAH_PYTHON" "$ISTILAH_SCRIPT" apply \
   exit 1
 fi
 
-if ! "$ISTILAH_PYTHON" "$ISTILAH_SCRIPT" verify \
+if ! "$ISTILAH_PYTHON" "$TERMS_SCRIPT" verify \
   "$ISTILAH_DOCX" \
   --glossary "$GLOSSARY"; then
   echo "ERROR: verify istilah gagal; build dihentikan. Lihat temuan di atas." >&2
@@ -605,7 +622,7 @@ fi
 # --- Verifikasi istilah pada DOCX final setelah finalisasi field -----------
 # Word dapat mengubah run/style saat memperbarui field; verifikasi ulang agar
 # penandaan istilah yang rusak tidak lolos ke manifest.
-if ! "$ISTILAH_PYTHON" "$ISTILAH_SCRIPT" verify \
+if ! "$ISTILAH_PYTHON" "$TERMS_SCRIPT" verify \
   "$REPORT" \
   --glossary "$GLOSSARY"; then
   echo "ERROR: verify istilah setelah finalisasi Word gagal; build dihentikan." >&2

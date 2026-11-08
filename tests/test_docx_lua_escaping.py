@@ -1,14 +1,15 @@
-"""Regresi escaping XML di docx.lua untuk judul heading di daftar isi.
+"""Regresi escaping XML di docx.lua untuk judul heading.
 
-Heading yang memuat ``&``, ``<``, atau ``>`` ditulis docx.lua ke XML mentah
-untuk entri daftar isi. Tanpa escaping, ``word/document.xml`` menjadi tidak
-valid. Tes ini memastikan dokumen tetap well-formed dan teks heading tidak
-berubah.
+Heading yang memuat ``&``, ``<``, atau ``>`` harus tetap menghasilkan
+``word/document.xml`` yang well-formed. Daftar isi sendiri kini hanya berupa
+field TOC native di dalam ``w:sdt``; entri tidak lagi ditulis manual oleh
+``docx.lua``, sehingga tidak ada teks heading yang dimasukkan ke XML mentah.
 """
 
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
 import zipfile
@@ -101,7 +102,7 @@ def test_heading_dengan_karakter_xml_tetap_valid(tmp_path: Path) -> None:
     with zipfile.ZipFile(output) as archive:
         document = archive.read("word/document.xml")
 
-    # Gagal bila XML tidak well-formed (mis. & atau < mentah di entri TOC).
+    # Gagal bila XML tidak well-formed (mis. & atau < mentah di heading).
     root = ElementTree.fromstring(document)
     paragraphs = list(root.iter(f"{W}p"))
 
@@ -114,16 +115,18 @@ def test_heading_dengan_karakter_xml_tetap_valid(tmp_path: Path) -> None:
     assert heading_texts[0].startswith("1.1.")
     assert heading_texts[0].endswith("R&D <Test> > 1")
 
+    # TOC hanya field di dalam content control; tidak ada entri manual yang
+    # menyalin teks heading ke XML mentah.
     toc_texts = [
         _text(paragraph)
         for paragraph in paragraphs
-        if _style_id(paragraph) == "TOC2"
+        if _style_id(paragraph) in {"TOC1", "TOC2", "TOC3"}
     ]
-    assert len(toc_texts) == 1, toc_texts
-    assert toc_texts[0].startswith("1.1.")
-    assert "R&D <Test> > 1" in toc_texts[0]
+    assert all(not text for text in toc_texts), toc_texts
 
     raw = document.decode("utf-8")
     assert "R&amp;D &lt;Test&gt; &gt; 1" in raw
     assert "R&D" not in raw
     assert "<Test>" not in raw
+    assert '<w:docPartGallery w:val="Table of Contents"/>' in raw
+    assert re.search(r"<w:instrText[^>]*>\s*TOC\s", raw) is not None

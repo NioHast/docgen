@@ -139,7 +139,7 @@ def test_tiga_paragraf_source_code_menjadi_satu_tabel(source_docx, tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# 2. Gaya ilmiah: tanpa vertikal, atas/bawah 1 pt, padding 108 twip
+# 2. Kotak penuh: atas/bawah/kiri/kanan 1 pt, inside nil, padding 108 twip
 
 
 def test_border_dan_properti_tabel(source_docx, tmp_path):
@@ -156,8 +156,8 @@ def test_border_dan_properti_tabel(source_docx, tmp_path):
     expected_borders = {
         "top": ("single", "8"),
         "bottom": ("single", "8"),
-        "left": ("nil", None),
-        "right": ("nil", None),
+        "left": ("single", "8"),
+        "right": ("single", "8"),
         "insideH": ("nil", None),
         "insideV": ("nil", None),
     }
@@ -296,7 +296,7 @@ def test_idempoten(source_docx, tmp_path):
 
 
 def test_tabel_kode_lama_dinormalisasi(tmp_path):
-    """Tabel kode dari build lama (kotak penuh) ikut diubah ke gaya ilmiah."""
+    """Tabel kode dari build lama (garis atas/bawah saja) diubah ke kotak penuh."""
 
     document = Document()
     code_style = _ensure_style(document, "Source Code", WD_STYLE_TYPE.PARAGRAPH)
@@ -309,7 +309,7 @@ def test_tabel_kode_lama_dinormalisasi(tmp_path):
     borders = OxmlElement("w:tblBorders")
     for side in ("top", "left", "bottom", "right"):
         border = OxmlElement(f"w:{side}")
-        border.set(qn("w:val"), "single")
+        border.set(qn("w:val"), "nil" if side in ("left", "right") else "single")
         border.set(qn("w:sz"), "4")
         border.set(qn("w:color"), "000000")
         borders.append(border)
@@ -331,9 +331,10 @@ def test_tabel_kode_lama_dinormalisasi(tmp_path):
     table_properties = table.find(qn("w:tblPr"))
     borders = table_properties.find(qn("w:tblBorders"))
     assert borders is not None
-    for side in ("top", "bottom"):
+    for side in ("top", "left", "bottom", "right"):
+        assert borders.find(qn(f"w:{side}")).get(qn("w:val")) == "single"
         assert borders.find(qn(f"w:{side}")).get(qn("w:sz")) == "8"
-    for side in ("left", "right", "insideH", "insideV"):
+    for side in ("insideH", "insideV"):
         assert borders.find(qn(f"w:{side}")).get(qn("w:val")) == "nil"
 
     cell_margins = table_properties.find(qn("w:tblCellMar"))

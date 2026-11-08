@@ -10,11 +10,7 @@ margin_left: 4cm
 margin_right: 3cm
 
 # 2. Tipografi & Spasi
-# line_spacing 0.75em adalah satuan Typst; DOCX memetakannya ke 1,5 baris
-# lewat normal_line_spacing 360.
-font_family: "Times New Roman"
 font_size: 12pt
-line_spacing: 0.75em
 first_line_indent: 1.25cm
 
 # 2b. Gaya paragraf DOCX

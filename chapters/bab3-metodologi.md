@@ -66,7 +66,7 @@ Penomoran judul bab dan sub-bab ditangani melalui fungsi callback `#set heading(
 
 Penanganan khusus diimplementasikan pada `#show heading.where(level: 1)` untuk menghasilkan jeda halaman otomatis (*pagebreak*) dan meletakkan nomor bab ("BAB I") di atas judul bab dengan gaya huruf kapital tebal 12 pt di tengah halaman.
 
-### Algoritma Keseimbangan Judul Sampul (*Balanced Title Splitting*)
+### Algoritma Keseimbangan Judul Sampul
 
 Untuk mencegah terjadinya fenomena kata menggantung sendirian di baris bawah (*orphan words*), template mengintegrasikan fungsi pembagi judul berbasis Dynamic Programming (`balance-split`). Algoritma ini mengevaluasi jumlah karakter per baris dan meminimalisir fungsi biaya (*cost function*) agar panjang tiap baris judul sampul depan simetris menyerupai bentuk piramida terbalik.
 
@@ -101,6 +101,8 @@ Untuk memfasilitasi keberagaman pedoman penulisan skripsi di berbagai perguruan 
 | **Tipografi** | `font_family`, `font_size` | `Times New Roman`, `12pt` | Jenis font dan ukuran teks isi (PDF) |
 | **Spasi & Indentasi** | `line_spacing`, `first_line_indent` | `0.75em`, `1.25cm` | Spasi 1.5 dan indent alinea |
 | **Sampul (Cover)** | `cover_show_lecturer` | `true` / `false` | Pengaturan tampilan dosen pembimbing |
+
+: Skema Parameter Preset Kampus Deklaratif
 
 Sistem ini dijalankan langsung oleh `build.sh` dan `build-docx.sh`: keduanya membaca nama preset dari `metadata.yml`, memuat `presets/<nama-preset>.yml`, lalu menyerahkannya ke `tools/build_style.py` untuk DOCX atau ke template Typst untuk PDF. Bila nama preset tidak ditemukan, build berhenti dengan error dan tidak memakai preset kampus lain secara diam-diam.
 

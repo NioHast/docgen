@@ -6,16 +6,24 @@ asli sehingga tidak tersentuh.
 
 Yang dilakukan:
 
-1. Memberi nomor ``Gambar <bab>.<n>`` / ``Tabel <bab>.<n>`` pada paragraf
+1. Mewajibkan caption pada setiap tabel dan gambar. Caption tabel dibaca dari
+   ``w:tblCaption`` (caption Pandoc) atau paragraf ``TableCaption``; caption
+   gambar dibaca dari paragraf ``ImageCaption`` atau alt text ``wp:docPr``.
+   Caption paragraf yang belum ada dibuat dari sumber tersebut. Bila keduanya
+   kosong, tabel/gambar dicatat sebagai temuan dan CLI keluar dengan kode 1.
+2. Memberi nomor ``Gambar <bab>.<n>`` / ``Tabel <bab>.<n>`` pada paragraf
    caption, dengan nomor bab dari Heading1 terakhir yang berformat
    ``BAB <romawi/arab>`` atau ``<nomor arab>. <judul>`` (proposal), dan
    counter terpisah yang direset per bab.
-2. Memusatkan paragraf gambar, menghapus spasi sebelum/sesudahnya, dan
+3. Menyeragamkan gaya caption: tabel 10 pt regular, rata kiri, di atas tabel,
+   spasi 0/0, single, keepNext; gambar 10 pt regular, rata tengah, di bawah
+   gambar, spasi 0/0, single.
+4. Memusatkan paragraf gambar, menghapus spasi sebelum/sesudahnya, dan
    meng-clamp lebar gambar maksimum ke 14,0 cm (5.040.000 EMU).
-3. Memberi tabel gaya ilmiah: garis atas/bawah 1 pt, garis bawah header
+5. Memberi tabel gaya ilmiah: garis atas/bawah 1 pt, garis bawah header
    0,5 pt, tanpa garis vertikal, tanpa shading. Tabel data memakai cell
    margin kiri/kanan 108 twip serta atas/bawah 0; tabel kode 1x1 memakai
-   108 twip di semua sisi.
+   kotak penuh 1 pt dan 108 twip di semua sisi.
 
 Jalankan:
 
@@ -59,6 +67,7 @@ W_BODY = qn("w:body")
 W_P = qn("w:p")
 W_PPR = qn("w:pPr")
 W_PSTYLE = qn("w:pStyle")
+W_SECTPR = qn("w:sectPr")
 W_T = qn("w:t")
 W_TAB = qn("w:tab")
 W_PTAB = qn("w:ptab")
@@ -86,6 +95,13 @@ W_BEFORE_LINES = qn("w:beforeLines")
 W_AFTER_LINES = qn("w:afterLines")
 W_BEFORE_AUTO = qn("w:beforeAutospacing")
 W_AFTER_AUTO = qn("w:afterAutospacing")
+W_LINE = qn("w:line")
+W_LINE_RULE = qn("w:lineRule")
+W_KEEP_NEXT = qn("w:keepNext")
+W_B = qn("w:b")
+W_BCS = qn("w:bCs")
+W_I = qn("w:i")
+W_ICS = qn("w:iCs")
 
 W_TBL = qn("w:tbl")
 W_TBL_PR = qn("w:tblPr")
@@ -107,10 +123,30 @@ W_SPACE = qn("w:space")
 W_R = qn("w:r")
 W_RPR = qn("w:rPr")
 W_TBL_HEADER = qn("w:tblHeader")
+W_TBL_CAPTION = qn("w:tblCaption")
+
+SCIENTIFIC_TABLE_BORDERS = (
+    ("w:top", "single", "8"),
+    ("w:left", "nil", None),
+    ("w:bottom", "single", "8"),
+    ("w:right", "nil", None),
+    ("w:insideH", "nil", None),
+    ("w:insideV", "nil", None),
+)
+
+CODE_TABLE_BORDERS = (
+    ("w:top", "single", "8"),
+    ("w:left", "single", "8"),
+    ("w:bottom", "single", "8"),
+    ("w:right", "single", "8"),
+    ("w:insideH", "nil", None),
+    ("w:insideV", "nil", None),
+)
 
 WP_INLINE = qn("wp:inline")
 WP_ANCHOR = qn("wp:anchor")
 WP_EXTENT = qn("wp:extent")
+WP_DOCPR = qn("wp:docPr")
 PIC_PIC = qn("pic:pic")
 PIC_SPPR = qn("pic:spPr")
 A_XFRM = qn("a:xfrm")
@@ -276,6 +312,20 @@ TEXT_NODE_SKIP_TAGS = frozenset(
 
 PARAGRAPH_TEXT_SKIP_TAGS = TEXT_NODE_SKIP_TAGS
 
+NON_VISUAL_BODY_TAGS = frozenset(
+    {
+        qn("w:bookmarkStart"),
+        qn("w:bookmarkEnd"),
+        qn("w:proofErr"),
+        qn("w:commentRangeStart"),
+        qn("w:commentRangeEnd"),
+        qn("w:permStart"),
+        qn("w:permEnd"),
+    }
+)
+COVER_STYLE_PREFIX = "cover"
+CAPTION_FONT_HALF_POINTS = "20"  # 10 pt
+
 IMAGE_CAPTION_STYLES = frozenset({"imagecaption"})
 TABLE_CAPTION_STYLES = frozenset({"tablecaption"})
 GENERIC_CAPTION_STYLES = frozenset({"caption"})
@@ -312,11 +362,14 @@ class FormatReport:
     bab_headings: int = 0
     image_captions: int = 0
     table_captions: int = 0
+    created_image_captions: int = 0
+    created_table_captions: int = 0
     skipped_no_chapter: int = 0
     skipped_field: int = 0
     image_paragraphs: int = 0
     images_clamped: int = 0
     tables: int = 0
+    missing_captions: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
     def as_dict(self) -> dict[str, object]:
@@ -325,11 +378,14 @@ class FormatReport:
             "bab_headings": self.bab_headings,
             "image_captions": self.image_captions,
             "table_captions": self.table_captions,
+            "created_image_captions": self.created_image_captions,
+            "created_table_captions": self.created_table_captions,
             "skipped_no_chapter": self.skipped_no_chapter,
             "skipped_field": self.skipped_field,
             "image_paragraphs": self.image_paragraphs,
             "images_clamped": self.images_clamped,
             "tables": self.tables,
+            "missing_captions": list(self.missing_captions),
             "warnings": list(self.warnings),
         }
 
@@ -667,6 +723,48 @@ def _caption_kind(style_id: str | None, text: str) -> str | None:
     return None
 
 
+def _format_caption_paragraph(paragraph: _Element, kind: str) -> None:
+    """Terapkan gaya caption final langsung pada paragraf dan run-nya."""
+
+    ppr = _get_or_add_ppr(paragraph)
+
+    spacing = _get_or_add_child(ppr, "w:spacing", PPR_ORDER)
+    spacing.set(W_BEFORE, "0")
+    spacing.set(W_AFTER, "0")
+    spacing.set(W_LINE, "240")
+    spacing.set(W_LINE_RULE, "auto")
+    for attribute in (
+        W_BEFORE_LINES,
+        W_AFTER_LINES,
+        W_BEFORE_AUTO,
+        W_AFTER_AUTO,
+    ):
+        if spacing.get(attribute) is not None:
+            spacing.set(attribute, "0")
+
+    justification = _get_or_add_child(ppr, "w:jc", PPR_ORDER)
+    justification.set(W_VAL, "left" if kind == "table" else "center")
+
+    if kind == "table":
+        keep_next = _get_or_add_child(ppr, "w:keepNext", PPR_ORDER)
+        keep_next.attrib.pop(W_VAL, None)
+    else:
+        for keep_next in ppr.findall(W_KEEP_NEXT):
+            ppr.remove(keep_next)
+
+    for run in paragraph.iter(W_R):
+        run_properties = run.find(W_RPR)
+        if run_properties is None:
+            run_properties = OxmlElement("w:rPr")
+            run.insert(0, run_properties)
+        for tag in ("w:b", "w:bCs", "w:i", "w:iCs"):
+            attribute = _get_or_add_child(run_properties, tag, RPR_ORDER)
+            attribute.set(W_VAL, "0")
+        for tag in ("w:sz", "w:szCs"):
+            size = _get_or_add_child(run_properties, tag, RPR_ORDER)
+            size.set(W_VAL, CAPTION_FONT_HALF_POINTS)
+
+
 def _process_captions(body: _Element, report: FormatReport) -> None:
     current_chapter: int | None = None
     counters = {"image": 0, "table": 0}
@@ -687,6 +785,8 @@ def _process_captions(body: _Element, report: FormatReport) -> None:
         kind = _caption_kind(style_id, text)
         if kind is None or not text.strip():
             continue
+
+        _format_caption_paragraph(paragraph, kind)
 
         if current_chapter is None:
             report.skipped_no_chapter += 1
@@ -710,6 +810,282 @@ def _process_captions(body: _Element, report: FormatReport) -> None:
             report.image_captions += 1
         else:
             report.table_captions += 1
+
+
+# ---------------------------------------------------------------------------
+# Wajib caption
+
+
+def _style_is_cover(style_id: str | None) -> bool:
+    return _normalize_style_id(style_id).startswith(COVER_STYLE_PREFIX)
+
+
+def _is_empty_layout_paragraph(paragraph: _Element) -> bool:
+    """Paragraf kosong murni yang boleh dihapus untuk menutup jarak caption."""
+
+    if paragraph.tag != W_P:
+        return False
+    if _normalize_style_id(_paragraph_style_id(paragraph)) in (
+        IMAGE_CAPTION_STYLES | TABLE_CAPTION_STYLES | GENERIC_CAPTION_STYLES
+    ):
+        # Paragraf caption kosong adalah placeholder yang harus diisi dari
+        # w:tblCaption/alt text, bukan jarak yang boleh dihapus.
+        return False
+    if paragraph.find(f".//{W_SECTPR}") is not None:
+        return False
+    for tag in NON_VISUAL_BODY_TAGS:
+        if paragraph.find(f".//{tag}") is not None:
+            return False
+    for tag in (
+        W_DRAWING,
+        W_PICT,
+        W_OBJECT,
+        W_FLD_SIMPLE,
+        W_FLD_CHAR,
+        W_INSTR_TEXT,
+    ):
+        if paragraph.find(f".//{tag}") is not None:
+            return False
+    for run in paragraph.iter(W_R):
+        for child in run.iter():
+            if child.tag in (W_TAB, W_PTAB, W_BR, W_CR, W_NO_BREAK_HYPHEN):
+                return False
+    return not _caption_text(paragraph).strip()
+
+
+def _previous_meaningful_sibling(
+    element: _Element,
+) -> tuple[_Element | None, list[_Element]]:
+    """Saudara sebelumnya, melewati elemen non-visual dan paragraf kosong."""
+
+    empties: list[_Element] = []
+    sibling = element.getprevious()
+    while sibling is not None:
+        if sibling.tag in NON_VISUAL_BODY_TAGS:
+            sibling = sibling.getprevious()
+            continue
+        if _is_empty_layout_paragraph(sibling):
+            empties.append(sibling)
+            sibling = sibling.getprevious()
+            continue
+        break
+    return sibling, empties
+
+
+def _next_meaningful_sibling(
+    element: _Element,
+) -> tuple[_Element | None, list[_Element]]:
+    """Saudara berikutnya, melewati elemen non-visual dan paragraf kosong."""
+
+    empties: list[_Element] = []
+    sibling = element.getnext()
+    while sibling is not None:
+        if sibling.tag in NON_VISUAL_BODY_TAGS:
+            sibling = sibling.getnext()
+            continue
+        if _is_empty_layout_paragraph(sibling):
+            empties.append(sibling)
+            sibling = sibling.getnext()
+            continue
+        break
+    return sibling, empties
+
+
+def _remove_elements(elements: Sequence[_Element]) -> None:
+    for element in elements:
+        parent = element.getparent()
+        if parent is not None:
+            parent.remove(element)
+
+
+def _table_caption_text(table: _Element) -> str:
+    tbl_pr = table.find(W_TBL_PR)
+    if tbl_pr is None:
+        return ""
+    caption = tbl_pr.find(W_TBL_CAPTION)
+    if caption is None:
+        return ""
+    return (caption.get(W_VAL) or "").strip()
+
+
+def _image_alt_text(paragraph: _Element) -> str:
+    for drawing in paragraph.iter(W_DRAWING):
+        for doc_pr in drawing.iter(WP_DOCPR):
+            for attribute in ("descr", "title"):
+                value = doc_pr.get(attribute)
+                if value and value.strip():
+                    return value.strip()
+    return ""
+
+
+def _is_caption_paragraph(paragraph: _Element | None, styles: frozenset[str]) -> bool:
+    if paragraph is None or paragraph.tag != W_P:
+        return False
+    return _normalize_style_id(_paragraph_style_id(paragraph)) in styles
+
+
+def _fill_empty_caption(paragraph: _Element, text: str) -> bool:
+    """Isi caption kosong tanpa menyentuh field/bookmark yang sudah ada."""
+
+    if _caption_text(paragraph).strip():
+        return False
+    nodes = _caption_text_nodes(paragraph)
+    if nodes:
+        _set_text(nodes[0], text)
+        for node in nodes[1:]:
+            _set_text(node, "")
+        return True
+
+    run = OxmlElement("w:r")
+    text_node = OxmlElement("w:t")
+    _set_text(text_node, text)
+    run.append(text_node)
+    paragraph.append(run)
+    return True
+
+
+def _make_caption_paragraph(kind: str, text: str) -> _Element:
+    style_id = "TableCaption" if kind == "table" else "ImageCaption"
+    paragraph = OxmlElement("w:p")
+
+    paragraph_properties = OxmlElement("w:pPr")
+    style = OxmlElement("w:pStyle")
+    style.set(W_VAL, style_id)
+    paragraph_properties.append(style)
+    paragraph.append(paragraph_properties)
+
+    run = OxmlElement("w:r")
+    text_node = OxmlElement("w:t")
+    _set_text(text_node, text)
+    run.append(text_node)
+    paragraph.append(run)
+    return paragraph
+
+
+def _missing_table_message(index: int) -> str:
+    return (
+        f"Tabel #{index}: tidak memiliki caption; tambahkan ': Judul tabel' "
+        "pada Markdown."
+    )
+
+
+def _missing_image_message(index: int) -> str:
+    return (
+        f"Gambar #{index}: tidak memiliki alt text/caption; tambahkan "
+        "![deskripsi gambar](path) pada Markdown."
+    )
+
+
+def _ensure_table_caption(table: _Element, index: int, report: FormatReport) -> None:
+    source_text = _table_caption_text(table)
+
+    before, before_empties = _previous_meaningful_sibling(table)
+    if _is_caption_paragraph(before, TABLE_CAPTION_STYLES):
+        assert before is not None
+        if not _caption_text(before).strip() and source_text:
+            if _fill_empty_caption(before, source_text):
+                report.created_table_captions += 1
+        if _caption_text(before).strip():
+            _remove_elements(before_empties)
+            return
+        report.missing_captions.append(_missing_table_message(index))
+        return
+
+    # Dukung caption di bawah tabel (gaya Inggris), lalu pindahkan ke atas
+    # agar jarak caption ke tabel tetap nol.
+    after, after_empties = _next_meaningful_sibling(table)
+    if _is_caption_paragraph(after, TABLE_CAPTION_STYLES):
+        assert after is not None
+        following, _ = _next_meaningful_sibling(after)
+        # Caption yang langsung diikuti tabel lain lebih mungkin milik tabel
+        # berikutnya, bukan caption bawah tabel ini.
+        if following is None or following.tag != W_TBL:
+            if not _caption_text(after).strip() and source_text:
+                _fill_empty_caption(after, source_text)
+            if _caption_text(after).strip():
+                _remove_elements(after_empties)
+                parent = after.getparent()
+                if parent is not None:
+                    parent.remove(after)
+                table.addprevious(after)
+                return
+
+    if not source_text:
+        report.missing_captions.append(_missing_table_message(index))
+        return
+
+    caption = _make_caption_paragraph("table", source_text)
+    table.addprevious(caption)
+    report.created_table_captions += 1
+
+
+def _ensure_image_caption(
+    paragraph: _Element, index: int, report: FormatReport
+) -> None:
+    alt_text = _image_alt_text(paragraph)
+
+    after, after_empties = _next_meaningful_sibling(paragraph)
+    if _is_caption_paragraph(after, IMAGE_CAPTION_STYLES):
+        assert after is not None
+        if not _caption_text(after).strip() and alt_text:
+            if _fill_empty_caption(after, alt_text):
+                report.created_image_captions += 1
+        if _caption_text(after).strip():
+            _remove_elements(after_empties)
+            return
+        report.missing_captions.append(_missing_image_message(index))
+        return
+
+    # Caption gambar di atas gambar (jarang) dipindahkan ke bawah agar
+    # konvensi caption-gambar-tengah-bawah tetap berlaku, selama caption itu
+    # bukan milik gambar sebelumnya.
+    before, before_empties = _previous_meaningful_sibling(paragraph)
+    if _is_caption_paragraph(before, IMAGE_CAPTION_STYLES):
+        assert before is not None
+        previous_object, _ = _previous_meaningful_sibling(before)
+        belongs_to_previous_image = (
+            previous_object is not None
+            and previous_object.tag == W_P
+            and bool(list(previous_object.iter(W_DRAWING)))
+        )
+        if not belongs_to_previous_image:
+            if not _caption_text(before).strip() and alt_text:
+                _fill_empty_caption(before, alt_text)
+            if _caption_text(before).strip():
+                _remove_elements(before_empties)
+                parent = before.getparent()
+                if parent is not None:
+                    parent.remove(before)
+                paragraph.addnext(before)
+                return
+
+    if not alt_text:
+        report.missing_captions.append(_missing_image_message(index))
+        return
+
+    caption = _make_caption_paragraph("image", alt_text)
+    paragraph.addnext(caption)
+    report.created_image_captions += 1
+
+
+def _ensure_captions(body: _Element, report: FormatReport) -> None:
+    """Buat caption dari sumber Pandoc dan catat tabel/gambar tanpa caption."""
+
+    table_index = 0
+    for table in body.iter(W_TBL):
+        if _is_code_table(table):
+            continue
+        table_index += 1
+        _ensure_table_caption(table, table_index, report)
+
+    image_index = 0
+    for paragraph in body.iter(W_P):
+        if not list(paragraph.iter(W_DRAWING)):
+            continue
+        if _style_is_cover(_paragraph_style_id(paragraph)):
+            continue
+        image_index += 1
+        _ensure_image_caption(paragraph, image_index, report)
 
 
 # ---------------------------------------------------------------------------
@@ -817,18 +1193,12 @@ def _new_border(tag: str, value: str, size: str | None = None) -> _Element:
     return border
 
 
-def _set_table_borders(tbl_pr: _Element) -> None:
+def _set_table_borders(tbl_pr: _Element, *, code_table: bool) -> None:
     _remove_direct_children(tbl_pr, W_TBL_BORDERS)
 
     borders = _get_or_add_child(tbl_pr, "w:tblBorders", TBLPR_ORDER)
-    for tag, value, size in (
-        ("w:top", "single", "8"),
-        ("w:left", "nil", None),
-        ("w:bottom", "single", "8"),
-        ("w:right", "nil", None),
-        ("w:insideH", "nil", None),
-        ("w:insideV", "nil", None),
-    ):
+    sides = CODE_TABLE_BORDERS if code_table else SCIENTIFIC_TABLE_BORDERS
+    for tag, value, size in sides:
         borders.append(_new_border(tag, value, size))
 
 
@@ -918,7 +1288,7 @@ def _format_table(table: _Element) -> bool:
     tbl_pr = _get_or_add_tbl_pr(table)
 
     _remove_direct_children(tbl_pr, W_SHD)
-    _set_table_borders(tbl_pr)
+    _set_table_borders(tbl_pr, code_table=is_code_table)
     _set_cell_margins(tbl_pr, vertical=108 if is_code_table else 0)
 
     rows = table.findall(W_TR)
@@ -1003,6 +1373,7 @@ def format_figures(
     report = FormatReport()
     _format_tables(body, report)
     _format_images(body, report)
+    _ensure_captions(body, report)
     _process_captions(body, report)
     _add_warnings(report)
 
@@ -1020,6 +1391,8 @@ def _summary(report: FormatReport) -> str:
     lines = [
         f"Caption gambar bernomor: {report.image_captions}",
         f"Caption tabel bernomor: {report.table_captions}",
+        f"Caption dibuat dari sumber Pandoc: {report.created_image_captions} gambar, "
+        f"{report.created_table_captions} tabel",
         f"Paragraf gambar dirapikan: {report.image_paragraphs} "
         f"({report.images_clamped} gambar di-clamp)",
         f"Tabel diformat: {report.tables}",
@@ -1029,6 +1402,8 @@ def _summary(report: FormatReport) -> str:
         lines.append(f"Caption tanpa bab: {report.skipped_no_chapter}")
     if report.skipped_field:
         lines.append(f"Caption dengan prefix field: {report.skipped_field}")
+    if report.missing_captions:
+        lines.append(f"Tabel/gambar tanpa caption: {len(report.missing_captions)}")
     return "\n".join(lines)
 
 
@@ -1039,8 +1414,9 @@ def _summary(report: FormatReport) -> str:
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "Post-process caption, gambar, dan tabel DOCX: nomor caption per "
-            "bab, clamp gambar 14 cm, dan seragamkan border/margin tabel."
+            "Post-process caption, gambar, dan tabel DOCX: wajibkan caption, "
+            "nomor caption per bab, clamp gambar 14 cm, dan seragamkan "
+            "border/margin tabel."
         )
     )
     parser.add_argument("--docx", type=Path, required=True, help="file DOCX input")
@@ -1066,6 +1442,22 @@ def main(argv: list[str] | None = None) -> int:
     print(_summary(report))
     for warning in report.warnings:
         print(f"PERINGATAN: {warning}", file=sys.stderr)
+
+    if report.missing_captions:
+        print("", file=sys.stderr)
+        print(
+            "ERROR: tabel/gambar berikut tidak memiliki caption:",
+            file=sys.stderr,
+        )
+        for missing in report.missing_captions:
+            print(f"  - {missing}", file=sys.stderr)
+        print(
+            "       Tambahkan ': Judul tabel' pada tabel dan alt text pada "
+            "gambar di Markdown, lalu build ulang.",
+            file=sys.stderr,
+        )
+        return 1
+
     print(f"DOCX: {args.out}")
     return 0
 

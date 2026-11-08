@@ -1,0 +1,6 @@
+# Artefak build contoh single-file tidak dilacak.
+.laporan-build/
+Tugas.docx
+Tugas.pdf
+build/
+review/

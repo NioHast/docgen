@@ -6,7 +6,8 @@ Design system dan pipeline laporan akademik berbasis Markdown untuk skripsi
 UNDIP. Sumber isi adalah `cover.md` dan `chapters/bab*.md`. Dari sumber yang
 sama dihasilkan dua keluaran:
 
-- **PDF** melalui Pandoc dan Typst (`template.typ`);
+- **PDF** melalui ekspor DOCX final (Microsoft Word COM di Windows,
+  LibreOffice headless di Debian/Linux);
 - **DOCX** melalui Pandoc dan `reference.docx` yang digenerate dari preset,
   lalu diproses untuk section, caption, istilah, nomor halaman, dan ID
   paragraf.
@@ -18,24 +19,39 @@ Build DOCX juga menulis `build/manifest.json`: setiap paragraf body mendapat
 bookmark `pNNNN` agar dapat diedit di Word/Adeu dan direkonsiliasi kembali ke
 Markdown.
 
+## Dokumentasi
+
+- [docs/agent/quickstart.md](docs/agent/quickstart.md): lima langkah memilih
+  struktur, menulis, check, build, dan output.
+- [docs/agent/document-format.md](docs/agent/document-format.md): front matter,
+  heading, caption, gambar, Mermaid, dan sitasi.
+- [docs/agent/writing-rules.md](docs/agent/writing-rules.md): ringkasan aturan
+  prosa dan cara menjalankan checker.
+- [docs/agent/troubleshooting.md](docs/agent/troubleshooting.md): masalah
+  caption, `mmdc`, Word/LibreOffice, `ruamel.yaml`, dan path.
+- [docs/dev/architecture.md](docs/dev/architecture.md): arsitektur pipeline
+  untuk pengembang.
+- [docs/README.md](docs/README.md): indeks lengkap `docs/dev/` dan
+  `docs/agent/`.
+
 ## Prasyarat
 
-- **Python 3.12** untuk DOCX dan PDF. Build PDF memakai Python untuk
-  preprocessing glosarium Markdown; `.venv` proyek dipakai bila tersedia.
-- **Windows**: Git for Windows (Git Bash) dengan Pandoc, Typst, dan Microsoft
-  Word native. Semua build dijalankan dari Git Bash. Lihat
-  [docs/deployment/windows.md](docs/deployment/windows.md).
-- **Debian/Linux**: bash dengan Pandoc, Typst, dan LibreOffice native. Word
-  tidak tersedia; finalisasi field Word dilakukan di Windows. Lihat
-  [docs/deployment/debian.md](docs/deployment/debian.md).
-- **Pandoc** dengan `--citeproc`.
-- **Typst** untuk build PDF.
-- **Microsoft Word desktop** (opsional, Windows) untuk finalisasi field
-  otomatis oleh `tools/word_finalize.py` saat `build-docx.sh`; tanpa Word,
-  build tetap berjalan dengan peringatan.
-- **LibreOffice** dan utilitas **Poppler** (`pdftotext`, `pdfinfo`) (opsional)
-  untuk mengisi nomor halaman daftar isi saat build DOCX.
-- **ImageMagick** (opsional) untuk membersihkan alpha PNG saat build PDF.
+- **Python 3.15** untuk DOCX dan ekspor PDF. Pipeline DOCX memakai `.venv`
+  proyek bila tersedia; `tools/export_pdf.py` hanya memakai pustaka standar.
+- **Windows**: Git for Windows (Git Bash) dengan Pandoc dan Microsoft Word
+  native. Word wajib untuk build PDF dan dipakai finalisasi field DOCX. Semua
+  build dijalankan dari Git Bash. Lihat
+  [docs/dev/deployment/windows.md](docs/dev/deployment/windows.md).
+- **Debian/Linux**: bash dengan Pandoc dan LibreOffice native. LibreOffice
+  (`soffice`) wajib untuk ekspor PDF. Word tidak tersedia; finalisasi field
+  Word dilakukan di Windows. Lihat
+  [docs/dev/deployment/debian.md](docs/dev/deployment/debian.md).
+- **Pandoc** dengan `--citeproc` untuk build DOCX.
+- **Microsoft Word desktop** (Windows) untuk ekspor PDF dan finalisasi field
+  otomatis oleh `tools/word_finalize.py`. Tanpa Word, DOCX tetap dapat
+  dibangun, tetapi PDF tidak dapat diekspor di Windows.
+- **LibreOffice** dan utilitas **Poppler** (`pdftotext`, `pdfinfo`) di
+  Debian/Linux untuk ekspor PDF dan pengisian nomor halaman daftar isi DOCX.
 
 ## Instalasi
 
@@ -43,24 +59,26 @@ Dari akar repo, di Git Bash:
 
 ```bash
 python -m venv .venv
-.venv/Scripts/pip install -r tools/requirements.txt
+.venv/Scripts/pip install -r requirements.txt
 ```
 
 Di Debian/Linux:
 
 ```bash
 python3 -m venv .venv
-.venv/bin/pip install -r tools/requirements.txt
+.venv/bin/pip install -r requirements.txt
 ```
 
-`tools/requirements.txt` memasang `python-docx`, `lxml`, dan `pytest`.
+`requirements.txt` memasang `python-docx`, `lxml`, dan `ruamel.yaml`. Untuk tes,
+pasang `requirements-dev.txt` dengan perintah yang sama. Alternatifnya,
+`uv sync` membaca `pyproject.toml` dan memasang dependensi runtime.
 
-Pandoc dan Typst tidak dipasang oleh perintah di atas. Pasang keduanya dan
-pastikan dapat dipanggil dari shell. `build.sh` dan `build-docx.sh` memuat
-`tools/env.sh`: di Windows skrip itu mencari Pandoc/Typst di lokasi instalasi
-Windows dan WinGet, sedangkan di Debian/Linux hanya memakai executable native
-dari `PATH`. `build-docx.sh` melewati syarat Typst karena build DOCX hanya
-membutuhkan Pandoc.
+Pandoc tidak dipasang oleh perintah di atas. Pasang Pandoc dan pastikan dapat
+dipanggil dari shell. `build-docx.sh` memuat `tools/env.sh`: di Windows skrip
+itu mencari Pandoc di lokasi instalasi Windows, sedangkan di Debian/Linux
+hanya memakai executable native dari `PATH`. `build.sh` tidak membutuhkan
+Pandoc bila DOCX sudah ada; bila DOCX belum ada, `build.sh` memanggil
+`build-docx.sh` yang menyiapkan Pandoc.
 
 ## Build
 
@@ -76,7 +94,7 @@ Keluaran utama:
 | Berkas | Keterangan |
 | --- | --- |
 | `Laporan.docx` | Dokumen Word final hasil build dan pascaproses. |
-| `Laporan.pdf` | PDF dari Pandoc + Typst. |
+| `Laporan.pdf` | PDF hasil ekspor `Laporan.docx` melalui Word/LibreOffice. |
 | `build/manifest.json` | Manifest paragraf, bookmark `pNNNN`, dan status `protected`. |
 
 `build-docx.sh` juga menulis `review/istilah-baru.txt` dan berhenti bila masih
@@ -84,19 +102,18 @@ ada penanda `{{?istilah?}}` yang belum diputuskan atau `python-docx`/`lxml`
 belum tersedia. `reference.docx` tidak ditimpa: versi sesuai preset dibuat di
 direktori sementara. Urutan pascaprosesnya adalah `scripts/finalize-docx.py`,
 `tools/format_figures.py`, `tools/normalize_layout.py`, `tools/format_code.py`,
-`tools/format_equations.py`, `tools/istilah.py apply/verify`,
+`tools/format_equations.py`, `tools/terms.py apply/verify`,
 `scripts/docx-pagenum.py`, `tools/word_finalize.py`, lalu
 `tools/add_paragraph_ids.py`.
 
-Build PDF membutuhkan Python 3, glosarium `writing/istilah.tsv`, Pandoc, dan
-Typst. `build.sh` memakai `.venv` native platform bila tersedia (Windows atau
-Linux); bila tidak, ia memakai `python3`/`python` sistem. `LAPORAN_PYTHON`
-dapat menimpa pilihan itu. Sebelum Pandoc,
-`build.sh` menjalankan `tools/istilah_markdown.py` untuk preprocessing istilah
-glosarium ke direktori sementara, lalu menyalin aset, memilih preset dari
-`metadata.yml`, memproses sitasi dengan `refs/undip-msi.csl`, dan menjalankan
-Pandoc dengan `--pdf-engine=typst`. `logo.jpg` wajib ada karena template sampul
-selalu merujuknya; build berhenti dengan error bila aset itu hilang.
+Build PDF mengekspor DOCX final, bukan menjalankan ulang Pandoc. Bila
+`Laporan.docx` belum ada, `build.sh` memanggil `build-docx.sh` lebih dulu;
+bila sudah ada, tahap DOCX dilewati. Setelah itu `tools/export_pdf.py`
+mengekspor PDF dengan Microsoft Word COM di Windows (field dan TOC
+diperbarui sebelum `ExportAsFixedFormat`) atau LibreOffice headless
+(`soffice --headless --convert-to pdf`) di Debian/Linux. Glosarium sudah
+diterapkan ke DOCX oleh `tools/terms.py`; PDF mengekspor DOCX final tanpa
+tahap preprocessing terpisah. `LAPORAN_PYTHON` dapat menimpa pilihan Python.
 
 Gaya sitasi default adalah **author-date alfabetis** dari
 `refs/undip-msi.csl` (turunan APA 7): dua penulis memakai `dan`, tiga penulis
@@ -119,8 +136,10 @@ LAPORAN_METADATA=metadata-proposal.yml LAPORAN_REPORT_NAME=Proposal bash build.s
 | --- | --- |
 | Build DOCX | `bash build-docx.sh` |
 | Build PDF | `bash build.sh` |
-| Lint prosa | `make lint-prosa` |
-| Verifikasi istilah | `$PY tools/istilah.py verify Laporan.docx --glossary writing/istilah.tsv` |
+| Lint prosa | `make lint-prosa` atau `$PY tools/check_prose.py chapters/*.md` |
+| Periksa caption tabel/gambar | `$PY tools/check_captions.py chapters/*.md` |
+| Verifikasi istilah | `$PY tools/terms.py verify Laporan.docx --glossary writing/istilah.tsv` |
+| Ekspor PDF dari DOCX | `$PY tools/export_pdf.py Laporan.docx --output Laporan.pdf` |
 | Tambah ID paragraf | `$PY tools/add_paragraph_ids.py Laporan.docx --out-docx Laporan-ids.docx --manifest build/manifest.json --source-dir chapters` |
 | Rekonsiliasi edit Word | `$PY tools/reconcile.py --docx Laporan-edited.docx --manifest build/manifest.json --chapters chapters --out review/manual-edits.md` |
 | Format caption, gambar, tabel | `$PY tools/format_figures.py --docx Laporan.docx --out Laporan.docx` |
@@ -129,8 +148,10 @@ LAPORAN_METADATA=metadata-proposal.yml LAPORAN_REPORT_NAME=Proposal bash build.s
 Generator `reference.docx`, format caption, istilah, nomor halaman, finalisasi
 field Word, dan ID paragraf sudah dijalankan otomatis oleh `build-docx.sh`.
 Perintah manual di tabel dipakai untuk memeriksa atau mengulang satu tahap
-tanpa build penuh. `make lint-prosa` hanya membaca `chapters/*.md` dan tidak
-dipanggil oleh build.
+tanpa build penuh. `make lint-prosa` memanggil `tools/check_prose.py`, sedangkan
+`make lint-captions` memanggil `tools/check_captions.py`. Keduanya hanya
+membaca `chapters/*.md`; pemeriksaan caption juga dipanggil otomatis oleh
+`build-docx.sh` sebelum Pandoc.
 
 ## Struktur folder
 
@@ -139,11 +160,10 @@ dipanggil oleh build.
 | `chapters/` | Markdown bab (`bab*.md`), diurutkan dengan `sort -V`. |
 | `cover.md` | Kata Pengantar dan arahan daftar isi/gambar/tabel. |
 | `metadata.yml` | Judul, penulis, institusi, dan preset aktif. |
-| `presets/` | Preset format kampus: `undip-skripsi.yml`, `undip-msi-proposal.yml`, dan `standard.yml` sebagai fallback teknis. |
-| `template.typ` | Template Pandoc ke Typst untuk PDF. |
+| `presets/` | Preset format kampus: `undip-skripsi.yml` dan `undip-msi-proposal.yml`. Metadata wajib menyebut preset yang ada. |
 | `docx.lua` | Filter Lua untuk penomoran bab dan sampul DOCX. |
 | `reference.docx` | Basis style DOCX; dibaca `tools/build_style.py` untuk membuat salinan sesuai preset, jangan diedit manual. |
-| `tools/` | Generator style, istilah, caption, ID paragraf, rekonsiliasi, ekspor DOTX, pemeriksa prosa, dan `env.sh`. |
+| `tools/` | `terms.py`, `check_prose.py`, `check_captions.py`, `export_pdf.py`, generator style, format DOCX, ID paragraf, rekonsiliasi, ekspor DOTX, dan `env.sh`. |
 | `scripts/` | Finalisasi section, nomor halaman DOCX, dan pembuat `reference.docx`. |
 | `refs/` | `undip-msi.csl` (turunan APA 7: author-date, `dan`/`dkk.`, daftar pustaka alfabetis). |
 | `writing/` | `istilah.tsv`, `rules.yml`, dan `guide.md` untuk penulisan. |
@@ -151,13 +171,13 @@ dipanggil oleh build.
 | `build/` | `manifest.json` hasil build (gitignored). |
 | `review/` | Laporan review dan daftar istilah baru (gitignored). |
 | `gambar/` | Gambar yang dirujuk bab. |
-| `docs/` | Dokumentasi rinci; indeksnya di `docs/README.md`. |
+| `docs/` | Dokumentasi rinci: `docs/dev/` untuk implementasi dan `docs/agent/` untuk panduan pemakai; indeksnya di `docs/README.md`. |
 | `acuan/` | Bahan acuan lokal dan hasil reverse engineering; tidak dibaca otomatis oleh build. |
 
 ## Alur kerja agent
 
-1. Baca `writing/guide.md` dan `docs/README.md`. Tulis atau ubah isi di
-   `chapters/*.md`, `cover.md`, dan `metadata.yml`; jangan menjadikan DOCX
+1. Baca `writing/guide.md` dan `docs/agent/quickstart.md`. Tulis atau ubah isi
+   di `chapters/*.md`, `cover.md`, dan `metadata.yml`; jangan menjadikan DOCX
    sebagai sumber.
 2. Tandai istilah asing dengan `*...*` bila sudah yakin, atau `{{?istilah?}}`
    bila perlu keputusan. Jangan mengarang sitasi; gunakan `TODO-SITASI:` dan
@@ -198,30 +218,33 @@ dan dokumentasi.
   media dapat dinamai ulang, dan atribut XML redundan dapat dihapus. Tampilan
   tidak diubah secara sengaja, tetapi pemeriksaan yang menuntut XML identik
   bisa gagal pada hasil finalisasi.
-- **Caption belum ada di dokumen contoh.** `chapters/*.md` belum memuat gambar
-  atau caption bernomor. `tools/format_figures.py` sudah tersedia dan
-  dijalankan build, tetapi efek penomoran caption belum terlihat pada
-  `Laporan.docx` contoh.
+- **Caption tabel/gambar wajib.** Setiap tabel Markdown harus memiliki
+  `: Judul tabel` dan setiap gambar harus memiliki alt text non-kosong.
+  `tools/check_captions.py` memeriksa sumber sebelum Pandoc, dan
+  `tools/format_figures.py` menolak DOCX yang masih memiliki tabel/gambar
+  tanpa caption. Build berhenti dengan daftar temuan sampai caption
+  ditambahkan.
 - **`.dotx` tidak bisa dibuka `python-docx`.** Content type part utamanya
   adalah template, bukan dokumen. Edit DOCX sumbernya lalu ekspor ulang.
 - **Edit di Word tidak otomatis masuk ke Markdown.** `reconcile.py` hanya
   menulis laporan `review/manual-edits.md`; penerapan ke `chapters/*.md`
   dilakukan manual. Tanpa rekonsiliasi, build berikutnya akan menimpa edit
   Word.
-- **PDF dan DOCX tidak identik secara piksel.** Typst dan Word menghitung
-  tata letak, font, serta nomor halaman dengan cara berbeda. Periksa kedua
-  keluaran bila isi atau format berubah.
+- **PDF dan DOCX memakai layout yang sama, tetapi mesin ekspor bisa berbeda.**
+  Di Windows PDF diekspor oleh Word, di Debian oleh LibreOffice. Perbedaan
+  kecil pada pemenggalan baris atau font pengganti mungkin muncul bila font
+  tidak tersedia; periksa PDF pada platform rilis.
 - **Nilai preset UNDIP sudah final dan diuji.** Sumber kebenarannya adalah
   `presets/undip-skripsi.yml`; pemetaan DOCX diverifikasi oleh
   `tests/test_build_style.py` dan penomoran heading oleh
-  `tests/test_heading_numbering.py`. Lihat `docs/format-undip.md`.
+  `tests/test_heading_numbering.py`. Lihat `docs/dev/format-undip.md`.
 
 ## Lisensi dan atribusi
 
 Proyek ini turunan `laporan-generator` yang berlisensi MIT. Komponen
-pemeriksa prosa `tools/check_prose.py` (alias lama `tools/periksa_prosa.py`) berasal dari
+pemeriksa prosa `tools/check_prose.py` berasal dari
 [naskah-id](https://github.com/nothinx/naskah-id) (MIT, Copyright (c) 2026
-nothinx); teks lisensinya disertakan di `docs/prosa.md`.
+nothinx); teks lisensinya disertakan di `docs/dev/prosa.md`.
 
 Repo ini tidak memuat berkas `LICENSE` tersendiri di root. Jika kode
 digunakan ulang, pertahankan atribusi dan lisensi komponen asal.

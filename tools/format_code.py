@@ -1,14 +1,14 @@
-"""Format blok kode DOCX sebagai tabel 1x1 bergaya tabel ilmiah.
+"""Format blok kode DOCX sebagai tabel 1x1 berkotak penuh.
 
 Alat ini mencari deretan paragraf berurutan bergaya ``Source Code`` (atau
 ``Verbatim Char``/``HTML Code``/``HTML Preformatted``) lalu menggabungkannya
-menjadi satu tabel 1x1. Tabel memakai garis atas/bawah 1 pt, tanpa garis
-vertikal, dan padding 108 twip di semua sisi. Setiap baris kode menjadi
-paragraf tersendiri di dalam sel, memakai Courier New 10 pt hitam tanpa
-bold/italic, line spacing 1,0, dan spasi sebelum/sesudah 0.
+menjadi satu tabel 1x1. Tabel memakai kotak penuh 1 pt di keempat sisi dan
+padding 108 twip di semua sisi. Setiap baris kode menjadi paragraf tersendiri
+di dalam sel, memakai Courier New 10 pt hitam tanpa bold/italic, line spacing
+1,0, dan spasi sebelum/sesudah 0.
 
 Tabel kode 1x1 yang sudah ada dari build sebelumnya juga dinormalisasi ke
-gaya yang sama agar menjalankan alat pada DOCX final tetap idempoten.
+kotak penuh yang sama agar menjalankan alat pada DOCX final tetap idempoten.
 
 Hanya ``word/document.xml`` yang ditulis ulang. Part lain (header, footer,
 style, numbering, media, relasi, dan section) disalin byte-per-byte dari DOCX
@@ -188,9 +188,9 @@ TEXT_SKIP_TAGS = frozenset(
 
 TABLE_BORDERS = (
     ("w:top", "single", "8"),
-    ("w:left", "nil", None),
+    ("w:left", "single", "8"),
     ("w:bottom", "single", "8"),
-    ("w:right", "nil", None),
+    ("w:right", "single", "8"),
     ("w:insideH", "nil", None),
     ("w:insideV", "nil", None),
 )

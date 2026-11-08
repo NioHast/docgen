@@ -57,6 +57,8 @@ Tabel berikut menyajikan perbandingan komprehensif antara pipeline **Laporan Gen
 | **Konfigurasi Format Kampus** | **1 Baris YAML Preset** | Modifikasi .cls/macro | Setting Style GUI Manual |
 | **Integrasi AI Agent** | **Terbuka (Markdown + CLI)** | Kustom / Manual | Terbatas |
 
+: Perbandingan Kinerja Pipeline Laporan Generator, LaTeX, dan Microsoft Word
+
 ## Hasil Verifikasi melalui Pytest dan Build
 
 Verifikasi fungsional dilakukan dengan menjalankan suite pytest di direktori `tests/` yang terbagi dalam modul-modul pengujian. Modul-modul tersebut memeriksa kesesuaian gaya `reference.docx` dengan spesifikasi acuan, penomoran heading, format caption/gambar/tabel, struktur penomoran halaman DOCX, ekspor DOCX ke DOTX, injeksi ID paragraf dan manifest, penerapan istilah asing, integrasi dengan Pandoc, rekonsiliasi edit manual DOCX ke Markdown, serta pemeriksaan prosa.

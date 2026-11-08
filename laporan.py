@@ -11,8 +11,12 @@ import sys
 from pathlib import Path
 
 _SRC = Path(__file__).resolve().parent / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
+_SRC_TEXT = str(_SRC)
+# Instalasi editable menambahkan src/ ke akhir sys.path. Pindahkan ke depan
+# agar shim ini tidak menimpa paket ``laporan`` dengan berkas laporan.py.
+if _SRC_TEXT in sys.path:
+    sys.path.remove(_SRC_TEXT)
+sys.path.insert(0, _SRC_TEXT)
 
 from laporan.cli import main  # noqa: E402  (path harus disiapkan lebih dulu)
 
