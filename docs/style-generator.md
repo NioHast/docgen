@@ -5,7 +5,7 @@ Setelah preset dipilih dari `metadata.yml` (`preset: "..."`), build menjalankan:
 
 ```bash
 python tools/build_style.py \
-  --preset presets/skripsi-4433.yml \
+  --preset presets/undip-skripsi.yml \
   --out "$TMPDIR/reference-generated.docx"
 ```
 
@@ -50,7 +50,7 @@ Roman**. Override bila perlu:
 
 ```bash
 python tools/build_style.py \
-  --preset presets/skripsi-4433.yml \
+  --preset presets/undip-skripsi.yml \
   --out /tmp/reference-generated.docx \
   --font "Cambria"
 ```
@@ -63,7 +63,7 @@ diubah oleh opsi `--font`.
 1. Pilih preset di `metadata.yml`, misalnya:
 
    ```yaml
-   preset: "skripsi-4433"
+   preset: "undip-skripsi"
    ```
 
    Nama harus sama dengan nama berkas di `presets/` tanpa `.yml`.
@@ -72,14 +72,16 @@ diubah oleh opsi `--font`.
 
    ```bash
    python tools/build_style.py \
-     --preset presets/ui-skripsi.yml \
-     --out /tmp/reference-ui.docx
+     --preset presets/undip-msi-proposal.yml \
+     --out /tmp/reference-msi.docx
    ```
 
 3. Setelah itu jalankan `bash build-docx.sh`. Berkas
    `reference-generated.docx` dibuat di direktori sementara build dan tidak
    menimpa `reference.docx` di repositori.
 
-Preset yang tersedia dapat dilihat di direktori `presets/`. Jangan mengubah
+Preset yang tersedia adalah `undip-skripsi.yml` (tesis/skripsi),
+`undip-msi-proposal.yml` (proposal tesis MSI), dan `standard.yml` sebagai
+fallback teknis bila `metadata.yml` tidak menentukan preset. Jangan mengubah
 `reference.docx` secara manual untuk urusan margin/typografi; ubah preset
 agar perubahan tercatat dan dapat direproduksi.

@@ -1,9 +1,9 @@
 # Formatter Blok Kode (`format_code.py`)
 
 Alat ini mengubah blok kode pada DOCX hasil build menjadi **tabel 1x1
-bergaris**. Pandoc menulis blok kode sebagai paragraf polos berstyle
-`Source Code`; tanpa tabel, batas blok kode tidak terlihat di Word dan kode
-mudah menyatu secara visual dengan paragraf sekitarnya.
+bergaya tabel ilmiah**. Pandoc menulis blok kode sebagai paragraf polos
+berstyle `Source Code`; tanpa tabel, batas blok kode tidak terlihat di Word
+dan kode mudah menyatu secara visual dengan paragraf sekitarnya.
 
 Hanya `word/document.xml` yang ditulis ulang. Part lain (header, footer, style,
 numbering, media, relasi, dan section) disalin byte-per-byte dari DOCX asli.
@@ -19,7 +19,8 @@ file sementara lalu `os.replace`, sehingga input tidak rusak bila proses gagal
 di tengah jalan.
 
 Keluaran CLI memuat jumlah blok kode yang menjadi tabel, jumlah paragraf kode
-yang digabung, dan jumlah baris kode di dalam sel. Kode keluar `0` selama
+yang digabung, jumlah baris kode di dalam sel, dan jumlah tabel kode ilmiah
+yang dinormalisasi. Kode keluar `0` selama
 dokumen berhasil diproses, termasuk ketika tidak ada blok kode. Kesalahan input
 (bukan DOCX/ZIP, `word/document.xml` tidak ada, atau file tidak dapat ditulis)
 menghasilkan kode keluar `1`.
@@ -71,7 +72,8 @@ Tabel yang dihasilkan selalu 1 baris x 1 kolom:
 | Properti | Nilai |
 | --- | --- |
 | Lebar tabel | 100% lebar konten (`w:tblW` `w:type="pct"`, `w:w="5000"`) |
-| Border atas/bawah/kiri/kanan | `single`, `w:sz="4"` (0,5 pt), `w:color="000000"` |
+| Border atas/bawah | `single`, `w:sz="8"` (1 pt), `w:color="000000"` |
+| Border kiri/kanan/insideH/insideV | `nil` (tanpa garis vertikal) |
 | Cell margin atas/bawah | 108 twip (`w:type="dxa"`) |
 | Cell margin kiri/kanan | 108 twip (`w:type="dxa"`) |
 | Shading | tidak ada (`w:shd` tidak ditulis) |
@@ -81,6 +83,10 @@ Cell margin ditulis di `w:tblCellMar` dan `w:tcMar` agar nilai yang sama tetap
 berlaku bila tabel disalin ke dokumen lain. `w:gridCol` dan `w:tcW` dihitung
 dari lebar halaman dikurangi margin kiri/kanan section; lebar tampilan tetap
 mengikuti 100% lebar konten.
+
+Tabel kode 1x1 yang sudah ada dari build sebelumnya juga dinormalisasi ke
+gaya ilmiah yang sama. Normalisasi ini idempoten: menjalankan alat dua kali
+menghasilkan `word/document.xml` yang identik.
 
 ## Format isi sel
 

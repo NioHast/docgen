@@ -557,13 +557,9 @@ def fix_document_styles(styles):
         ],
     )
 
-    # Satu baris kosong sebelum subbab/subbab-sub. Jarak ke subbab pertama
-    # berasal dari before Heading2, bukan dari after Heading1.
-    for style_id, before, after in (
-        ("Heading1", 0, 0),
-        ("Heading2", 240, 0),
-        ("Heading3", 240, 0),
-    ):
+    # Jarak antarsubbab memakai paragraf kosong fisik (insert_blank_lines).
+    # Style Heading1/2/3 tidak boleh membawa before/after tambahan.
+    for style_id in ("Heading1", "Heading2", "Heading3"):
         styles, _ = patch_style_block(
             styles,
             style_id,
@@ -571,8 +567,8 @@ def fix_document_styles(styles):
                 (
                     "spacing",
                     {
-                        "before": before,
-                        "after": after,
+                        "before": 0,
+                        "after": 0,
                         "line": 360,
                         "lineRule": "auto",
                     },

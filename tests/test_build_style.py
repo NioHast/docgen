@@ -173,8 +173,8 @@ def test_undip_matches_reference_spec(generated: Path) -> None:
         assert on_off(get_rpr(heading), "b") is True
         assert val(get_rpr(heading), "color") == "000000"
         assert_alignment(heading, "both")
-        # Satu baris kosong (12 pt = 240 twip) sebelum subbab.
-        assert_spacing(heading, before=240, after=0, line=360)
+        # Jarak antarsubbab memakai paragraf kosong fisik, bukan spacing style.
+        assert_spacing(heading, before=0, after=0, line=360)
         assert on_off(get_ppr(heading), "keepNext") is True
         assert val(get_ppr(heading), "outlineLvl") == outline_level
         assert_indent(heading, left=709, hanging=709)
@@ -188,7 +188,7 @@ def test_undip_matches_reference_spec(generated: Path) -> None:
 
     image_caption = get_style(styles, "ImageCaption")
     assert_font(image_caption, "Times New Roman")
-    assert_size(image_caption, 24)
+    assert_size(image_caption, 20)
     assert on_off(get_rpr(image_caption), "b") is False
     assert on_off(get_rpr(image_caption), "i") is False
     assert_alignment(image_caption, "center")
@@ -196,7 +196,7 @@ def test_undip_matches_reference_spec(generated: Path) -> None:
 
     table_caption = get_style(styles, "TableCaption")
     assert_font(table_caption, "Times New Roman")
-    assert_size(table_caption, 24)
+    assert_size(table_caption, 20)
     assert on_off(get_rpr(table_caption), "b") is False
     assert on_off(get_rpr(table_caption), "i") is False
     assert_alignment(table_caption, "left")

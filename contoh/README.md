@@ -76,13 +76,18 @@ di dalam folder `contoh/`.
 
 ## Peringatan
 
-**Jangan menjalankan `finalize-word` pada berkas contoh.** Baik
-`make finalize-word` maupun `tools/update_fields.ps1` membuka dokumen di
-Microsoft Word lalu menyimpannya ulang. Word dapat menggabungkan part
-header/footer, menamai ulang media, dan menghapus atribut XML yang dianggap
-redundan, sehingga `contoh-skripsi.docx` tidak lagi byte-identik dengan
-`Laporan.docx` dan pemeriksaan bookmark/isi bisa gagal. Finalisasi hanya untuk
-`Laporan.docx` di root setelah build, bukan untuk salinan di `contoh/`.
+**`contoh-skripsi.docx` harus disalin dari `Laporan.docx` setelah build.**
+Jalankan `bash build-docx.sh` di root repositori, lalu salin hasilnya dengan
+`cp Laporan.docx contoh/contoh-skripsi.docx`. Salinan lama tidak otomatis
+mengikuti build terbaru.
+
+**Jangan mengedit `contoh-skripsi.docx` secara manual.** Sumber kebenaran tetap
+Markdown di `chapters/`. Jika isi contoh perlu berubah, ubah `chapters/`, build
+ulang, lalu salin lagi hasilnya.
+
+**Finalisasi Word sudah otomatis.** `build-docx.sh` menjalankan finalisasi field
+Word melalui `tools/word_finalize.py` sebelum manifest dibuat, jadi tidak ada
+langkah tambahan yang perlu dijalankan.
 
 ## Yang belum ada di contoh
 

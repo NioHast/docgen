@@ -96,15 +96,13 @@ Untuk memfasilitasi keberagaman pedoman penulisan skripsi di berbagai perguruan 
 
 | Kategori Parameter | Kunci Konfigurasi | Contoh Nilai | Keterangan |
 |:---|:---|:---|:---|
-| **Identitas** | `preset_id`, `name` | `ui-skripsi`, `itb-ta` | Identifikasi unik dan nama institusi |
+| **Identitas** | `preset_id`, `name` | `undip-skripsi`, `undip-msi-proposal` | Identifikasi unik dan nama institusi |
 | **Geometri Margin** | `margin_top`, `margin_left` | `4cm`, `3cm`, `2.5cm` | Batas tepi kertas A4 |
 | **Tipografi** | `font_family`, `font_size` | `Times New Roman`, `12pt` | Jenis font dan ukuran teks isi (PDF) |
 | **Spasi & Indentasi** | `line_spacing`, `first_line_indent` | `0.75em`, `1.25cm` | Spasi 1.5 dan indent alinea |
 | **Sampul (Cover)** | `cover_show_lecturer` | `true` / `false` | Pengaturan tampilan dosen pembimbing |
 
-Sistem ini didukung oleh dua utilitas otomatis:
-1. **`scripts/scan-preset.py`**: Mengekstraksi aturan margin, spasi, dan font secara otomatis dari berkas PDF Buku Pedoman Skripsi kampus baru menggunakan regex heuristik.
-2. **`scripts/validate-preset.py`**: Melakukan validasi sintaks dan verifikasi skema pada seluruh berkas preset YAML sebelum digunakan pada proses kompilasi.
+Sistem ini dijalankan langsung oleh `build.sh` dan `build-docx.sh`: keduanya membaca nama preset dari `metadata.yml`, memuat `presets/<nama-preset>.yml`, lalu menyerahkannya ke `tools/build_style.py` untuk DOCX atau ke template Typst untuk PDF. Bila nama preset tidak ditemukan, build berhenti dengan error dan tidak memakai preset kampus lain secara diam-diam.
 
 ## Metodologi Pengujian dan Verifikasi
 

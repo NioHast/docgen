@@ -20,11 +20,11 @@ preset ``<prefix>_<field>`` (mis. ``heading1_font_size: 11pt``):
   - Normal       : TNR 12 pt, line 360, before/after 0, jc both, firstLine 709
   - Heading1     : TNR 12 pt bold hitam, center, 0/0, line 360, keepNext,
                    keepLines, outlineLvl 0
-  - Heading2/3   : TNR 12 pt bold hitam, both, before 240 twip (satu baris),
-                   after 0, line 360, keepNext, hanging 709/709, outlineLvl 1/2
+  - Heading2/3   : TNR 12 pt bold hitam, both, before/after 0, line 360,
+                   keepNext, hanging 709/709, outlineLvl 1/2
   - TOCHeading   : TNR 12 pt bold, center, 0/0, line 360
-  - ImageCaption : TNR 12 pt tegak, center, 0/0, line 240
-  - TableCaption : TNR 12 pt tegak, left, 0/0, line 240, keepNext
+  - ImageCaption : TNR 10 pt tegak, center, 0/0, line 240
+  - TableCaption : TNR 10 pt tegak, left, 0/0, line 240, keepNext
   - SourceCode / VerbatimChar / HTMLCode / HTMLPreformatted:
                    Courier New 10 pt hitam, tanpa shading, kiri
   - Hyperlink    : hitam 000000, tanpa garis bawah
@@ -44,9 +44,9 @@ Catatan pemetaan yang disengaja:
     (kecuali SourceCode, yang tetap memakai font monospace).
 
 Contoh:
-  python tools/build_style.py --preset presets/skripsi-4433.yml \\
+  python tools/build_style.py --preset presets/undip-skripsi.yml \\
       --out /tmp/reference-generated.docx
-  python tools/build_style.py --preset presets/skripsi-4433.yml \\
+  python tools/build_style.py --preset presets/undip-skripsi.yml \\
       --out /tmp/reference-generated.docx --font "Cambria"
 """
 
@@ -224,8 +224,8 @@ STYLE_SPEC_DEFAULTS: dict[str, dict[str, object]] = {
         "bold": True,
         "color": "000000",
         "alignment": "both",
-        # 240 twip = 12 pt = satu baris kosong sebelum subbab.
-        "space_before": "12pt",
+        # Jarak antarsubbab disediakan paragraf kosong fisik (insert_blank_lines).
+        "space_before": "0pt",
         "space_after": "0pt",
         "line_spacing": 360,
         "keep_next": True,
@@ -241,8 +241,8 @@ STYLE_SPEC_DEFAULTS: dict[str, dict[str, object]] = {
         "bold": True,
         "color": "000000",
         "alignment": "both",
-        # 240 twip = 12 pt = satu baris kosong sebelum sub-subbab.
-        "space_before": "12pt",
+        # Jarak antarsub-subbab disediakan paragraf kosong fisik.
+        "space_before": "0pt",
         "space_after": "0pt",
         "line_spacing": 360,
         "keep_next": True,
@@ -266,7 +266,7 @@ STYLE_SPEC_DEFAULTS: dict[str, dict[str, object]] = {
     "ImageCaption": {
         "prefix": "image_caption",
         "font_family": DEFAULT_DOCX_FONT,
-        "font_size": "12pt",
+        "font_size": "10pt",
         "bold": False,
         "italic": False,
         "alignment": "center",
@@ -277,7 +277,7 @@ STYLE_SPEC_DEFAULTS: dict[str, dict[str, object]] = {
     "TableCaption": {
         "prefix": "table_caption",
         "font_family": DEFAULT_DOCX_FONT,
-        "font_size": "12pt",
+        "font_size": "10pt",
         "bold": False,
         "italic": False,
         "alignment": "left",

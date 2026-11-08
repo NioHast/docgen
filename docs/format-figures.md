@@ -99,24 +99,42 @@ tetap sebanding. Gambar yang sudah ≤ 14,0 cm tidak diubah.
 
 ## 3. Tabel
 
-Berlaku untuk semua `w:tbl` di body, termasuk tabel bersarang.
+Berlaku untuk semua `w:tbl` di body, termasuk tabel bersarang. Tabel kode
+1x1 yang dihasilkan `format_code.py` juga memakai border ilmiah yang sama,
+tetapi padding atas/bawahnya tetap 108 twip (bukan 0) dan tidak diberi border
+bawah header.
 
 ### Border
+
+Tabel memakai gaya ilmiah: garis atas/bawah 1 pt, garis bawah header 0,5 pt,
+tanpa garis vertikal, dan tanpa garis horizontal antarbaris body.
 
 `w:tblBorders` lama diganti dengan enam border baru:
 
 | Sisi | `w:val` | `w:sz` | `w:color` |
 | --- | --- | --- | --- |
-| `top` | `single` | `4` | `000000` |
-| `left` | `single` | `4` | `000000` |
-| `bottom` | `single` | `4` | `000000` |
-| `right` | `single` | `4` | `000000` |
-| `insideH` | `single` | `4` | `000000` |
-| `insideV` | `single` | `4` | `000000` |
+| `top` | `single` | `8` | `000000` |
+| `left` | `nil` | — | `000000` |
+| `bottom` | `single` | `8` | `000000` |
+| `right` | `nil` | — | `000000` |
+| `insideH` | `nil` | — | `000000` |
+| `insideV` | `nil` | — | `000000` |
 
-`w:sz="4"` berarti 0,5 pt. Elemen border dibuat baru sehingga atribut tema
+`w:sz="8"` berarti 1 pt. Elemen border dibuat baru sehingga atribut tema
 (`w:themeColor`, `w:themeTint`, dan sejenisnya) dari border lama tidak
 tersisa.
+
+### Header tabel
+
+Baris header dideteksi dari `w:tblHeader` pada `w:trPr`. Bila penanda itu
+tidak ada, baris pertama tabel multi-baris dianggap header. Pada baris header:
+
+- `w:b` dan `w:bCs` setiap run diset `w:val="0"` agar teks header tidak bold;
+- sel header terakhir sebelum body mendapat `w:tcBorders/w:bottom`
+  `single`, `w:sz="4"`, `w:color="000000"`.
+
+Border bawah header ditulis per sel agar hanya berlaku di bawah header, bukan
+di antara semua baris body.
 
 ### Shading
 
@@ -130,16 +148,18 @@ level run/paragraf, bukan tabel/baris/sel.
 
 | Sisi | Nilai |
 | --- | --- |
-| `top` | `108` twip |
-| `bottom` | `108` twip |
-| `left` | `0` |
-| `right` | `0` |
+| `top` | `0` |
+| `bottom` | `0` |
+| `left` | `108` twip |
+| `right` | `108` twip |
 
-`w:tcMar` per sel dan `w:tblCellMar` di `w:tblPrEx` dihapus agar margin tabel
+Khusus tabel kode 1x1, `top` dan `bottom` juga 108 twip. `w:tcMar` per sel dan
+`w:tblCellMar` di `w:tblPrEx` dihapus agar margin tabel
 benar-benar berlaku seragam. `w:tcBorders` per sel dan `w:tblBorders` di
-`w:tblPrEx` juga dihapus agar tidak menimpa border tabel. Isi sel, lebar
-kolom (`w:tblGrid`, `w:tcW`), `w:jc` tabel, dan alignment paragraf di dalam
-sel tidak diubah.
+`w:tblPrEx` juga dihapus agar tidak menimpa border tabel; satu-satunya
+pengecualian adalah border bawah sel header. Isi sel, lebar kolom
+(`w:tblGrid`, `w:tcW`), `w:jc` tabel, dan alignment paragraf di dalam sel
+tidak diubah.
 
 ## Keamanan dan idempotensi
 
@@ -189,8 +209,9 @@ Fixture dibuat ulang di direktori sementara oleh
 1. nomor caption per bab dan reset counter;
 2. penghapusan prefix lama serta idempotensi dua kali jalan;
 3. clamp gambar 20 cm → 14 cm dengan tinggi proporsional;
-4. border tabel 0,5 pt, tanpa shading, margin sel, dan isi/lebar/alignment
-   tetap;
+4. border ilmiah (atas/bawah 1 pt, vertikal `nil`), border bawah header
+   0,5 pt, header tidak bold, tanpa shading, margin sel, serta
+   isi/lebar/alignment tetap;
 5. dokumen tanpa Heading1 tidak dinomori dan tidak crash;
 6. ZIP hasil valid dan dapat dibuka python-docx;
 7. part selain `document.xml` tidak berubah;

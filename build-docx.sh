@@ -64,8 +64,6 @@ if [ -n "$1" ]; then
   OUTDIR="$(cd "$1" && pwd)"
 elif [ -f "$(resolve_path "$METADATA_NAME" "$(pwd)")" ] && [ -d "$(resolve_path "$CHAPTERS_DIR" "$(pwd)")" ]; then
   OUTDIR="$(pwd)"
-elif [ -f "$(resolve_path "$METADATA_NAME" "$DIR/templates/default")" ] && [ -d "$(resolve_path "$CHAPTERS_DIR" "$DIR/templates/default")" ]; then
-  OUTDIR="$DIR/templates/default"
 else
   OUTDIR="$DIR"
 fi
@@ -108,7 +106,6 @@ trap 'rm -rf "$TMPDIR"' EXIT
 
 FALLBACK_DIRS=(
   "$OUTDIR"
-  "$DIR/templates/default"
   "$DIR"
 )
 
@@ -383,7 +380,7 @@ for CHAPTER in "$CHAPTERS_PATH"/*.md; do
   fi
 done
 
-"${LAPORAN_PANDOC:-pandoc}" \
+if ! "${LAPORAN_PANDOC:-pandoc}" \
   "${INPUT_FILES[@]}" \
   "${PRESET_OPTS[@]}" \
   --metadata-file="$METADATA_BASENAME" \
@@ -394,7 +391,10 @@ done
   --top-level-division=chapter \
   --reference-doc="$GENERATED_REFERENCE" \
   --lua-filter="docx.lua" \
-  -o "$TMPDIR/Laporan-tmp.docx" 2>&1
+  -o "$TMPDIR/Laporan-tmp.docx" 2>&1; then
+  echo "ERROR: Pandoc gagal menghasilkan DOCX; build dihentikan." >&2
+  exit 1
+fi
 
 FINALIZE_SCRIPT="$TMPDIR/scripts/finalize-docx.py"
 PAGENUM_SCRIPT="$TMPDIR/scripts/docx-pagenum.py"
@@ -416,7 +416,18 @@ if [ ! -f "$PAGENUM_SCRIPT" ]; then
 fi
 
 export PYTHONUTF8=1
-"$PYTHON_BIN" "$FINALIZE_SCRIPT" "$TMPDIR/Laporan-tmp.docx" "$TMPDIR/Laporan-sect.docx"
+if [ ! -f "$FINALIZE_SCRIPT" ]; then
+  echo "ERROR: scripts/finalize-docx.py tidak ditemukan." >&2
+  exit 1
+fi
+if ! "$PYTHON_BIN" "$FINALIZE_SCRIPT" "$TMPDIR/Laporan-tmp.docx" "$TMPDIR/Laporan-sect.docx"; then
+  echo "ERROR: finalize-docx.py gagal; build dihentikan." >&2
+  exit 1
+fi
+if [ ! -s "$TMPDIR/Laporan-sect.docx" ]; then
+  echo "ERROR: finalize-docx.py tidak menghasilkan DOCX: $TMPDIR/Laporan-sect.docx" >&2
+  exit 1
+fi
 
 # --- Caption/gambar/tabel (setelah finalize, sebelum istilah) --------------
 FIGURES_SCRIPT="$TMPDIR/tools/format_figures.py"
@@ -487,11 +498,40 @@ if [ ! -s "$EQUATIONS_DOCX" ]; then
   exit 1
 fi
 
-# --- Istilah (setelah format kode/persamaan) -------------------------------
+# --- Numbering daftar dan paragraf kosong ----------------------------------
+NUMBERING_SCRIPT="$(resolve_tool format_numbering.py)" || {
+  echo "ERROR: tools/format_numbering.py tidak ditemukan." >&2
+  exit 1
+}
+NUMBERING_DOCX="$TMPDIR/Laporan-numbering.docx"
+if ! "$PYTHON_BIN" "$NUMBERING_SCRIPT" --docx "$EQUATIONS_DOCX" --out "$NUMBERING_DOCX"; then
+  echo "ERROR: format_numbering.py gagal; build dihentikan." >&2
+  exit 1
+fi
+if [ ! -s "$NUMBERING_DOCX" ]; then
+  echo "ERROR: format_numbering.py tidak menghasilkan DOCX: $NUMBERING_DOCX" >&2
+  exit 1
+fi
+
+BLANK_LINES_SCRIPT="$(resolve_tool insert_blank_lines.py)" || {
+  echo "ERROR: tools/insert_blank_lines.py tidak ditemukan." >&2
+  exit 1
+}
+BLANK_LINES_DOCX="$TMPDIR/Laporan-blank.docx"
+if ! "$PYTHON_BIN" "$BLANK_LINES_SCRIPT" --docx "$NUMBERING_DOCX" --out "$BLANK_LINES_DOCX"; then
+  echo "ERROR: insert_blank_lines.py gagal; build dihentikan." >&2
+  exit 1
+fi
+if [ ! -s "$BLANK_LINES_DOCX" ]; then
+  echo "ERROR: insert_blank_lines.py tidak menghasilkan DOCX: $BLANK_LINES_DOCX" >&2
+  exit 1
+fi
+
+# --- Istilah (setelah format kode/persamaan/numbering/blank lines) ----------
 # istilah.py apply bekerja in-place; pakai salinan agar output tahap sebelumnya
 # tetap utuh dan rantai tidak menimpa input di tengah jalan.
 ISTILAH_DOCX="$TMPDIR/Laporan-istilah.docx"
-if ! cp "$EQUATIONS_DOCX" "$ISTILAH_DOCX"; then
+if ! cp "$BLANK_LINES_DOCX" "$ISTILAH_DOCX"; then
   echo "ERROR: Gagal menyalin DOCX ke $ISTILAH_DOCX." >&2
   exit 1
 fi
@@ -511,6 +551,10 @@ if ! "$ISTILAH_PYTHON" "$ISTILAH_SCRIPT" verify \
   exit 1
 fi
 
+if [ ! -f "$PAGENUM_SCRIPT" ]; then
+  echo "ERROR: scripts/docx-pagenum.py tidak ditemukan." >&2
+  exit 1
+fi
 if ! "$PYTHON_BIN" "$PAGENUM_SCRIPT" "$ISTILAH_DOCX" "$REPORT"; then
   echo "ERROR: docx-pagenum.py gagal; build dihentikan." >&2
   exit 1

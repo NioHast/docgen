@@ -139,7 +139,7 @@ def test_tiga_paragraf_source_code_menjadi_satu_tabel(source_docx, tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# 2. Border sz=4 di empat sisi, tanpa shading, lebar 100%, margin 108 twip
+# 2. Gaya ilmiah: tanpa vertikal, atas/bawah 1 pt, padding 108 twip
 
 
 def test_border_dan_properti_tabel(source_docx, tmp_path):
@@ -153,16 +153,26 @@ def test_border_dan_properti_tabel(source_docx, tmp_path):
     assert width.get(qn("w:w")) == "5000"
     assert width.get(qn("w:type")) == "pct"
 
+    expected_borders = {
+        "top": ("single", "8"),
+        "bottom": ("single", "8"),
+        "left": ("nil", None),
+        "right": ("nil", None),
+        "insideH": ("nil", None),
+        "insideV": ("nil", None),
+    }
     borders = table_properties.find(qn("w:tblBorders"))
     assert borders is not None
-    for side in ("top", "left", "bottom", "right"):
+    assert len(borders) == len(expected_borders)
+    for side, (value, size) in expected_borders.items():
         border = borders.find(qn(f"w:{side}"))
         assert border is not None, f"border {side} tidak ada"
-        assert border.get(qn("w:val")) == "single"
-        assert border.get(qn("w:sz")) == "4"
+        assert border.get(qn("w:val")) == value
+        assert border.get(qn("w:sz")) == size
         assert border.get(qn("w:color")) == "000000"
 
     assert table.findall(f".//{qn('w:shd')}") == []
+    assert table.findall(f".//{qn('w:tcBorders')}") == []
 
     cell_margins = table_properties.find(qn("w:tblCellMar"))
     assert cell_margins is not None
@@ -283,6 +293,53 @@ def test_idempoten(source_docx, tmp_path):
     in_place = run_tool(first, first)
     assert len(Document(in_place).tables) == 1
     assert document_xml(in_place) == document_xml(first)
+
+
+def test_tabel_kode_lama_dinormalisasi(tmp_path):
+    """Tabel kode dari build lama (kotak penuh) ikut diubah ke gaya ilmiah."""
+
+    document = Document()
+    code_style = _ensure_style(document, "Source Code", WD_STYLE_TYPE.PARAGRAPH)
+    table = document.add_table(rows=1, cols=1)
+    paragraph = table.cell(0, 0).paragraphs[0]
+    paragraph.style = code_style
+    paragraph.add_run("nilai = 1")
+
+    table_properties = table._tbl.tblPr
+    borders = OxmlElement("w:tblBorders")
+    for side in ("top", "left", "bottom", "right"):
+        border = OxmlElement(f"w:{side}")
+        border.set(qn("w:val"), "single")
+        border.set(qn("w:sz"), "4")
+        border.set(qn("w:color"), "000000")
+        borders.append(border)
+    table_properties.append(borders)
+
+    cell_margins = OxmlElement("w:tblCellMar")
+    for side in ("top", "left", "bottom", "right"):
+        margin = OxmlElement(f"w:{side}")
+        margin.set(qn("w:w"), "28")
+        margin.set(qn("w:type"), "dxa")
+        cell_margins.append(margin)
+    table_properties.append(cell_margins)
+
+    source = tmp_path / "lama.docx"
+    document.save(source)
+    output = run_tool(source, tmp_path / "out.docx")
+
+    table = first_table(output)
+    table_properties = table.find(qn("w:tblPr"))
+    borders = table_properties.find(qn("w:tblBorders"))
+    assert borders is not None
+    for side in ("top", "bottom"):
+        assert borders.find(qn(f"w:{side}")).get(qn("w:sz")) == "8"
+    for side in ("left", "right", "insideH", "insideV"):
+        assert borders.find(qn(f"w:{side}")).get(qn("w:val")) == "nil"
+
+    cell_margins = table_properties.find(qn("w:tblCellMar"))
+    assert cell_margins is not None
+    for side in ("top", "left", "bottom", "right"):
+        assert cell_margins.find(qn(f"w:{side}")).get(qn("w:w")) == "108"
 
 
 # ---------------------------------------------------------------------------

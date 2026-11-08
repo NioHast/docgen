@@ -15,7 +15,10 @@ bisa dioverride lewat environment variable LAPORAN_DOCX) dan memeriksa:
     (`vanish` + putih) masih diizinkan agar docx-pagenum.py dapat membaca
     nomor halaman dari baris terakhir PDF;
   - settings.xml tanpa `w:updateFields` dan compatibilityMode 15;
-  - style Hyperlink hitam tanpa underline, Heading2/3 before 240 twip;
+  - style Hyperlink hitam tanpa underline, Heading1/2/3 before/after 0;
+  - caption 10 pt (TableCaption rata kiri, ImageCaption tengah);
+  - tabel data dan tabel kode memakai border ilmiah: garis atas/bawah
+    1 pt (`w:sz 8`), tanpa garis vertikal, padding horizontal 108 twip;
   - style kode memakai Courier New 10 pt hitam tanpa shading;
   - field TOC/PAGEREF tidak rusak.
 
@@ -44,6 +47,10 @@ RUN_RE = re.compile(r"<w:r\b[^>]*>.*?</w:r>", re.S)
 STYLE_RE = re.compile(
     r'<w:style\b[^>]*w:styleId="([^"]+)"[^>]*>.*?</w:style>', re.S
 )
+TABLE_RE = re.compile(r"<w:tbl\b[^>]*>.*?</w:tbl>", re.S)
+TBL_PR_RE = re.compile(r"<w:tblPr\b[^>]*>.*?</w:tblPr>", re.S)
+TBL_BORDERS_RE = re.compile(r"<w:tblBorders\b[^>]*>.*?</w:tblBorders>", re.S)
+TBL_CELL_MAR_RE = re.compile(r"<w:tblCellMar\b[^>]*>.*?</w:tblCellMar>", re.S)
 
 
 def _attrs(tag):
@@ -173,6 +180,69 @@ def _has_titlepg(section):
 
 def _part_text(xml):
     return "".join(re.findall(r"<w:t[^>]*>([^<]*)</w:t>", xml)).strip()
+
+
+def _table_info(table_xml):
+    """Ringkasan properti satu tabel untuk pemeriksaan border/padding."""
+    rows = len(re.findall(r"<w:tr\b", table_xml))
+    cells = len(re.findall(r"<w:tc\b", table_xml))
+    info = {
+        "rows": rows,
+        "cells": cells,
+        "borders": {},
+        "margins": {},
+        "cell_margins": [],
+        "code": rows == 1
+        and cells == 1
+        and bool(re.search(r'<w:pStyle w:val="SourceCode"', table_xml)),
+        "cell_borders": bool(re.search(r"<w:tcBorders\b", table_xml)),
+        "header_bottom": bool(
+            re.search(r'<w:bottom\b[^>]*w:sz="4"', table_xml)
+        ),
+    }
+
+    tbl_pr = TBL_PR_RE.search(table_xml)
+    if tbl_pr is None:
+        return info
+    tbl_pr_xml = tbl_pr.group(0)
+
+    borders = TBL_BORDERS_RE.search(tbl_pr_xml)
+    if borders is not None:
+        for side in ("top", "left", "bottom", "right", "insideH", "insideV"):
+            match = re.search(rf"<w:{side}\b[^>]*/>", borders.group(0))
+            info["borders"][side] = _attrs(match.group(0)) if match else None
+
+    margins = TBL_CELL_MAR_RE.search(tbl_pr_xml)
+    if margins is not None:
+        for side in ("top", "left", "bottom", "right"):
+            match = re.search(rf"<w:{side}\b[^>]*/>", margins.group(0))
+            info["margins"][side] = _attrs(match.group(0)) if match else None
+
+    for cell_margin in re.finditer(
+        r"<w:tcMar\b[^>]*>.*?</w:tcMar>", table_xml, re.S
+    ):
+        margin = {}
+        for side in ("top", "left", "bottom", "right"):
+            match = re.search(
+                rf"<w:{side}\b[^>]*/>", cell_margin.group(0)
+            )
+            if match:
+                margin[side] = _attrs(match.group(0))
+        if margin:
+            info["cell_margins"].append(margin)
+    return info
+
+
+def _table_margin(table, side):
+    """Nilai padding efektif: tabel-level, lalu sel, lalu default 108."""
+    margin = table["margins"].get(side)
+    if margin is not None:
+        return margin.get("w:w")
+    for cell_margin in table["cell_margins"]:
+        if side in cell_margin:
+            return cell_margin[side].get("w:w")
+    # Word menghilangkan margin 108 yang sama dengan default TableNormal.
+    return "108"
 
 
 def _page_field_run_sizes(xml):
@@ -449,19 +519,124 @@ class PageNumberTest(unittest.TestCase):
         self.assertEqual(_style_value(style, "u"), "none")
         self.assertNotIn("themeColor", style)
 
-    def test_heading2_dan_heading3_satu_baris_sebelum(self):
-        for style_id in ("Heading2", "Heading3"):
+    def test_heading1_2_3_spacing_nol(self):
+        for style_id in ("Heading1", "Heading2", "Heading3"):
             style = _style_xml(self.styles, style_id)
             self.assertIsNotNone(style, f"style {style_id} tidak ditemukan")
             spacing = re.search(r"<w:spacing\b[^>]*/>", style)
             self.assertIsNotNone(spacing)
             before = re.search(r'w:before="(\d+)"', spacing.group(0))
             after = re.search(r'w:after="(\d+)"', spacing.group(0))
-            self.assertIsNotNone(before)
-            self.assertIsNotNone(after)
-            self.assertEqual(int(before.group(1)), 240)
-            self.assertEqual(int(after.group(1)), 0)
+            self.assertIsNotNone(before, f"{style_id} tidak punya w:before")
+            self.assertIsNotNone(after, f"{style_id} tidak punya w:after")
+            self.assertEqual(
+                int(before.group(1)), 0,
+                f"{style_id} before harus 0; jarak memakai paragraf kosong",
+            )
+            self.assertEqual(
+                int(after.group(1)), 0,
+                f"{style_id} after harus 0; jarak memakai paragraf kosong",
+            )
             self.assertIn('w:line="360"', spacing.group(0))
+
+        heading1 = _style_xml(self.styles, "Heading1")
+        self.assertEqual(_style_value(heading1, "jc"), "center")
+
+    def test_caption_10pt_dan_tablecaption_kiri(self):
+        image_caption = _style_xml(self.styles, "ImageCaption")
+        table_caption = _style_xml(self.styles, "TableCaption")
+        self.assertIsNotNone(image_caption, "style ImageCaption tidak ditemukan")
+        self.assertIsNotNone(table_caption, "style TableCaption tidak ditemukan")
+
+        for style_id, style in (
+            ("ImageCaption", image_caption),
+            ("TableCaption", table_caption),
+        ):
+            self.assertEqual(
+                _style_value(style, "sz"), "20",
+                f"{style_id} harus 10 pt (w:sz 20)",
+            )
+            spacing = re.search(r"<w:spacing\b[^>]*/>", style)
+            self.assertIsNotNone(spacing)
+            spacing_attrs = _attrs(spacing.group(0))
+            self.assertEqual(
+                int(spacing_attrs.get("w:before", "0")), 0,
+                f"{style_id} before harus 0",
+            )
+            self.assertEqual(
+                int(spacing_attrs.get("w:after", "0")), 0,
+                f"{style_id} after harus 0",
+            )
+            self.assertEqual(spacing_attrs.get("w:line"), "240")
+
+        self.assertEqual(_style_value(image_caption, "jc"), "center")
+        self.assertEqual(_style_value(table_caption, "jc"), "left")
+        self.assertIn("<w:keepNext", table_caption)
+
+    def test_tabel_data_dan_kode_border_ilmiah(self):
+        tables = [
+            _table_info(match.group(0))
+            for match in TABLE_RE.finditer(self.document)
+        ]
+        self.assertTrue(tables, "Laporan.docx tidak memiliki tabel")
+        code_tables = [table for table in tables if table["code"]]
+        data_tables = [table for table in tables if not table["code"]]
+
+        self.assertTrue(data_tables, "tidak ada tabel data di Laporan.docx")
+        self.assertGreaterEqual(
+            len(code_tables), 5,
+            "Laporan.docx harus memuat minimal 5 tabel kode 1x1",
+        )
+
+        for table in tables:
+            borders = table["borders"]
+            for side in ("top", "bottom"):
+                self.assertIsNotNone(
+                    borders.get(side), f"border {side} tabel tidak ada"
+                )
+                self.assertEqual(borders[side].get("w:val"), "single")
+                self.assertEqual(
+                    borders[side].get("w:sz"), "8",
+                    f"border {side} harus 1 pt (w:sz 8)",
+                )
+                self.assertEqual(borders[side].get("w:color"), "000000")
+            for side in ("left", "right", "insideH", "insideV"):
+                self.assertIsNotNone(
+                    borders.get(side), f"border {side} tabel tidak ada"
+                )
+                self.assertEqual(
+                    borders[side].get("w:val"), "nil",
+                    f"tabel ilmiah tidak boleh punya garis {side}",
+                )
+            for side in ("left", "right"):
+                self.assertEqual(
+                    _table_margin(table, side), "108",
+                    f"padding horizontal {side} harus 108 twip",
+                )
+
+        for table in data_tables:
+            for side in ("top", "bottom"):
+                self.assertEqual(
+                    _table_margin(table, side), "0",
+                    f"padding vertikal tabel data {side} harus 0",
+                )
+            self.assertTrue(
+                table["header_bottom"],
+                "baris header tabel data harus punya garis bawah 0,5 pt",
+            )
+
+        for table in code_tables:
+            self.assertEqual(table["rows"], 1, "tabel kode harus 1 baris")
+            self.assertEqual(table["cells"], 1, "tabel kode harus 1 kolom")
+            self.assertFalse(
+                table["cell_borders"],
+                "tabel kode tidak boleh memakai border sel langsung",
+            )
+            for side in ("top", "left", "bottom", "right"):
+                self.assertEqual(
+                    _table_margin(table, side), "108",
+                    f"padding {side} tabel kode harus 108 twip",
+                )
 
     def test_style_kode_courier_new_10pt_hitam_tanpa_shading(self):
         for style_id in (

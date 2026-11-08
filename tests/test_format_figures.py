@@ -12,6 +12,7 @@ import pytest
 from docx import Document
 from docx.enum.style import WD_STYLE_TYPE
 from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from lxml import etree
 
@@ -209,10 +210,10 @@ def test_gambar_besar_di_clamp_proporsional(docs, tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# 4. Tabel: border 0,5 pt, tanpa shading, margin sel, isi/lebar tetap
+# 4. Tabel ilmiah: tanpa vertikal, border atas/bawah 1 pt, header 0,5 pt
 
 
-def test_tabel_border_dan_tanpa_shading(docs, tmp_path):
+def test_tabel_gaya_ilmiah(docs, tmp_path):
     source = Document(docs.main)
     output = run_tool(docs.main, tmp_path)
     result = Document(output)
@@ -233,36 +234,49 @@ def test_tabel_border_dan_tanpa_shading(docs, tmp_path):
 
         borders = after_pr.find(qn("w:tblBorders"))
         assert borders is not None
-        assert len(borders) == 6
-        for tag in (
-            "w:top",
-            "w:left",
-            "w:bottom",
-            "w:right",
-            "w:insideH",
-            "w:insideV",
-        ):
+        expected_borders = {
+            "w:top": ("single", "8"),
+            "w:bottom": ("single", "8"),
+            "w:left": ("nil", None),
+            "w:right": ("nil", None),
+            "w:insideH": ("nil", None),
+            "w:insideV": ("nil", None),
+        }
+        assert len(borders) == len(expected_borders)
+        for tag, (value, size) in expected_borders.items():
             border = borders.find(qn(tag))
-            assert border is not None
-            assert border.get(qn("w:val")) == "single"
-            assert border.get(qn("w:sz")) == "4"
+            assert border is not None, f"border {tag} tidak ada"
+            assert border.get(qn("w:val")) == value
+            assert border.get(qn("w:sz")) == size
             assert border.get(qn("w:color")) == "000000"
 
         cell_margins = after_pr.find(qn("w:tblCellMar"))
         assert cell_margins is not None
         expected_margins = {
-            "w:top": "108",
-            "w:bottom": "108",
-            "w:left": "0",
-            "w:right": "0",
+            "w:top": "0",
+            "w:bottom": "0",
+            "w:left": "108",
+            "w:right": "108",
         }
         for tag, value in expected_margins.items():
             margin = cell_margins.find(qn(tag))
-            assert margin is not None
+            assert margin is not None, f"cell margin {tag} tidak ada"
             assert margin.get(qn("w:w")) == value
             assert margin.get(qn("w:type")) == "dxa"
 
-        for row in after._tbl.findall(qn("w:tr")):
+        rows = after._tbl.findall(qn("w:tr"))
+        header_row = rows[0]
+        for cell in header_row.findall(qn("w:tc")):
+            tc_borders = cell.find(f"{qn('w:tcPr')}/{qn('w:tcBorders')}")
+            assert tc_borders is not None
+            bottom = tc_borders.find(qn("w:bottom"))
+            assert bottom is not None
+            assert bottom.get(qn("w:val")) == "single"
+            assert bottom.get(qn("w:sz")) == "4"
+            assert bottom.get(qn("w:color")) == "000000"
+
+        # Baris body tidak membawa border/margin sel sendiri.
+        for row in rows[1:]:
             row_properties = row.find(qn("w:trPr"))
             if row_properties is not None:
                 assert row_properties.find(qn("w:shd")) is None
@@ -273,6 +287,18 @@ def test_tabel_border_dan_tanpa_shading(docs, tmp_path):
                 assert cell_properties.find(qn("w:shd")) is None
                 assert cell_properties.find(qn("w:tcBorders")) is None
                 assert cell_properties.find(qn("w:tcMar")) is None
+
+        # Header tidak bold; border header tetap 0,5 pt.
+        assert any(
+            run.bold
+            for cell in before.rows[0].cells
+            for paragraph in cell.paragraphs
+            for run in paragraph.runs
+        )
+        for cell in after.rows[0].cells:
+            for paragraph in cell.paragraphs:
+                for run in paragraph.runs:
+                    assert run.bold is False
 
         assert [[cell.text for cell in row.cells] for row in before.rows] == [
             [cell.text for cell in row.cells] for row in after.rows
@@ -292,6 +318,56 @@ def test_tabel_border_dan_tanpa_shading(docs, tmp_path):
             for cell in row.cells
             for paragraph in cell.paragraphs
         ]
+
+
+def test_tabel_ilmiah_idempoten(docs, tmp_path):
+    first = run_tool(docs.main, tmp_path, "first")
+    second = run_tool(first, tmp_path, "second")
+
+    assert document_xml(first) == document_xml(second)
+
+
+def test_tabel_kode_tetap_108_dan_border_ilmiah(tmp_path):
+    document = Document()
+    code_style = document.styles.add_style(
+        "Source Code", WD_STYLE_TYPE.PARAGRAPH
+    )
+    table = document.add_table(rows=1, cols=1)
+    paragraph = table.cell(0, 0).paragraphs[0]
+    paragraph.style = code_style
+    paragraph.add_run("nilai = 1")
+
+    table_properties = table._tbl.tblPr
+    borders = OxmlElement("w:tblBorders")
+    for side in ("top", "left", "bottom", "right"):
+        border = OxmlElement(f"w:{side}")
+        border.set(qn("w:val"), "single")
+        border.set(qn("w:sz"), "4")
+        borders.append(border)
+    table_properties.append(borders)
+
+    source = tmp_path / "kode.docx"
+    document.save(source)
+    output = run_tool(source, tmp_path)
+
+    result = Document(output)
+    assert len(result.tables) == 1
+    result_properties = result.tables[0]._tbl.tblPr
+
+    result_borders = result_properties.find(qn("w:tblBorders"))
+    assert result_borders is not None
+    for side in ("top", "bottom"):
+        border = result_borders.find(qn(f"w:{side}"))
+        assert border.get(qn("w:val")) == "single"
+        assert border.get(qn("w:sz")) == "8"
+    for side in ("left", "right", "insideH", "insideV"):
+        assert result_borders.find(qn(f"w:{side}")).get(qn("w:val")) == "nil"
+
+    cell_margins = result_properties.find(qn("w:tblCellMar"))
+    assert cell_margins is not None
+    for side in ("top", "left", "bottom", "right"):
+        assert cell_margins.find(qn(f"w:{side}")).get(qn("w:w")) == "108"
+    assert result.tables[0]._tbl.findall(f".//{qn('w:tcBorders')}") == []
 
 
 # ---------------------------------------------------------------------------

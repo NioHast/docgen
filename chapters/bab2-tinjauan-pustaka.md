@@ -22,6 +22,12 @@ Tabel berikut merangkum pemetaan sintaks Markdown yang digunakan dalam pipeline 
 | Gambar / Diagram | `![Keterangan](path)` | `![Arsitektur](gambar/flow.png)` | Gambar terpusat ber-caption |
 | Persamaan Matematika | `$...$` / `$$...$$` | `$E = m c^2$` | Notasi rumus terformat presisi |
 
+Persamaan display ditulis pada baris tersendiri di antara sepasang tanda dolar ganda. Sebagai contoh, metrik akurasi untuk mengevaluasi hasil klasifikasi dirumuskan sebagai berikut:
+
+$$Accuracy = \frac{TP + TN}{TP + TN + FP + FN}$$
+
+Dengan: TP adalah jumlah positif benar (*true positive*); TN adalah jumlah negatif benar (*true negative*); FP adalah jumlah positif palsu (*false positive*); dan FN adalah jumlah negatif palsu (*false negative*). Pada keluaran DOCX, pipeline mengubah notasi LaTeX tersebut menjadi persamaan OMML dan memberi nomor persamaan secara otomatis.
+
 ## Sistem Typesetting Modern: Typst
 
 ### Arsitektur dan Prinsip Kerja Typst

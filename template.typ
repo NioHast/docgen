@@ -11,11 +11,12 @@ $if(margin_top)$
   right: $margin_right$,
 )
 $else$
-#let doc-margin = if "$margin_preset$" == "skripsi-4433" or "$margin_preset$" == "4-4-3-3" {
-  (top: 4cm, bottom: 3cm, left: 4cm, right: 3cm)
-} else {
-  (top: 2cm, bottom: 3cm, left: 2.5cm, right: 2.5cm)
-}
+#let doc-margin = (
+  top: 2cm,
+  bottom: 3cm,
+  left: 2.5cm,
+  right: 2.5cm,
+)
 $endif$
 
 #set page(

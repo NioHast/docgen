@@ -42,8 +42,6 @@ if [ -n "$1" ]; then
   OUTDIR="$(cd "$1" && pwd)"
 elif [ -f "$(resolve_path "$METADATA_NAME" "$(pwd)")" ] && [ -d "$(resolve_path "$CHAPTERS_DIR" "$(pwd)")" ]; then
   OUTDIR="$(pwd)"
-elif [ -f "$(resolve_path "$METADATA_NAME" "$DIR/templates/default")" ] && [ -d "$(resolve_path "$CHAPTERS_DIR" "$DIR/templates/default")" ]; then
-  OUTDIR="$DIR/templates/default"
 else
   OUTDIR="$DIR"
 fi
@@ -56,9 +54,7 @@ trap 'rm -rf "$TMPDIR"' EXIT
 
 FALLBACK_DIRS=(
   "$OUTDIR"
-  "$DIR/templates/default"
   "$DIR"
-  "$HOME/.agents/skills/laporan-generator/resources"
 )
 
 # Preprocessing istilah Markdown membutuhkan Python 3. Venv proyek dipakai

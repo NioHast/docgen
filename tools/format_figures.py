@@ -12,9 +12,10 @@ Yang dilakukan:
    counter terpisah yang direset per bab.
 2. Memusatkan paragraf gambar, menghapus spasi sebelum/sesudahnya, dan
    meng-clamp lebar gambar maksimum ke 14,0 cm (5.040.000 EMU).
-3. Menyeragamkan border tabel body (single 0,5 pt hitam), menghapus shading
-   tabel/baris/sel, dan menetapkan cell margin atas/bawah 108 twip serta
-   kiri/kanan 0.
+3. Memberi tabel gaya ilmiah: garis atas/bawah 1 pt, garis bawah header
+   0,5 pt, tanpa garis vertikal, tanpa shading. Tabel data memakai cell
+   margin kiri/kanan 108 twip serta atas/bawah 0; tabel kode 1x1 memakai
+   108 twip di semua sisi.
 
 Jalankan:
 
@@ -103,6 +104,9 @@ W_TYPE = qn("w:type")
 W_SZ = qn("w:sz")
 W_COLOR = qn("w:color")
 W_SPACE = qn("w:space")
+W_R = qn("w:r")
+W_RPR = qn("w:rPr")
+W_TBL_HEADER = qn("w:tblHeader")
 
 WP_INLINE = qn("wp:inline")
 WP_ANCHOR = qn("wp:anchor")
@@ -185,13 +189,73 @@ CELLMAR_ORDER = tuple(
     for tag in ("w:top", "w:start", "w:left", "w:bottom", "w:end", "w:right")
 )
 
-BORDER_TAGS = (
-    "w:top",
-    "w:left",
-    "w:bottom",
-    "w:right",
-    "w:insideH",
-    "w:insideV",
+TCPR_ORDER = tuple(
+    qn(tag)
+    for tag in (
+        "w:cnfStyle",
+        "w:tcW",
+        "w:gridSpan",
+        "w:hMerge",
+        "w:vMerge",
+        "w:tcBorders",
+        "w:shd",
+        "w:noWrap",
+        "w:tcMar",
+        "w:textDirection",
+        "w:tcFitText",
+        "w:vAlign",
+        "w:hideMark",
+        "w:headers",
+        "w:cellIns",
+        "w:cellDel",
+        "w:cellMerge",
+        "w:tcPrChange",
+    )
+)
+
+RPR_ORDER = tuple(
+    qn(tag)
+    for tag in (
+        "w:rStyle",
+        "w:rFonts",
+        "w:b",
+        "w:bCs",
+        "w:i",
+        "w:iCs",
+        "w:caps",
+        "w:smallCaps",
+        "w:strike",
+        "w:dstrike",
+        "w:outline",
+        "w:shadow",
+        "w:emboss",
+        "w:imprint",
+        "w:noProof",
+        "w:snapToGrid",
+        "w:vanish",
+        "w:webHidden",
+        "w:color",
+        "w:spacing",
+        "w:w",
+        "w:kern",
+        "w:position",
+        "w:sz",
+        "w:szCs",
+        "w:highlight",
+        "w:u",
+        "w:effect",
+        "w:bdr",
+        "w:shd",
+        "w:fitText",
+        "w:vertAlign",
+        "w:rtl",
+        "w:cs",
+        "w:em",
+        "w:lang",
+        "w:eastAsianLayout",
+        "w:specVanish",
+        "w:oMath",
+    )
 )
 
 TEXT_NODE_SKIP_TAGS = frozenset(
@@ -216,6 +280,14 @@ IMAGE_CAPTION_STYLES = frozenset({"imagecaption"})
 TABLE_CAPTION_STYLES = frozenset({"tablecaption"})
 GENERIC_CAPTION_STYLES = frozenset({"caption"})
 HEADING1_STYLES = frozenset({"heading1"})
+CODE_TABLE_STYLES = frozenset(
+    {
+        "sourcecode",
+        "verbatimchar",
+        "htmlcode",
+        "htmlpreformatted",
+    }
+)
 
 ROMAN_VALUES = {
     "I": 1,
@@ -735,42 +807,129 @@ def _get_or_add_tbl_pr(table: _Element) -> _Element:
     return tbl_pr
 
 
+def _new_border(tag: str, value: str, size: str | None = None) -> _Element:
+    border = OxmlElement(tag)
+    border.set(W_VAL, value)
+    if size is not None:
+        border.set(W_SZ, size)
+    border.set(W_SPACE, "0")
+    border.set(W_COLOR, "000000")
+    return border
+
+
 def _set_table_borders(tbl_pr: _Element) -> None:
-    existing = tbl_pr.find(W_TBL_BORDERS)
-    if existing is not None:
-        tbl_pr.remove(existing)
+    _remove_direct_children(tbl_pr, W_TBL_BORDERS)
 
     borders = _get_or_add_child(tbl_pr, "w:tblBorders", TBLPR_ORDER)
-    for tag in BORDER_TAGS:
-        border = OxmlElement(tag)
-        border.set(W_VAL, "single")
-        border.set(W_SZ, "4")
-        border.set(W_SPACE, "0")
-        border.set(W_COLOR, "000000")
-        borders.append(border)
+    for tag, value, size in (
+        ("w:top", "single", "8"),
+        ("w:left", "nil", None),
+        ("w:bottom", "single", "8"),
+        ("w:right", "nil", None),
+        ("w:insideH", "nil", None),
+        ("w:insideV", "nil", None),
+    ):
+        borders.append(_new_border(tag, value, size))
 
 
-def _set_cell_margins(tbl_pr: _Element) -> None:
+def _set_cell_margins(tbl_pr: _Element, vertical: int) -> None:
+    _remove_direct_children(tbl_pr, W_TBL_CELL_MAR)
     cell_margins = _get_or_add_child(tbl_pr, "w:tblCellMar", TBLPR_ORDER)
     for tag, value in (
-        ("w:top", 108),
-        ("w:left", 0),
-        ("w:bottom", 108),
-        ("w:right", 0),
+        ("w:top", vertical),
+        ("w:left", 108),
+        ("w:bottom", vertical),
+        ("w:right", 108),
     ):
         margin = _get_or_add_child(cell_margins, tag, CELLMAR_ORDER)
         margin.set(W_W, str(value))
         margin.set(W_TYPE, "dxa")
 
 
-def _format_table(table: _Element) -> None:
+def _set_header_cell_bottom_border(cell: _Element) -> None:
+    cell_properties = cell.find(W_TC_PR)
+    if cell_properties is None:
+        cell_properties = OxmlElement("w:tcPr")
+        cell.insert(0, cell_properties)
+    _remove_direct_children(cell_properties, W_TC_BORDERS)
+    borders = _get_or_add_child(cell_properties, "w:tcBorders", TCPR_ORDER)
+    borders.append(_new_border("w:bottom", "single", "4"))
+
+
+def _clear_run_bold(run: _Element) -> None:
+    run_properties = run.find(W_RPR)
+    if run_properties is None:
+        run_properties = OxmlElement("w:rPr")
+        run.insert(0, run_properties)
+    for tag in ("w:b", "w:bCs"):
+        bold = _get_or_add_child(run_properties, tag, RPR_ORDER)
+        bold.set(W_VAL, "0")
+
+
+def _clear_header_bold(row: _Element) -> None:
+    for run in row.iter(W_R):
+        _clear_run_bold(run)
+
+
+def _row_is_header(row: _Element) -> bool:
+    row_properties = row.find(W_TR_PR)
+    if row_properties is None:
+        return False
+    marker = row_properties.find(W_TBL_HEADER)
+    if marker is None:
+        return False
+    value = marker.get(W_VAL)
+    return value is None or value.lower() not in {"0", "false", "off"}
+
+
+def _header_row_indexes(rows: Sequence[_Element]) -> list[int]:
+    marked = [
+        index for index, row in enumerate(rows) if _row_is_header(row)
+    ]
+    if marked:
+        return marked
+    # Pandoc biasanya menandai baris header dengan w:tblHeader. Bila penanda
+    # tidak ada, baris pertama tabel multi-baris diperlakukan sebagai header.
+    return [0] if len(rows) > 1 else []
+
+
+def _is_code_table(table: _Element) -> bool:
+    """Tabel 1x1 berisi paragraf Source Code adalah blok kode, bukan tabel data."""
+
+    rows = table.findall(W_TR)
+    if len(rows) != 1:
+        return False
+    cells = rows[0].findall(W_TC)
+    if len(cells) != 1:
+        return False
+    paragraphs = cells[0].findall(W_P)
+    if not paragraphs:
+        return False
+    return all(
+        _normalize_style_id(_paragraph_style_id(paragraph))
+        in CODE_TABLE_STYLES
+        for paragraph in paragraphs
+    )
+
+
+def _format_table(table: _Element) -> bool:
+    is_code_table = _is_code_table(table)
+
     tbl_pr = _get_or_add_tbl_pr(table)
 
     _remove_direct_children(tbl_pr, W_SHD)
     _set_table_borders(tbl_pr)
-    _set_cell_margins(tbl_pr)
+    _set_cell_margins(tbl_pr, vertical=108 if is_code_table else 0)
 
-    for row in table.findall(W_TR):
+    rows = table.findall(W_TR)
+    header_indexes = [] if is_code_table else _header_row_indexes(rows)
+    header_bottom_index = (
+        header_indexes[-1]
+        if header_indexes and header_indexes[-1] < len(rows) - 1
+        else None
+    )
+
+    for row_index, row in enumerate(rows):
         table_exception = row.find(W_TBL_PR_EX)
         if table_exception is not None:
             _remove_direct_children(table_exception, W_TBL_BORDERS)
@@ -783,17 +942,23 @@ def _format_table(table: _Element) -> None:
 
         for cell in row.findall(W_TC):
             cell_properties = cell.find(W_TC_PR)
-            if cell_properties is None:
-                continue
-            _remove_direct_children(cell_properties, W_SHD)
-            _remove_direct_children(cell_properties, W_TC_BORDERS)
-            _remove_direct_children(cell_properties, W_TC_MAR)
+            if cell_properties is not None:
+                _remove_direct_children(cell_properties, W_SHD)
+                _remove_direct_children(cell_properties, W_TC_BORDERS)
+                _remove_direct_children(cell_properties, W_TC_MAR)
+            if row_index == header_bottom_index:
+                _set_header_cell_bottom_border(cell)
+
+    for row_index in header_indexes:
+        _clear_header_bold(rows[row_index])
+
+    return True
 
 
 def _format_tables(body: _Element, report: FormatReport) -> None:
     for table in body.iter(W_TBL):
-        _format_table(table)
-        report.tables += 1
+        if _format_table(table):
+            report.tables += 1
 
 
 # ---------------------------------------------------------------------------

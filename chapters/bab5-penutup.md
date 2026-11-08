@@ -10,7 +10,7 @@ Berdasarkan perancangan, implementasi, dan serangkaian pengujian yang telah dila
 
 3. **Keberhasilan Solusi Multi-Pass DOCX**: Pendekatan multi-pass yang menggabungkan filter Pandoc Lua (`docx.lua`), manipulasi struktur OpenXML (`finalize-docx.py`), dan sinkronisasi nomor halaman via LibreOffice headless (`docx-pagenum.py`) berhasil mewujudkan dokumen Microsoft Word resmi dengan pemisahan seksi yang tepat (sampul tanpa nomor, *front matter* bernomor Romawi *i, ii*, dan isi bab yang dimulai ulang dari angka Arab 1).
 
-4. **Fleksibilitas Sistem Preset Kampus dan Alat Bantu Otomasi**: Kehadiran sistem preset deklaratif (`presets/*.yml`), didukung oleh pemindai pedoman PDF otomatis (`scan-preset.py`), linter validasi skema (`validate-preset.py`), serta antarmuka baris perintah terpadu (`./laporan`), memberikan kemudahan bagi sivitas akademika di berbagai universitas di Indonesia untuk menyesuaikan format laporan secara instan.
+4. **Fleksibilitas Sistem Preset Kampus**: Kehadiran sistem preset deklaratif (`presets/*.yml`) yang dibaca langsung oleh `build.sh` dan `build-docx.sh` memberikan kemudahan bagi sivitas akademika untuk menyesuaikan format laporan secara instan tanpa mengubah kode pipeline.
 
 5. **Keandalan dan Keterulangan Sistem (*Reproducibility*)**: Dukungan Python virtual environment (venv), Git Bash di Windows, serta Pandoc dan Typst sebagai dependensi utama membuat pipeline dapat dijalankan secara konsisten di Linux, macOS, dan Windows. Verifikasi dilakukan melalui suite pytest dan build PDF/DOCX, bukan melalui angka kelulusan yang tetap.
 

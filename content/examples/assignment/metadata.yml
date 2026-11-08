@@ -1,0 +1,17 @@
+# Metadata contoh. Ubah nilai, pertahankan kunci `preset`.
+title: "Analisis Pipeline Markdown untuk Laporan Tugas"
+subtitle: ""
+author:
+  - name: "Nama Mahasiswa"
+    nim: "30000000000000"
+lecturer: "Dr. Nama Dosen Pengampu, M.Kom."
+lecturer_label: "Dosen Pengampu:"
+course: "Penulisan Laporan Akademik"
+institution: "Universitas Diponegoro"
+faculty: "Program Studi Magister Sistem Informasi"
+year: "2026"
+date: "Agustus 2026"
+lang: "id-ID"
+preset: "undip-msi-proposal"
+daftar_gambar: false
+daftar_tabel: false

@@ -1,0 +1,779 @@
+# Sumber kebenaran aturan prosa.
+# Dibaca oleh tools/check_prose.py. Jangan menyalin regex ke berkas lain.
+versi: 1
+
+# Kata tidak baku -> baku (KBBI). Dicocokkan sebagai kata utuh.
+kamus:
+  analisa: analisis
+  dianalisa: dianalisis
+  menganalisa: menganalisis
+  hipotesa: hipotesis
+  sintesa: sintesis
+  diagnosa: diagnosis
+  praktek: praktik
+  mempraktekkan: mempraktikkan
+  dipraktekkan: dipraktikkan
+  tehnik: teknik
+  metoda: metode
+  sistim: sistem
+  sistimatis: sistematis
+  ekosistim: ekosistem
+  resiko: risiko
+  kwalitas: kualitas
+  kwantitas: kuantitas
+  frekwensi: frekuensi
+  kwalifikasi: kualifikasi
+  kwota: kuota
+  kwartal: kuartal
+  kwadrat: kuadrat
+  kwitansi: kuitansi
+  prosentase: persentase
+  presentase: persentase
+  obyek: objek
+  subyek: subjek
+  obyektif: objektif
+  subyektif: subjektif
+  projek: proyek
+  aktifitas: aktivitas
+  efektifitas: efektivitas
+  produktifitas: produktivitas
+  kreatifitas: kreativitas
+  sensitifitas: sensitivitas
+  reaktifitas: reaktivitas
+  konektifitas: konektivitas
+  standarisasi: standardisasi
+  ekstrim: ekstrem
+  katagori: kategori
+  komplek: kompleks
+  komplit: komplet
+  teoritis: teoretis
+  konkrit: konkret
+  orisinil: orisinal
+  realita: realitas
+  respon: respons
+  hirarki: hierarki
+  kuisioner: kuesioner
+  komoditi: komoditas
+  otentik: autentik
+  karir: karier
+  managemen: manajemen
+  manajement: manajemen
+  detil: detail
+  varitas: varietas
+  kontinyu: kontinu
+  apotik: apotek
+  atlit: atlet
+  cidera: cedera
+  syaraf: saraf
+  atmosfir: atmosfer
+  kadaluarsa: kedaluwarsa
+  kadaluwarsa: kedaluwarsa
+  legalisir: legalisasi
+  amandemen: amendemen
+  propinsi: provinsi
+  pebruari: Februari
+  nopember: November
+  kharisma: karisma
+  celcius: celsius
+  seksama: saksama
+  sekedar: sekadar
+  tolak ukur: tolok ukur
+  silahkan: silakan
+  ijin: izin
+  diijinkan: diizinkan
+  mengijinkan: mengizinkan
+  nasehat: nasihat
+  menasehati: menasihati
+  jaman: zaman
+  jadual: jadwal
+  hakekat: hakikat
+  ijasah: ijazah
+  nampak: tampak
+  terlanjur: telanjur
+  faham: paham
+  pondasi: fondasi
+  kaedah: kaidah
+  himbau: imbau
+  menghimbau: mengimbau
+  himbauan: imbauan
+  trampil: terampil
+  ketrampilan: keterampilan
+  handal: andal
+  kehandalan: keandalan
+  berfikir: berpikir
+  perduli: peduli
+  memperdulikan: memedulikan
+  antri: antre
+  antrian: antrean
+  lembab: lembap
+  kelembaban: kelembapan
+  nafas: napas
+  bernafas: bernapas
+  pernafasan: pernapasan
+  menunjukan: menunjukkan
+  ditunjukan: ditunjukkan
+  azas: asas
+  kosa kata: kosakata
+  merubah: mengubah
+  dirubah: diubah
+  mempengaruhi: memengaruhi
+  mengkonsumsi: mengonsumsi
+  mengkonfirmasi: mengonfirmasi
+  mengkoordinasikan: mengoordinasikan
+  mengkategorikan: mengategorikan
+  mengkombinasikan: mengombinasikan
+  mengkomunikasikan: mengomunikasikan
+  mengkoreksi: mengoreksi
+  mensukseskan: menyukseskan
+  mensosialisasikan: menyosialisasikan
+  mensimulasikan: menyimulasikan
+  mentaati: menaati
+  menterjemahkan: menerjemahkan
+  mentargetkan: menargetkan
+  mentelaah: menelaah
+  mempopulerkan: memopulerkan
+  mempublikasikan: memublikasikan
+
+# Akronim yang sering ditulis kapital semua (SG-05).
+akronim:
+  BAPPENAS: 'Bappenas'
+  BAPPEDA: 'Bappeda'
+  BULOG: 'Bulog'
+  POLRI: 'Polri'
+  DISHUB: 'Dishub'
+  DINKES: 'Dinkes'
+  DISDIK: 'Disdik'
+  KEMENHUB: 'Kemenhub'
+  KEMENKES: 'Kemenkes'
+  KEMENKEU: 'Kemenkeu'
+  KEMENDIKBUD: 'Kemendikbud'
+  KEMENDIKBUDRISTEK: 'Kemendikbudristek'
+  KEMDIKTISAINTEK: 'Kemdiktisaintek'
+  KEMENDIKTISAINTEK: 'Kemendiktisaintek'
+  KEMENDIKDASMEN: 'Kemendikdasmen'
+  BUMDES: 'BUMDes'
+  PERPRES: 'Perpres'
+  PERMEN: 'Permen'
+  PERDA: 'Perda'
+  PUSKESMAS: 'puskesmas (Puskesmas bila nama)'
+  POSYANDU: 'posyandu (Posyandu bila nama)'
+  IPTEK: 'iptek'
+  PEMILU: 'pemilu'
+  BALITA: 'balita'
+  AMDAL: 'amdal'
+  TILANG: 'tilang'
+  RUDAL: 'rudal'
+  PEMDA: 'pemda (Pemda bila nama)'
+  PEMKOT: 'pemkot (Pemkot bila nama)'
+  PEMKAB: 'pemkab (Pemkab bila nama)'
+  PEMPROV: 'pemprov (Pemprov bila nama)'
+  GAPOKTAN: 'gapoktan (Gapoktan bila nama)'
+
+# Singkatan yang lazim dan tidak perlu dijelaskan (SG-04).
+singkatan_umum:
+  - AGPL
+  - API
+  - BSD
+  - CC0
+  - COVID
+  - CPU
+  - DIY
+  - DKI
+  - DNA
+  - DOI
+  - GHz
+  - GPL
+  - GPS
+  - GPU
+  - GPa
+  - GW
+  - GWh
+  - HTTP
+  - HTTPS
+  - IEEE
+  - IP
+  - ISBN
+  - ISO
+  - ISSN
+  - LCD
+  - LED
+  - LGPL
+  - MA
+  - MHz
+  - MI
+  - MIT
+  - MPa
+  - MTs
+  - MW
+  - MWh
+  - NTB
+  - NTT
+  - OK
+  - PC
+  - PCR
+  - PDF
+  - RAM
+  - RI
+  - RNA
+  - SD
+  - SMA
+  - SMK
+  - SMP
+  - SPSS
+  - TK
+  - TV
+  - URL
+  - USB
+  - UTC
+  - WHO
+  - WIB
+  - WIT
+  - WITA
+
+# Singkatan bukan nama diri: kepanjangannya ditulis huruf kecil (SG-06).
+bukan_nama_diri:
+  - UMKM
+  - IKM
+  - BUMN
+  - BUMD
+  - BUMDes
+  - SDM
+  - SDA
+  - KTP
+  - SIM
+  - TKDN
+  - ASN
+  - PNS
+  - K3
+  - PLTS
+  - PLTU
+  - PLTA
+  - PLTB
+  - EBT
+  - IPAL
+  - B3
+  - TIK
+  - RSUD
+  - ASI
+  - BBLR
+  - ISPA
+  - PHBS
+  - PAUD
+  - SD
+  - SMP
+  - SMA
+  - SMK
+  - PTN
+  - PTS
+  - KKN
+  - SKS
+  - IPK
+  - KTI
+  - APBN
+  - APBD
+  - PDB
+  - PDRB
+  - PPN
+  - NPWP
+  - KBLBB
+
+# Aturan. jenis: regex, regex_mentah, dinamis, kamus, akronim.
+# Urutan di sini menentukan urutan pemeriksaan sebelum hasil diurutkan.
+aturan:
+  - kode: KE-01
+    label: K
+    jenis: regex
+    pola: '(?:^|(?<=[.!?])\s+)(?:Dari|Dalam|Pada|Bagi|Menurut|Berdasarkan)\s(?:(?!\b(?:kami|penulis|peneliti|saya|kita)\b)[^.?!,;:]){1,60}?\s(?:menunjukkan|membahas|memperlihatkan|menjelaskan|mengatakan|menyatakan|menggambarkan|menyajikan|menyimpulkan|membuktikan)\b'
+    flag: m
+    min: 1
+    saran: 'subjek hilang karena kata depan; buang kata depannya atau pakai verba pasif'
+    sumber: naskah-id
+  - kode: KE-02
+    label: K
+    jenis: regex
+    pola: '\badalah merupakan\b'
+    flag: i
+    min: 1
+    saran: 'pilih salah satu: adalah atau merupakan'
+    sumber: naskah-id
+  - kode: KE-03
+    label: K
+    jenis: regex
+    pola: '\b(?:agar supaya|demi untuk|sejak dari)\b'
+    flag: i
+    min: 1
+    saran: 'pleonasme; pakai satu kata saja'
+    sumber: naskah-id
+  - kode: KE-04
+    label: K
+    jenis: regex
+    pola: '\bsangat\s+\w+\s+sekali\b'
+    flag: i
+    min: 1
+    saran: 'pleonasme: sangat … atau … sekali'
+    sumber: naskah-id
+  - kode: KE-05
+    label: K
+    jenis: regex
+    pola: '\b(?:para|banyak|berbagai|beberapa)\s+(\w+)-\1\b'
+    flag: i
+    min: 1
+    saran: 'penanda jamak ganda; hapus ulangan'
+    sumber: naskah-id
+  - kode: KE-06
+    label: K
+    jenis: regex
+    pola: '\bberbagai macam\b'
+    flag: i
+    min: 1
+    saran: 'pleonasme: berbagai atau bermacam-macam'
+    sumber: naskah-id
+  - kode: KE-07
+    label: K
+    jenis: regex
+    pola: '\b(?:naik ke atas|turun ke bawah|mundur ke belakang|maju ke depan)\b'
+    flag: i
+    min: 1
+    saran: 'pleonasme arah'
+    sumber: naskah-id
+  - kode: KE-08
+    label: K
+    jenis: regex
+    pola: '\bsaling\s+\w+-me\w+\b'
+    flag: i
+    min: 1
+    saran: 'pleonasme: saling … atau bentuk ulang, bukan keduanya'
+    sumber: naskah-id
+  - kode: KE-09
+    label: K
+    jenis: regex
+    pola: '\bseperti\b[^.;]{1,80}?\b(?:dan lain-lain|dll\.?|dan sebagainya|dsb\.?)'
+    flag: i
+    min: 1
+    saran: 'seperti dan dll. sama-sama penanda contoh; pakai salah satu'
+    sumber: naskah-id
+  - kode: KE-10
+    label: K
+    jenis: regex
+    pola: '\bberdasarkan pada\b'
+    flag: i
+    min: 1
+    saran: 'cukup: berdasarkan'
+    sumber: naskah-id
+  - kode: KE-11
+    label: K
+    jenis: regex
+    pola: '\bantara\s+(?!lain\b)[^.,;]{1,40}?\sdengan\b'
+    flag: i
+    min: 1
+    saran: 'pasangan baku: antara … dan …'
+    sumber: naskah-id
+  - kode: KE-12
+    label: K
+    jenis: regex
+    pola: '\bbaik\s[^.,;]{1,40}?\sataupun\b'
+    flag: i
+    min: 1
+    saran: 'pasangan baku: baik … maupun …'
+    sumber: naskah-id
+  - kode: KE-13
+    label: K
+    jenis: regex
+    pola: '\bbukan\s(?!hanya\b|saja\b|sekadar\b|cuma\b)[^.;]{1,60}?,\s*tetapi\b'
+    flag: i
+    min: 1
+    saran: 'bukan … melainkan …; tidak … tetapi …'
+    sumber: naskah-id
+  - kode: KE-14
+    label: K
+    jenis: regex
+    pola: '\b(?:meskipun|walaupun|walau|biarpun|kendatipun)\b[^.;]{1,120}?,\s*(?:tetapi|namun)\b'
+    flag: i
+    min: 1
+    saran: 'dua konjungsi untuk satu hubungan; buang tetapi/namun'
+    sumber: naskah-id
+  - kode: KE-15
+    label: K
+    jenis: regex
+    pola: '(?:^|(?<=[.!?])\s+)(?:Karena|Sebab|Oleh karena|Berdasarkan|Mengingat)\b[^.;]{1,120}?,\s*maka\b'
+    flag: m
+    min: 1
+    saran: 'anak kalimat di depan sudah menandai hubungan; buang maka'
+    sumber: naskah-id
+  - kode: KE-16
+    label: K
+    jenis: regex
+    pola: '(?:^|(?<=[.!?])\s+)(?:Sehingga|Sedangkan)\b'
+    flag: m
+    min: 1
+    saran: 'konjungsi intrakalimat di awal kalimat; gabungkan atau pakai Akibatnya/Adapun'
+    sumber: naskah-id
+  - kode: KE-17
+    label: K
+    jenis: regex
+    pola: '\blebih\s+(?!dari\b)\w+\s+dari\b(?!\s+(?:pada|sekadar)\b)'
+    flag: i
+    min: 1
+    saran: 'perbandingan memakai daripada'
+    sumber: naskah-id
+  # Nominalisasi dan kekuatan klaim
+  - kode: NM-01
+    label: G
+    jenis: regex
+    pola: '\b(?:melakukan|mengalami|memberikan|mengadakan|melaksanakan)\s+(?:pe\w{3,}an|ke\w{3,}an)\b'
+    flag: i
+    min: 1
+    saran: 'nominalisasi; pakai verbanya langsung (mengukur, turun, memengaruhi)'
+    sumber: naskah-id
+  - kode: KK-01
+    label: G
+    jenis: regex
+    pola: '\bmembuktikan\b'
+    flag: i
+    min: 1
+    saran: 'cek kekuatan klaim: menunjukkan atau mengindikasikan bila buktinya statistik/korelasi'
+    sumber: naskah-id
+  # Singkatan dan akronim statis
+  - kode: SG-01
+    label: K
+    jenis: regex
+    pola: '\b(?:di|ber|se|ke|ter|me[mn]?g?|pe[rn]?)[A-Z]{2,}\b|\b[A-Z]{2,}(?:nya|kan|an|lah|ku|mu)\b'
+    flag: m
+    min: 1
+    saran_jenis: imbuhan_singkatan
+    sumber: naskah-id
+  - kode: SG-02
+    label: K
+    jenis: regex
+    pola: '\b(?:dll|dsb|dst|dkk|hlm|tsb|yth)\b(?!\.)|(?<![\w/])(?:s/d|a/n|d/a|u/p)(?![\w/])'
+    flag: m
+    min: 1
+    saran_jenis: titik_singkatan
+    sumber: naskah-id
+  - kode: SG-03
+    label: G
+    jenis: regex
+    pola: '\b([A-Z][A-Za-z]*[A-Z])-\1\b'
+    flag: m
+    min: 1
+    saran: 'jamak singkatan tidak diulang: banyak UMKM, para pelaku UMKM'
+    sumber: naskah-id
+  # Ejaan, angka, satuan, dan tanda baca
+  - kode: EJ-01
+    label: K
+    jenis: regex
+    pola: '\bdimana(?:-mana)?\b'
+    flag: i
+    min: 1
+    saran: 'kata depan ditulis terpisah: di mana'
+    sumber: naskah-id
+  - kode: EJ-02
+    label: K
+    jenis: regex
+    pola: '\bdi\s(?:analisis|analisa|uji|lakukan|gunakan|ukur|ambil|peroleh|buat|hitung|kembangkan|rancang|teliti|bahas|amati|olah|kumpulkan|terapkan|jelaskan|tentukan|sajikan|tampilkan)\b'
+    flag: i
+    min: 1
+    saran: 'awalan di- ditulis serangkai'
+    sumber: naskah-id
+  - kode: EJ-03
+    label: K
+    jenis: regex
+    pola: '\b(?:di(?:atas|bawah|dalam|luar|depan|belakang|samping|antara|sini|sana|situ)|ke(?:atas|bawah|dalam|depan|belakang|samping|sini|sana|situ))\b'
+    flag: i
+    min: 1
+    saran: 'kata depan di/ke ditulis terpisah'
+    sumber: naskah-id
+  - kode: EJ-04
+    label: K
+    jenis: regex
+    pola: '\b(?:kerjasama|tanggungjawab|bertanggungjawab|pertanggung jawaban|kerja-sama|tanggung-jawab)\b'
+    flag: i
+    min: 1
+    saran: 'kerja sama, tanggung jawab, bertanggung jawab, pertanggungjawaban'
+    sumber: naskah-id
+  - kode: EJ-05
+    label: K
+    jenis: regex
+    pola: '\b(?:(?i:antar|pasca|non|multi|sub|pra|semi|swa|tuna|ultra|inter|intra|ekstra|mikro|makro|nano|mono|poli|purna)|dwi|tri|eka) (?=[a-z]{3,})'
+    flag: m
+    min: 1
+    saran: 'bentuk terikat ditulis serangkai: antarmuka, pascasarjana'
+    sumber: naskah-id
+  - kode: EJ-06
+    label: K
+    jenis: regex
+    pola: '(?:^|(?<=[.!?])\s+)\d+\s+[a-z]'
+    flag: m
+    min: 1
+    saran: 'awal kalimat tidak dengan angka; tulis dengan huruf atau susun ulang'
+    sumber: naskah-id
+  - kode: EJ-07
+    label: K
+    jenis: regex
+    pola: '\b\d+\.\d{1,2}\s?(?:%|V|mV|kV|A|mA|W|kW|Hz|kHz|MHz|kg|g|mg|cm|mm|km|m|s|ms|°C)(?!\w)'
+    flag: m
+    min: 1
+    saran_jenis: desimal_koma
+    sumber: naskah-id
+  - kode: EJ-08
+    label: K
+    jenis: regex
+    pola: '(?<![\d.,])\d+(?:[.,]\d+)?(?:V|mV|kV|mA|kW|Hz|kHz|MHz|GHz|kg|mg|cm|mm|km|ms)\b'
+    flag: m
+    min: 1
+    saran_jenis: spasi_satuan
+    sumber: naskah-id
+  - kode: EJ-10
+    label: K
+    jenis: regex
+    pola: ',\s+sehingga\b'
+    flag: m
+    min: 1
+    saran: 'tanpa koma bila anak kalimat mengikuti induk kalimat (EYD V, tanda koma kaidah 4)'
+    sumber: naskah-id
+  - kode: EJ-09
+    label: K
+    jenis: regex
+    pola: '\d\s?(?:Volt|Ampere|Watt|Hertz|Celcius|Celsius|C)\b'
+    flag: m
+    min: 1
+    saran: 'pakai lambang satuan: V, A, W, Hz, °C'
+    sumber: naskah-id
+  - kode: EJ-11
+    label: K
+    jenis: regex
+    pola: '—'
+    flag: m
+    min: 1
+    saran: 'em dash dilarang; pakai koma/titik dua/titik'
+    sumber: naskah-id
+  # Klise mesin dan kalke
+  - kode: AI-01
+    label: AI
+    jenis: regex
+    pola: '\b[Dd]i era (?:digital|modern|globalisasi|teknologi|revolusi|serba)'
+    flag: m
+    min: 1
+    saran: 'pembuka generik; mulai dari masalah konkret'
+    sumber: naskah-id
+  - kode: AI-02
+    label: AI
+    jenis: regex
+    pola: '\bseiring (?:dengan )?(?:perkembangan|kemajuan|berjalannya) (?:zaman|teknologi|waktu)'
+    flag: i
+    min: 1
+    saran: 'pembuka generik; sebut perubahan yang spesifik'
+    sumber: naskah-id
+  - kode: AI-03
+    label: AI
+    jenis: regex
+    pola: '\bt(?:idak|ak) dapat dipungkiri\b'
+    flag: i
+    min: 1
+    saran: 'penegas tanpa isi; ganti dengan bukti'
+    sumber: naskah-id
+  - kode: AI-04
+    label: AI
+    jenis: regex
+    pola: '\bseperti yang (?:kita )?(?:ketahui|diketahui) bersama\b'
+    flag: i
+    min: 1
+    saran: 'pembuka kosong; hapus'
+    sumber: naskah-id
+  - kode: AI-05
+    label: AI
+    jenis: regex
+    pola: '\bmemainkan perana?n?\b'
+    flag: i
+    min: 1
+    saran: 'kalke play a role; pakai berperan'
+    sumber: naskah-id
+  - kode: AI-06
+    label: AI
+    jenis: regex
+    pola: '\bmengambil tempat\b'
+    flag: i
+    min: 1
+    saran: 'kalke take place; pakai berlangsung'
+    sumber: naskah-id
+  - kode: AI-07
+    label: AI
+    jenis: regex
+    pola: '\bmemegang peranan (?:yang )?(?:sangat )?(?:penting|krusial|vital|sentral)'
+    flag: i
+    min: 1
+    saran: 'penguat bertumpuk; pakai berperan penting atau jelaskan perannya'
+    sumber: naskah-id
+  - kode: AI-08
+    label: AI
+    jenis: regex
+    pola: '\badalah penting untuk\b|\bitu adalah mungkin\b'
+    flag: i
+    min: 1
+    saran: 'kalke it is … to; nyatakan langsung'
+    sumber: naskah-id
+  - kode: AI-09
+    label: AI
+    jenis: regex
+    pola: '\bsolusi (?:yang )?(?:inovatif|tepat guna dan inovatif|revolusioner)\b'
+    flag: i
+    min: 1
+    saran: 'klaim promosi; tunjukkan dengan angka'
+    sumber: naskah-id
+  - kode: AI-10
+    label: AI
+    jenis: regex
+    pola: '\blebih dari sekadar\b'
+    flag: i
+    min: 1
+    saran: 'struktur retoris; nyatakan langsung'
+    sumber: naskah-id
+  - kode: AI-11
+    label: AI
+    jenis: regex
+    pola: '\bmari kita\b|\bperlu diingat bahwa\b'
+    flag: i
+    min: 1
+    saran: 'nada ceramah; hapus'
+    sumber: naskah-id
+  - kode: AI-12
+    label: AI
+    jenis: regex
+    pola: '\bsangat signifikan\b'
+    flag: i
+    min: 1
+    saran: 'signifikan bermakna statistik; sebut nilai uji, jangan diperkuat'
+    sumber: naskah-id
+  - kode: AI-13
+    label: AI
+    jenis: regex
+    pola: '\byang mana\b'
+    flag: i
+    min: 1
+    saran: 'kalke which; pakai yang atau pecah kalimat'
+    sumber: naskah-id
+  - kode: AI-14
+    label: AI
+    jenis: regex
+    pola: '(?<=\w)[,]?\s+di mana\s+(?!pun\b|saja\b)(?!.{0,80}\?)(?=[a-z])'
+    flag: m
+    min: 1
+    saran: 'di mana sebagai penghubung; pakai yang, tempat, atau saat'
+    sumber: naskah-id
+  - kode: AI-15
+    label: AI
+    jenis: regex
+    pola: '\bhal ini\b'
+    flag: i
+    min: 3
+    saran: 'hal ini berulang; sebut subjeknya'
+    sumber: naskah-id
+  - kode: AI-16
+    label: AI
+    jenis: regex
+    pola: '\bselain itu\b'
+    flag: i
+    min: 3
+    saran: 'penghubung pembuka berulang; variasikan atau buang'
+    sumber: naskah-id
+  - kode: AI-17
+    label: AI
+    jenis: regex
+    pola: '\boleh karena itu\b'
+    flag: i
+    min: 3
+    saran: 'penghubung berulang; buang bila logika sudah jelas'
+    sumber: naskah-id
+  - kode: AI-18
+    label: AI
+    jenis: regex
+    pola: '\bsecara keseluruhan\b'
+    flag: i
+    min: 2
+    saran: 'penutup ritual; hanya di simpulan bila perlu'
+    sumber: naskah-id
+  - kode: AI-19
+    label: AI
+    jenis: regex
+    pola: '\bdengan kata lain\b'
+    flag: i
+    min: 2
+    saran: 'pengisi berulang'
+    sumber: naskah-id
+  # Aturan dinamis dan kamus: tidak memakai satu regex statis
+  - kode: SG-04
+    label: G
+    jenis: dinamis
+    implementasi: singkatan
+    pola: 'token kapital minimal dua huruf, minimal separuh kapital, di luar daftar putih'
+    min: 1
+    saran: 'singkatan belum dijelaskan; tulis kepanjangan pada kemunculan pertama'
+    sumber: naskah-id
+  - kode: SG-05
+    label: K
+    jenis: akronim
+    pola: 'kamus akronim kapital'
+    min: 1
+    saran: 'akronim: <bentuk baku>'
+    sumber: naskah-id
+  - kode: SG-06
+    label: G
+    jenis: dinamis
+    implementasi: singkatan
+    pola: 'kepanjangan diikuti (SINGKATAN) bila singkatan bukan nama diri'
+    min: 1
+    saran: 'kepanjangan singkatan bukan nama diri ditulis huruf kecil: <bentuk kecil>'
+    sumber: naskah-id
+  - kode: KB-01
+    label: K
+    jenis: kamus
+    pola: 'kamus kata tidak baku'
+    min: 1
+    saran: 'baku: <kata baku>'
+    sumber: naskah-id
+  - kode: KL-01
+    label: G
+    jenis: dinamis
+    implementasi: kalimat_panjang
+    pola: 'kalimat lebih dari 35 kata'
+    min: 1
+    saran: 'kalimat lebih dari 35 kata; pecah menjadi dua kalimat atau lebih'
+    sumber: naskah-id
+  - kode: IS-01
+    label: K
+    jenis: dinamis
+    implementasi: penanda_istilah
+    pola: '\{\{\?.*?\?\}\}'
+    flag: s
+    min: 1
+    saran: 'putuskan lalu hapus penanda'
+    sumber: proyek
+  # Butir berlabel "X: penjelasan X" (aturan proyek)
+  - kode: AI-20
+    label: AI
+    jenis: regex_mentah
+    implementasi: label_butir
+    pola: '^[ \t]*(?:[-*+]|\d+[.)])[ \t]+\*\*([^*\n]{3,80})\*\*[ \t]*:[ \t]+(\S.*)$'
+    flag: m
+    min: 2
+    saran: 'butir berlabel "X: penjelasan X"; ubah menjadi paragraf atau ringkas labelnya; pertahankan bila butir memang daftar prosedur/kriteria'
+    henti_label:
+      - Langkah
+      - Tahap
+      - Seksi
+      - Kriteria
+      - Syarat
+      - Prosedur
+      - Komponen
+      - Parameter
+      - Variabel
+      - Fungsi
+      - Berkas
+      - Modul
+    henti_awal:
+      - adalah
+      - merupakan
+      - yaitu
+      - yakni
+      - ialah
+    sumber: proyek

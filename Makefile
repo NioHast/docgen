@@ -50,14 +50,11 @@ reference-docx:
 	@command -v python3 >/dev/null 2>&1 || { echo "ERROR: python3 not found"; exit 1; }
 	@mkdir -p tmp
 	pandoc --print-default-data-file reference.docx > tmp/ref-default.docx
-	python3 scripts/make-reference-docx.py tmp/ref-default.docx templates/default/reference.docx
+	python3 scripts/make-reference-docx.py tmp/ref-default.docx reference.docx
 	@rm -f tmp/ref-default.docx
 
 html:
 	@SRC_DIR="."; \
-	if [ ! -d "$$SRC_DIR/chapters" ] && [ -d "templates/default/chapters" ]; then \
-		SRC_DIR="templates/default"; \
-	fi; \
 	if [ ! -d "$$SRC_DIR/chapters" ]; then \
 		echo "ERROR: Direktori chapters/ tidak ditemukan."; \
 		exit 1; \

@@ -6,7 +6,6 @@ Implementasi pipeline **Laporan Generator** menghasilkan struktur direktori yang
 
 ```
 laporan-generator/
-|-- laporan                  # CLI Helper terpadu (build, pdf, docx, init, preset, check)
 |-- build.sh                 # Skrip build utama PDF (Typst engine)
 |-- build-docx.sh            # Skrip build DOCX (Pandoc + pascaproses)
 |-- Makefile                 # Target otomasi (build, docx, html, watch, view, clean)
@@ -18,8 +17,8 @@ laporan-generator/
 |-- refs/undip-msi.csl       # Aturan sitasi author-date
 |-- cover.md                 # Kata pengantar & outline front matter
 |-- chapters/                # Konten laporan modular (BAB I s/d BAB V)
-|-- presets/                 # Konfigurasi format kampus (UI, ITB, UGM, ITS, UNDIP, dll.)
-|-- scripts/                 # Utilitas Python (scan-preset, validate, docx-pagenum)
+|-- presets/                 # Konfigurasi format kampus (UNDIP skripsi, UNDIP MSI proposal, standar)
+|-- scripts/                 # Utilitas Python (finalize-docx, docx-pagenum, make-reference-docx)
 |-- tools/                   # Generator style, istilah, caption, ID paragraf, rekonsiliasi
 |-- tests/                   # Suite pytest dan fixture
 |-- writing/                 # Panduan penulisan, daftar larangan, glosarium istilah

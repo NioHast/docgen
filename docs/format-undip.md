@@ -53,11 +53,11 @@ pada preset. Semua nilai dapat dioverride lewat preset.
 | --- | --- |
 | `Normal` | Times New Roman 12 pt, spasi 1,5 baris (`w:line="360"`), before/after 0, justify, indentasi baris pertama 1,25 cm. |
 | `Heading1` | Times New Roman 12 pt bold hitam, center, 0/0, indentasi baris pertama 0, keep next/keep lines. |
-| `Heading2` | Times New Roman 12 pt bold hitam, justify, before 12 pt, after 0, indent kiri 1,25 cm dan hanging 1,25 cm. |
-| `Heading3` | Times New Roman 12 pt bold hitam, justify, before 12 pt, after 0, indent kiri 1,25 cm dan hanging 1,25 cm. |
+| `Heading2` | Times New Roman 12 pt bold hitam, justify, before/after 0 (jarak memakai paragraf kosong fisik), indent kiri 1,25 cm dan hanging 1,25 cm. |
+| `Heading3` | Times New Roman 12 pt bold hitam, justify, before/after 0 (jarak memakai paragraf kosong fisik), indent kiri 1,25 cm dan hanging 1,25 cm. |
 | `TOCHeading` | Times New Roman 12 pt bold hitam, center, 0/0. |
-| `ImageCaption` | Times New Roman 12 pt tegak, center, 0/0, spasi 1,0 baris. |
-| `TableCaption` | Times New Roman 12 pt tegak, rata kiri, 0/0, spasi 1,0 baris, keep next. |
+| `ImageCaption` | Times New Roman 10 pt tegak, center, 0/0, spasi 1,0 baris. |
+| `TableCaption` | Times New Roman 10 pt tegak, rata kiri, 0/0, spasi 1,0 baris, keep next. |
 | `SourceCode` | Courier New 10 pt, spasi 1,0 baris, 0/0, tanpa shading, rata kiri. |
 | `Bibliography` | Times New Roman 12 pt, spasi 1,5 baris, 0/0, indent kiri 1,27 cm dan hanging 1,27 cm. |
 | `Figure` | Center, 0/0, indentasi baris pertama 0. |

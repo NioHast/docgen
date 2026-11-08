@@ -19,7 +19,7 @@ Untuk mengatasi permasalahan tersebut, paradigma pemisahan konten dari penyajian
 1. **Typst Engine** [@typst2024] sebagai sistem typesetting mutakhir yang cepat dan ringan untuk menghasilkan dokumen PDF berkualitas percetakan.
 2. **Multi-Pass DOCX Engine** dengan filter Lua kustom [@krewinkel2020pandoc] untuk menghasilkan dokumen Microsoft Word resmi yang memenuhi aturan penomoran halaman akademik.
 
-Pipeline ini diorkestrasi secara otomatis melalui antarmuka CLI terpadu dan skrip otomatisasi Bash [@gnu2024bash], serta didukung oleh lingkungan Python virtual environment (venv) untuk dependensi pengolahan DOCX, Git Bash di Windows, serta Pandoc dan Typst sebagai mesin konversi dan typesetting.
+Pipeline ini diorkestrasi secara otomatis melalui skrip Bash (`build.sh` dan `build-docx.sh`) [@gnu2024bash], serta didukung oleh lingkungan Python virtual environment (venv) untuk dependensi pengolahan DOCX, Git Bash di Windows, serta Pandoc dan Typst sebagai mesin konversi dan typesetting.
 
 ## Rumusan Masalah
 

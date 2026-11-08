@@ -33,6 +33,9 @@ W_AFTER_LINES = qn("w:afterLines")
 W_BEFORE_AUTO = qn("w:beforeAutospacing")
 W_AFTER_AUTO = qn("w:afterAutospacing")
 W_R = qn("w:r")
+W_RPR = qn("w:rPr")
+W_B = qn("w:b")
+W_BCS = qn("w:bCs")
 W_T = qn("w:t")
 W_SECTPR = qn("w:sectPr")
 W_BOOKMARK_START = qn("w:bookmarkStart")
@@ -526,3 +529,102 @@ def test_output_boleh_menimpa_input(source_docx: Path, tmp_path: Path) -> None:
     paragraph = paragraph_by_marker(source_docx, NORMAL_MARKER)
     assert spacing_of(paragraph).get(W_LINE) == "360"
     assert justification_of(paragraph) == "both"
+
+
+# ---------------------------------------------------------------------------
+# Penghapusan bold pada body dan list
+
+
+BODY_BOLD = "Body tebal."
+LIST_BOLD = "Butir list tebal."
+HEADING_BOLD = "1.1 Judul Tebal"
+TABLE_BOLD = "Sel tabel tebal."
+
+
+def add_bold_run(paragraph, text: str):
+    run = paragraph.add_run(text)
+    run.font.bold = True
+    properties = run._r.get_or_add_rPr()
+    properties.append(OxmlElement("w:bCs"))
+    return run
+
+
+def build_bold_fixture(path: Path) -> Path:
+    document = Document()
+
+    paragraph = document.add_paragraph()
+    set_style(paragraph, "Normal")
+    add_bold_run(paragraph, BODY_BOLD)
+
+    paragraph = document.add_paragraph()
+    set_style(paragraph, "Compact")
+    ppr = paragraph._p.get_or_add_pPr()
+    numbering = OxmlElement("w:numPr")
+    level = OxmlElement("w:ilvl")
+    level.set(W_VAL, "0")
+    number = OxmlElement("w:numId")
+    number.set(W_VAL, "1")
+    numbering.append(level)
+    numbering.append(number)
+    ppr.append(numbering)
+    add_bold_run(paragraph, LIST_BOLD)
+
+    paragraph = document.add_paragraph()
+    set_style(paragraph, "Heading2")
+    add_bold_run(paragraph, HEADING_BOLD)
+
+    table = document.add_table(rows=1, cols=1)
+    cell_paragraph = table.cell(0, 0).paragraphs[0]
+    set_style(cell_paragraph, "Normal")
+    add_bold_run(cell_paragraph, TABLE_BOLD)
+
+    document.save(path)
+    return path
+
+
+@pytest.fixture()
+def bold_docx(tmp_path: Path) -> Path:
+    return build_bold_fixture(tmp_path / "bold-input.docx")
+
+
+def run_with_text(root: etree._Element, text: str) -> etree._Element:
+    matches = [
+        run
+        for run in root.iter(W_R)
+        if "".join(node.text or "" for node in run.iter(W_T)) == text
+    ]
+    assert len(matches) == 1, f"run {text!r} tidak tunggal"
+    return matches[0]
+
+
+def has_bold(run: etree._Element) -> bool:
+    properties = run.find(W_RPR)
+    if properties is None:
+        return False
+    return properties.find(W_B) is not None or properties.find(W_BCS) is not None
+
+
+def test_bold_body_dan_list_dihapus_heading_dan_tabel_dipertahankan(
+    bold_docx: Path, tmp_path: Path
+) -> None:
+    output = tmp_path / "bold-out.docx"
+    report = api.normalize_layout(bold_docx, output)
+    root = document_root(output)
+
+    assert not has_bold(run_with_text(root, BODY_BOLD))
+    assert not has_bold(run_with_text(root, LIST_BOLD))
+    assert has_bold(run_with_text(root, HEADING_BOLD))
+    assert has_bold(run_with_text(root, TABLE_BOLD))
+
+    assert report.bold_paragraphs == 2
+    assert report.bold_runs_removed == 4
+    assert justification_of(paragraph_by_marker(output, BODY_BOLD)) == "both"
+
+    second = tmp_path / "bold-out-2.docx"
+    second_report = api.normalize_layout(output, second)
+    assert second_report.bold_runs_removed == 0
+    with zipfile.ZipFile(output) as archive:
+        first_xml = archive.read(DOCUMENT_PART)
+    with zipfile.ZipFile(second) as archive:
+        second_xml = archive.read(DOCUMENT_PART)
+    assert first_xml == second_xml

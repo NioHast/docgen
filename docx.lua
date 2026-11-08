@@ -225,10 +225,6 @@ local function Meta(meta)
   if meta["heading_subsub_dot"] ~= nil then
     subsub_dot = meta_bool(meta, "heading_subsub_dot")
   end
-  local m_preset = meta_str(meta, "margin_preset")
-  if m_preset == "skripsi-4433" or m_preset == "4-4-3-3" then
-    doc_margins = { top = 2268, right = 1701, bottom = 1701, left = 2268 }
-  end
   doc_margins.top = dim_to_twips(meta_str(meta, "margin_top"), doc_margins.top)
   doc_margins.bottom = dim_to_twips(meta_str(meta, "margin_bottom"), doc_margins.bottom)
   doc_margins.left = dim_to_twips(meta_str(meta, "margin_left"), doc_margins.left)

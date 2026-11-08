@@ -1,10 +1,14 @@
-"""Format blok kode DOCX sebagai tabel 1x1 bergaris.
+"""Format blok kode DOCX sebagai tabel 1x1 bergaya tabel ilmiah.
 
 Alat ini mencari deretan paragraf berurutan bergaya ``Source Code`` (atau
 ``Verbatim Char``/``HTML Code``/``HTML Preformatted``) lalu menggabungkannya
-menjadi satu tabel 1x1. Setiap baris kode menjadi paragraf tersendiri di dalam
-sel, memakai Courier New 10 pt hitam tanpa bold/italic, line spacing 1,0, dan
-spasi sebelum/sesudah 0.
+menjadi satu tabel 1x1. Tabel memakai garis atas/bawah 1 pt, tanpa garis
+vertikal, dan padding 108 twip di semua sisi. Setiap baris kode menjadi
+paragraf tersendiri di dalam sel, memakai Courier New 10 pt hitam tanpa
+bold/italic, line spacing 1,0, dan spasi sebelum/sesudah 0.
+
+Tabel kode 1x1 yang sudah ada dari build sebelumnya juga dinormalisasi ke
+gaya yang sama agar menjalankan alat pada DOCX final tetap idempoten.
 
 Hanya ``word/document.xml`` yang ditulis ulang. Part lain (header, footer,
 style, numbering, media, relasi, dan section) disalin byte-per-byte dari DOCX
@@ -92,6 +96,19 @@ W_HANSI = qn("w:hAnsi")
 W_CS = qn("w:cs")
 W_EAST_ASIA = qn("w:eastAsia")
 
+W_TBL = qn("w:tbl")
+W_TBL_PR = qn("w:tblPr")
+W_TBL_PR_EX = qn("w:tblPrEx")
+W_TBL_BORDERS = qn("w:tblBorders")
+W_TBL_CELL_MAR = qn("w:tblCellMar")
+W_TR = qn("w:tr")
+W_TR_PR = qn("w:trPr")
+W_TC = qn("w:tc")
+W_TC_PR = qn("w:tcPr")
+W_TC_BORDERS = qn("w:tcBorders")
+W_TC_MAR = qn("w:tcMar")
+W_SHD = qn("w:shd")
+
 # Normalisasi styleId: huruf kecil tanpa spasi/garis bawah/tanda hubung.
 # Dengan begitu "Source Code", "SourceCode", dan "source_code" dianggap sama.
 CODE_BLOCK_STYLES = frozenset(
@@ -169,12 +186,67 @@ TEXT_SKIP_TAGS = frozenset(
     }
 )
 
-BORDER_TAGS = ("w:top", "w:left", "w:bottom", "w:right")
+TABLE_BORDERS = (
+    ("w:top", "single", "8"),
+    ("w:left", "nil", None),
+    ("w:bottom", "single", "8"),
+    ("w:right", "nil", None),
+    ("w:insideH", "nil", None),
+    ("w:insideV", "nil", None),
+)
+CELL_MARGIN_TAGS = ("w:top", "w:left", "w:bottom", "w:right")
 CELL_MARGIN_VALUE = 108
 CODE_FONT = "Courier New"
 CODE_FONT_SIZE_HALF_POINTS = "20"  # 10 pt
 CONTENT_WIDTH_FALLBACK = 9360  # letter default: 12240 - 2 x 1440 twip
 
+TBLPR_ORDER = tuple(
+    qn(tag)
+    for tag in (
+        "w:tblStyle",
+        "w:tblpPr",
+        "w:tblOverlap",
+        "w:bidiVisual",
+        "w:tblStyleRowBandSize",
+        "w:tblStyleColBandSize",
+        "w:tblW",
+        "w:jc",
+        "w:tblCellSpacing",
+        "w:tblInd",
+        "w:tblBorders",
+        "w:shd",
+        "w:tblLayout",
+        "w:tblCellMar",
+        "w:tblLook",
+        "w:tblCaption",
+        "w:tblDescription",
+        "w:tblPrChange",
+    )
+)
+
+TCPR_ORDER = tuple(
+    qn(tag)
+    for tag in (
+        "w:cnfStyle",
+        "w:tcW",
+        "w:gridSpan",
+        "w:hMerge",
+        "w:vMerge",
+        "w:tcBorders",
+        "w:shd",
+        "w:noWrap",
+        "w:tcMar",
+        "w:textDirection",
+        "w:tcFitText",
+        "w:vAlign",
+        "w:hideMark",
+        "w:headers",
+        "w:cellIns",
+        "w:cellDel",
+        "w:cellMerge",
+        "w:tcPrChange",
+    )
+)
 
 class FormatCodeError(Exception):
     """Kesalahan yang aman ditampilkan ke pengguna CLI."""
@@ -196,6 +268,7 @@ class FormatCodeReport:
     tables: int = 0
     paragraphs: int = 0
     lines: int = 0
+    normalized_tables: int = 0
     skipped: int = 0
     warnings: list[str] = field(default_factory=list)
 
@@ -203,6 +276,7 @@ class FormatCodeReport:
         return {
             "tables": self.tables,
             "paragraphs": self.paragraphs,
+            "normalized_tables": self.normalized_tables,
             "lines": self.lines,
             "skipped": self.skipped,
             "warnings": list(self.warnings),
@@ -300,6 +374,31 @@ def _paragraph_style_id(paragraph: _Element) -> str | None:
     if style is None:
         return None
     return style.get(W_VAL)
+
+
+def _insert_ordered(
+    parent: _Element, element: _Element, order: Sequence[str]
+) -> None:
+    try:
+        target_index = order.index(element.tag)
+    except ValueError:
+        parent.append(element)
+        return
+
+    for index, child in enumerate(parent):
+        try:
+            child_index = order.index(child.tag)
+        except ValueError:
+            continue
+        if child_index > target_index:
+            parent.insert(index, element)
+            return
+    parent.append(element)
+
+
+def _remove_direct_children(parent: _Element, tag: str) -> None:
+    for child in parent.findall(tag):
+        parent.remove(child)
 
 
 def _is_code_paragraph(paragraph: _Element) -> bool:
@@ -504,6 +603,35 @@ def _make_code_paragraph(
     return paragraph
 
 
+def _new_border(
+    tag: str, value: str, size: str | None = None
+) -> _Element:
+    border = OxmlElement(tag)
+    border.set(W_VAL, value)
+    if size is not None:
+        border.set(W_SZ, size)
+    border.set(W_SPACE, "0")
+    border.set(W_COLOR, "000000")
+    return border
+
+
+def _build_table_borders() -> _Element:
+    borders = OxmlElement("w:tblBorders")
+    for tag, value, size in TABLE_BORDERS:
+        borders.append(_new_border(tag, value, size))
+    return borders
+
+
+def _build_cell_margins(container_tag: str) -> _Element:
+    margins = OxmlElement(container_tag)
+    for tag in CELL_MARGIN_TAGS:
+        margin = OxmlElement(tag)
+        margin.set(W_W, str(CELL_MARGIN_VALUE))
+        margin.set(W_TYPE, "dxa")
+        margins.append(margin)
+    return margins
+
+
 def _make_table(
     lines: Sequence[_Line], style_id: str | None, content_width: int
 ) -> _Element:
@@ -516,27 +644,13 @@ def _make_table(
     width.set(W_TYPE, "pct")
     table_properties.append(width)
 
-    borders = OxmlElement("w:tblBorders")
-    for tag in BORDER_TAGS:
-        border = OxmlElement(tag)
-        border.set(W_VAL, "single")
-        border.set(W_SZ, "4")
-        border.set(W_SPACE, "0")
-        border.set(W_COLOR, "000000")
-        borders.append(border)
-    table_properties.append(borders)
+    table_properties.append(_build_table_borders())
 
     table_layout = OxmlElement("w:tblLayout")
     table_layout.set(W_TYPE, "fixed")
     table_properties.append(table_layout)
 
-    cell_margins = OxmlElement("w:tblCellMar")
-    for tag in BORDER_TAGS:
-        margin = OxmlElement(tag)
-        margin.set(W_W, str(CELL_MARGIN_VALUE))
-        margin.set(W_TYPE, "dxa")
-        cell_margins.append(margin)
-    table_properties.append(cell_margins)
+    table_properties.append(_build_cell_margins("w:tblCellMar"))
 
     table.append(table_properties)
 
@@ -554,14 +668,7 @@ def _make_table(
     cell_width.set(W_W, str(content_width))
     cell_width.set(W_TYPE, "dxa")
     cell_properties.append(cell_width)
-
-    cell_margins = OxmlElement("w:tcMar")
-    for tag in BORDER_TAGS:
-        margin = OxmlElement(tag)
-        margin.set(W_W, str(CELL_MARGIN_VALUE))
-        margin.set(W_TYPE, "dxa")
-        cell_margins.append(margin)
-    cell_properties.append(cell_margins)
+    cell_properties.append(_build_cell_margins("w:tcMar"))
 
     cell.append(cell_properties)
 
@@ -571,6 +678,74 @@ def _make_table(
     row.append(cell)
     table.append(row)
     return table
+
+
+def _is_code_table(table: _Element) -> bool:
+    rows = table.findall(W_TR)
+    if len(rows) != 1:
+        return False
+    cells = rows[0].findall(W_TC)
+    if len(cells) != 1:
+        return False
+    paragraphs = cells[0].findall(W_P)
+    if not paragraphs:
+        return False
+    return all(
+        _normalize_style_id(_paragraph_style_id(paragraph))
+        in CODE_BLOCK_STYLES
+        for paragraph in paragraphs
+    )
+
+
+def _format_code_table(table: _Element) -> None:
+    table_properties = table.find(W_TBL_PR)
+    if table_properties is None:
+        table_properties = OxmlElement("w:tblPr")
+        table.insert(0, table_properties)
+
+    _remove_direct_children(table_properties, W_SHD)
+    _remove_direct_children(table_properties, W_TBL_BORDERS)
+    _insert_ordered(
+        table_properties, _build_table_borders(), TBLPR_ORDER
+    )
+    _remove_direct_children(table_properties, W_TBL_CELL_MAR)
+    _insert_ordered(
+        table_properties,
+        _build_cell_margins("w:tblCellMar"),
+        TBLPR_ORDER,
+    )
+
+    for row in table.findall(W_TR):
+        table_exception = row.find(W_TBL_PR_EX)
+        if table_exception is not None:
+            _remove_direct_children(table_exception, W_TBL_BORDERS)
+            _remove_direct_children(table_exception, W_SHD)
+            _remove_direct_children(table_exception, W_TBL_CELL_MAR)
+
+        row_properties = row.find(W_TR_PR)
+        if row_properties is not None:
+            _remove_direct_children(row_properties, W_SHD)
+
+        for cell in row.findall(W_TC):
+            cell_properties = cell.find(W_TC_PR)
+            if cell_properties is None:
+                cell_properties = OxmlElement("w:tcPr")
+                cell.insert(0, cell_properties)
+            _remove_direct_children(cell_properties, W_SHD)
+            _remove_direct_children(cell_properties, W_TC_BORDERS)
+            _remove_direct_children(cell_properties, W_TC_MAR)
+            _insert_ordered(
+                cell_properties, _build_cell_margins("w:tcMar"), TCPR_ORDER
+            )
+
+
+def _normalize_code_tables(body: _Element) -> int:
+    normalized = 0
+    for table in body.iter(W_TBL):
+        if _is_code_table(table):
+            _format_code_table(table)
+            normalized += 1
+    return normalized
 
 
 def _apply_code_blocks(body: _Element, report: FormatCodeReport) -> None:
@@ -609,6 +784,7 @@ def format_code(docx_path: str | Path, out_docx: str | Path) -> FormatCodeReport
 
     report = FormatCodeReport()
     _apply_code_blocks(body, report)
+    report.normalized_tables = _normalize_code_tables(body)
 
     if report.skipped:
         report.warnings.append(
@@ -633,6 +809,7 @@ def _summary(report: FormatCodeReport) -> str:
             f"Blok kode menjadi tabel: {report.tables}",
             f"Paragraf kode digabung: {report.paragraphs}",
             f"Baris kode di dalam sel: {report.lines}",
+            f"Tabel kode ilmiah dinormalisasi: {report.normalized_tables}",
         ]
     )
 
@@ -640,8 +817,8 @@ def _summary(report: FormatCodeReport) -> str:
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "Format blok kode DOCX sebagai tabel 1x1 bergaris dengan "
-            "Courier New 10 pt."
+            "Format blok kode DOCX sebagai tabel 1x1 bergaya tabel ilmiah "
+            "dengan Courier New 10 pt."
         )
     )
     parser.add_argument("--docx", type=Path, required=True, help="file DOCX input")

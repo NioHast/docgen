@@ -1,8 +1,8 @@
 # Normalisasi Layout Paragraf (`normalize_layout.py`)
 
 `tools/normalize_layout.py` menyeragamkan layout paragraf DOCX hasil build:
-spasi sebelum/sesudah paragraf menjadi 0, jarak antarbaris 1,5, dan paragraf
-dirata kanan-kiri (justify).
+spasi sebelum/sesudah paragraf menjadi 0, jarak antarbaris 1,5, paragraf
+dirata kanan-kiri (justify), dan bold langsung pada run body/daftar dihapus.
 
 Alat ini hanya menulis ulang `word/document.xml`. Semua part lain (styles,
 numbering, header, footer, media, relasi, dan properti dokumen) disalin
@@ -21,7 +21,8 @@ Menetapkan properti langsung di setiap paragraf lebih aman daripada mengubah
 - style yang dipakai bersama (mis. `Normal`, `BodyText`, `Compact`) tidak
   berubah untuk keperluan lain;
 - paragraf yang dikecualikan tetap mempertahankan format aslinya;
-- teks, run, style, section, field, dan bookmark tidak tersentuh.
+- teks, style, section, field, dan bookmark tidak tersentuh; satu-satunya
+  perubahan pada run adalah penghapusan properti bold body/daftar.
 
 ## Pemakaian
 
@@ -51,9 +52,16 @@ Untuk setiap paragraf body dan sel tabel yang **tidak** masuk pengecualian:
 | `w:spacing/@w:line` | `360` |
 | `w:spacing/@w:lineRule` | `auto` |
 | `w:jc/@w:val` | `both` |
+| `w:rPr/w:b`, `w:rPr/w:bCs` pada run | dihapus (bold langsung) |
 
 `w:line="360"` dengan `w:lineRule="auto"` sama dengan 1,5 baris
 (1,5 × 240 twip).
+
+Bold hanya dipertahankan pada paragraf ber-style heading. Run body dan daftar
+yang memakai `w:b`/`w:bCs` aktif kehilangan properti itu; nilai `w:val="0"`
+yang sudah eksplisit tidak diubah. Bold run di dalam sel tabel tidak dihapus
+karena header tabel ditangani `format_figures.py`; layout sel tabel tetap
+dinormalisasi seperti sebelumnya.
 
 Direct formatting lama ditimpa, bukan ditambahkan sebagai elemen kedua:
 

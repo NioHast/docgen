@@ -12,8 +12,8 @@ sama dihasilkan dua keluaran:
   paragraf.
 
 Preset aktif adalah `undip-skripsi` di `metadata.yml`. Aturan penulisan yang
-mengikat agent ada di `writing/panduan.md`, pola larangan di
-`writing/larangan.txt`, dan glosarium istilah di `writing/istilah.tsv`.
+mengikat agent ada di `writing/guide.md`, sumber aturan pemeriksa di
+`writing/rules.yml`, dan glosarium istilah di `writing/istilah.tsv`.
 Build DOCX juga menulis `build/manifest.json`: setiap paragraf body mendapat
 bookmark `pNNNN` agar dapat diedit di Word/Adeu dan direkonsiliasi kembali ke
 Markdown.
@@ -135,14 +135,14 @@ dipanggil oleh build.
 | `chapters/` | Markdown bab (`bab*.md`), diurutkan dengan `sort -V`. |
 | `cover.md` | Kata Pengantar dan arahan daftar isi/gambar/tabel. |
 | `metadata.yml` | Judul, penulis, institusi, dan preset aktif. |
-| `presets/` | Preset format kampus; yang aktif adalah `undip-skripsi.yml`. |
+| `presets/` | Preset format kampus: `undip-skripsi.yml`, `undip-msi-proposal.yml`, dan `standard.yml` sebagai fallback teknis. |
 | `template.typ` | Template Pandoc ke Typst untuk PDF. |
 | `docx.lua` | Filter Lua untuk penomoran bab dan sampul DOCX. |
 | `reference.docx` | Basis style DOCX; dibaca `tools/build_style.py` untuk membuat salinan sesuai preset, jangan diedit manual. |
 | `tools/` | Generator style, istilah, caption, ID paragraf, rekonsiliasi, ekspor DOTX, pemeriksa prosa, dan `env.sh`. |
-| `scripts/` | Finalisasi section, nomor halaman DOCX, pembuat reference, dan utilitas laporan. |
+| `scripts/` | Finalisasi section, nomor halaman DOCX, dan pembuat `reference.docx`. |
 | `refs/` | `undip-msi.csl` (turunan APA 7: author-date, `dan`/`dkk.`, daftar pustaka alfabetis). |
-| `writing/` | `istilah.tsv`, `larangan.txt`, dan `panduan.md` untuk penulisan. |
+| `writing/` | `istilah.tsv`, `rules.yml`, dan `guide.md` untuk penulisan. |
 | `tests/` | Tes pytest dan fixture. |
 | `build/` | `manifest.json` hasil build (gitignored). |
 | `review/` | Laporan review dan daftar istilah baru (gitignored). |
@@ -152,7 +152,7 @@ dipanggil oleh build.
 
 ## Alur kerja agent
 
-1. Baca `writing/panduan.md` dan `docs/README.md`. Tulis atau ubah isi di
+1. Baca `writing/guide.md` dan `docs/README.md`. Tulis atau ubah isi di
    `chapters/*.md`, `cover.md`, dan `metadata.yml`; jangan menjadikan DOCX
    sebagai sumber.
 2. Tandai istilah asing dengan `*...*` bila sudah yakin, atau `{{?istilah?}}`
@@ -213,7 +213,7 @@ dan dokumentasi.
 ## Lisensi dan atribusi
 
 Proyek ini turunan `laporan-generator` yang berlisensi MIT. Komponen
-pemeriksa prosa `tools/periksa_prosa.py` berasal dari
+pemeriksa prosa `tools/check_prose.py` (alias lama `tools/periksa_prosa.py`) berasal dari
 [naskah-id](https://github.com/nothinx/naskah-id) (MIT, Copyright (c) 2026
 nothinx); teks lisensinya disertakan di `docs/prosa.md`.
 

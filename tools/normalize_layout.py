@@ -5,7 +5,9 @@ paragraf body dan sel tabel:
 
 - ``w:spacing/@w:before = 0`` dan ``@w:after = 0``;
 - ``w:spacing/@w:line = 360`` dengan ``@w:lineRule = auto`` (1,5 baris);
-- ``w:jc/@w:val = both`` (justify).
+- ``w:jc/@w:val = both`` (justify);
+- menghapus bold langsung (``w:b``/``w:bCs``) dari run body dan daftar.
+  Paragraf ber-style heading dipertahankan bold, dan sel tabel tidak disentuh.
 
 Paragraf dengan style blok kode, caption, heading (``Heading1``–``Heading9``
 dan style heading kustom seperti ``ChapterTitle``), daftar isi, cover,
@@ -44,6 +46,11 @@ JUSTIFICATION = "both"
 W_BODY = qn("w:body")
 W_P = qn("w:p")
 W_PPR = qn("w:pPr")
+W_R = qn("w:r")
+W_RPR = qn("w:rPr")
+W_B = qn("w:b")
+W_BCS = qn("w:bCs")
+W_TBL = qn("w:tbl")
 W_PSTYLE = qn("w:pStyle")
 W_SPACING = qn("w:spacing")
 W_JC = qn("w:jc")
@@ -143,6 +150,8 @@ class LayoutReport:
     unchanged: int = 0
     skipped_style: int = 0
     skipped_field: int = 0
+    bold_paragraphs: int = 0
+    bold_runs_removed: int = 0
 
 
 # ---------------------------------------------------------------------------
@@ -369,6 +378,65 @@ def _iter_target_paragraphs(body: _Element) -> Iterator[_Element]:
             yield paragraph
 
 
+def _is_in_table(paragraph: _Element, body: _Element) -> bool:
+    """True bila paragraf berada di dalam ``w:tbl`` (termasuk tabel bersarang)."""
+
+    parent = paragraph.getparent()
+    while parent is not None and parent is not body:
+        if parent.tag == W_TBL:
+            return True
+        parent = parent.getparent()
+    return False
+
+
+def _iter_paragraph_runs(paragraph: _Element) -> Iterator[_Element]:
+    """Iterasi run milik paragraf ini, tanpa menembus text box/nested paragraph."""
+
+    def walk(element: _Element) -> Iterator[_Element]:
+        for child in element:
+            if child.tag in (W_P, W_TXBXCONTENT):
+                continue
+            if child.tag == W_R:
+                yield child
+                continue
+            yield from walk(child)
+
+    yield from walk(paragraph)
+
+
+def _toggle_is_on(element: _Element) -> bool:
+    """Nilai efektif elemen on/off OOXML; absennya ``w:val`` berarti aktif."""
+
+    value = element.get(W_VAL)
+    if value is None:
+        return True
+    return value.strip().lower() not in {"0", "false", "off", "none"}
+
+
+def _strip_run_bold(run: _Element) -> int:
+    """Hapus properti bold langsung dari satu run. Kembalikan jumlah elemen."""
+
+    properties = run.find(W_RPR)
+    if properties is None:
+        return 0
+
+    removed = 0
+    for tag in (W_B, W_BCS):
+        for marker in list(properties.findall(tag)):
+            if not _toggle_is_on(marker):
+                continue
+            properties.remove(marker)
+            removed += 1
+    return removed
+
+
+def _strip_paragraph_bold(paragraph: _Element) -> int:
+    removed = 0
+    for run in _iter_paragraph_runs(paragraph):
+        removed += _strip_run_bold(run)
+    return removed
+
+
 # ---------------------------------------------------------------------------
 # Normalisasi
 
@@ -412,8 +480,16 @@ def normalize_layout(
 
         style_id = _paragraph_style_id(paragraph)
         if _has_exempt_style(style_id):
+            # Heading, caption, kode, TOC, cover, dan figure dipertahankan.
             report.skipped_style += 1
             continue
+
+        if not _is_in_table(paragraph, body):
+            removed = _strip_paragraph_bold(paragraph)
+            if removed:
+                report.bold_paragraphs += 1
+                report.bold_runs_removed += removed
+
         if _has_exempt_field(paragraph):
             report.skipped_field += 1
             continue
@@ -441,6 +517,8 @@ def _summary(report: LayoutReport) -> str:
             f"Paragraf sudah sesuai: {report.unchanged}",
             f"Dilewati karena style: {report.skipped_style}",
             f"Dilewati karena field: {report.skipped_field}",
+            f"Paragraf bold dibersihkan: {report.bold_paragraphs}",
+            f"Properti bold dihapus: {report.bold_runs_removed}",
         )
     )
 
