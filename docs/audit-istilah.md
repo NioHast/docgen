@@ -104,48 +104,57 @@ Kategori:
 | `mixed_case_name` | CamelCase, tidak ada di glosarium | putuskan; ditandai `name` |
 | `abbreviation` | akronim kapital ≤ 6 huruf | diabaikan kecuali ada di glosarium |
 
-Contoh laporan (disederhanakan):
+Contoh laporan (disederhanakan). Angka dan istilah di bawah adalah snapshot
+audit 8 November 2026 terhadap `Laporan.docx`; isinya dapat berubah setelah
+naskah atau `writing/istilah.tsv` diperbarui. Pada snapshot ini tidak ada
+temuan `PERLU DIPERBAIKI`, jadi tabelnya kosong.
 
 ```markdown
 # Audit Italic Istilah
 
 - Dokumen: `Laporan.docx`
 - Glosarium: `writing/istilah.tsv`
-- Paragraf diperiksa: 120
+- Paragraf diperiksa: 366
 
 ## Ringkasan
 
 | Kategori | Istilah unik | Kemunculan |
 |---|---:|---:|
-| `glossary_italic` (OK) | 1 | 2 |
-| `glossary_plain` (OK) | 1 | 4 |
-| `glossary_italic_missing` (perlu diperbaiki) | 1 | 1 |
+| `glossary_italic` (OK) | 4 | 30 |
+| `glossary_plain` (OK) | 11 | 77 |
+| `glossary_italic_missing` (perlu diperbaiki) | 0 | 0 |
 | `glossary_plain_but_italic` (perlu diperbaiki) | 0 | 0 |
-| `unknown` (perlu keputusan) | 1 | 1 |
-| `mixed_case_name` (perlu keputusan (nama)) | 0 | 0 |
-| `abbreviation` (diabaikan) | 1 | 2 |
+| `unknown` (perlu keputusan) | 476 | 1101 |
+| `mixed_case_name` (perlu keputusan (nama)) | 25 | 67 |
+| `abbreviation` (diabaikan) | 38 | 164 |
 
-**PERLU DIPERBAIKI:** 1 istilah (1 kemunculan) · **PERLU KEPUTUSAN:** 1 istilah (1 kemunculan)
+**PERLU DIPERBAIKI:** 0 istilah (0 kemunculan) · **PERLU KEPUTUSAN:** 501 istilah (1168 kemunculan)
 
 ## PERLU DIPERBAIKI
 
-| Kata/frasa | Status | Jumlah | Contoh konteks |
-|---|---|---:|---|
-| `training data` | `glossary_italic_missing` | 1 | …pada **training data** yang digunakan… |
+_Tidak ada._
 
 ## PERLU KEPUTUSAN
 
 | Kata/frasa | Jumlah | 3 contoh konteks |
 |---|---:|---|
-| `Graphical` | 1 | …antarmuka **Graphical** pengguna… |
+| `Typst` | 43 | … menggunakan Pandoc, **Typst**, dan Markdown … |
+| `Pandoc` | 30 | … dikonversi secara terpadu oleh **Pandoc** (MacFarlane, 2024) … |
+| `layout` | 3 | … pergeseran tata letak (layout **drift**) … |
 
 ## OK
 
 | Kata/frasa | Jumlah |
 |---|---:|
-| `data` | 4 |
-| `deep learning` | 2 |
+| `Python` | 13 |
+| `Microsoft Word` | 12 |
+| `data` | 3 |
 ```
+
+Jika ada istilah `italic=yes` yang belum diterapkan, barisnya muncul di
+`PERLU DIPERBAIKI` dengan status `glossary_italic_missing`. Istilah
+`italic=no` yang muncul miring memakai status `glossary_plain_but_italic`.
+Keduanya mengikuti format tabel empat kolom di atas.
 
 ## Batasan heuristik
 
@@ -175,7 +184,7 @@ yang perlu diketahui:
   diklasifikasikan menurut glosarium.
 - **Nama CamelCase** dideteksi dari kapital setelah huruf kecil
   (`PostgreSQL`, `JavaScript`, `macOS`). Kata yang hanya berawalan kapital
-  (`Graphical`, `Pandoc`) tetap `unknown` dan perlu keputusan. Jika nama itu
+  (`Typst`, `Pandoc`) tetap `unknown` dan perlu keputusan. Jika nama itu
   sudah ada di glosarium (mis. `Python`, `PostgreSQL`), glosarium yang menang.
 - **Konteks** adalah 8 token dipisah spasi sebelum dan sesudah, bukan 8 kata
   linguistik. Tanda baca menempel pada token.

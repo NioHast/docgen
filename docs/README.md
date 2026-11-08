@@ -12,7 +12,7 @@ memproses DOCX, meninjau, lalu mendistribusikan. Kembali ke
 | 4 | [pdf.md](pdf.md) | Pipeline PDF Pandoc ke Typst, peran `template.typ` dan `tools/env.sh`, serta perbedaan tata letak PDF dan DOCX. |
 | 5 | [istilah.md](istilah.md) | Glosarium `writing/istilah.tsv`, penanda `{{?istilah?}}`, perintah `check`/`apply`/`verify`/`review`, dan batasannya. |
 | 6 | [format-figures.md](format-figures.md) | Penomoran caption per bab, pembatasan lebar gambar 14 cm, dan penyeragaman border serta margin tabel. |
-| 7 | [word-fields.md](word-fields.md) | Sebab nomor TOC bisa `0`, peran `docx-pagenum.py`, dan finalisasi field dengan `make finalize-word`. |
+| 7 | [word-fields.md](word-fields.md) | Sebab nomor TOC bisa `0`, peran `docx-pagenum.py`, dan finalisasi field otomatis oleh `tools/word_finalize.py` di `build-docx.sh`. |
 | 8 | [paragraph-ids.md](paragraph-ids.md) | Bookmark `pNNNN`, bentuk `build/manifest.json`, deteksi `kind`, dan aturan `protected`. |
 | 9 | [adeu-integration.md](adeu-integration.md) | Alur rekonsiliasi edit Word ke Markdown, exit code `reconcile.py`, dan blok yang dilindungi. |
 | 10 | [dotx.md](dotx.md) | Ekspor DOCX ke `.dotx`, perbedaan content type, distribusi template, dan batasan `python-docx`. |

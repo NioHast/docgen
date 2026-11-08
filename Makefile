@@ -108,7 +108,10 @@ docker-run:
 docker-watch:
 	docker compose run --rm watch
 
-# Perbarui field Word (termasuk nomor halaman TOC) memakai Microsoft Word COM.
-# Hanya Windows + Word desktop; tidak tersedia di Linux/CI.
+# Finalisasi field Word (termasuk nomor halaman TOC) sudah berjalan otomatis
+# di build-docx.sh melalui tools/word_finalize.py, sebelum manifest dibuat.
+# Target ini sengaja tidak menjalankan Word dan tidak mengubah dokumen apa pun.
+# Jalankan `make docx` untuk membangun ulang DOCX beserta finalisasinya.
 finalize-word:
-	powershell -ExecutionPolicy Bypass -File tools/update_fields.ps1 -DocxPath Laporan.docx
+	@echo "PERINGATAN: finalisasi field Word sudah otomatis di build-docx.sh."
+	@echo "Target ini tidak mengubah dokumen. Jalankan 'make docx' untuk membangun ulang."

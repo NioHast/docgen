@@ -64,7 +64,7 @@ Penomoran judul bab dan sub-bab ditangani melalui fungsi callback `#set heading(
 })
 ```
 
-Penanganan khusus diimplementasikan pada `#show heading.where(level: 1)` untuk menghasilkan jeda halaman otomatis (*pagebreak*) dan meletakkan nomor bab ("BAB I") di atas judul bab dengan gaya huruf kapital tebal 14pt di tengah halaman.
+Penanganan khusus diimplementasikan pada `#show heading.where(level: 1)` untuk menghasilkan jeda halaman otomatis (*pagebreak*) dan meletakkan nomor bab ("BAB I") di atas judul bab dengan gaya huruf kapital tebal 12 pt di tengah halaman.
 
 ### Algoritma Keseimbangan Judul Sampul (*Balanced Title Splitting*)
 
@@ -98,7 +98,7 @@ Untuk memfasilitasi keberagaman pedoman penulisan skripsi di berbagai perguruan 
 |:---|:---|:---|:---|
 | **Identitas** | `preset_id`, `name` | `ui-skripsi`, `itb-ta` | Identifikasi unik dan nama institusi |
 | **Geometri Margin** | `margin_top`, `margin_left` | `4cm`, `3cm`, `2.5cm` | Batas tepi kertas A4 |
-| **Tipografi** | `font_family`, `font_size` | `Libertinus Serif`, `12pt` | Jenis font dan ukuran teks isi |
+| **Tipografi** | `font_family`, `font_size` | `Times New Roman`, `12pt` | Jenis font dan ukuran teks isi (PDF) |
 | **Spasi & Indentasi** | `line_spacing`, `first_line_indent` | `0.75em`, `1.25cm` | Spasi 1.5 dan indent alinea |
 | **Sampul (Cover)** | `cover_show_lecturer` | `true` / `false` | Pengaturan tampilan dosen pembimbing |
 

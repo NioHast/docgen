@@ -61,6 +61,56 @@ FALLBACK_DIRS=(
   "$HOME/.agents/skills/laporan-generator/resources"
 )
 
+# Preprocessing istilah Markdown membutuhkan Python. Build PDF sebelumnya
+# tidak memerlukan Python, jadi tetap dukung python sistem bila .venv tidak ada.
+PYTHON_BIN=""
+PYTHON_IS_WINDOWS=0
+
+# Di WSL, utamakan Python Linux agar path /mnt/c dan /tmp bisa dibaca
+# langsung. Venv Windows hanya dipakai bila Python Linux tidak tersedia.
+if [ "${_LAPORAN_PLATFORM:-}" = "wsl" ]; then
+  if command -v python3 >/dev/null 2>&1 && python3 -V >/dev/null 2>&1; then
+    PYTHON_BIN="python3"
+  elif command -v python >/dev/null 2>&1 && python -V >/dev/null 2>&1; then
+    PYTHON_BIN="python"
+  fi
+fi
+
+if [ -z "$PYTHON_BIN" ]; then
+  PYTHON_BIN="python3"
+  if ! command -v python3 >/dev/null 2>&1 || ! python3 -V >/dev/null 2>&1; then
+    if command -v python >/dev/null 2>&1 && python -V >/dev/null 2>&1; then
+      PYTHON_BIN="python"
+    fi
+  fi
+  for VENV_PYTHON in "$DIR/.venv/Scripts/python.exe" "$DIR/.venv/bin/python"; do
+    if [ -x "$VENV_PYTHON" ] && "$VENV_PYTHON" -V >/dev/null 2>&1; then
+      PYTHON_BIN="$VENV_PYTHON"
+      break
+    fi
+  done
+fi
+
+case "$PYTHON_BIN" in
+  *.exe|[A-Za-z]:*) PYTHON_IS_WINDOWS=1 ;;
+esac
+
+# Python Windows tidak mengenal path /mnt/c; konversi saat build berjalan di WSL.
+python_path() {
+  local path="$1"
+  if [ "$PYTHON_IS_WINDOWS" = "1" ] && [ "${_LAPORAN_PLATFORM:-}" = "wsl" ]; then
+    wslpath -w -- "$path" 2>/dev/null || printf '%s' "$path"
+  else
+    printf '%s' "$path"
+  fi
+}
+
+if ! "$PYTHON_BIN" -V >/dev/null 2>&1; then
+  echo "ERROR: Python 3 tidak ditemukan untuk preprocessing istilah Markdown." >&2
+  echo "       Instal Python 3 atau sediakan .venv di direktori proyek." >&2
+  exit 1
+fi
+
 copy_asset() {
   local asset="$1"
   local dest="$2"
@@ -116,11 +166,49 @@ if [ ! -d "$CHAPTERS_PATH" ]; then
   echo "Buat folder $CHAPTERS_DIR dengan file .md (mis. bab1-pendahuluan.md atau 1-pendahuluan.md)." >&2
   exit 1
 fi
-cp "$CHAPTERS_PATH"/*.md "$TMPDIR/" 2>/dev/null || true
-CHAPTER_FILES=$(find "$TMPDIR" -maxdepth 1 -name "bab*.md" | sort -V)
+
+# Preprocessing istilah sebelum Pandoc: hasilnya yang menjadi input, bukan
+# chapters/ asli. Direktori keluaran berada di dalam TMPDIR agar tidak
+# menimpa sumber dan otomatis dibersihkan oleh trap.
+GLOSSARY=""
+for base in "${FALLBACK_DIRS[@]}"; do
+  if [ -f "$base/writing/istilah.tsv" ]; then
+    GLOSSARY="$base/writing/istilah.tsv"
+    break
+  fi
+done
+if [ -z "$GLOSSARY" ]; then
+  echo "ERROR: Glosarium writing/istilah.tsv tidak ditemukan." >&2
+  echo "       Sediakan writing/istilah.tsv untuk preprocessing istilah PDF." >&2
+  exit 1
+fi
+
+ISTILAH_MD_SCRIPT=""
+for base in "${FALLBACK_DIRS[@]}"; do
+  if [ -f "$base/tools/istilah_markdown.py" ]; then
+    ISTILAH_MD_SCRIPT="$base/tools/istilah_markdown.py"
+    break
+  fi
+done
+if [ -z "$ISTILAH_MD_SCRIPT" ]; then
+  echo "ERROR: tools/istilah_markdown.py tidak ditemukan." >&2
+  exit 1
+fi
+
+PREPROCESSED_DIR="$TMPDIR/chapters-pre"
+if ! "$PYTHON_BIN" "$(python_path "$ISTILAH_MD_SCRIPT")" \
+  --src "$(python_path "$CHAPTERS_PATH")" \
+  --glossary "$(python_path "$GLOSSARY")" \
+  --out "$(python_path "$PREPROCESSED_DIR")"; then
+  echo "ERROR: Preprocessing istilah Markdown gagal." >&2
+  echo "       Periksa $GLOSSARY dan berkas .md di $CHAPTERS_DIR." >&2
+  exit 1
+fi
+
+CHAPTER_FILES=$(find "$PREPROCESSED_DIR" -maxdepth 1 -name "bab*.md" | sort -V)
 if [ -z "$CHAPTER_FILES" ]; then
   # Proposal memakai nama berangka (1-pendahuluan.md, ...), bukan bab*.md.
-  CHAPTER_FILES=$(find "$TMPDIR" -maxdepth 1 -name "*.md" ! -name "cover.md" | sort -V)
+  CHAPTER_FILES=$(find "$PREPROCESSED_DIR" -maxdepth 1 -name "*.md" ! -name "cover.md" | sort -V)
 fi
 if [ -z "$CHAPTER_FILES" ]; then
   echo "ERROR: Tidak ada berkas .md di direktori $CHAPTERS_DIR." >&2
@@ -160,6 +248,10 @@ if [ -n "$PRESET_NAME" ]; then
 elif [ -f "$TMPDIR/presets/standard.yml" ]; then
   PRESET_PATH="$TMPDIR/presets/standard.yml"
   PRESET_OPTS=("--metadata-file=$PRESET_PATH")
+else
+  echo "ERROR: Preset format tidak ditemukan (metadata: '<kosong>')." >&2
+  echo "       Sediakan presets/standard.yml." >&2
+  exit 1
 fi
 
 # Gaya sitasi mengikuti kunci csl: pada preset; default turunan APA 7 UNDIP MSI.

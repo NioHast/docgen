@@ -27,7 +27,9 @@ Markdown.
   Git Bash, WSL, atau Linux/macOS.
 - **Pandoc** dengan `--citeproc`.
 - **Typst** untuk build PDF.
-- **Microsoft Word desktop** (opsional) untuk `make finalize-word`.
+- **Microsoft Word desktop** (opsional) untuk finalisasi field otomatis oleh
+  `tools/word_finalize.py` saat `build-docx.sh`; tanpa Word, build tetap
+  berjalan dengan peringatan.
 - **LibreOffice** dan utilitas **Poppler** (`pdftotext`, `pdfinfo`) (opsional)
   untuk mengisi nomor halaman daftar isi saat build DOCX.
 - **ImageMagick** (opsional) untuk membersihkan alpha PNG saat build PDF.
@@ -79,8 +81,8 @@ belum tersedia. `reference.docx` tidak ditimpa: versi sesuai preset dibuat di
 direktori sementara. Urutan pascaprosesnya adalah `scripts/finalize-docx.py`,
 `tools/format_figures.py`, `tools/normalize_layout.py`, `tools/format_code.py`,
 `tools/format_equations.py`, `tools/istilah.py apply/verify`,
-`scripts/docx-pagenum.py`, `tools/add_paragraph_ids.py`, lalu
-`tools/word_finalize.py`.
+`scripts/docx-pagenum.py`, `tools/word_finalize.py`, lalu
+`tools/add_paragraph_ids.py`.
 
 Build PDF tidak memerlukan Python, tetapi membutuhkan Pandoc dan Typst.
 `build.sh` menyalin aset ke direktori sementara, memilih preset dari
@@ -114,12 +116,12 @@ LAPORAN_METADATA=metadata-proposal.yml LAPORAN_REPORT_NAME=Proposal bash build.s
 | Rekonsiliasi edit Word | `$PY tools/reconcile.py --docx Laporan-edited.docx --manifest build/manifest.json --chapters chapters --out review/manual-edits.md` |
 | Format caption, gambar, tabel | `$PY tools/format_figures.py --docx Laporan.docx --out Laporan.docx` |
 | Ekspor template `.dotx` | `$PY tools/export_dotx.py --in reference.docx --out dist/template-laporan.dotx` |
-| Finalisasi field Word | `make finalize-word` |
 
-Generator `reference.docx`, format caption, istilah, nomor halaman, dan ID
-paragraf sudah dijalankan otomatis oleh `build-docx.sh`. Perintah manual di
-tabel dipakai untuk memeriksa atau mengulang satu tahap tanpa build penuh.
-`make lint-prosa` hanya membaca `chapters/*.md` dan tidak dipanggil oleh build.
+Generator `reference.docx`, format caption, istilah, nomor halaman, finalisasi
+field Word, dan ID paragraf sudah dijalankan otomatis oleh `build-docx.sh`.
+Perintah manual di tabel dipakai untuk memeriksa atau mengulang satu tahap
+tanpa build penuh. `make lint-prosa` hanya membaca `chapters/*.md` dan tidak
+dipanggil oleh build.
 
 ## Struktur folder
 
@@ -161,8 +163,9 @@ tabel dipakai untuk memeriksa atau mengulang satu tahap tanpa build penuh.
 6. Jalankan `tools/reconcile.py` untuk menghasilkan
    `review/manual-edits.md`. Baca saran, lalu terapkan sendiri ke
    `chapters/*.md`; alat ini tidak menulis Markdown.
-7. Build ulang. Untuk rilis Word, jalankan `make finalize-word`. Untuk
-   distribusi template, ekspor `.dotx` dari DOCX yang sudah final.
+7. Build ulang. Untuk rilis Word, cukup `bash build-docx.sh`; Word dijalankan
+   otomatis oleh `tools/word_finalize.py` bila tersedia. Untuk distribusi
+   template, ekspor `.dotx` dari DOCX yang sudah final.
 
 Artefak `Laporan.docx`, `Laporan.pdf`, `build/`, dan `review/` tidak dilacak
 Git. Yang perlu dipertahankan adalah Markdown, metadata, preset, referensi,
@@ -176,9 +179,10 @@ dan dokumentasi.
   bila heading tersebut sudah ada di sumber.
 - **Nomor halaman TOC bisa `0`.** Cache `PAGEREF` hanya diisi bila LibreOffice
   dan utilitas Poppler (`pdftotext`, `pdfinfo`) tersedia saat build. Tanpa
-  keduanya, file di disk tetap menampilkan `0` sampai field diperbarui Word
-  (`make finalize-word`) atau aplikasi lain yang menghitung ulang field.
-- **`finalize-word` menormalkan XML dan bisa mengubah hasil.** Word menyimpan
+  keduanya, file di disk tetap menampilkan `0` sampai Word tersedia saat build
+  (dijalankan `tools/word_finalize.py`) atau aplikasi lain yang menghitung
+  ulang field.
+- **`word_finalize.py` menormalkan XML dan bisa mengubah hasil.** Word menyimpan
   ulang seluruh paket DOCX: part header/footer yang identik dapat digabung,
   media dapat dinamai ulang, dan atribut XML redundan dapat dihapus. Tampilan
   tidak diubah secara sengaja, tetapi pemeriksaan yang menuntut XML identik

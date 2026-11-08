@@ -42,11 +42,11 @@ Generator juga menambahkan dua character style jika belum ada:
 
 ## Font DOCX vs font Typst
 
-Preset memakai `font_family: "Libertinus Serif"`, yaitu font untuk mesin
-Typst/PDF. Font tersebut umumnya tidak terpasang di Windows, sehingga Word
-akan menggantinya secara diam-diam dan hasil DOCX tidak dapat diprediksi.
-Karena itu generator **tidak memakai `font_family` preset untuk DOCX**.
-Default font DOCX adalah **Times New Roman**. Override bila perlu:
+Preset masih menyimpan `font_family: "Libertinus Serif"` sebagai nilai lama.
+`template.typ` memetakan nilai itu ke Times New Roman; Libertinus Serif hanya
+dipakai sebagai fallback bila TNR tidak terpasang. Untuk DOCX, generator
+**tidak memakai `font_family` preset**. Default font DOCX adalah **Times New
+Roman**. Override bila perlu:
 
 ```bash
 python tools/build_style.py \

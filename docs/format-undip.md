@@ -33,7 +33,7 @@ kanan 3 cm.
 | `margin_bottom` | `3cm` | Margin bawah. |
 | `margin_left` | `4cm` | Margin kiri. |
 | `margin_right` | `3cm` | Margin kanan. |
-| `font_family` | `Libertinus Serif` | Font Typst/PDF; DOCX memakai Times New Roman. |
+| `font_family` | `Times New Roman` | Font efektif PDF. Nilai lama `Libertinus Serif` dipetakan ke Times New Roman; Libertinus Serif hanya fallback bila TNR tidak terpasang. DOCX memakai Times New Roman. |
 | `font_size` | `12pt` | Ukuran teks isi. |
 | `line_spacing` | `0.75em` | Satuan Typst; DOCX memetakannya ke 1,5 baris. |
 | `first_line_indent` | `1.25cm` | Indentasi baris pertama. |
@@ -42,7 +42,7 @@ kanan 3 cm.
 | `heading_sub_dot` | `true` | Titik akhir nomor subbab (contoh `1.1.`). |
 | `heading_subsub_dot` | `true` | Titik akhir nomor sub-subbab (contoh `1.1.1.`). |
 | `cover_show_lecturer` | `true` | Menampilkan dosen pengampu di sampul. |
-| `cover_logo_width` | `4cm` | Lebar logo sampul. |
+| `cover_logo_width` | `4.88cm` | Lebar logo sampul. |
 
 ### Gaya DOCX
 
@@ -53,8 +53,8 @@ pada preset. Semua nilai dapat dioverride lewat preset.
 | --- | --- |
 | `Normal` | Times New Roman 12 pt, spasi 1,5 baris (`w:line="360"`), before/after 0, justify, indentasi baris pertama 1,25 cm. |
 | `Heading1` | Times New Roman 12 pt bold hitam, center, 0/0, indentasi baris pertama 0, keep next/keep lines. |
-| `Heading2` | Times New Roman 12 pt bold hitam, justify, 0/0, indent kiri 1,25 cm dan hanging 1,25 cm. |
-| `Heading3` | Times New Roman 12 pt bold hitam, justify, 0/0, indent kiri 1,25 cm dan hanging 1,25 cm. |
+| `Heading2` | Times New Roman 12 pt bold hitam, justify, before 12 pt, after 0, indent kiri 1,25 cm dan hanging 1,25 cm. |
+| `Heading3` | Times New Roman 12 pt bold hitam, justify, before 12 pt, after 0, indent kiri 1,25 cm dan hanging 1,25 cm. |
 | `TOCHeading` | Times New Roman 12 pt bold hitam, center, 0/0. |
 | `ImageCaption` | Times New Roman 12 pt tegak, center, 0/0, spasi 1,0 baris. |
 | `TableCaption` | Times New Roman 12 pt tegak, rata kiri, 0/0, spasi 1,0 baris, keep next. |
@@ -67,9 +67,11 @@ Catatan pemetaan:
 - `line_spacing: 0.75em` adalah satuan Typst dan tidak punya padanan langsung
   di Word. DOCX sengaja selalu memakai spasi 1,5 baris agar konsisten dengan
   tampilan PDF; nilai em tidak dikonversi secara matematis.
-- `font_family` dipakai untuk Typst/PDF. Untuk DOCX, generator memakai Times
-  New Roman pada style teks; font monospace tetap Courier New. Override font
-  DOCX hanya lewat opsi `--font` pada `tools/build_style.py`.
+- `font_family` dipakai untuk Typst/PDF. Nilai lama `Libertinus Serif` dari
+  preset dipetakan ke Times New Roman; Libertinus Serif hanya dipakai sebagai
+  fallback bila TNR tidak terpasang. Untuk DOCX, generator memakai Times New
+  Roman pada style teks; font monospace tetap Courier New. Override font DOCX
+  hanya lewat opsi `--font` pada `tools/build_style.py`.
 - `reference.docx` di repositori hanya dipakai sebagai basis style. Salinan
   sesuai preset dibuat di direktori sementara build; `reference.docx` tidak
   ditimpa dan tidak boleh diedit manual untuk urusan margin/typografi.

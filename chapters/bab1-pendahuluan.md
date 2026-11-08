@@ -36,7 +36,7 @@ Berdasarkan latar belakang di atas, rumusan masalah dalam penelitian dan pengemb
 Tujuan dari penyusunan laporan dan pengembangan sistem ini adalah:
 
 1. Menganalisis dan mengimplementasikan pipeline otomatisasi dokumen berbasis teks menggunakan Markdown, Pandoc, Typst, dan Lua Filters.
-2. Membangun template visual Typst (`template.typ`) dan template gaya Word (`reference.docx`) yang mematuhi standar tipografi akademik Indonesia (A4, margin standar/skripsi, Times New Roman/Libertinus Serif, spasi 1.5).
+2. Membangun template visual Typst (`template.typ`) dan template gaya Word (`reference.docx`) yang mematuhi standar tipografi akademik Indonesia (A4, margin standar/skripsi, Times New Roman 12 pt, spasi 1.5).
 3. Mengembangkan sistem injeksi OpenXML dan skrip dua tahap (*two-pass page numbering*) untuk menyinkronkan penomoran halaman aktual pada Daftar Isi dokumen DOCX.
 4. Mengembangkan sistem preset format kampus deklaratif (`presets/*.yml`) beserta modul linter dan pemindai otomatis (*PDF Guideline Scanner*).
 5. Mengintegrasikan suite pengujian otomatis berbasis pytest untuk memverifikasi keandalan struktur dan konten dokumen yang dihasilkan.

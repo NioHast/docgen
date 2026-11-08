@@ -3,6 +3,14 @@ set -e
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
 
+# tools/ wajib ada sebelum source: env.sh dan seluruh skrip tahap DOCX berada
+# di sana. Tanpa ini build tidak boleh berjalan dengan aset proyek lain.
+if [ ! -d "$DIR/tools" ]; then
+  echo "ERROR: Direktori wajib 'tools/' tidak ditemukan di $DIR." >&2
+  echo "       build-docx.sh membutuhkan tools/env.sh dan skrip tahap DOCX." >&2
+  exit 1
+fi
+
 # Build DOCX hanya membutuhkan Pandoc; lewati syarat Typst milik build PDF.
 LAPORAN_ENV_SKIP_TYPST=1
 # shellcheck source=tools/env.sh
@@ -102,7 +110,6 @@ FALLBACK_DIRS=(
   "$OUTDIR"
   "$DIR/templates/default"
   "$DIR"
-  "$HOME/.agents/skills/laporan-generator/resources"
 )
 
 copy_asset() {
@@ -115,6 +122,44 @@ copy_asset() {
     fi
   done
   return 1
+}
+
+# Aset inti tidak boleh hilang diam-diam: tanpa aset ini build akan memakai
+# default Pandoc atau menghasilkan dokumen yang salah format.
+require_asset() {
+  local asset="$1"
+  if copy_asset "$asset" "$TMPDIR"; then
+    return 0
+  fi
+  echo "ERROR: Aset wajib '$asset' tidak ditemukan." >&2
+  echo "       Dicari di:" >&2
+  for base in "${FALLBACK_DIRS[@]}"; do
+    printf '         - %s/%s\n' "$base" "$asset" >&2
+  done
+  echo "       Build dihentikan agar tidak memakai aset dari proyek lain." >&2
+  exit 1
+}
+
+# Varian untuk aset yang harus tetap berada di subdirektori relatifnya
+# (mis. refs/undip-msi.csl).
+require_asset_path() {
+  local asset="$1"
+  local base candidate
+  for base in "${FALLBACK_DIRS[@]}"; do
+    candidate="$base/$asset"
+    if [ -f "$candidate" ]; then
+      mkdir -p "$TMPDIR/$(dirname "$asset")"
+      cp "$candidate" "$TMPDIR/$asset"
+      return 0
+    fi
+  done
+  echo "ERROR: Aset wajib '$asset' tidak ditemukan." >&2
+  echo "       Dicari di:" >&2
+  for base in "${FALLBACK_DIRS[@]}"; do
+    printf '         - %s/%s\n' "$base" "$asset" >&2
+  done
+  echo "       Build dihentikan agar tidak memakai aset dari proyek lain." >&2
+  exit 1
 }
 
 # Salin metadata dengan nama aslinya. LAPORAN_METADATA boleh berupa path
@@ -178,23 +223,31 @@ esac
 if [ -n "$COVER_SOURCE" ]; then
   cp "$COVER_SOURCE" "$TMPDIR/cover.md"
 else
-  copy_asset "cover.md" "$TMPDIR" || true
+  require_asset "cover.md"
 fi
+# logo.jpg opsional: laporan tanpa logo tetap dapat dibangun.
 copy_asset "logo.jpg" "$TMPDIR" || true
-copy_asset "reference.docx" "$TMPDIR" || true
-copy_asset "docx.lua" "$TMPDIR" || true
+require_asset "reference.docx"
+require_asset "docx.lua"
 if ! copy_metadata "$METADATA_NAME" "$TMPDIR"; then
   echo "ERROR: Berkas metadata '$METADATA_NAME' tidak ditemukan." >&2
   echo "       Sediakan metadata.yml atau set LAPORAN_METADATA." >&2
+  echo "       Dicari di:" >&2
+  for base in "${FALLBACK_DIRS[@]}"; do
+    printf '         - %s/%s\n' "$base" "$METADATA_NAME" >&2
+  done
   exit 1
 fi
 METADATA_BASENAME="$(basename "$METADATA_NAME")"
-copy_asset "references.bib" "$TMPDIR" || true
+require_asset "references.bib"
 copy_asset "apa.csl" "$TMPDIR" || true
+require_asset_path "refs/undip-msi.csl"
+# refs/ lainnya (mis. ieee.csl) tetap disalin bila ada agar preset lain bisa
+# memakai CSL alternatif; refs/undip-msi.csl sudah diwajibkan di atas.
 copy_asset "refs" "$TMPDIR" || true
-copy_asset "presets" "$TMPDIR" || true
-copy_asset "scripts" "$TMPDIR" || true
-copy_asset "tools" "$TMPDIR" || true
+require_asset "presets"
+require_asset "scripts"
+require_asset "tools"
 
 GAMBAR_DIR="$CHAPTERS_PARENT/gambar"
 if [ -d "$GAMBAR_DIR" ]; then
@@ -472,6 +525,17 @@ WORD_FINALIZE_SCRIPT="$(resolve_tool word_finalize.py)" || {
 }
 if ! "$PYTHON_BIN" "$WORD_FINALIZE_SCRIPT" "$REPORT"; then
   echo "ERROR: word_finalize.py gagal; build dihentikan." >&2
+  exit 1
+fi
+
+# --- Verifikasi istilah pada DOCX final setelah Word -----------------------
+# Word dapat mengubah run/style saat memperbarui field; verifikasi ulang agar
+# penandaan istilah yang rusak tidak lolos ke manifest.
+if ! "$ISTILAH_PYTHON" "$ISTILAH_SCRIPT" verify \
+  "$REPORT" \
+  --glossary "$GLOSSARY"; then
+  echo "ERROR: verify istilah setelah finalisasi Word gagal; build dihentikan." >&2
+  echo "       Lihat temuan di atas dan periksa perubahan Word pada DOCX." >&2
   exit 1
 fi
 

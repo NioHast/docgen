@@ -15,8 +15,8 @@ Urutan kerja:
 Bila Word tidak tersedia, langkah 1 dilewati dengan warning. TOC tetap
 memakai cache terakhir, tetapi prompt update field tidak akan muncul.
 
-Hook yang perlu ditambahkan di ``build-docx.sh`` setelah
-``add_paragraph_ids.py`` selesai dan ``$REPORT`` sudah final:
+Hook di ``build-docx.sh`` dijalankan setelah ``docx-pagenum.py`` dan
+sebelum ``add_paragraph_ids.py`` agar manifest mencerminkan DOCX final:
 
     "$PYTHON_BIN" "$TMPDIR/tools/word_finalize.py" "$REPORT"
 

@@ -20,6 +20,17 @@ dikumpulkan. Jangan menganggap teks, sitasi, atau datanya sebagai karya nyata.
 Sumber kebenaran tetap Markdown di `chapters/`, bukan DOCX ini. Jika perlu
 mengubah isi contoh, ubah `chapters/` lalu build ulang dan salin hasilnya.
 
+Build terbaru `Laporan.docx` memiliki:
+
+- 370 bookmark ID paragraf (`pNNNN`) dan 370 paragraf manifest;
+- sitasi author-date APA 7, misalnya `(Nama, tahun)`;
+- 8 tabel: 3 tabel data dan 5 tabel kode berukuran 1×1;
+- 0 karakter em dash pada teks isi.
+
+Jumlah itu dapat berubah bila naskah di `chapters/` berubah. Setelah build,
+regenerasi salinan contoh dengan `cp Laporan.docx contoh/contoh-skripsi.docx`.
+Salinan lama di folder ini tidak otomatis mengikuti build terbaru.
+
 ### `template.dotx`
 
 Template ini dibuat dari `reference.docx` yang digenerate ulang dengan preset
@@ -105,6 +116,8 @@ print("template.dotx: content type template, ZIP valid")
 PY
 ```
 
-Saat paket ini dibuat, `contoh-skripsi.docx` memiliki 322 bookmark ID paragraf
-(`pNNNN`) dan 381 elemen `w:bookmarkStart` bila seluruh bookmark lain (anchor
-heading dan sitasi) ikut dihitung.
+Setelah `contoh-skripsi.docx` diregenerasi dari build terbaru, berkas itu
+memiliki 370 bookmark ID paragraf (`pNNNN`) dan 370 paragraf manifest. Jumlah
+ini dapat berubah bila naskah berubah. Bila seluruh bookmark lain (anchor
+heading dan sitasi) ikut dihitung, build terbaru memiliki 469 elemen
+`w:bookmarkStart`.

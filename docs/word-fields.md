@@ -1,8 +1,8 @@
 # Field DOCX dan Nomor Halaman Daftar Isi
 
 Dokumen ini menjelaskan mengapa daftar isi (TOC) pada `Laporan.docx` bisa
-menampilkan nomor halaman `0`, kapan harus menjalankan `make finalize-word`,
-dan batasan langkah tersebut.
+menampilkan nomor halaman `0`, bagaimana `build-docx.sh` menangani field
+tersebut, dan batasannya.
 
 ## Ringkasan
 
@@ -12,20 +12,17 @@ Nomor halaman daftar isi di DOCX bukan teks biasa. Pandoc menulis field
 letak yang tahu nomor halaman final, sehingga cache tersebut diisi `0` atau
 nilai sementara.
 
-Pipeline build sudah mencoba mengisi cache itu lewat
-`scripts/docx-pagenum.py`, tetapi skrip tersebut membutuhkan LibreOffice
-(`soffice`) dan `pdftotext`. Bila keduanya tidak tersedia, atau render
-LibreOffice gagal/timeout, skrip hanya menyalin DOCX apa adanya. Hasilnya,
-daftar isi tetap menampilkan `0` walaupun isi dokumen sudah benar.
-
-`make finalize-word` menyelesaikan masalah itu dengan membuka DOCX langsung di
-Microsoft Word, meminta Word memperbarui seluruh field dan daftar isi, lalu
-menyimpannya kembali. Setelah langkah ini, nilai cache `PAGEREF` di dalam file
-sudah berisi nomor halaman sebenarnya, bukan `0`.
+Pipeline build mengisi cache itu lewat `scripts/docx-pagenum.py`, yang
+membutuhkan LibreOffice (`soffice`) dan `pdftotext`. Bila keduanya tidak
+tersedia, atau render LibreOffice gagal/timeout, skrip hanya menyalin DOCX apa
+adanya. Setelah itu `tools/word_finalize.py` menjalankan Microsoft Word bila
+tersedia untuk memperbarui seluruh field dan daftar isi, lalu selalu
+menjalankan `scripts/finalize-docx.py --in-place`. Langkah ini sudah menjadi
+bagian `build-docx.sh`; tidak ada finalisasi manual setelah build.
 
 ## Mengapa TOC bisa berisi 0
 
-Alur build DOCX secara ringkas:
+Alur pascaproses DOCX secara ringkas:
 
 ```text
 chapters/*.md
@@ -39,7 +36,9 @@ Laporan.docx
     ├── scripts/finalize-docx.py   (section, page numbering)
     ├── tools/format_figures.py    (caption, gambar, tabel)
     ├── tools/istilah.py           (konsistensi istilah)
-    └── scripts/docx-pagenum.py    (cache PAGEREF via LibreOffice)
+    ├── scripts/docx-pagenum.py    (cache PAGEREF via LibreOffice)
+    ├── tools/word_finalize.py     (field Word, lalu finalize-docx.py)
+    └── tools/add_paragraph_ids.py (bookmark pNNNN + manifest)
     │
     ▼
 Laporan.docx final
@@ -64,7 +63,8 @@ diperbarui. `scripts/docx-pagenum.py` mengisi nilai itu dengan cara:
 4. Menulis ulang nilai cache `PAGEREF` di `word/document.xml`.
 
 Bila langkah 1 atau 2 tidak bisa dijalankan, skrip mencetak peringatan dan
-membiarkan cache bernilai `0`. Ini yang terjadi pada mesin tanpa LibreOffice.
+membiarkan cache bernilai `0`. Nilai itu kemudian diperbarui oleh Word lewat
+`tools/word_finalize.py` bila Word tersedia.
 
 ### Peran `updateFields`
 
@@ -83,58 +83,33 @@ Dengan pengaturan itu, Word akan memperbarui field saat dokumen dibuka. Namun
 - hasil build tidak deterministik karena bergantung pada aplikasi yang membuka
   dokumen.
 
-Karena itu, untuk rilis final di Windows, jalankan `make finalize-word` agar
-nilai cache sudah benar di dalam file.
+Karena itu `build-docx.sh` menjalankan Word secara otomatis di akhir
+pascaproses. `tools/word_finalize.py` memanggil `tools/update_fields.ps1`
+lebih dulu, lalu `scripts/finalize-docx.py --in-place` menghapus
+`w:updateFields` agar Word tidak menampilkan prompt saat dokumen dibuka. Bila
+Word tidak tersedia, langkah pembaruan field dilewati dengan peringatan dan
+cache terakhir tetap dipakai.
 
-## Kapan menjalankan `make finalize-word`
+## Urutan finalisasi di `build-docx.sh`
 
-Jalankan setelah DOCX selesai dibangun dan sebelum dokumen dibagikan:
+Tiga tahap yang berkaitan dengan field dan ID paragraf dijalankan berurutan:
+
+1. `scripts/docx-pagenum.py` mengisi cache `PAGEREF` dari render LibreOffice.
+2. `tools/word_finalize.py` membuka Word bila tersedia untuk memperbarui
+   field, lalu menjalankan `scripts/finalize-docx.py --in-place`.
+3. `tools/add_paragraph_ids.py` menambahkan bookmark `pNNNN` dan menulis
+   `build/manifest.json`.
+
+Word dijalankan **sebelum** `add_paragraph_ids.py` agar manifest mencerminkan
+DOCX final. Untuk rilis, cukup jalankan:
 
 ```bash
-make docx              # atau: ./build-docx.sh
-make finalize-word
+bash build-docx.sh
 ```
 
-Contoh situasi yang memerlukannya:
-
-- `make docx` mencetak peringatan `docx-pagenum: soffice/pdftotext tidak ada`;
-- daftar isi di `Laporan.docx` menampilkan `0` untuk semua entri;
-- dokumen akan dikirim ke dosen, diunggah, atau diarsipkan sebagai Word final;
-- dokumen akan dibuka di aplikasi selain Microsoft Word yang tidak otomatis
-  memperbarui field.
-
-Tidak perlu menjalankannya pada setiap perubahan Markdown bila build DOCX
-berikutnya akan dijalankan lagi; langkah ini adalah finalisasi tahap akhir.
-Jangan menjalankannya sebagai bagian dari `build-docx.sh`, karena build DOCX
-harus tetap bisa berjalan di Linux/CI tanpa Word.
-
-## Cara menjalankan
-
-Dari akar repo, di Windows yang memiliki Microsoft Word desktop:
-
-```powershell
-make finalize-word
-```
-
-Target tersebut menjalankan:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File tools/update_fields.ps1 -DocxPath Laporan.docx
-```
-
-Untuk melihat jendela Word saat proses berjalan (berguna ketika ada dialog
-yang tidak terlihat), tambahkan `-Visible`:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File tools/update_fields.ps1 -DocxPath Laporan.docx -Visible
-```
-
-Untuk menguji pada salinan tanpa menyentuh `Laporan.docx`:
-
-```powershell
-Copy-Item Laporan.docx "$env:TEMP\uji-fields.docx"
-powershell -ExecutionPolicy Bypass -File tools/update_fields.ps1 -DocxPath "$env:TEMP\uji-fields.docx"
-```
+Tidak ada perintah finalisasi Word terpisah setelah build. Di Linux/CI tanpa
+Microsoft Word, tahap Word dilewati dan build tetap selesai dengan peringatan;
+`docx-pagenum.py` menjadi jalur pengisian nomor halaman yang tersedia.
 
 ## Apa yang dilakukan `tools/update_fields.ps1`
 
@@ -162,7 +137,7 @@ mewajibkan atribut eksplisit dapat gagal pada DOCX hasil finalisasi.
 
 ## Verifikasi
 
-Setelah menjalankan skrip pada salinan, periksa bahwa field TOC sudah berisi
+Setelah `bash build-docx.sh` selesai, periksa bahwa field TOC sudah berisi
 nomor halaman. Contoh pemeriksaan dengan Python:
 
 ```python
@@ -191,24 +166,28 @@ print(values)
 Jalankan:
 
 ```powershell
-.venv\Scripts\python.exe cek_toc.py "$env:TEMP\uji-fields.docx"
+.venv\Scripts\python.exe cek_toc.py Laporan.docx
 ```
 
 Nilai harus berupa angka Arab/Huruf Romawi (misalnya `i`, `1`, `21`), bukan
-`0`. Jumlah halaman dokumen juga tidak boleh berubah hanya karena pembaruan
-field; bila berubah, periksa apakah ada heading/gambar yang bergeser karena
-font atau layout berbeda.
+`0`. Bila Word tidak tersedia saat build, nilai `0` dapat tetap muncul; itu
+sesuai batasan di bawah. Jumlah halaman dokumen juga tidak boleh berubah hanya
+karena pembaruan field; bila berubah, periksa apakah ada heading/gambar yang
+bergeser karena font atau layout berbeda.
 
 ## Batasan
 
-- **Hanya Windows + Microsoft Word desktop.** COM `Word.Application` tidak
-  tersedia di Linux, macOS, WSL tanpa Word, atau runner CI standar.
+- **Hanya Windows + Microsoft Word desktop untuk tahap Word.** COM
+  `Word.Application` tidak tersedia di Linux, macOS, WSL tanpa Word, atau
+  runner CI standar. Di lingkungan tersebut `word_finalize.py` melewati
+  pembaruan field dengan peringatan.
 - **Bukan pengganti `docx-pagenum.py` di CI.** Build lintas platform tetap
-  memakai `docx-pagenum.py`; `finalize-word` adalah langkah manual di mesin
-  Windows.
+  memakai `docx-pagenum.py` sebagai jalur utama pengisian nomor halaman.
 - **Butuh Word yang tidak diblokir dialog.** Bila Word menampilkan dialog
   tersembunyi (misalnya file sedang dikunci atau ada add-in bermasalah),
-  proses dapat menggantung. Gunakan `-Visible` untuk men-debug.
+  proses dapat menggantung. `word_finalize.py` memakai batas waktu 300 detik
+  secara default; opsi `-Visible` pada `update_fields.ps1` berguna untuk
+  men-debug.
 - **Nomor halaman mengikuti layout Word.** Nomor bisa berbeda dari
   `Laporan.pdf` (Typst) atau render LibreOffice karena mesin tata letak dan
   font yang tersedia berbeda.
@@ -217,5 +196,6 @@ font atau layout berbeda.
 - **Word dapat menormalkan isi TOC.** Setelah `TablesOfContents.Update()`,
   Word dapat menyesuaikan pemisah nomor/tab pada entri TOC sesuai gayanya.
   Teks isi bab di badan dokumen tidak diubah.
-- **Bukan bagian dari `build-docx.sh`.** Skrip ini tidak dipanggil otomatis
-  oleh build agar pipeline tetap jalan di Linux/CI.
+- **Sudah menjadi bagian `build-docx.sh`.** `tools/word_finalize.py` dipanggil
+  otomatis setelah `docx-pagenum.py` dan sebelum `add_paragraph_ids.py`, jadi
+  tidak perlu langkah finalisasi manual untuk rilis.
