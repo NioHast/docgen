@@ -1,0 +1,189 @@
+# Format: Universitas Diponegoro - Magister Sistem Informasi (UNDIP MSI)
+# Sumber nilai: presets/undip-skripsi.yml (nilai format final) dan
+# formats/undip-msi/format.yml (identitas, CSL, bibliography).
+# Nomor bab (prefix/format) tidak disimpan di sini karena berbeda per
+# struktur; lihat structures/<id>/structure.yml bagian numbering.
+# Skema mengikuti docs/dev/contracts/config.md terbaru.
+format: undip-msi
+name: "Universitas Diponegoro - Magister Sistem Informasi"
+description: "Margin 4/3/4/3 cm, Times New Roman 12 pt, spasi 1,5, sitasi author-date UNDIP MSI."
+
+page:
+  # Ukuran/orientasi/jarak header-footer memakai default kontrak karena tidak
+  # ada di presets/undip-skripsi.yml.
+  size: A4
+  orientation: portrait
+  # margin_* dari presets/undip-skripsi.yml
+  margins:
+    top: 4cm
+    bottom: 3cm
+    left: 4cm
+    right: 3cm
+  header_distance: 1.27cm
+  footer_distance: 1.27cm
+  gutter: 0cm
+
+font:
+  body:
+    # normal_* dari presets/undip-skripsi.yml
+    family: "Times New Roman"
+    size: 12pt
+    # normal_line_spacing: 360 twip = 1,5 baris
+    line_spacing: 1.5
+    space_before: 0pt
+    space_after: 0pt
+    alignment: both
+    first_line_indent: 1.25cm
+  monospace:
+    # source_code_font_* dari presets/undip-skripsi.yml
+    family: "Courier New"
+    size: 10pt
+
+headings:
+  styles:
+    heading1:
+      # heading1_* dari presets/undip-skripsi.yml
+      font_family: "Times New Roman"
+      font_size: 12pt
+      bold: true
+      color: "000000"
+      alignment: center
+      space_before: 0pt
+      space_after: 0pt
+      # heading1_line_spacing: 360 twip = 1,5 baris
+      line_spacing: 1.5
+      keep_next: true
+      keep_lines: true
+      outline_level: 0
+      first_line_indent: 0cm
+    heading2:
+      # heading2_* dari presets/undip-skripsi.yml
+      font_family: "Times New Roman"
+      font_size: 12pt
+      bold: true
+      color: "000000"
+      alignment: both
+      space_before: 0pt
+      space_after: 0pt
+      # heading2_line_spacing: 360 twip = 1,5 baris
+      line_spacing: 1.5
+      keep_next: true
+      keep_lines: true
+      outline_level: 1
+      indent_left: 1.25cm
+      indent_hanging: 1.25cm
+    heading3:
+      # heading3_* dari presets/undip-skripsi.yml
+      font_family: "Times New Roman"
+      font_size: 12pt
+      bold: true
+      color: "000000"
+      alignment: both
+      space_before: 0pt
+      space_after: 0pt
+      # heading3_line_spacing: 360 twip = 1,5 baris
+      line_spacing: 1.5
+      keep_next: true
+      keep_lines: true
+      outline_level: 2
+      indent_left: 1.25cm
+      indent_hanging: 1.25cm
+
+# Gaya judul daftar isi. Toggle daftar isi ada di structure.yml (`toc`),
+# bukan di sini. color/alignment/first_line_indent dipulihkan dari preset.
+toc_heading:
+  heading_style: "TOCHeading"
+  # toc_heading_font_family dari presets/undip-skripsi.yml
+  font: "Times New Roman"
+  # toc_heading_font_size
+  size: 12pt
+  bold: true
+  color: "000000"
+  alignment: center
+  space_before: 0pt
+  space_after: 0pt
+  # toc_heading_line_spacing: 360 twip = 1,5 baris
+  line_spacing: 1.5
+  first_line_indent: 0cm
+
+captions:
+  figure:
+    # image_caption_* dari presets/undip-skripsi.yml
+    font:
+      family: "Times New Roman"
+      size: 10pt
+      bold: false
+      italic: false
+      space_before: 0pt
+      space_after: 0pt
+      # image_caption_line_spacing: 240 twip = 1,0 baris
+      line_spacing: 1.0
+  table:
+    # table_caption_* dari presets/undip-skripsi.yml
+    keep_next: true
+    font:
+      family: "Times New Roman"
+      size: 10pt
+      bold: false
+      italic: false
+      alignment: left
+      space_before: 0pt
+      space_after: 0pt
+      # table_caption_line_spacing: 240 twip = 1,0 baris
+      line_spacing: 1.0
+
+# Perataan caption gambar dan counter caption gambar/tabel.
+figures:
+  # figure_alignment dari presets/undip-skripsi.yml
+  caption_alignment: center
+  image_alignment: center
+  numbering: chapter
+  space_before: 0pt
+  space_after: 0pt
+  first_line_indent: 0cm
+
+code:
+  # source_code_* dari presets/undip-skripsi.yml; border/cell_margin tidak
+  # ada di preset dan diambil dari perilaku tools/format_code.py.
+  font:
+    family: "Courier New"
+    size: 10pt
+  # source_code_line_spacing: 240 twip = 1,0 baris
+  line_spacing: 1.0
+  space_before: 0pt
+  space_after: 0pt
+  shading: none
+  # source_code_alignment dari presets/undip-skripsi.yml
+  alignment: left
+  border:
+    style: single
+    width: 1pt
+    color: "000000"
+  table:
+    width: 100%
+    cell_margin: 108twip
+
+# Gaya daftar pustaka. Path file .bib ada di citation.bibliography.
+# indent_left/indent_hanging dipulihkan dari preset.
+bibliography_style:
+  heading: "DAFTAR PUSTAKA"
+  # bibliography_font_family dari presets/undip-skripsi.yml
+  font: "Times New Roman"
+  # bibliography_font_size
+  size: 12pt
+  # bibliography_line_spacing: 360 twip = 1,5 baris
+  line_spacing: 1.5
+  space_before: 0pt
+  space_after: 0pt
+  indent_left: 1.27cm
+  indent_hanging: 1.27cm
+
+citation:
+  csl: citation.csl
+  # bibliography dari formats/undip-msi/format.yml
+  bibliography: references.bib
+
+# Ukuran dan visibilitas cover ada di structure.cover, bukan di sini.
+assets:
+  logo: logo.jpg
+  reference_docx: reference.docx

@@ -1,4 +1,4 @@
-"""Tes pipeline audit italic istilah (tools/audit_terms.py).
+"""Tes pipeline audit italic istilah (tools/dev/audit_terms.py).
 
 Fixture DOCX dibuat dengan python-docx agar tes tidak bergantung pada hasil
 build. Glosarium tes ditulis sebagai TSV sementara.
@@ -22,7 +22,7 @@ from audit_terms import (
     main,
     render_report,
 )
-from terms import load_glossary
+from docgen.docx.terms import load_glossary
 
 
 # ---------------------------------------------------------------------------

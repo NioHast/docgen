@@ -1,0 +1,1 @@
+"""Helper bersama untuk tes."""

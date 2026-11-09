@@ -12,7 +12,7 @@ from pathlib import Path
 from xml.sax.saxutils import escape
 
 AKAR = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(AKAR / "tools"))
+sys.path.insert(0, str(AKAR / "tools" / "dev"))
 
 import check_prose  # noqa: E402
 

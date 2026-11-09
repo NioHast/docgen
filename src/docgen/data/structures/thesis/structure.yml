@@ -1,0 +1,44 @@
+# Struktur tesis UNDIP MSI.
+# Sumber urutan: structures/thesis.yml lama.
+# Sumber penomoran: presets/undip-skripsi.yml (BAB Romawi, subbab bertitik).
+format: undip-msi
+
+front_matter:
+  - {id: cover, source: generated}
+  - {id: approval, source: template, template: approval.md}
+  - {id: statement, source: template, template: statement.md}
+  - {id: preface, source: document}
+  - {id: abstract_id, source: document}
+  - {id: abstract_en, source: document}
+  - {id: toc, source: generated}
+  - {id: list_of_tables, source: generated}
+  - {id: list_of_figures, source: generated}
+
+body:
+  - {id: pendahuluan, title: "Pendahuluan"}
+  - {id: tinjauan-pustaka, title: "Tinjauan Pustaka"}
+  - {id: metodologi, title: "Metodologi"}
+  - {id: hasil-dan-pembahasan, title: "Hasil dan Pembahasan"}
+  - {id: penutup, title: "Penutup"}
+
+back_matter:
+  - {id: bibliography, source: generated}
+  - {id: appendices, source: document}
+
+toc: true
+
+numbering:
+  # heading_chapter_prefix: "BAB " + heading_chapter_num_format: roman
+  body: BAB_ROMAN
+  # heading_sub_dot / heading_subsub_dot
+  sub_dot: true
+  subsub_dot: true
+
+lists:
+  figures: true
+  tables: true
+
+# Nilai cover tesis dari presets/undip-skripsi.yml.
+cover:
+  show_lecturer: true
+  logo_width: 4.88cm

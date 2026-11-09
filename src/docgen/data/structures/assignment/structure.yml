@@ -1,0 +1,35 @@
+# Struktur tugas/laporan mata kuliah UNDIP MSI.
+# Sumber urutan: structures/assignment.yml lama.
+# Penomoran dan cover mengikuti pemetaan lama formats/undip-msi/format.yml:
+# assignment -> preset undip-msi-proposal (Arab bertitik, dosen tidak tampil).
+format: undip-msi
+
+front_matter:
+  - {id: cover, source: generated}
+
+body:
+  - {id: pendahuluan, title: "Pendahuluan"}
+  - {id: pembahasan, title: "Pembahasan"}
+  - {id: penutup, title: "Penutup"}
+
+back_matter:
+  - {id: bibliography, source: generated}
+
+toc: false
+
+numbering:
+  body: ARABIC_DOTTED
+  sub_dot: true
+  subsub_dot: true
+
+lists:
+  figures: false
+  tables: false
+
+# Override cover mengikuti preset proposal lama. Key ini belum ada di kontrak
+# docs/dev/contracts/config.md bagian structure.yml; lihat laporan WS1.
+# show_lecturer: false adalah warisan mapping lama dan perlu konfirmasi
+# pengguna, bukan blocker.
+cover:
+  show_lecturer: false
+  logo_width: 4.7cm

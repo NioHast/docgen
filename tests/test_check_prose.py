@@ -10,7 +10,7 @@ from contextlib import redirect_stdout
 from pathlib import Path
 
 AKAR = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(AKAR / "tools"))
+sys.path.insert(0, str(AKAR / "tools" / "dev"))
 
 import check_prose  # noqa: E402
 
@@ -131,7 +131,7 @@ class TesKE13(unittest.TestCase):
 
 class TesSelfLint(unittest.TestCase):
     def test_guide_dan_docs_bersih(self):
-        for nama in ("writing/guide.md", "docs/dev/prosa.md"):
+        for nama in ("docs/agent/writing-rules.md", "docs/dev/contributing.md"):
             teks = (AKAR / nama).read_text(encoding="utf-8")
             self.assertEqual(check_prose.periksa(teks), [], nama)
 
