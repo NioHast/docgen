@@ -12,7 +12,6 @@ date: "Agustus 2026"
 lang: "id-ID"
 structure: assignment
 format: undip-msi
-toc: false
 bibliography: references.bib
 ---
 
@@ -22,56 +21,66 @@ bibliography: references.bib
 
 Laporan akademik menuntut struktur, penomoran, dan sitasi yang konsisten. Penulisan langsung di pengolah kata sering membuat format berpindah saat dokumen disunting ulang. Pemisahan antara naskah dan presentasi mengurangi masalah tersebut: naskah ditulis dalam Markdown, lalu dikonversi oleh Pandoc [@pandoc2024] menjadi DOCX atau PDF.
 
-Pendekatan ini juga memudahkan peninjauan melalui Git. Perubahan teks tampil sebagai diff baris, bukan sebagai berkas biner yang tidak terbaca. Mesin keluaran dapat diganti tanpa menulis ulang isi laporan.
+Pendekatan ini juga memudahkan peninjauan melalui Git. Perubahan teks tampil sebagai diff baris, bukan sebagai berkas biner yang tidak terbaca. Aturan keluaran dapat diganti tanpa menulis ulang isi laporan.
 
 ## Rumusan Masalah
 
 1. Bagaimana menyusun naskah tugas dalam struktur bab yang baku?
-2. Bagaimana memastikan format, metadata, dan sitasi konsisten saat build?
+2. Bagaimana memastikan format, front matter, dan sitasi konsisten saat build?
 3. Bagaimana memisahkan konten dari aturan visual agar mudah dipakai ulang?
 
 ## Tujuan
 
-Tujuan tugas ini adalah menghasilkan contoh laporan yang dibangun dari struktur `assignment`, format `undip-msi`, dan pipeline build yang sudah ada.
+Tujuan tugas ini adalah menghasilkan contoh laporan yang dibangun dari struktur `assignment`, format `undip-msi`, dan pipeline Python `docgen`.
 
 # Pembahasan
 
 ## Lapisan Format
 
-Format menyimpan aturan visual yang tidak bergantung pada isi, misalnya margin, tipografi, dan gaya sitasi. Pada contoh ini format `undip-msi` memakai preset `undip-msi-proposal`, CSL `refs/undip-msi.csl`, dan bibliografi `references.bib`.
+Format menyimpan aturan visual yang tidak bergantung pada isi, misalnya margin, tipografi, dan gaya caption. Pada contoh ini format `undip-msi` dibaca dari `src/docgen/data/formats/undip-msi/format.yml`; berkas itu juga menunjuk CSL `citation.csl`. Path bibliografi ditulis di front matter `document.md`, sedangkan nilai visual tetap berada di `format.yml`.
 
 ## Lapisan Struktur
 
-Struktur menentukan urutan bagian. Struktur `assignment` memakai penomoran Arab bertitik dengan tiga bab:
+Struktur menentukan urutan bagian dan aturan penomoran. Struktur `assignment` dibaca dari `src/docgen/data/structures/assignment/structure.yml` dan memakai penomoran Arab bertitik dengan tiga bab:
 
-: Peran berkas dalam struktur assignment
+: Peran berkas dalam pipeline satu berkas
 
-| Urutan | Berkas | Peran |
+| Lapisan | Berkas | Peran |
 | --- | --- | --- |
-| 1 | `chapters/01-pendahuluan.md` | Pendahuluan |
-| 2 | `chapters/02-pembahasan.md` | Pembahasan |
-| 3 | `chapters/03-penutup.md` | Penutup |
+| Format | `src/docgen/data/formats/undip-msi/format.yml` | Margin, tipografi, caption, dan `citation.csl` |
+| Struktur | `src/docgen/data/structures/assignment/structure.yml` | Urutan bab, TOC, dan penomoran |
+| Konten | `document.md` | Front matter, naskah, tabel, gambar, dan sitasi |
+| Aset | `references.bib`, `gambar/` | Entri BibTeX dan gambar lokal |
 
 Struktur tidak menyimpan teks naskah. Dengan begitu, struktur yang sama dapat dipakai banyak proyek konten.
 
-## Lapisan Konten dan Platform
+## Lapisan Konten dan Pipeline
 
-Konten berisi metadata, bab Markdown, gambar, dan bibliografi. Platform menyediakan perintah `list`, `new`, `check`, `build`, dan `doctor`. Perintah `build` hanya memanggil `build-docx.sh` atau `build.sh`; logika DOCX dan PDF tidak diduplikasi.
+Konten berisi front matter, bab Markdown, gambar, dan bibliografi. Perintah `docgen check` memvalidasi front matter, format, struktur, template, aset, dan urutan bab. Perintah `docgen build` menjalankan pipeline Python: render Mermaid, materialisasi front matter, konversi Pandoc, lalu stage DOCX untuk caption, persamaan, penomoran, daftar isi, dan nomor halaman.
 
-```{.mermaid caption="Alur build satu berkas"}
-flowchart LR
-  A[Berkas Markdown] --> B[Workspace build]
-  B --> C[DOCX atau PDF]
+```bash
+uv run --project . docgen check examples/assignment-single/document.md
+uv run --project . docgen build examples/assignment-single/document.md --target docx
 ```
 
-Pandoc menangani konversi dokumen [@pandoc2024], sedangkan Typst dipakai pipeline PDF [@typst2024]. Keduanya menerima sumber Markdown yang sama sehingga isi laporan tidak perlu ditulis dua kali.
+```{.mermaid caption="Alur check dan build satu berkas"}
+flowchart LR
+  A[document.md] --> B[docgen check]
+  B --> C[docgen build]
+  C --> D[Pandoc]
+  D --> E[Stage Python DOCX]
+  E --> F[DOCX]
+  F --> G[PDF melalui Word]
+```
+
+Pandoc menangani konversi dokumen [@pandoc2024], sedangkan stage Python bekerja pada paket Office Open XML [@iso2021openxml] untuk merapikan caption, persamaan, dan penomoran. Sumber Markdown yang sama dipakai untuk DOCX maupun PDF, sehingga isi laporan tidak perlu ditulis dua kali. PDF diekspor dari DOCX melalui Microsoft Word pada Windows.
 
 # Penutup
 
 ## Kesimpulan
 
-Pemisahan format, struktur, konten, dan platform membuat laporan lebih mudah diperiksa dan dibangun ulang. Naskah tetap berupa Markdown, sedangkan aturan visual serta urutan bab disimpan di berkas YAML yang dapat dipakai ulang.
+Pemisahan format, struktur, dan konten membuat laporan lebih mudah diperiksa dan dibangun ulang. Naskah tetap berupa Markdown, sedangkan aturan visual serta urutan bab disimpan di berkas YAML yang dapat dipakai ulang. Pipeline Python `docgen` menjalankan validasi dan seluruh stage DOCX tanpa memerlukan skrip build terpisah.
 
 ## Saran
 
-Langkah berikutnya adalah menambahkan pemeriksaan otomatis untuk variabel front matter yang belum didukung pipeline lama, lalu memperluas contoh ke struktur `proposal` dan `thesis`.
+Langkah berikutnya adalah menambah format institusi lain dan memperluas pemeriksaan paritas keluaran DOCX. Contoh juga dapat diperluas dengan studi kasus yang memakai tabel dan gambar dalam jumlah lebih banyak.

@@ -1,88 +1,35 @@
-# Mermaid Inline
+# Diagram Mermaid
 
-Diagram Mermaid ditulis langsung di Markdown sebagai code fence, lalu dirender
-menjadi PNG oleh modul `src/laporan/mermaid.py`. Blok sumber diganti dengan
-gambar Markdown biasa sehingga Pandoc dan pipeline caption tidak perlu
-mengetahui Mermaid sama sekali.
+Diagram ditulis langsung di `document.md` sebagai code fence Mermaid. Stage
+`mermaid` mengganti blok itu menjadi PNG di workspace sebelum Pandoc berjalan,
+sehingga DOCX memuat gambar biasa. Berkas sumber tidak diubah.
 
 ## Sintaks
 
 ````markdown
 ```{.mermaid caption="Diagram pipeline"}
-flowchart TD
-  A --> B
+flowchart LR
+  A[document.md] --> B[Pandoc]
+  B --> C[DOCX]
 ```
 ````
 
 Aturan:
 
-- atribut `caption` **wajib** dan tidak boleh kosong;
-- isi diagram adalah baris di antara fence pembuka dan penutup;
-- fence biasa (Python, JSON, dan sebagainya) tidak disentuh;
+- atribut `caption` wajib dan tidak boleh kosong;
+- isi diagram tidak boleh kosong;
+- fence penutup wajib ada;
+- fence biasa seperti `python`, `bash`, atau `json` tidak disentuh;
 - caption menjadi alt text gambar, bukan nomor manual.
 
-Blok di atas diganti menjadi:
+Blok di atas diganti secara internal menjadi:
 
 ```markdown
 ![Diagram pipeline](gambar/mermaid-<hash>.png)
 ```
 
-Nomor `Gambar bab.n` diberikan oleh pipeline caption DOCX yang sudah ada
-(`format_figures.py`) dari alt text gambar. Jangan menulis nomor manual di
+Nomor `Gambar bab.n` diberikan stage caption DOCX. Jangan menulis nomor di
 Markdown.
-
-## Perintah
-
-Dari akar repositori, jalankan modulnya langsung:
-
-```bash
-python src/laporan/mermaid.py \
-  --src chapters \
-  --out-dir . \
-  --mmdc mmdc
-```
-
-Bila paket sudah terpasang (editable), perintah yang setara adalah
-`python -m laporan.mermaid` dengan opsi yang sama.
-
-| Opsi | Keterangan |
-| --- | --- |
-| `--src <file.md\|dir>` | Satu berkas Markdown atau direktori sumber. Direktori diproses rekursif untuk berkas `.md` saja. |
-| `--out-dir <task>` | Folder tugas. PNG ditulis ke `<task>/gambar/`. |
-| `--mmdc <path>` | Path executable Mermaid CLI. Default: cari `mmdc` di `PATH`. |
-| `--theme <nama>` | Opsi `mmdc`, mis. `default`, `dark`, `forest`. |
-| `--background <warna>` | Warna latar PNG. |
-| `--size <piksel>` | Ukuran maksimum PNG (`--size` mmdc). |
-| `--scale <angka>` | Skala render `mmdc`. |
-
-Contoh Windows dengan executable eksplisit:
-
-```bat
-.venv\Scripts\python.exe src\laporan\mermaid.py ^
-  --src chapters ^
-  --out-dir . ^
-  --mmdc "%APPDATA%\npm\mmdc.cmd"
-```
-
-`--src` boleh menunjuk satu berkas:
-
-```bash
-python src/laporan/mermaid.py --src chapters/bab3-metodologi.md --out-dir .
-```
-
-## Keluaran dan cache
-
-- PNG ditulis ke `<out-dir>/gambar/mermaid-<hash>.png`.
-- Hash adalah SHA-256 dari isi Mermaid yang sudah dinormalisasi ditambah opsi
-  render; 12 karakter pertama dipakai sebagai nama berkas.
-- Bila PNG dengan hash tersebut sudah ada, `mmdc` tidak dipanggil lagi.
-- Diagram identik yang muncul beberapa kali hanya dirender sekali.
-- Blok yang sudah diganti tidak dianggap blok Mermaid pada eksekusi berikutnya,
-  sehingga perintah ini idempoten.
-- Penulisan Markdown mempertahankan line ending dan BOM berkas asli.
-
-Hanya berkas `.md` yang dibaca dan diubah. `.bib`, gambar lain, dan keluaran
-build tidak disentuh.
 
 ## Kebutuhan `mmdc`
 
@@ -93,39 +40,54 @@ npm install -g @mermaid-js/mermaid-cli
 mmdc --version
 ```
 
-Versi yang diverifikasi di Windows: `12.2.0`.
-
-Bila `mmdc` tidak ditemukan saat ada diagram yang perlu dirender, perintah
-berhenti dengan exit code `1` dan pesan instalasi. Tidak ada Markdown yang
-ditulis dan tidak ada PNG yang dibuat. Pemeriksaan yang sama berlaku bila
-caption hilang: seluruh berkas divalidasi lebih dulu sebelum render dimulai.
-
-## Alur build
-
-Mode satu berkas merender blok Mermaid secara otomatis:
+`mmdc` harus dapat ditemukan dari `PATH`. Di Windows, folder global npm
+biasanya `%APPDATA%\npm`; pastikan folder itu ada di `PATH`. Periksa dengan:
 
 ```bash
-python -m laporan build-file document.md
+uv run --project <repo> docgen doctor
 ```
 
-Mode folder menjalankan renderer lebih dulu, lalu build direktori proyek:
+`doctor` menampilkan status `mmdc`. Bila `mmdc` tidak ada tetapi dokumen
+memuat diagram, build berhenti dengan pesan instalasi. Tidak ada PNG atau
+Markdown setengah jadi yang ditulis.
+
+## Saat build
 
 ```bash
-python src/laporan/mermaid.py --src chapters --out-dir . --mmdc mmdc
-python -m laporan build <direktori-proyek>
+uv run --project <repo> docgen build document.md --target docx
 ```
 
-Build menyalin `chapters/*.md` dan `gambar/` ke direktori sementara yang sama,
-jadi path relatif `gambar/mermaid-<hash>.png` tetap valid. Modul ini tidak
-mengubah TOC, aturan caption, atau skrip build. Format blok dan aturan caption
-ada di [document-format.md](document-format.md).
+Alur stage:
 
-## Tes
+1. `validate` memeriksa caption tabel dan alt text gambar.
+2. `mermaid` mengekstrak blok, menghitung hash, dan merender PNG.
+3. `front_matter` memakai Markdown hasil penggantian.
+4. `pandoc` membaca Markdown itu dan menyisipkan PNG ke DOCX.
 
-```bash
-.venv/Scripts/python.exe -m pytest tests/test_mermaid.py -q
-```
+PNG sementara ditulis ke `.laporan-build/gambar/mermaid-<hash>.png` di
+samping `document.md`. Workspace dihapus setelah build kecuali memakai
+`--keep`.
 
-Tes mencakup ekstraksi blok, caption wajib, idempotensi hash, penggantian
-Markdown, render dua diagram ke `gambar/`, cache antar-eksekusi, serta render
-nyata dengan `mmdc` bila tersedia.
+## Cache dan hash
+
+- Hash berasal dari isi Mermaid yang dinormalisasi dan opsi render.
+- Nama berkas memakai 12 karakter pertama hash.
+- Diagram identik dalam satu build hanya dirender sekali.
+- Bila PNG dengan hash yang sama sudah ada di workspace, `mmdc` tidak dipanggil
+  lagi.
+- Perubahan isi atau opsi menghasilkan hash baru dan PNG baru.
+- Blok yang sudah menjadi gambar tidak dianggap Mermaid pada proses berikutnya.
+
+Dengan `--keep`, isi `.laporan-build/` dapat diperiksa. Jangan menyalin PNG
+hasil render menjadi sumber; sumber tetap blok Mermaid di `document.md`.
+
+## Batasan
+
+- `check` tidak merender Mermaid. Caption dan isi blok baru diperiksa
+  saat build.
+- Tidak ada perintah render Mermaid terpisah. Render selalu bagian dari build.
+- Opsi `mmdc` seperti tema dan skala tidak diekspos sebagai flag CLI. Nilai
+  default dipakai.
+- Diagram yang sangat besar tetap mengikuti batas `mmdc` dan waktu render.
+
+Bila render gagal, lihat [troubleshooting.md](troubleshooting.md).

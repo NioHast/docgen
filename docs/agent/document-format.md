@@ -1,55 +1,103 @@
 # Format Dokumen
 
-Dokumen ini menjelaskan format sumber Markdown yang diterima pipeline.
-Aturan visual tidak ditulis di naskah; preset dan filter DOCX yang
-menerapkannya.
+Sumber naskah adalah satu `document.md` berisi YAML front matter dan body
+Markdown. Aturan visual tidak ditulis di naskah. Format dan struktur membacanya
+dari `src/docgen/data/`.
 
-## YAML front matter
+## Front matter
 
-Front matter wajib berada di awal berkas dan dibatasi `---`. Kunci minimal
-adalah `title` dan `author`.
+Front matter wajib berada di baris pertama, dibuka dan ditutup `---`. Isinya
+harus pemetaan YAML. Duplikat kunci, alias, anchor, dan tag kustom ditolak.
 
 ```yaml
 ---
 title: "Analisis Pipeline Markdown untuk Laporan Tugas"
-author: "Nama Mahasiswa"
-nim: "30000000000000"
+subtitle: "Laporan Dokumentasi Pipeline"
+author:
+  - name: "Nama Mahasiswa 1"
+    nim: "30000000000001"
+  - name: "Nama Mahasiswa 2"
+    nim: "30000000000002"
+lecturer: "Dr. Nama Dosen Pengampu, M.Kom."
+lecturer_label: "Dosen Pengampu:"
+course: "Penulisan Laporan Akademik"
+institution: "Universitas Diponegoro"
+faculty: "Program Studi Magister Sistem Informasi"
+year: "2026"
+date: "Agustus 2026"
+lang: "id-ID"
 structure: assignment
 format: undip-msi
-toc: false
 bibliography: references.bib
+report_name: "Tugas"
 ---
 ```
 
-| Kunci | Wajib | Keterangan |
+### Kunci wajib
+
+| Kunci | Tipe | Keterangan |
 | --- | --- | --- |
-| `title` | ya | Judul laporan. |
-| `author` | ya | Teks, pemetaan `{name, nim}`, atau daftar keduanya. |
-| `nim` | tidak | Dipakai bila `author` berupa teks dan hanya ada satu penulis. |
-| `structure` | tidak | Nama struktur di `structures/`; default `assignment`. |
-| `format` | tidak | Nama format di `formats/`; default mengikuti struktur. |
-| `preset` | tidak | Override preset; default `format.presets[structure]`. |
-| `toc` | tidak | Default mengikuti struktur. |
-| `bibliography` | tidak | Berkas `.bib` relatif; default `references.bib`. |
-| `report_name` | tidak | Nama keluaran tanpa ekstensi; default `Tugas`. |
-| `glossary` | tidak | Berkas glosarium relatif; default `writing/istilah.tsv`. |
+| `title` | teks | Tidak kosong. |
+| `author` | teks, mapping, atau daftar | Minimal satu; setiap entri punya `name`. |
+| `structure` | ID | `assignment`, `proposal`, atau `thesis`. |
+| `format` | ID | Saat ini hanya `undip-msi`. |
 
-Kunci lain yang lazim dipakai Pandoc dan `docx.lua` juga diteruskan, misalnya
-`subtitle`, `lecturer`, `course`, `institution`, `faculty`, `year`, `date`,
-`lang`, `approval`, `abstract_id`, `abstract_en`, `keywords_id`,
-`keywords_en`, `daftar_gambar`, `daftar_tabel`, dan override heading. Gunakan
-`lang: "id-ID"` agar istilah sitasi mengikuti bahasa Indonesia.
+### Kunci opsional
 
-Mode folder memakai `metadata.yml` dan `manifest.yml`, bukan front matter.
-Struktur dan format mengikuti manifest; preset dan bibliografi mengikuti
-metadata serta format.
+| Kunci | Tipe | Default | Keterangan |
+| --- | --- | --- | --- |
+| `nim` | teks | - | Hanya untuk satu author dan tidak boleh bertentangan dengan `author[].nim`. |
+| `subtitle` | teks | - | Subjudul sampul. |
+| `lecturer` | teks | - | Nama dosen. |
+| `lecturer_label` | teks | `Dosen Pengampu:` | Label dosen. |
+| `course` | teks | - | Nama mata kuliah. |
+| `institution` | teks | - | Institusi. |
+| `faculty` | teks | - | Fakultas atau program studi. |
+| `year` | teks | - | Tahun. |
+| `date` | teks | - | Bulan atau tanggal. |
+| `lang` | BCP-47 | `id-ID` | Locale sitasi. |
+| `bibliography` | path relatif | `references.bib` | Harus berekstensi `.bib` dan ada. |
+| `report_name` | teks | `Tugas` | Nama berkas output tanpa ekstensi. |
+| `preface` | Markdown | - | Wajib untuk struktur `thesis`. |
+| `abstract_id` | Markdown | - | Wajib untuk struktur `thesis`. |
+| `abstract_en` | Markdown | - | Wajib untuk struktur `thesis`. |
+| `keywords` | daftar atau teks | - | Hanya boleh jika `abstract_id` ada. |
+| `keywords_en` | daftar atau teks | - | Hanya boleh jika `abstract_en` ada. |
+
+`author` menerima tiga bentuk:
+
+```yaml
+author: "Nama Tunggal"
+```
+
+```yaml
+author:
+  name: "Nama Tunggal"
+  nim: "30000000000001"
+```
+
+```yaml
+author:
+  - name: "Nama 1"
+    nim: "30000000000001"
+  - name: "Nama 2"
+    nim: "30000000000002"
+```
+
+Jangan menambahkan `daftar_gambar`, `daftar_tabel`, `preset`, `margin_preset`,
+`approval`, `statement`, `references`, `csl`, `reference-doc`, `template`, atau
+`cover` ke front matter. Kunci itu sudah dihapus dan menghasilkan error
+migrasi. Kunci `toc` masih diterima hanya bila nilainya sama dengan
+`structure.toc`, tetapi menghasilkan peringatan; hapus kunci itu dan atur
+daftar isi di `structure.yml`.
 
 ## Heading
 
-- `#` (H1) adalah bab. Satu H1 membuka satu bab baru.
-- `##` dan `###` adalah subbagian.
-- Jangan menulis nomor bab manual seperti `# BAB I` atau `# 1. Pendahuluan`.
-  `docx.lua` menambahkan penomoran sesuai struktur dan preset.
+- `#` adalah Heading 1 dan menandai satu bab.
+- `##` adalah Heading 2 dan `###` adalah Heading 3.
+- Heading 1 harus sama dengan urutan `body` pada struktur, tanpa nomor.
+- Jangan menulis `# BAB I` atau `# 1. Pendahuluan`; pipeline menambahkan nomor.
+- Heading 2 dan Heading 3 tidak boleh melompati level.
 
 ```markdown
 # Pendahuluan
@@ -61,55 +109,94 @@ metadata serta format.
 
 ## Caption tabel
 
-Setiap tabel wajib memiliki caption. Tulis baris `: Judul tabel` sebelum atau
-sesudah tabel; pipeline menempatkan caption tabel di atas tabel.
+Setiap tabel wajib memiliki caption berupa baris `: Judul tabel` sebelum atau
+sesudah tabel. Pipeline memindahkan caption tabel ke atas tabel.
 
 ```markdown
 : Peran berkas dalam struktur assignment
 
 | Urutan | Berkas | Peran |
 | --- | --- | --- |
-| 1 | `chapters/01-pendahuluan.md` | Pendahuluan |
-| 2 | `chapters/02-pembahasan.md` | Pembahasan |
+| 1 | `document.md` | Naskah |
+| 2 | `references.bib` | Bibliografi |
 ```
 
-Jangan menulis nomor tabel manual. Nomor `Tabel bab.n` diberikan
-`tools/format_figures.py` dari caption dan Heading 1.
+Jangan menulis nomor tabel manual. Nomor `Tabel bab.n` dibuat dari Heading 1
+dan urutan tabel.
 
 ## Caption gambar
 
-Alt text gambar menjadi caption. Alt text harus non-kosong.
+Alt text gambar menjadi caption. Alt text wajib non-kosong dan caption
+ditempatkan di bawah gambar.
 
 ```markdown
 ![Diagram alur build](gambar/diagram.png)
 ```
 
-Aturan:
+Aturan gambar:
 
-- gambar harus berada di `gambar/` relatif terhadap `document.md` atau
-  direktori proyek;
-- path absolut, `..`, dan gambar di luar `gambar/` ditolak `build-file`;
-- caption ditempatkan di bawah gambar;
+- letakkan gambar di `gambar/` relatif terhadap `document.md`;
+- gunakan pemisah `/`, bukan `\`;
+- path absolut, `..`, URL, dan data URI ditolak;
+- berkas harus ada saat `check`;
 - lebar gambar dibatasi 14 cm secara otomatis;
 - jangan menulis nomor gambar manual.
 
-## Mermaid inline
+## Mermaid
 
-Diagram Mermaid ditulis sebagai code fence dengan atribut `{.mermaid}` dan
-`caption` wajib.
+Diagram Mermaid ditulis sebagai code fence dengan `caption` wajib. Stage
+`mermaid` menggantinya menjadi PNG sebelum Pandoc berjalan.
 
 ````markdown
 ```{.mermaid caption="Diagram pipeline"}
-flowchart TD
-  A --> B
+flowchart LR
+  A[document.md] --> B[DOCX]
 ```
 ````
 
-Renderer mengganti blok itu menjadi gambar Markdown biasa, misalnya
-`![Diagram pipeline](gambar/mermaid-<hash>.png)`. Nomor gambar diberikan
-pipeline caption dari alt text. Mode satu berkas merender Mermaid otomatis
-saat `build-file`; mode folder menjalankan renderer lebih dulu. Rincian opsi
-dan cache ada di [mermaid.md](mermaid.md).
+Gambar hasil render ditulis ke `gambar/mermaid-<hash>.png`. Rincian ada di
+[mermaid.md](mermaid.md).
+
+## Blok kode
+
+Blok kode berpagar menjadi tabel 1x1 dengan border penuh. Gunakan bahasa
+pemrograman pada pembuka fence bila perlu.
+
+````markdown
+```python
+print("contoh")
+```
+````
+
+Jangan memakai tabel Markdown untuk kode. Stage `code` mengenali blok kode dari
+style Pandoc.
+
+## Daftar
+
+Daftar berurut dan tidak berurut memakai sintaks Markdown biasa. Pipeline
+menyeragamkan indentasi dan tab stop, tetapi tidak mengubah format angka yang
+dipilih Pandoc. Jangan menulis nomor daftar manual di dalam teks paragraf.
+
+```markdown
+1. Langkah pertama.
+2. Langkah kedua.
+
+- Butir pertama.
+- Butir kedua.
+```
+
+## Persamaan
+
+Persamaan display ditulis dengan LaTeX. Pandoc mengubahnya menjadi OMML, lalu
+stage `equations` memberi nomor `(bab.n)`.
+
+```markdown
+$$
+P = \frac{N_{\text{sama}}}{N_{\text{total}}} \times 100\%
+$$
+```
+
+Jangan menulis nomor persamaan manual.
 
 ## Sitasi dan daftar pustaka
 
@@ -119,17 +206,31 @@ Sitasi memakai kunci BibTeX dari `references.bib`:
 Satu sumber [@pandoc2024]. Beberapa sumber [@pandoc2024; @knuth1984].
 ```
 
-- Gaya default adalah author-date alfabetis dari `refs/undip-msi.csl`.
-- Jangan mengarang rujukan, penulis, tahun, atau DOI.
-- Bila sumber belum tersedia, tulis `TODO-SITASI: <klaim>` dan lengkapi
+- Daftar pustaka dibentuk otomatis oleh `--citeproc`.
+- Jangan menulis daftar pustaka manual.
+- Jangan mengarang penulis, tahun, jurnal, atau DOI.
+- Bila sumber belum tersedia, tulis `TODO-SITASI: <klaim>` lalu lengkapi
   `references.bib`.
-- Daftar pustaka dibentuk otomatis oleh `--citeproc`; jangan menulis daftar
-  pustaka manual.
-- Satu klaim cukup satu sitasi utama.
+- Gaya sitasi mengikuti `citation.csl` pada format `undip-msi`.
+
+## Lampiran
+
+Struktur `thesis` memiliki lampiran. Tulis tepat satu Heading 1 `# Lampiran`
+setelah bab terakhir. Struktur `assignment` dan `proposal` tidak memiliki
+lampiran; Heading 1 `# Lampiran` ditolak.
+
+```markdown
+# Lampiran
+
+## Berkas Pendukung
+
+- `gambar/arsitektur.png`
+```
 
 ## Aturan singkat
 
-- Tabel tanpa `: Judul` dan gambar tanpa alt text menggagalkan build.
-- Jangan menulis nomor bab, tabel, atau gambar manual.
-- Jangan menyisipkan HTML atau field Word di Markdown.
-- Gunakan path relatif dan huruf kecil untuk nama berkas gambar.
+- Tabel tanpa caption dan gambar tanpa alt text menggagalkan `check`.
+- Jangan menulis nomor bab, tabel, gambar, atau persamaan.
+- Jangan menyisipkan field Word manual.
+- Jangan memakai em dash.
+- Gunakan path relatif dan nama berkas yang stabil.

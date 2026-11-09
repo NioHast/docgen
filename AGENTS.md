@@ -1,70 +1,50 @@
 # AGENTS.md
 
-## Apa repo ini
+## Invariant
 
-Repositori ini adalah design system dan pipeline laporan akademik berbasis
-Markdown untuk format UNDIP. Naskah ditulis di Markdown, lalu dibangun menjadi
-DOCX dan PDF. Sumber kebenaran adalah Markdown, metadata, preset, dan
-referensi, bukan DOCX hasil build.
-
-## Pilih struktur
-
-| Kebutuhan | Struktur | Penomoran |
-| --- | --- | --- |
-| Tesis atau skripsi, lima bab | `thesis` | `BAB_ROMAN` |
-| Proposal tesis, empat bab | `proposal` | `ARABIC_DOTTED` |
-| Tugas kuliah, tiga bab | `assignment` | `ARABIC_DOTTED` |
-
-Struktur menentukan urutan bab. Format `undip-msi` menentukan preset dan gaya
-sitasi.
-
-## Alur kerja
-
-Jalankan dari akar repositori. Pasang sekali dengan `uv tool install .` lalu
-pakai `laporan`, atau langsung pakai `python -m laporan` tanpa instalasi.
-
-```bash
-python -m laporan list
-python -m laporan new assignment --format undip-msi --out tugas
-python -m laporan check tugas
-python -m laporan build tugas --target docx
-python -m laporan doctor
-```
-
-Mode satu berkas:
-
-```bash
-python -m laporan build-file document.md --target both
-```
-
-Dengan `uv tool install .`, ganti `python -m laporan` dengan `laporan`.
-
-## Aturan edit
-
-- Edit hanya konten: `chapters/*.md`, `cover.md`, `metadata.yml`,
-  `references.bib`, `gambar/`, atau `document.md` pada mode satu berkas.
-- Jangan mengubah `structures/`, `formats/`, `presets/`, `tools/`, `scripts/`,
-  `docx.lua`, `reference.docx`, atau tes kecuali tugasnya memang di sana.
-- Jangan mengubah kode atau build untuk memperbaiki naskah. Perbaiki Markdown.
+- Sumber kebenaran: `document.md`, `references.bib`, `istilah.tsv`, dan `gambar/`; DOCX dan PDF adalah artefak build.
+- Satu dokumen adalah satu `document.md`; tidak ada mode folder atau file bab
+  terpisah. Setiap Heading 1 harus cocok dengan urutan `body` pada
+  `structure.yml`.
+- Jangan menulis nomor bab, tabel, gambar, atau persamaan secara manual.
+- Tabel wajib memiliki baris `: Judul tabel`. Gambar wajib memiliki alt text
+  non-kosong.
 - Jangan mengarang sitasi. Tulis `TODO-SITASI: <klaim>`.
 - Jangan menebak istilah. Tulis `{{?istilah?}}` sampai diputuskan.
 - Jangan memakai em dash.
-- Jalankan `check` sebelum `build`. Perbaiki bab yang hilang, bukan
-  menghapusnya dari struktur.
+- Output ditulis di samping `document.md`. Jangan menyunting output build.
 
-## Jangan edit artefak
+## Permukaan edit
 
-Artefak build tidak boleh disunting manual: `Laporan.docx`, `Laporan.pdf`,
-`build/`, `review/`, `acuan/`, `.laporan-build/`, dan keluaran contoh di
-`examples/*/`. Build berikutnya akan menimpa perubahan itu.
+- `document.md`: front matter dan seluruh naskah.
+- `references.bib`: entri BibTeX untuk sitasi.
+- `istilah.tsv`: glosarium tambahan di samping `document.md`, opsional.
+- `gambar/`: gambar dan hasil render Mermaid.
+
+## Perintah
+
+```bash
+uv run --project <repo> docgen check document.md
+uv run --project <repo> docgen build document.md --target docx
+uv run --project <repo> docgen build document.md --target both
+uv run --project <repo> docgen doctor
+uv run --project <repo> docgen reconcile document.md
+```
+
+`--target both` hanya untuk Windows dengan Microsoft Word. Di Debian gunakan
+`--target docx`. Tambahkan `--terms` bila ingin gate glosarium aktif.
+
+## Larangan
+
+- Jangan mengubah `src/docgen/data/**`, `src/docgen/**`, `tests/**`,
+  `pyproject.toml`, `resources/**`, atau `docs/dev/contracts/**` saat tugasnya
+  hanya menulis naskah.
+- Jangan mengubah `.laporan/`, `.laporan-build/`, DOCX, atau PDF hasil build.
+- Jangan memperbaiki naskah dengan menyunting DOCX. Perbaiki Markdown lalu
+  build ulang.
 
 ## Dokumentasi
 
-- [docs/agent/quickstart.md](docs/agent/quickstart.md)
-- [docs/agent/document-format.md](docs/agent/document-format.md)
-- [docs/agent/writing-rules.md](docs/agent/writing-rules.md)
-- [docs/agent/troubleshooting.md](docs/agent/troubleshooting.md)
-- [writing/guide.md](writing/guide.md)
-
-Detail implementasi ada di `docs/dev/`. Jangan menyalin detail itu ke panduan
-agent.
+- [docs/agent/quickstart.md](docs/agent/quickstart.md), [docs/agent/document-format.md](docs/agent/document-format.md)
+- [docs/agent/single-file.md](docs/agent/single-file.md), [docs/agent/writing-rules.md](docs/agent/writing-rules.md)
+- Detail implementasi ada di [docs/dev/architecture.md](docs/dev/architecture.md).

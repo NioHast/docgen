@@ -1,187 +1,90 @@
-# Build PDF dari DOCX
+# PDF dan Word
 
-Dokumen ini menjelaskan bagaimana `Laporan.pdf` dihasilkan. Sejak pipeline PDF
-dipindahkan ke ekspor DOCX, PDF **selalu** diturunkan dari `<Nama>.docx` final
-hasil `build-docx.sh`, bukan dari Markdown secara langsung.
+PDF hanya didukung di Windows dengan Microsoft Word desktop. Pipeline tidak
+memakai LibreOffice atau mesin konversi lain. Di Debian, target yang tersedia
+adalah DOCX best-effort.
 
-## Ringkasan
-
-```bash
-bash build.sh          # menghasilkan Laporan.pdf di root repo
-bash build.sh outdir/  # opsional: DOCX/PDF di direktori lain
-```
-
-Perilaku `build.sh`:
-
-1. Menentukan `LAPORAN_METADATA`, `LAPORAN_CHAPTERS`, dan
-   `LAPORAN_REPORT_NAME` (default: `metadata.yml`, `chapters`, `Laporan`).
-2. Bila `<Nama>.docx` belum ada, menjalankan `build-docx.sh` lebih dulu.
-   Bila DOCX sudah ada, tahap DOCX dilewati.
-3. Mengekspor DOCX ke PDF melalui `tools/export_pdf.py`.
+## Alur
 
 ```text
-cover.md + chapters/*.md + metadata.yml + references.bib
-        │
-        ▼
-   build-docx.sh  (Pandoc + pascaproses DOCX)
-        │
-        ▼
-   Laporan.docx
-        │
-        ▼
-   tools/export_pdf.py
-        ├── Windows  -> tools/export_pdf.ps1 -> Microsoft Word COM
-        │              Fields.Update() + TablesOfContents.Update()
-        │              -> ExportAsFixedFormat()
-        └── Debian   -> soffice --headless --convert-to pdf
-        │
-        ▼
-   Laporan.pdf
+Markdown
+  -> Pandoc
+  -> stage DOCX
+  -> save DOCX
+  -> office: Word memperbarui field dan menyimpan DOCX
+  -> pdf: Word mengekspor DOCX final ke PDF
 ```
 
-Glosarium, caption, penomoran, persamaan, dan nomor halaman sudah ditangani
-pipeline DOCX. Karena itu PDF cukup mengekspor DOCX final tanpa tahap
-preprocessing tambahan.
+Ekspor PDF memakai DOCX final, bukan Markdown. Word memperbarui TOC,
+`PAGEREF`, nomor halaman, dan field lain sebelum ekspor. Pipeline memeriksa
+bahwa PDF yang dihasilkan ada dan memiliki header `%PDF-`.
 
-## Berkas yang terlibat
+Adaptor Word berada di `resources/word.ps1` dan dipanggil lewat PowerShell.
+Word berjalan tanpa interaksi pengguna. Output ditulis atomic ke direktori
+tujuan.
 
-| Berkas | Peran |
+## Target
+
+| Target | Windows dengan Word | Windows tanpa Word | Debian/Linux |
+| --- | --- | --- | --- |
+| `--target docx` | DOCX, field diperbarui | DOCX, `office` dilewati dengan peringatan | DOCX best-effort |
+| `--target pdf` | PDF | error | error |
+| `--target both` | DOCX dan PDF | error, atau DOCX dengan `--allow-missing-word` | error, atau DOCX dengan `--allow-missing-word` |
+
+`--target pdf` selalu membutuhkan Word karena tidak ada output yang diminta
+selain PDF. `--allow-missing-word` hanya berlaku untuk `both`.
+
+Untuk `--target pdf`, DOCX intermediate ditulis di workspace dan tidak
+disalin ke direktori output. Dengan `--keep`, workspace dan DOCX intermediate
+dipertahankan.
+
+## Debian dan Linux
+
+Di Debian, pipeline dapat menghasilkan DOCX selama Python dan Pandoc tersedia.
+Namun:
+
+- stage `office` tidak berjalan karena Word tidak ada;
+- TOC dan nomor halaman dapat tetap kosong sampai DOCX dibuka di Word;
+- PDF tidak dihasilkan;
+- build `--target both` berhenti dengan `ToolMissingError` kecuali memakai
+  `--allow-missing-word`;
+- `--allow-missing-word` hanya menurunkan target menjadi DOCX dengan
+  peringatan.
+
+Jalur PDF resmi tetap Windows. Jangan mengklaim paritas PDF di Debian.
+
+## Variabel lingkungan
+
+| Variabel | Fungsi |
 | --- | --- |
-| `build.sh` | Orkestrasi: bangun DOCX bila perlu, lalu ekspor PDF. |
-| `build-docx.sh` | Membangun DOCX final (Pandoc, style, caption, istilah, nomor halaman, field Word). |
-| `tools/export_pdf.py` | Deteksi platform dan pemanggil mesin ekspor PDF. |
-| `tools/export_pdf.ps1` | Ekspor Word COM di Windows: buat snapshot DOCX, perbarui field/TOC, tulis PDF, tutup Word. |
-| `Laporan.docx` | Sumber PDF. |
-| `Laporan.pdf` | Keluaran ekspor. |
-| `metadata.yml` | Judul, penulis, institusi, dan preset; dibaca `build-docx.sh`. |
-| `presets/*.yml` | Margin, font, spasi, dan opsi tata letak DOCX. |
-| `references.bib`, `refs/undip-msi.csl` | Sitasi dan daftar pustaka; diproses saat build DOCX. |
-| `writing/istilah.tsv` | Glosarium; diterapkan ke DOCX oleh `tools/terms.py`. |
-| `cover.md`, `chapters/bab*.md` | Isi laporan; diurutkan `sort -V` oleh `build-docx.sh`. |
-| `gambar/` | Gambar yang dirujuk bab. |
+| `DOCGEN_WINWORD` | Path eksplisit ke `WINWORD.EXE`. |
+| `DOCGEN_POWERSHELL` | Path eksplisit ke PowerShell. |
+| `DOCGEN_WORD_SCRIPT` | Path eksplisit ke `resources/word.ps1`. |
+| `DOCGEN_PANDOC` | Path eksplisit ke Pandoc. |
+| `PANDOC` | Alternatif path Pandoc. |
 
-## Windows: Microsoft Word COM
+Deteksi default mencari Word di registry, `PATH`, dan folder instalasi
+Microsoft Office. PowerShell dicari sebagai `powershell` atau `pwsh`.
 
-Prasyarat: **Microsoft Word desktop** dan PowerShell. Word dipanggil secara
-tersembunyi oleh `tools/export_pdf.ps1` dan tidak menyimpan ulang DOCX.
-Skrip membuat **snapshot sementara** dari DOCX, membuka snapshot itu di Word,
-lalu menghapusnya setelah ekspor. DOCX sumber tidak pernah dibuka langsung
-oleh Word, sehingga tetap aman bila sedang dibuka aplikasi lain dan tidak
-meninggalkan owner file `~$...` di direktori proyek.
+## Batasan
 
-Urutan di dalam Word:
+- Word Online tidak menyediakan COM dan tidak dapat dipakai.
+- PDF dapat berbeda sedikit dari DOCX karena font pengganti atau pemenggalan
+  baris.
+- Build DOCX tanpa Word tidak memfinalkan field. TOC dapat menampilkan `0`
+  sampai dokumen dibuka dan field diperbarui.
+- PDF tidak dijamin byte-identik antar build.
+- Word dapat menulis ulang package DOCX saat menyimpan. Perubahan XML yang
+  tidak disengaja mungkin muncul, tetapi tampilan tidak diubah secara sengaja.
+- Tutup DOCX atau PDF tujuan sebelum build. Berkas yang terkunci membuat
+  penulisan gagal.
 
-1. `Documents.Open` membuka snapshot DOCX (bukan read-only).
-2. `Repaginate()` menghitung ulang layout.
-3. `Fields.Update()` memperbarui seluruh field, termasuk `PAGE`, `PAGEREF`,
-   dan field TOC.
-4. Setiap `TableOfContents` di-update agar entri dan nomor halamannya sesuai.
-5. `Repaginate()` sekali lagi agar layout final stabil.
-6. `ExportAsFixedFormat(<tujuan>.pdf, wdExportFormatPDF)` menulis PDF.
-7. `Close(0)` menutup dokumen tanpa menyimpan perubahan dan `Quit()` menutup
-   Word.
+## Pemeriksaan
 
-Bila Word tidak terpasang, snapshot gagal dibuat (misalnya direktori sementara
-tidak dapat ditulis), atau PDF tujuan sedang dikunci aplikasi lain, `build.sh`
-berhenti dengan error dan tidak meninggalkan PDF lama.
-
-## Debian/Linux: LibreOffice headless
-
-Prasyarat: LibreOffice Writer yang menyediakan `soffice`.
+`doctor` menampilkan status Word di Windows. Di platform lain, Word
+ditampilkan sebagai tidak berlaku. `doctor` tidak memeriksa LibreOffice karena
+LibreOffice bukan dependensi pipeline.
 
 ```bash
-sudo apt install libreoffice-writer
+uv run --project <repo> docgen doctor
 ```
-
-Perintah yang dijalankan `tools/export_pdf.py`:
-
-```bash
-soffice --headless --convert-to pdf --outdir <direktori-tujuan> <docx>
-```
-
-LibreOffice menulis `<nama-docx>.pdf` di direktori tujuan. Bila nama PDF
-tujuan berbeda, `tools/export_pdf.py` memindahkan hasilnya. Set
-`LAPORAN_SOFFICE` bila executable LibreOffice berada di lokasi non-standar.
-
-LibreOffice tidak memperbarui field Word seperti Word COM. Nomor halaman TOC
-mengikuti cache yang sudah diisi `scripts/docx-pagenum.py` saat
-`build-docx.sh`. Karena itu, di Debian pasang juga `libreoffice-writer` dan
-`poppler-utils` agar nomor halaman TOC terisi. Bila cache masih `0`, buka DOCX
-di Word, perbarui field, simpan, lalu ekspor ulang.
-
-## Override metadata, bab, dan nama laporan
-
-```bash
-LAPORAN_METADATA=proposal/metadata.yml LAPORAN_REPORT_NAME=Proposal bash build.sh
-LAPORAN_METADATA=metadata-tugas.yml LAPORAN_CHAPTERS=chapters-tugas \
-  LAPORAN_REPORT_NAME=Tugas bash build.sh
-```
-
-Ketiga variabel diteruskan ke `build-docx.sh` bila DOCX belum ada. Nama PDF
-mengikuti `LAPORAN_REPORT_NAME`. Argumen direktori pertama (`bash build.sh
-outdir/`) menentukan tempat DOCX dan PDF ditulis.
-
-Pemilihan Python untuk `tools/export_pdf.py` mengikuti urutan:
-
-1. `LAPORAN_PYTHON`;
-2. `.venv/Scripts/python.exe` (Windows) atau `.venv/bin/python` (Linux);
-3. `python`/`python3` dari `PATH`.
-
-`tools/export_pdf.py` hanya memakai pustaka standar Python.
-
-## Verifikasi hasil
-
-```bash
-bash build.sh
-ls -l Laporan.pdf
-```
-
-Pemeriksaan isi:
-
-```bash
-.venv/Scripts/python.exe - <<'PY'
-from pypdf import PdfReader
-
-reader = PdfReader("Laporan.pdf")
-texts = [page.extract_text() or "" for page in reader.pages]
-print("halaman:", len(reader.pages))
-print("DAFTAR ISI:", any("DAFTAR ISI" in text for text in texts))
-print("contoh TOC:")
-for text in texts:
-    if "DAFTAR ISI" in text:
-        print(text[:500])
-PY
-```
-
-Yang harus benar:
-
-- PDF berasal dari DOCX final dan jumlah halamannya setara dengan DOCX
-  (baseline isi saat ini 31 halaman; minimal 23 halaman untuk laporan contoh);
-- halaman `DAFTAR ISI` memuat entri dan nomor halaman, bukan `0`;
-- penomoran halaman tampil (romawi pada front matter, arab pada isi);
-- teks isi memakai Times New Roman 12 pt. Code memakai Courier New, persamaan
-  memakai Cambria Math, dan Word dapat menyertakan font theme tambahan untuk
-  spasi/glyph tak terlihat;
-- caption tabel berada di atas tabel dan caption gambar di bawah gambar.
-
-`pypdf` hanya dibutuhkan untuk pemeriksaan manual, bukan untuk build.
-
-## Catatan historis
-
-Pipeline PDF lama yang merender Markdown secara langsung sudah dihapus.
-`build.sh` sekarang hanya menyiapkan DOCX final lalu memanggil
-`tools/export_pdf.py`. `tools/env.sh` masih dipakai `build-docx.sh` untuk
-menemukan Pandoc; `build.sh` tidak memuatnya karena tidak membutuhkan Pandoc
-bila DOCX sudah ada.
-
-## Troubleshooting
-
-| Gejala | Tindakan |
-| --- | --- |
-| `Microsoft Word tidak terpasang atau COM Word tidak tersedia` | Pasang Word desktop; Word Online tidak menyediakan COM. |
-| `Gagal membuat salinan kerja DOCX` | Pastikan direktori sementara dapat ditulis dan DOCX sumber dapat dibaca. |
-| `Gagal mengekspor PDF` | Tutup PDF tujuan bila sedang dibuka, lalu ulangi. |
-| `LibreOffice (soffice) tidak ditemukan` | `sudo apt install libreoffice-writer`, atau set `LAPORAN_SOFFICE`. |
-| TOC berisi nomor `0` di Debian | Pasang `libreoffice-writer` + `poppler-utils`, build ulang DOCX, lalu ekspor. |
-| DOCX tidak ikut diperbarui | `build.sh` hanya membangun DOCX bila belum ada; jalankan `bash build-docx.sh` lebih dulu. |
-| PDF lama tetap ada setelah gagal | Ekspor menghapus PDF tujuan sebelum menulis; bila masih ada, periksa pesan error dan proses yang mengunci berkas. |

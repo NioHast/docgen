@@ -1,43 +1,64 @@
 # Quickstart
 
-Panduan singkat untuk menulis satu laporan dari nol. Semua perintah dijalankan
-dari akar repositori. Jika memakai `uv`, pasang dulu dengan `uv tool install .`
-lalu ganti `python -m laporan` dengan `laporan`.
+Panduan singkat dari naskah kosong sampai DOCX. Semua perintah `docgen`
+memakai bentuk berikut dari direktori mana pun:
+
+```bash
+uv run --project <repo> docgen <perintah> ...
+```
+
+Ganti `<repo>` dengan path absolut repo ini. Jika sudah berada di akar repo,
+bentuk yang setara adalah `uv run --project . docgen <perintah> ...`.
 
 ## 1. Pilih struktur
 
-Lihat struktur dan format yang tersedia:
+Struktur menentukan urutan bab, front matter, penomoran, dan daftar. Format
+`undip-msi` menentukan margin, font, caption, sitasi, dan aset visual.
 
-```bash
-python -m laporan list
+| Struktur | Cocok untuk | Bab body | Penomoran |
+| --- | --- | ---: | --- |
+| `assignment` | Tugas kuliah | 3 | `1.`, `1.1`, `1.1.1` |
+| `proposal` | Proposal tesis | 4 | `1.`, `1.1`, `1.1.1` |
+| `thesis` | Tesis atau skripsi | 5 | `BAB I`, `1.1`, `1.1.1` |
+
+Struktur `thesis` menambahkan halaman pengesahan, pernyataan, kata pengantar,
+abstrak Indonesia dan Inggris, daftar isi, daftar tabel, daftar gambar, dan
+lampiran. Struktur `proposal` menambahkan halaman pengesahan dan daftar isi.
+Struktur `assignment` hanya memuat sampul.
+
+## 2. Siapkan berkas
+
+Buat direktori kerja dengan isi minimal:
+
+```text
+tugas/
+|-- document.md
+|-- references.bib
+`-- gambar/          # opsional, dipakai bila ada gambar
 ```
 
-| Struktur | Cocok untuk | Penomoran |
-| --- | --- | --- |
-| `assignment` | Tugas kuliah, tiga bab | `1.`, `1.1`, `1.1.1` |
-| `proposal` | Proposal tesis, empat bab | `1.`, `1.1`, `1.1.1` |
-| `thesis` | Tesis atau skripsi, lima bab | `BAB I`, `1.1`, `1.1.1` |
-
-Format yang tersedia saat ini adalah `undip-msi`. Untuk proyek banyak bab,
-buat kerangka folder:
+Cara tercepat adalah menyalin salah satu contoh dari akar repo, lalu
+menyesuaikan isinya:
 
 ```bash
-python -m laporan new assignment --format undip-msi --out tugas
+cp -r examples/assignment-single tugas
+rm -rf tugas/out tugas/.laporan tugas/Tugas.pdf
 ```
 
-## 2. Tulis `document.md`
+Jangan menyalin `out/` atau `.laporan/` dari contoh. Keduanya artefak build.
 
-Mode satu berkas memakai YAML front matter di awal berkas, lalu seluruh naskah
-di body. Setiap heading H1 menjadi satu bab.
+## 3. Tulis front matter
 
-```markdown
+Front matter wajib berada di awal `document.md` dan dibatasi `---`. Kunci
+wajib adalah `title`, `author`, `structure`, dan `format`.
+
+```yaml
 ---
 title: "Analisis Pipeline Markdown untuk Laporan Tugas"
 author: "Nama Mahasiswa"
 nim: "30000000000000"
 structure: assignment
 format: undip-msi
-toc: false
 bibliography: references.bib
 ---
 
@@ -54,68 +75,88 @@ Isi pembahasan.
 Kesimpulan.
 ```
 
-Letakkan gambar di `gambar/`, berkas `.bib` di folder yang sama dengan
-`document.md`, dan jangan menulis nomor bab manual. Rincian kunci front matter
-ada di [document-format.md](document-format.md). Untuk mode folder, edit
-`metadata.yml` dan `chapters/*.md` hasil `new`.
+Heading 1 harus sama dengan urutan `body` struktur. Jangan menulis nomor bab.
+Rincian kunci lain ada di [document-format.md](document-format.md).
 
-## 3. Check
+## 4. Check
 
-Periksa perkakas dan sumber sebelum build:
+Jalankan pemeriksaan sumber sebelum build:
 
 ```bash
-python -m laporan doctor
-python tools/check_prose.py document.md
-python tools/check_captions.py document.md
+uv run --project <repo> docgen check document.md
 ```
 
-Untuk proyek folder, jalankan validasi manifest:
+`check` memvalidasi front matter, keberadaan format dan struktur, template,
+bibliografi, gambar, urutan Heading 1, dan caption Markdown. Perintah ini tidak
+memanggil Pandoc atau Word dan tidak menulis berkas.
+
+Pemeriksa prosa terpisah dan hanya memberi petunjuk:
 
 ```bash
-python -m laporan check tugas
+uv run --project <repo> docgen doctor
+uv run --project <repo> python tools/dev/check_prose.py document.md
 ```
 
-`check` memastikan struktur, format, metadata, dan berkas bab konsisten.
-Pemeriksa prosa dan caption membaca Markdown dan tidak mengubah berkas.
-
-## 4. Build
+## 5. Build
 
 Bangun DOCX:
 
 ```bash
-python -m laporan build-file document.md --target docx
+uv run --project <repo> docgen build document.md --target docx
 ```
 
-Ganti target menjadi `pdf` atau `both` bila perlu PDF:
+Di Windows dengan Microsoft Word terpasang, bangun DOCX dan PDF:
 
 ```bash
-python -m laporan build-file document.md --target both
+uv run --project <repo> docgen build document.md --target both
 ```
 
-Mode folder memakai perintah yang setara:
+Di Debian atau lingkungan tanpa Word, `--target both` berhenti dengan error
+kecuali memakai `--allow-missing-word`. Opsi itu menghasilkan DOCX dan
+melewati PDF dengan peringatan. Untuk pekerjaan normal di Debian, gunakan
+`--target docx`.
 
-```bash
-python -m laporan build tugas --target docx
-```
+Tambahkan `--keep` bila workspace `.laporan-build/` perlu diperiksa setelah
+build. Tambahkan `--terms` bila ingin mengaktifkan gate glosarium.
 
-Build pertama akan menjalankan Pandoc dan seluruh pascaproses DOCX. Build PDF
-mengekspor DOCX final melalui Word di Windows atau LibreOffice di Debian/Linux.
-Lihat [troubleshooting.md](troubleshooting.md) bila perkakas belum lengkap.
+## 6. Periksa output
 
-## 5. Output
-
-Hasil build ditulis di folder yang sama dengan `document.md`:
+Output ditulis di direktori yang sama dengan `document.md`:
 
 ```text
-Tugas.docx
-Tugas.pdf
+tugas/
+|-- document.md
+|-- references.bib
+|-- Tugas.docx
+|-- Tugas.pdf            # hanya Windows dengan Word
+|-- .laporan/
+|   `-- manifest.json
+`-- .laporan-build/      # hanya dengan --keep
 ```
 
-Nama keluaran mengikuti kunci `report_name` (default `Tugas`). Mode folder
-menulis `<report_name>.docx` dan `<report_name>.pdf` di direktori proyek.
-Tambahkan `--keep` pada `build-file` bila workspace `.laporan-build/` perlu
-diperiksa setelah build.
+Nama berkas mengikuti `report_name` di front matter. Default-nya `Tugas`.
+Manifest berisi bookmark `pNNNN` untuk rekonsiliasi edit Word.
 
-Contoh lengkap ada di [`examples/assignment-single/`](../../examples/assignment-single/).
+## 7. Rekonsiliasi edit Word
+
+Bila DOCX disunting manual, bandingkan dengan manifest:
+
+```bash
+uv run --project <repo> docgen reconcile document.md
+```
+
+Laporan ditulis ke `.laporan/reconcile.md`. Alat ini tidak mengubah DOCX,
+manifest, atau `document.md`. Terapkan perubahan ke Markdown secara manual,
+lalu build ulang. Jangan menjadikan DOCX sebagai sumber.
+
+## Contoh
+
+- [assignment-single](../../examples/assignment-single/document.md): tiga bab,
+  satu tabel, satu diagram Mermaid.
+- [proposal-single](../../examples/proposal-single/document.md): empat bab,
+  satu tabel, daftar isi.
+- [thesis-single](../../examples/thesis-single/document.md): lima bab, front
+  matter lengkap, gambar, Mermaid, persamaan, kode, dan lampiran.
+
 Lanjutkan ke [writing-rules.md](writing-rules.md) sebelum menulis naskah
-panjang.
+panjang. Bila ada kegagalan, lihat [troubleshooting.md](troubleshooting.md).

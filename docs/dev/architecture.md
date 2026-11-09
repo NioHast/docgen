@@ -1,185 +1,123 @@
-# Arsitektur Modular Laporan
+# Arsitektur
 
-Dokumen ini menjelaskan fondasi empat lapis yang membungkus pipeline lama.
-Fondasi ini tidak menggantikan `build-docx.sh`, `build.sh`, `docx.lua`, atau
-`tools/`; ia hanya menyediakan cara memilih format, memilih struktur, membuat
-konten, dan memvalidasi kontrak sebelum build dijalankan.
+`docgen` memisahkan naskah, aturan tampilan, urutan struktur, dan orkestrasi.
+Satu `document.md` adalah sumber konten. Format dan struktur adalah data paket
+yang dibaca saat runtime. Pipeline Python mengubah Markdown menjadi DOCX dalam
+satu pass package, lalu opsional mengekspor PDF lewat Word.
 
-## Empat lapis
+## Lapisan
 
-| Lapis | Lokasi | Tanggung jawab | Tidak boleh berisi |
+| Lapisan | Lokasi | Tanggung jawab | Tidak boleh berisi |
 | --- | --- | --- | --- |
-| Format | `formats/<nama>/format.yml` | Rupa dokumen, preset lama, CSL, nama tampilan | Teks bab, urutan bab |
-| Struktur | `structures/<nama>.yml` | Urutan bagian, penomoran, front/back matter | Teks naskah, margin/font |
-| Konten | proyek hasil `new`, `examples/` | Metadata, bab Markdown, gambar, `references.bib` | Logika build, salinan preset |
-| Platform | `src/laporan/`, `laporan.py` | Deteksi OS/shell, CLI, pembacaan YAML, pemanggilan build | Format visual, isi laporan |
+| Konten | `document.md`, `references.bib`, `istilah.tsv`, `gambar/` | Teks, sitasi, glosarium tambahan, dan aset | Aturan margin, urutan bab, field Word |
+| Struktur | `src/docgen/data/structures/<id>/structure.yml` | Urutan front matter, body, back matter, penomoran, TOC, daftar, cover | Nilai margin, font, CSL |
+| Format | `src/docgen/data/formats/<id>/format.yml` | Halaman, font, heading, caption, kode, sitasi, aset visual | Teks naskah, urutan bab |
+| Pipeline | `src/docgen/` | Validasi, orkestrasi stage, mutasi DOCX, output, manifest | Teks naskah, salinan aturan format |
 
-### 1. Format
+ID format dan struktur adalah nama direktori. Skema keduanya tertutup: kunci
+yang tidak dikenal ditolak dengan pesan error.
 
-`formats/undip-msi/format.yml` memetakan struktur ke preset lama:
-
-```yaml
-format: undip-msi
-name: "Universitas Diponegoro - Magister Sistem Informasi"
-csl: "refs/undip-msi.csl"
-bibliography: "references.bib"
-presets:
-  default: "undip-skripsi"
-  thesis: "undip-skripsi"
-  proposal: "undip-msi-proposal"
-  assignment: "undip-msi-proposal"
-```
-
-Pipeline lama tetap membaca kunci `preset:` dari `metadata.yml`. Karena itu
-`new` menulis preset hasil pemetaan ke metadata proyek. Format baru cukup
-menambah direktori `formats/<nama>/format.yml`; tidak perlu mengubah CLI.
-
-### 2. Struktur
-
-Struktur hanya mengatur urutan dan penomoran. Contoh `structures/assignment.yml`:
-
-```yaml
-structure: assignment
-format: undip-msi
-front_matter: [cover]
-body_numbering: ARABIC_DOTTED
-chapters: [chapters/01-pendahuluan.md, chapters/02-pembahasan.md, chapters/03-penutup.md]
-back_matter: [bibliography]
-toc: false
-blank_line: before_heading_only
-```
-
-`thesis` memakai `BAB_ROMAN`, front matter lengkap, lima bab, dan `toc: true`.
-`proposal` memakai `ARABIC_DOTTED`, empat bab, dan `toc: true`. Nama berkas bab
-di struktur adalah path relatif terhadap akar proyek konten.
-
-### 3. Konten
-
-Proyek konten adalah direktori mandiri:
+## Data flow
 
 ```text
-tugas/
-|-- manifest.yml
-|-- metadata.yml
-|-- cover.md
-|-- chapters/
-|   |-- 01-pendahuluan.md
-|   |-- 02-pembahasan.md
-|   `-- 03-penutup.md
-|-- references.bib
-`-- gambar/
+document.md
+  |
+  +-- validate             front matter, aset, caption Markdown
+  +-- mermaid              blok Mermaid menjadi PNG di workspace
+  +-- style_reference      reference.docx turunan dari format.yml
+  +-- front_matter         sampul, template, abstrak, nomor heading
+  +-- pandoc               Markdown menjadi DOCX
+  |
+  +-- package DOCX di memori
+  |     +-- sections
+  |     +-- code
+  |     +-- captions/figures
+  |     +-- normalize
+  |     +-- equations
+  |     +-- numbering
+  |     +-- blank_lines
+  |     +-- terms
+  |     +-- toc
+  |     +-- page_numbers
+  |     +-- lists
+  |     +-- Adeu hook
+  |
+  +-- save satu kali
+  +-- office               Word memperbarui field dan menyimpan DOCX
+  +-- pdf                  Word mengekspor PDF, Windows only
 ```
 
-`manifest.yml` menunjuk lapis lain dan mencatat daftar bab proyek:
+Urutan stage ditegakkan oleh `pipeline.py`. Stage tidak boleh memanggil
+`load` atau `save` package target. Detail kontrak ada di
+[contracts/stage-api.md](contracts/stage-api.md).
 
-```yaml
-manifest: 1
-structure: assignment
-format: undip-msi
-metadata: metadata.yml
-report_name: "Tugas"
-chapters:
-  - chapters/01-pendahuluan.md
-  - chapters/02-pembahasan.md
-  - chapters/03-penutup.md
+## Invariant utama
+
+1. **Satu sumber konten.** Hanya `document.md` dan asetnya yang menjadi
+   sumber. DOCX dan PDF adalah artefak.
+2. **Satu load dan satu save.** `DocumentPackage` dimuat sekali setelah Pandoc
+   dan disimpan sekali sebelum `office`. Semua stage bekerja pada package di
+   memori.
+3. **Urutan kanonik.** Stage berjalan dengan urutan tetap dan guard keras.
+   Stage yang salah urutan menggagalkan pipeline.
+4. **Part non-target byte-identik.** Stage hanya memutasi part yang
+   dideklarasikan. Part lain tidak berubah.
+5. **Output di samping dokumen.** Output pengguna ditulis di direktori
+   `document.md`. Contoh repo memakai `examples/<name>/out/`. Tidak ada
+   `build/` atau `review/`.
+6. **Manifest deterministik.** Manifest Adeu tidak memuat timestamp dan
+   diurutkan stabil. `text_sha256` dihitung dari teks final.
+7. **Data paket mandiri.** `src/docgen/paths.py` membaca data dari paket dan
+   tidak memiliki fallback ke direktori kerja.
+
+## Package DOCX
+
+`src/docgen/docx/` adalah satu-satunya pemilik ZIP dan XML Word:
+
+- `package.py`: model `DocumentPackage`, load, save, part, relationship.
+- `io.py`: baca dan tulis ZIP secara atomic.
+- `xml.py`: parse, serialisasi, c14n, hash, helper XML.
+- `names.py`: konstanta namespace dan style.
+- `styles.py`: style paragraf, karakter, dan tabel.
+- `sections.py`: section, margin, ukuran halaman, heading numbering.
+- `captions.py`: caption tabel/gambar, numbering, layout gambar.
+- `tables.py`: tabel biasa dan tabel kode.
+- `layout.py`: normalisasi spacing, indentasi, perataan, bold.
+- `fields.py`: TOC, PAGEREF, SEQ, PAGE, NUMPAGES.
+- `bookmarks.py`: bookmark `pNNNN`.
+- `terms.py`: glosarium dan transformasi istilah.
+
+Dokumen rinci ada di [docx.md](docx.md) dan
+[contracts/docx-api.md](contracts/docx-api.md).
+
+## CLI dan entry point
+
+`pyproject.toml` mendaftarkan `docgen = "docgen.cli:main"`. Perintah yang
+tersedia:
+
+```bash
+uv run --project <repo> docgen check <document.md>
+uv run --project <repo> docgen build <document.md> [opsi]
+uv run --project <repo> docgen doctor
+uv run --project <repo> docgen reconcile <document.md>
 ```
 
-Bila kunci `chapters` tidak ada, daftar bab diambil dari struktur. Bila ada,
-daftar tersebut menjadi snapshot proyek; `check` memastikan setiap berkasnya
-ada dan memperingatkan berkas `*.md` tambahan di direktori bab.
+Tidak ada perintah `new` atau `list`. Dokumen baru dibuat dengan menyalin
+contoh atau menulis front matter sendiri.
 
-`metadata.yml` tetap memakai skema Pandoc/pipeline lama (judul, penulis,
-institusi, `preset`, `lang`). `cover.md` disediakan agar build tidak memakai
-sampul/kata pengantar proyek lain. Contoh lengkap ada di
-`examples/`.
+## Platform
 
-### 4. Platform
+| Platform | DOCX | PDF | Catatan |
+| --- | --- | --- | --- |
+| Windows | ya | ya dengan Word | Word memperbarui field dan mengekspor PDF. |
+| Debian/Linux | best-effort | tidak | Pandoc dan stage Python berjalan; field tidak difinalkan Word. |
 
-`src/laporan/` berisi:
+Aturan target dijelaskan di [pdf.md](pdf.md).
 
-| Modul | Isi |
-| --- | --- |
-| `manifest.py` | Pembaca YAML (`ruamel.yaml` atau fallback subset), model struktur/format, validasi, dan pembuatan proyek. |
-| `platform.py` | Deteksi Windows/Linux, pencarian Git Bash di Windows, serta Pandoc, Word, dan LibreOffice native. |
-| `singlefile.py` | Materialisasi `document.md` menjadi workspace sementara untuk `build-file`. |
-| `mermaid.py` | Ekstraksi blok Mermaid, render `mmdc`, cache PNG, dan penggantian blok menjadi gambar. |
-| `cli.py` | Perintah `list`, `new`, `check`, `build`, `build-file`, `doctor`. |
-| `__main__.py` | Titik masuk bila `src/` berada di `sys.path`. |
+## Batasan arsitektur
 
-`laporan.py` di akar repo adalah shim tipis agar `python -m laporan` langsung
-berjalan tanpa langkah instalasi. Ia menambahkan `src/` ke `sys.path`, lalu
-mendelegasikan ke `laporan.cli:main`.
-
-## Alur perintah
-
-```text
-list       -> baca structures/*.yml dan formats/*/format.yml
-new        -> muat struktur + format -> tulis manifest, metadata, cover, bab, bib, gambar
-check      -> muat manifest -> cek struktur, format, metadata, dan tiap berkas bab
-build      -> check -> set environment -> panggil build-docx.sh / build.sh
-build-file -> materialisasi document.md -> panggil build-docx.sh / build.sh
-doctor     -> deteksi Python, bash, Pandoc, Word/LibreOffice
-```
-
-### Kontrak build
-
-`build` tidak menyalin logika pipeline. Ia menjalankan skrip lama dari akar
-repo dengan environment berikut:
-
-```text
-LAPORAN_METADATA=<absolute path metadata.yml>
-LAPORAN_CHAPTERS=<absolute path direktori chapters>
-LAPORAN_REPORT_NAME=<nama keluaran dari manifest>
-```
-
-Path dikonversi ke bentuk POSIX (`C:/...`) agar dapat dibaca Git Bash di
-Windows maupun bash Debian. Skrip dijalankan dari akar repo dengan direktori
-konten sebagai argumen keluaran (`build-docx.sh <konten>`), sehingga aset
-konten (`references.bib`, `cover.md`, `gambar/`) dipakai lebih dulu dan aset
-wajib repo (`reference.docx`, `docx.lua`, `presets/`, `scripts/`, `tools/`,
-`logo.jpg`) tetap ditemukan lewat fallback pipeline lama. Keluaran ditulis ke
-direktori konten dengan nama `<LAPORAN_REPORT_NAME>.docx` atau `.pdf`.
-
-Satu pengecualian: `build-docx.sh` mencari `writing/istilah.tsv` relatif
-terhadap OUTDIR tanpa fallback. Bila proyek konten belum memilikinya, `build`
-menyalin `writing/istilah.tsv` dari akar repo ke `<konten>/writing/` sebelum
-menjalankan DOCX. Ini penyediaan aset, bukan duplikasi logika build.
-
-Target `--target docx` memakai `build-docx.sh`; `--target pdf` memakai
-`build.sh` yang mengekspor DOCX final ke PDF; `--target both` menjalankan
-keduanya berurutan. `--dry-run` menampilkan environment dan perintah tanpa
-menjalankan build.
-
-## Batas dan gap integrasi
-
-Kontrak `toc` sudah diterapkan: `docx.lua` mengikuti metadata `toc` (default
-true untuk proyek lama), `new` menuliskannya ke `metadata.yml`, dan `build`
-meneruskannya lewat `LAPORAN_TOC`. Jalur PDF lama sudah dihapus; `build.sh`
-hanya mengekspor DOCX final.
-
-Gap yang masih terbuka:
-
-1. **Front matter terstruktur belum dirender.** `approval`, `statement`,
-   `abstract_id`, dan `abstract_en` baru berupa daftar di struktur. Pipeline
-   lama membangun komponen ini dari metadata dan `cover.md`, bukan dari
-   `front_matter`.
-2. **`body_numbering` belum diteruskan sebagai metadata.** Penomoran tetap
-   mengikuti preset (`undip-skripsi` untuk `BAB_ROMAN`,
-   `undip-msi-proposal` untuk `ARABIC_DOTTED`). Struktur dan preset harus
-   dijaga konsisten.
-3. **`blank_line` belum ditegakkan.** Nilai disimpan dan divalidasi sebagai
-   teks, tetapi belum ada linter yang menolak baris kosong di posisi terlarang.
-4. **Glosarium DOCX disediakan saat build.** `build-docx.sh` tidak memakai
-   fallback untuk `writing/istilah.tsv`. `build` menyalin glosarium repo ke
-   proyek konten bila belum ada. Bila glosarium repo juga tidak ada, DOCX gagal
-   dengan pesan dari pipeline lama.
-5. **Format baru belum tentu punya preset lama.** `format.yml` hanya memetakan
-   ke berkas di `presets/`. Format kampus baru memerlukan preset dan CSL yang
-   sesuai agar build dapat berjalan. Kunci `csl`/`bibliography` di `format.yml`
-   belum diteruskan ke pipeline; build tetap membaca `csl:` dari preset atau
-   memakai `refs/undip-msi.csl`.
-6. **Urutan bab mengikuti nama berkas, bukan daftar manifest.** Pipeline lama
-   menyalin semua `*.md` di `LAPORAN_CHAPTERS` lalu mengurutkannya dengan
-   `sort -V`. Daftar `chapters` pada manifest/struktur dipakai `check` untuk
-   memastikan berkas ada, tetapi berkas tambahan di direktori yang sama tetap
-   ikut terbangun. Jaga nama berkas agar urutannya sesuai.
+- Tidak ada mode folder atau file bab terpisah.
+- Tidak ada filter Lua. Perilaku lama diport ke stage Python.
+- Tidak ada mesin PDF selain Microsoft Word.
+- Build hanya memakai pipeline Python; tidak ada jalur shell atau fallback lama.
+- TOC dan daftar memakai field native; Word perlu memperbarui field.

@@ -1,170 +1,111 @@
-# Workflow Satu Berkas Markdown
+# Alur Satu Berkas
 
-`python -m laporan build-file` membangun DOCX/PDF dari **satu berkas Markdown**. Berkas
-sumber memuat YAML front matter di awal dan seluruh naskah di body. Pipeline
-DOCX/PDF yang lama tetap dipakai; perintah ini hanya menyiapkan proyek
-sementara yang kompatibel dengan `build-docx.sh` dan `build.sh`.
+`docgen` memakai satu berkas Markdown sebagai sumber: `document.md`. Berkas itu
+memuat YAML front matter dan seluruh body. Tidak ada direktori `chapters/`,
+tidak ada `manifest.yml`, dan tidak ada perintah `build-file` terpisah.
+Perintah `check` dan `build` menerima path `document.md` secara langsung.
 
-Cocok untuk tugas pendek, laporan satu penulis, atau naskah yang ditulis agent.
-Untuk tesis panjang dengan banyak bab dan review per bab, gunakan mode folder
-(`manifest.yml` + `chapters/`).
+Alur ini cocok untuk tugas, proposal, dan tesis yang ditulis sebagai satu
+naskah. Urutan bab tetap ditentukan struktur, bukan urutan berkas.
 
-## Format sumber
+## Bentuk direktori
 
-```markdown
+```text
+laporan/
+|-- document.md
+|-- references.bib
+|-- istilah.tsv          # opsional
+`-- gambar/
+    |-- diagram.png
+    `-- mermaid-<hash>.png
+```
+
+Semua path di `document.md` relatif terhadap direktori berkas itu. Jangan
+memakai path absolut atau `..`.
+
+## Front matter
+
+Front matter wajib di awal berkas:
+
+```yaml
 ---
 title: "Analisis Pipeline Markdown untuk Laporan Tugas"
 author: "Nama Mahasiswa"
 nim: "30000000000000"
 structure: assignment
 format: undip-msi
-toc: false
 bibliography: references.bib
+report_name: "Tugas"
 ---
 
 # Pendahuluan
 
-Latar belakang dengan sitasi [@pandoc2024].
-
-# Pembahasan
-
-Isi pembahasan.
-
-# Penutup
-
-Kesimpulan.
+Naskah dimulai di sini.
 ```
 
-Front matter wajib berada di awal berkas. Body boleh memuat beberapa bab; setiap
-H1 diperlakukan sebagai bab oleh pipeline. Jangan menulis nomor bab manual
-(`# BAB I`) karena `docx.lua` menambahkan penomoran sendiri. Berkas sumber tidak
-diubah oleh `build-file`; TOC, caption, dan blok Mermaid diproses di workspace
-seperti pada mode folder.
+Kunci `structure` dan `format` wajib. `bibliography` wajib ada karena ketiga
+struktur memiliki daftar pustaka. Nilai default-nya `references.bib`, tetapi
+berkasnya tetap harus tersedia.
 
-### Kunci front matter
+## Body dan bab
 
-| Kunci | Wajib | Keterangan |
-| --- | --- | --- |
-| `title` | ya | Judul laporan. |
-| `author` | ya | Teks, pemetaan `{name, nim}`, atau daftar keduanya. |
-| `nim` | tidak | Dipakai bila `author` berupa teks dan hanya ada satu penulis. |
-| `structure` | tidak | Nama struktur di `structures/`; default `assignment`. |
-| `format` | tidak | Nama format di `formats/`; default mengikuti struktur (`undip-msi`). |
-| `preset` | tidak | Override preset; default `format.presets[structure]`. |
-| `toc` | tidak | Default mengikuti struktur. |
-| `bibliography` | tidak | Path `.bib` relatif terhadap berkas; default `references.bib`. |
-| `report_name` | tidak | Nama keluaran tanpa ekstensi; default `Tugas`. |
-| `glossary` | tidak | Path `istilah.tsv` relatif; default `writing/istilah.tsv` repositori. |
+Setiap Heading 1 adalah satu bab. Jumlah dan urutannya harus sama dengan
+`body` pada `structure.yml`:
 
-Kunci metadata lain yang lazim dipakai `docx.lua`/Pandoc (`subtitle`,
-`lecturer`, `course`, `institution`, `faculty`, `year`, `date`, `lang`,
-`approval`, `abstract_id`, `abstract_en`, `keywords_id`, `keywords_en`,
-`daftar_gambar`, `daftar_tabel`, dan override heading) diteruskan ke
-`metadata.yml` sementara.
+- `assignment`: Pendahuluan, Pembahasan, Penutup.
+- `proposal`: Pendahuluan, Tinjauan Pustaka, Metode Penelitian, Jadwal
+  Penelitian.
+- `thesis`: Pendahuluan, Tinjauan Pustaka, Metodologi, Hasil dan Pembahasan,
+  Penutup.
 
-Kunci yang mengatur materialisasi (`structure`, `format`, `preset`,
-`bibliography`, `report_name`, `output`, `glossary`, `references`) tidak
-diteruskan ke metadata Pandoc. Path absolut juga ditolak agar metadata tetap
-portabel.
+Jangan menulis nomor bab manual. Pipeline menambahkan nomor sesuai
+`numbering.body`. Heading 2 dan Heading 3 boleh berbeda antar dokumen selama
+tidak melompati level.
 
 ## Aset
 
-- **Bibliografi**: berkas `.bib` harus berada di folder berkas sumber atau
-  subfoldernya dan ditulis relatif, mis. `bibliography: references.bib`.
-  Berkas disalin ke workspace sebagai `references.bib` karena
-  `build-docx.sh` memakai nama tersebut.
-- **Gambar**: semua gambar harus berada di `gambar/` relatif terhadap berkas
-  sumber, mis. `![Diagram](gambar/diagram.png)`. Folder `gambar/` disalin utuh
-  ke workspace. Path absolut, `..`, dan gambar di luar `gambar/` ditolak.
-- **Glosarium**: `writing/istilah.tsv` repositori disalin ke workspace. Jika
-  laporan memakai glosarium sendiri, isi `glossary: istilah.tsv` dan letakkan
-  berkas itu di folder sumber.
-- **Caption**: tabel memerlukan baris `: Judul tabel`; gambar memerlukan alt
-  text non-kosong. Aturan ini tetap ditegakkan `build-docx.sh`.
+| Aset | Aturan |
+| --- | --- |
+| Gambar | Letakkan di `gambar/`, rujuk dengan path relatif, dan beri alt text non-kosong. |
+| Bibliografi | Berkas `.bib` di direktori dokumen atau subdirektori, dirujuk lewat `bibliography`. |
+| Glosarium | `istilah.tsv` di samping `document.md` menimpa dan menambah glosarium paket. |
+| Mermaid | Tulis blok `{.mermaid caption="..."}`; PNG dibuat saat build. |
+
+`check` memastikan gambar dan bibliografi yang dirujuk ada. Berkas gambar di
+luar direktori dokumen ditolak.
 
 ## Perintah
 
 ```bash
-python -m laporan build-file document.md
-python -m laporan build-file document.md --target pdf
-python -m laporan build-file document.md --target both
-python -m laporan build-file document.md --target both --keep
+uv run --project <repo> docgen check document.md
+uv run --project <repo> docgen build document.md --target docx
+uv run --project <repo> docgen build document.md --target both
+uv run --project <repo> docgen reconcile document.md
 ```
 
-| Flag | Arti |
-| --- | --- |
-| `--target docx` | Bangun DOCX saja (default). |
-| `--target pdf` | Bangun PDF saja. DOCX tetap dibuat sebagai tahap antara di workspace, tetapi hanya PDF yang disalin ke folder sumber. |
-| `--target both` | Bangun DOCX dan PDF. |
-| `--keep` | Jangan hapus `.laporan-build/` setelah build. Berguna untuk memeriksa `metadata.yml`, `chapters/01.md`, `build/manifest-*.json`, dan `review/istilah-baru.txt`. |
+`--target both` membutuhkan Microsoft Word di Windows. Di Debian gunakan
+`--target docx`. `reconcile` hanya membaca DOCX, manifest, dan Markdown, lalu
+menulis laporan ke `.laporan/reconcile.md`.
 
-Keluaran akhir ditulis di folder berkas sumber:
+## Output
 
 ```text
-folder-tugas/
-|-- document.md
-|-- references.bib
-|-- gambar/
+laporan/
 |-- Tugas.docx
-`-- Tugas.pdf
+|-- Tugas.pdf            # hanya Windows dengan Word
+|-- .laporan/
+|   |-- manifest.json
+|   |-- istilah-baru.txt # hanya dengan --terms
+|   `-- reconcile.md     # hanya setelah reconcile
+`-- .laporan-build/      # hanya dengan --keep
 ```
 
-Nama keluaran mengikuti `report_name` (default `Tugas`).
+Nama berkas mengikuti `report_name`. Output ditulis di samping `document.md`;
+tidak ada direktori `build/` atau `review/`.
 
-## Workspace sementara
+## Batasan
 
-Sebelum build, `build-file` membuat `.laporan-build/` **di folder berkas
-sumber**, bukan di repositori:
-
-```text
-.laporan-build/
-|-- metadata.yml
-|-- cover.md
-|-- chapters/01.md      # seluruh body
-|-- references.bib
-|-- gambar/
-`-- writing/istilah.tsv
-```
-
-`build-docx.sh`/`build.sh` dipanggil dengan environment:
-
-```text
-LAPORAN_METADATA=<workspace>/metadata.yml
-LAPORAN_CHAPTERS=<workspace>/chapters
-LAPORAN_REPORT_NAME=<report_name>
-LAPORAN_TOC=true|false
-LAPORAN_PYTHON=<python yang menjalankan CLI>
-OUTDIR=<workspace>
-```
-
-Workspace dihapus setelah build selesai, termasuk saat build gagal. Gunakan
-`--keep` untuk mempertahankannya. Repositori tidak ditulis; aset pipeline
-(`presets/`, `refs/`, `tools/`, `scripts/`, `docx.lua`, `reference.docx`)
-dibaca dari akar repositori.
-
-## Validasi dan exit code
-
-`build-file` berhenti dengan exit code `1` bila:
-
-- berkas tidak ada, bukan `.md`, atau bukan UTF-8;
-- front matter tidak ada, kosong, atau YAML-nya tidak valid;
-- `title`/`author` tidak ada;
-- `structure`, `format`, atau `preset` tidak dikenal;
-- `bibliography` atau `glossary` tidak ditemukan, absolut, atau keluar dari
-  folder sumber;
-- gambar yang dirujuk tidak ditemukan, absolut, memakai `..`, atau berada di
-  luar `gambar/`;
-- `report_name` memuat karakter path;
-- `build-docx.sh`/`build.sh` gagal atau tidak menghasilkan keluaran.
-
-Argumen yang salah ditangani `argparse` dengan exit code `2`.
-
-## Contoh
-
-Contoh lengkap ada di `examples/assignment-single/`:
-
-```bash
-python -m laporan build-file examples/assignment-single/document.md --target both
-```
-
-Hasilnya `examples/assignment-single/Tugas.docx` dan `Tugas.pdf`.
+- Tidak ada pemecahan bab ke berkas terpisah.
+- Tidak ada perintah `new` atau `list`; salin contoh atau buat berkas sendiri.
+- DOCX bukan sumber. Edit `document.md`, lalu build ulang.
+- PDF hanya di Windows dengan Word. Debian menghasilkan DOCX best-effort.
