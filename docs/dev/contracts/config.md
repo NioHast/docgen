@@ -911,7 +911,6 @@ yang bertentangan tetap error. Dokumen baru tidak boleh menulis field ini.
 | `CFG-STRUCTURE-MISSING` | `structures/<structure>/structure.yml` tidak ada | error |
 | `CFG-TEMPLATE-MISSING` | Template `source: template` tidak ada | error |
 | `CFG-UNKNOWN-KEY` | Key tidak ada di skema tertutup | error |
-| `CFG-DEAD-KEY` | Key ada di skema tetapi tidak punya konsumen | error (future; registry dan tes belum ada) |
 | `CFG-REQUIRED` | Field wajib kosong/tidak ada | error |
 | `CFG-TYPE` | Tipe/enum/satuan salah | error |
 | `CFG-DUPLICATE` | ID, title, atau path duplikat | error |
@@ -938,16 +937,8 @@ error konfigurasi. Exit code `2` hanya untuk kesalahan pemakaian CLI.
 
 ### 5.1 Tidak ada key mati
 
-Kontrak ini memakai dua lapis pengaman:
-
-1. **Skema tertutup**: validator menolak key yang tidak ada di dokumen ini.
-2. **Registry konsumen**: `config.py` memuat peta
-   `key -> modul/fungsi yang membaca`. Rencana tes registry konsumen belum
-   diimplementasikan; sampai tes itu ada, aturan ini adalah utang
-   implementasi dan belum ditegakkan otomatis. Key tanpa konsumen tetap
-   dianggap bug dan tidak boleh ditambahkan.
-
-Key baru hanya boleh ditambahkan setelah tiga hal ini ada: entri skema,
+Kontrak ini memakai skema tertutup: validator menolak key yang tidak ada di
+dokumen ini. Key baru hanya boleh ditambahkan setelah ada entri skema,
 konsumen nyata, dan tes positif/negatif.
 
 ---
@@ -988,8 +979,6 @@ konsumen nyata, dan tes positif/negatif.
   cover, dan path escape.
 - `tests/unit/test_document.py` mencakup author scalar/list, NIM,
   abstract/keywords kondisional, body order, duplikat YAML, dan path escape.
-- Registry konsumen dan tes dead key adalah future, not implemented. Sampai
-  tes itu ada, `CFG-DEAD-KEY` belum ditegakkan otomatis.
 - Validator menolak `preset`, `margin_preset`, `daftar_gambar`,
   `daftar_tabel`, `keywords_id`, `approval`, `statement`, `references`,
   `csl`, `reference-doc`, `template`, dan `cover` di front matter dokumen.

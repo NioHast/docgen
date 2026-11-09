@@ -40,23 +40,9 @@ class BaseStage(ABC):
         ...
 ```
 
-`Stage` adalah `typing.Protocol` yang kompatibel dengan `BaseStage`:
-
-```python
-class Stage(Protocol):
-    name: str
-    order: int
-
-    def run(self, ctx: "StageContext") -> "StageResult": ...
-```
-
-Pipeline hanya memanggil `Stage.run(ctx)`. Semua stage nyata wajib mewarisi
-`BaseStage` agar `pipeline.py` dapat memeriksa metadata tanpa menjalankan
-stage.
-
-**Status implementasi:** `Stage` Protocol di atas belum ada di kode. Saat ini
-kontrak ditegakkan lewat `BaseStage`; `Stage` Protocol ditandai future, not
-implemented sampai ada kebutuhan nyata dan tesnya.
+Kontrak stage ditegakkan oleh `BaseStage`. Pipeline hanya memanggil
+`Stage.run(ctx)`, dan semua stage nyata wajib mewarisi `BaseStage` agar
+`pipeline.py` dapat memeriksa metadata tanpa menjalankan stage.
 
 ### 2.1 Aturan metadata
 
@@ -763,34 +749,7 @@ docgen doctor
 docgen reconcile <file>
 ```
 
-`docgen new <dir>` adalah future, not implemented: belum terdaftar di
-`src/docgen/cli.py` dan tidak boleh dijadikan acceptance sampai
-diimplementasikan.
-
 Global: `docgen --version` mencetak versi dan exit 0.
-
-### 11.2 `docgen new` (future, not implemented)
-
-**Status:** future, not implemented. Perintah ini belum ada di CLI. Spesifikasi
-di bawah adalah rencana, bukan kontrak yang sudah ditegakkan.
-
-```text
-docgen new <dir>
-  [--structure <name>]
-  [--format <name>]
-  [--title <text>]
-  [--report-name <name>]
-  [--force]
-```
-
-- `<dir>` adalah direktori proyek konten.
-- Default `--structure assignment`, `--format undip-msi`.
-- Menulis `document.md`, `references.bib`, dan `gambar/`.
-- `document.md` memuat front matter minimal: `title`, `author`, `nim`,
-  `structure`, `format`, `bibliography`.
-- `--force` menimpa direktori yang sudah berisi; tanpa `--force`, direktori
-  tidak kosong adalah error.
-- Exit 0 sukses; 1 error; 2 usage.
 
 ### 11.3 `docgen check`
 
@@ -912,7 +871,7 @@ docgen reconcile <file>
 | 130 | Dibatalkan pengguna | Dibatalkan |
 
 `check` dan `build` tidak pernah mengembalikan 3/4. `doctor` hanya 0/1
-(plus 2 usage). `new` (future, not implemented) dirancang hanya 0/1/2.
+(plus 2 usage).
 
 ---
 
@@ -937,6 +896,5 @@ docgen reconcile <file>
   disabled tercatat `skipped`.
 - `tests/e2e/test_thesis_e2e.py`: `check` dan `build` contoh tesis; tes
   `reconcile` ada di `tests/unit/test_adeu_reconcile.py`; `doctor` di
-  `tests/unit/test_cli.py`. `docgen new` belum diuji karena future, not
-  implemented.
+  `tests/unit/test_cli.py`.
 - Manual Word spike untuk `office`/`pdf`; mock bukan bukti.

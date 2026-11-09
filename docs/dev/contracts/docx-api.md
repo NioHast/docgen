@@ -817,28 +817,6 @@ bookmark rusak.
 
 ---
 
-## 16. `docgen/docx/cli.py` (future, not implemented)
-
-**Status:** future, not implemented. Modul `src/docgen/docx/cli.py` belum ada
-di repo. Spesifikasi di bawah adalah rencana dan tidak boleh dipakai sebagai
-acceptance sampai modulnya diimplementasikan.
-
-```text
-python -m docgen.docx.cli inspect <docx> [--part NAME] [--json]
-python -m docgen.docx.cli verify <docx> [--golden FILE] [--part NAME ...]
-python -m docgen.docx.cli extract <docx> --part NAME --out FILE
-```
-
-| Perintah | Output | Exit |
-|---|---|---|
-| `inspect` | daftar part, style, section, field, bookmark | 0/1 |
-| `verify` | laporan invariant dan semantic hash | 0/1 |
-| `extract` | payload part ke file | 0/1 |
-
-Exit `2` hanya untuk argparse. CLI internal tidak boleh dipakai stage.
-
----
-
 ## 17. Matriks part yang boleh berubah
 
 | Stage | `mutates` | Catatan |

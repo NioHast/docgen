@@ -46,7 +46,7 @@ aturan format, dan mengurangi pekerjaan perapian manual.
 
 # Tinjauan Pustaka
 
-## Tinjauan Pustaka
+## Markdown dan Pandoc
 
 Markdown menyediakan sintaks ringan untuk judul, daftar, tabel, dan tautan
 [@gruber2004markdown]. Spesifikasi CommonMark menyeragamkan aturan sintaks

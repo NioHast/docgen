@@ -13,7 +13,7 @@ WS1-WS15 selesai. Artefak generated lama dibersihkan; `uv.lock` dan dokumen ini 
 - **Deviasi LOC WS4:** target 1.840-2.180 baris fisik (1.700-1.900 baris kode); aktual 3.375 baris fisik di `docx/captions.py`, `docx/tables.py`, `stages/captions.py`, `stages/code.py`, dan `stages/validate.py`. Kelebihan diterima karena helper caption/tabel dipisah dari stage dan karakterisasi golden XML.
 - **Deviasi LOC WS10:** target 1.000-1.130 LOC dengan parser/model/CLI bersama (770-880 tanpa source matching); aktual 2.920 baris fisik di `features/adeu/**`, `docx/bookmarks.py`, dan `markdown/blocks.py`. Kelebihan diterima karena pemisahan manifest, paragraph ID, dan reconcile.
 - **Stage/modul baru:** `stages/front_matter.py` (FrontMatterStage, urutan 35) sudah masuk target tree v0.13; `MermaidStage` berada di `stages/mermaid.py`; `docx/headings.py` menangani penomoran heading Markdown; helper bersama `docx/bookmarks.py` (bookmark Adeu) dan `markdown/blocks.py` (parser blok bersama) juga ada di target tree.
-- **Deviasi kontrak:** `docgen new` dan `src/docgen/docx/cli.py` belum diimplementasikan dan ditandai `future, not implemented` di kontrak. Flag transisi CLI sudah dihapus setelah cutover. `Stage` Protocol belum ada; implementasi memakai `BaseStage`. Registry konsumen `CFG-DEAD-KEY` beserta tesnya belum ada.
+- **CLI:** Flag transisi CLI sudah dihapus setelah cutover.
 - **`acuan/`:** tetap berada di disk dan di-ignore `.gitignore`; tidak direferensikan oleh kode, build, contoh, atau dokumentasi pengguna. Plan ini hanya mencatat statusnya.
 - **Catatan historis:** penyebutan `src/laporan`, shell build, dan `docx.lua` di bagian historis plan ini adalah catatan audit, bukan path atau artefak aktif.
 
@@ -179,7 +179,6 @@ WS1-WS15 selesai. Artefak generated lama dibersihkan; `uv.lock` dan dokumen ini 
 │   │   ├── io.py
 │   │   ├── xml.py
 │   │   ├── names.py
-│   │   ├── cli.py         # future, not implemented
 │   │   ├── styles.py
 │   │   ├── sections.py
 │   │   ├── captions.py
@@ -256,7 +255,6 @@ Abstract dan preface adalah isi, jadi berada di `document.md`. Structure hanya m
 ### 2.4 CLI
 
 ```text
-docgen new <dir>          # future, not implemented
 docgen check <file>
 docgen build <file> --target docx|pdf|both --terms --no-manifest --no-adeu --allow-missing-word --keep
 docgen doctor
@@ -294,7 +292,7 @@ Default `--target both`. `--target both` hanya dijalankan di Windows; di Debian 
 | WS0 | Baseline dan kontrak | tests golden, docs contracts | - | Invariant + API |
 | WS1 | Config dan data | `src/docgen/data/**` | WS0 | format/structure baru |
 | WS2 | Core package | `cli/config/document/metadata/assets/errors/paths/pipeline`, `stages/pandoc.py` | WS0, WS14 Phase 1 pyproject | CLI + loader; `pipeline.py` Fase 1 |
-| WS3 | DOCX core | `docx/package.py`, `io.py`, `xml.py`, `names.py`, `cli.py` | WS0 | API fondasi DOCX |
+| WS3 | DOCX core | `docx/package.py`, `io.py`, `xml.py`, `names.py` | WS0 | API fondasi DOCX |
 | WS4 | Captions/figures/code | `stages/validate.py`, `captions.py`, `code.py`, `docx/captions.py`, `tables.py` | WS3 | 3 stage |
 | WS5 | Equations/numbering/layout | `stages/equations.py`, `numbering.py`, `normalize.py`, `blank_lines.py`, `docx/layout.py` | WS3 | 4 stage |
 | WS6 | Sections/TOC/page numbers | `stages/sections.py`, `toc.py`, `page_numbers.py`, `docx/sections.py`, `fields.py` | WS3, lane 9 (selesai) | 4 stage |
@@ -312,7 +310,7 @@ Default `--target both`. `--target both` hanya dijalankan di Windows; di Debian 
 
 | Objek | Pemilik | Aturan |
 |---|---|---|
-| `docx/package.py`, `io.py`, `xml.py`, `names.py`, `cli.py` | WS3 | hanya fondasi; bukan seluruh `docx/**` |
+| `docx/package.py`, `io.py`, `xml.py`, `names.py` | WS3 | hanya fondasi; bukan seluruh `docx/**` |
 | `docx/captions.py`, `docx/tables.py` | WS4 | helper domain caption dan tabel |
 | `docx/layout.py` | WS5 | helper layout |
 | `docx/sections.py`, `docx/fields.py` | WS6 | helper section dan field |
@@ -448,7 +446,7 @@ Acceptance:
 Langkah:
 
 1. Buat `src/docgen/` dengan `cli.py`, `config.py`, `document.py`, `metadata.py`, `assets.py`, `errors.py`, `paths.py`, `pipeline.py`.
-2. Daftarkan CLI `check`, `build`, `doctor`, `reconcile`; `new` tetap future, not implemented dan tidak menjadi acceptance sampai diimplementasikan. `cli.py` hanya diedit WS2.
+2. Daftarkan CLI `check`, `build`, `doctor`, `reconcile`. `cli.py` hanya diedit WS2.
 3. `build` awalnya memanggil shell lama sebagai fallback.
 4. `config.py` membaca data baru.
 5. `document.py` mem-parse front matter dan validasi field.
@@ -477,8 +475,7 @@ Langkah:
 
 1. `docx/package.py`, `docx/io.py`: load/save DOCX, zip, rels, content types.
 2. `docx/xml.py`, `docx/names.py`: qn, pPr/rPr order, span, field, text.
-3. `docx/cli.py`: CLI internal fondasi, future, not implemented; jangan dijadikan acceptance sampai modulnya ada.
-4. Unit test dengan fixture DOCX.
+3. Unit test dengan fixture DOCX.
 
 Acceptance:
 
@@ -1114,7 +1111,7 @@ Tabel memakai radon CC. `parse_markdown_blocks` memiliki branch count 46.
 
 #### Prioritas refactor
 
-- P0: buat fondasi `docgen/docx/` (`package.py`, `io.py`, `xml.py`, `names.py`, `cli.py`); migrasi 6 formatter + `add_paragraph_ids` dilakukan lane domain, bukan WS3.
+- P0: buat fondasi `docgen/docx/` (`package.py`, `io.py`, `xml.py`, `names.py`); migrasi 6 formatter + `add_paragraph_ids` dilakukan lane domain, bukan WS3.
 - P0: pecah `finalize-docx.py` menjadi package/style/sections/toc/process/cli lintas owner.
 - P1: pecah `format_figures.py`, `terms.py`, `reconcile.py`, `build_style.py`.
 - P2: hapus `src/laporan/singlefile.py` setelah port; hapus fallback YAML `manifest.py`.
