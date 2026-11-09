@@ -1,4 +1,0 @@
--r requirements.txt
-pytest==9.2.0
-pypdf==7.0.0
-Pillow==13.0.0

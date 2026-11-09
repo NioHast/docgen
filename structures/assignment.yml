@@ -1,9 +1,0 @@
-# Struktur tugas: penomoran Arab bertitik, tiga bab ringkas, tanpa daftar isi.
-structure: assignment
-format: undip-msi
-front_matter: [cover]
-body_numbering: ARABIC_DOTTED
-chapters: [chapters/01-pendahuluan.md, chapters/02-pembahasan.md, chapters/03-penutup.md]
-back_matter: [bibliography]
-toc: false
-blank_line: before_heading_only

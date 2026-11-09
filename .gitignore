@@ -20,3 +20,16 @@ dist/
 build/
 .laporan-build/
 .pytest_cache/
+out/
+.laporan/
+NUL
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+.idea/
+.vscode/
+Thumbs.db
+.DS_Store
+examples/**/out/
+examples/**/gambar/mermaid-*.png
