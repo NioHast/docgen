@@ -21,8 +21,7 @@ Setelah halaman ini, pembaca bisa:
 - Tidak perlu memahami Python, Pandoc, atau OOXML untuk halaman ini.
 - Tidak perlu Microsoft Word. Word hanya dibutuhkan untuk PDF dan finalisasi
   field pada tahap lanjut.
-- Semua perintah dijalankan dari akar repo
-  `C:\dev\apps\design-system-format-laporan` atau path checkout masing-masing.
+- Semua perintah dijalankan dari akar repo (path checkout masing-masing).
 
 ## Daftar isi
 
