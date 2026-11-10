@@ -44,7 +44,7 @@ class StageName(StrEnum):
     PANDOC = "pandoc"
     SECTIONS = "sections"
     CODE = "code"
-    CAPTIONS = "captions/figures"
+    CAPTIONS = "captions"
     NORMALIZE = "normalize"
     EQUATIONS = "equations"
     NUMBERING = "numbering"
@@ -663,7 +663,7 @@ def _specs_for_classes(
 
 
 def _adeu_options(options: BuildOptions) -> Any:
-    from .features.adeu.paragraph_ids import AdeuOptions
+    from .adeu.paragraph_ids import AdeuOptions
 
     if not options.adeu:
         return AdeuOptions(bookmarks=False, manifest=False, source_scan=False)
@@ -872,7 +872,7 @@ class Pipeline:
                 docx_path = output_dir / f"{report_name}.docx"
             docx_path.parent.mkdir(parents=True, exist_ok=True)
 
-            from .features.adeu.paragraph_ids import (
+            from .adeu.paragraph_ids import (
                 prepare_manifest,
                 write_prepared_manifest,
             )

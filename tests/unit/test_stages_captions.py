@@ -1,4 +1,4 @@
-"""Tes unit stage ``captions/figures`` dengan fixture DOCX."""
+"""Tes unit stage ``captions`` dengan fixture DOCX."""
 
 import importlib.util
 import zipfile
@@ -521,7 +521,7 @@ def test_part_non_target_byte_identik(docs, tmp_path):
 
 def test_caption_stage_metadata():
     stage = CaptionsStage()
-    assert stage.name.value == "captions/figures"
+    assert stage.name.value == "captions"
     assert stage.order == 70
     assert stage.mutates == frozenset({"word/document.xml"})
     assert stage.idempotent is True

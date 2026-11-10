@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from ...errors import ManifestError
+from ..errors import ManifestError
 
 MANIFEST_VERSION = 1
 DEFAULT_MANIFEST_DIR = ".laporan"

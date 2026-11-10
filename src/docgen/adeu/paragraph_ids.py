@@ -16,9 +16,9 @@ from pathlib import Path
 
 from lxml import etree
 
-from ...docx import DOCUMENT_PART
-from ...docx import bookmarks as bookmark_mod
-from ...docx.names import (
+from ..docx import DOCUMENT_PART
+from ..docx import bookmarks as bookmark_mod
+from ..docx.names import (
     W_BODY,
     W_FLDCHAR,
     W_FLDCHARTYPE,
@@ -30,10 +30,10 @@ from ...docx.names import (
     W_SECTPR,
     W_TXBXCONTENT,
 )
-from ...docx.package import DocumentPackage
-from ...docx.xml import paragraph_text
-from ...errors import DocgenError
-from ...markdown.blocks import (
+from ..docx.package import DocumentPackage
+from ..docx.xml import paragraph_text
+from ..errors import DocgenError
+from ..markdown.blocks import (
     iter_candidate_texts,
     load_markdown_directory,
     normalize_for_match,

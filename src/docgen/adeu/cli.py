@@ -5,7 +5,7 @@
 ``docgen.cli`` cukup:
 
 ```python
-from .features.adeu.cli import register_reconcile
+from .adeu.cli import register_reconcile
 
 register_reconcile(subparsers)
 ```
@@ -17,7 +17,7 @@ import argparse
 import sys
 from collections.abc import Sequence
 
-from ...errors import DocgenError
+from ..errors import DocgenError
 from . import reconcile
 
 
@@ -45,7 +45,7 @@ def command_reconcile(args: argparse.Namespace) -> int:
 
 
 def build_parser(prog: str = "docgen") -> argparse.ArgumentParser:
-    """Parser mandiri ``python -m docgen.features.adeu.cli``."""
+    """Parser mandiri ``python -m docgen.adeu.cli``."""
 
     parser = argparse.ArgumentParser(
         prog=prog,

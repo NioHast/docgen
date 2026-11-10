@@ -408,12 +408,12 @@ def test_stage_office_metadata_urutan() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Resource PowerShell
+# Script PowerShell
 # ---------------------------------------------------------------------------
 
 
-def test_resource_word_ps1_menggabungkan_update_dan_export() -> None:
-    script = _ROOT / "resources" / "word.ps1"
+def test_scripts_word_ps1_menggabungkan_update_dan_export() -> None:
+    script = _ROOT / "scripts" / "word.ps1"
 
     assert script.is_file()
     text = script.read_text(encoding="utf-8")
@@ -423,6 +423,25 @@ def test_resource_word_ps1_menggabungkan_update_dan_export() -> None:
     assert "$doc.ExportAsFixedFormat($fullPdf, 17)" in text
     assert "[void]$doc.Save()" in text
     assert "ExitCode = 1" in text
+
+
+def test_word_script_path_mencari_scripts_word_ps1(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("DOCGEN_WORD_SCRIPT", raising=False)
+
+    assert office.word_script_path() == _ROOT / "scripts" / "word.ps1"
+
+
+def test_word_script_path_env_override(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    script = tmp_path / "word.ps1"
+    script.write_text("# test", encoding="utf-8")
+    monkeypatch.setenv("DOCGEN_WORD_SCRIPT", str(script))
+
+    assert office.word_script_path() == script
 
 
 def test_tidak_ada_jalur_pdf_selain_word() -> None:

@@ -41,6 +41,8 @@ docgen = ["data/**/*"]
 line-length = 100
 # Target Python 3.15 agar UP dan RUF memakai sintaks modern.
 target-version = "py315"
+# Docs memuat snippet Python ilustratif di code fence, bukan kode yang dijalankan.
+extend-exclude = ["docs"]
 # Referensi konfigurasi: https://docs.astral.sh/ruff/configuration/
 
 [tool.ruff.lint]

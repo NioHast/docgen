@@ -9,9 +9,9 @@ import sys
 from pathlib import Path
 
 from . import __version__
+from .adeu.cli import command_reconcile, register_reconcile
 from .document import load_project
 from .errors import DocgenError
-from .features.adeu.cli import command_reconcile, register_reconcile
 from .pipeline import BuildOptions, Pipeline
 from .stages.validate import validate_body
 

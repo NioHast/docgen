@@ -3,8 +3,8 @@
 from dataclasses import fields
 
 from docgen import pipeline
+from docgen.adeu import paragraph_ids
 from docgen.docx import layout, terms
-from docgen.features.adeu import paragraph_ids
 from docgen.markdown import blocks
 from docgen.stages import (
     blank_lines,

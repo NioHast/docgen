@@ -1,6 +1,6 @@
 # Integrasi Adeu
 
-Fitur Adeu berada di `src/docgen/features/adeu/`. Fitur ini menambahkan
+Fitur Adeu berada di `src/docgen/adeu/`. Fitur ini menambahkan
 bookmark paragraf, menulis manifest, memetakan sumber Markdown, dan
 menyediakan perintah `reconcile`. Bookmark dan manifest dibuat sebagai hook di
 dalam pass package, bukan stage kanonik.

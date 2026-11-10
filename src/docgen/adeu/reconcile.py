@@ -23,9 +23,9 @@ from pathlib import Path
 
 from lxml import etree
 
-from ...document import parse_document
-from ...docx import DOCUMENT_PART, DocxError
-from ...docx.names import (
+from ..document import parse_document
+from ..docx import DOCUMENT_PART, DocxError
+from ..docx.names import (
     W_BODY,
     W_BOOKMARK_END,
     W_BOOKMARK_START,
@@ -48,16 +48,16 @@ from ...docx.names import (
     W_TXBXCONTENT,
     W,
 )
-from ...docx.package import DocumentPackage
-from ...errors import DocgenError, ReconcileError
-from ...markdown.blocks import (
+from ..docx.package import DocumentPackage
+from ..errors import DocgenError, ReconcileError
+from ..markdown.blocks import (
     MarkdownBlock,
     normalize_for_match,
     normalize_heading,
     normalize_path,
     parse_markdown_blocks,
 )
-from ...metadata import normalize_metadata
+from ..metadata import normalize_metadata
 from .manifest import (
     ManifestParagraph,
     default_manifest_path,

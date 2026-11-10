@@ -9,8 +9,8 @@ from docx import Document
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 
-from docgen.features.adeu.cli import build_parser, command_reconcile
-from docgen.features.adeu.reconcile import extract_bookmarks, main
+from docgen.adeu.cli import build_parser, command_reconcile
+from docgen.adeu.reconcile import extract_bookmarks, main
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "reconcile"
 MANIFEST = FIXTURES / "manifest.json"

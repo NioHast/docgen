@@ -1,4 +1,4 @@
-"""Stage ``captions/figures``: caption wajib, nomor bab, gambar, dan tabel.
+"""Stage ``captions``: caption wajib, nomor bab, gambar, dan tabel.
 
 Orkestrasi memakai helper domain ``docgen.docx.captions`` dan
 ``docgen.docx.tables``. Stage hanya memutasi ``word/document.xml`` pada
@@ -305,7 +305,7 @@ def _apply_from_context(
         raise
     except Exception as exc:  # pragma: no cover - pengaman kontrak
         raise StageError(
-            "captions/figures",
+            "captions",
             f"stage caption gagal: {exc}",
             cause=exc,
             path=_document_path(ctx),
@@ -326,7 +326,7 @@ def _stage_metrics(report: CaptionReport) -> dict[str, int]:
 
 
 class CaptionsStage(BaseStage):
-    """Stage publik ``captions/figures``."""
+    """Stage publik ``captions``."""
 
     name = StageName.CAPTIONS
     order = 70
@@ -339,7 +339,7 @@ class CaptionsStage(BaseStage):
         package = getattr(ctx, "package", None)
         if package is None:
             raise TableError(
-                "stage captions/figures membutuhkan package DOCX dari stage pandoc",
+                "stage captions membutuhkan package DOCX dari stage pandoc",
                 code="TABLE-NO-PACKAGE",
                 path=_document_path(ctx),
             )

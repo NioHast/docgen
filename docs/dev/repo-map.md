@@ -28,7 +28,7 @@ single-file, tes, serta dokumentasi. Semua path relatif terhadap akar repo.
 |       |   |-- structures/{assignment,proposal,thesis}/
 |       |   `-- glossary/istilah.tsv
 |       |-- docx/
-|       |-- features/adeu/
+|       |-- adeu/
 |       |-- markdown/
 |       `-- stages/
 |-- examples/
@@ -51,7 +51,7 @@ single-file, tes, serta dokumentasi. Semua path relatif terhadap akar repo.
 |   |-- fixtures/
 |   |-- factories/
 |   `-- _helpers/
-`-- resources/
+`-- scripts/
     `-- word.ps1
 ```
 
@@ -69,8 +69,8 @@ single-file, tes, serta dokumentasi. Semua path relatif terhadap akar repo.
 | `src/docgen/errors.py` | Hierarki error dan pemetaan exit code. |
 | `src/docgen/data/` | Format, struktur, template, glosarium, logo, CSL, `reference.docx`. |
 | `src/docgen/docx/` | Model package DOCX dan seluruh mutasi XML. |
-| `src/docgen/features/adeu/` | Bookmark `pNNNN`, manifest, source scan, reconcile. |
-| `src/docgen/markdown/` | Parser blok Markdown untuk manifest dan reconcile. |
+| `src/docgen/adeu/` | Bookmark `pNNNN`, manifest, source scan, reconcile. |
+| `src/docgen/markdown/` | Parser blok Markdown dan penomoran heading Markdown untuk manifest, reconcile, dan front matter. |
 | `src/docgen/stages/` | Stage kanonik pipeline. |
 | `examples/assignment-single/` | Contoh tiga bab, tabel, dan Mermaid. |
 | `examples/proposal-single/` | Contoh empat bab dan daftar isi. |
@@ -81,7 +81,7 @@ single-file, tes, serta dokumentasi. Semua path relatif terhadap akar repo.
 | `tools/dev/audit_terms.py` | Audit italic istilah pada DOCX. |
 | `tools/dev/rules.yml` | Sumber pola pemeriksa prosa. |
 | `tests/` | Unit, integrasi, e2e, packaging, dan fixture golden. |
-| `resources/word.ps1` | Adaptor Word untuk finalisasi field dan ekspor PDF. |
+| `scripts/word.ps1` | Adaptor Word untuk finalisasi field dan ekspor PDF. |
 
 ## Data paket
 

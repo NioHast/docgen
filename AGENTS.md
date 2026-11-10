@@ -37,7 +37,7 @@ uv run --project <repo> docgen reconcile document.md
 ## Larangan
 
 - Jangan mengubah `src/docgen/data/**`, `src/docgen/**`, `tests/**`,
-  `pyproject.toml`, `resources/**`, atau `docs/dev/contracts/**` saat tugasnya
+  `pyproject.toml`, `scripts/**`, atau `docs/dev/contracts/**` saat tugasnya
   hanya menulis naskah.
 - Jangan mengubah `.laporan/`, `.laporan-build/`, DOCX, atau PDF hasil build.
 - Jangan memperbaiki naskah dengan menyunting DOCX. Perbaiki Markdown lalu

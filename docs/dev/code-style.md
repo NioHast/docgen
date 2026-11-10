@@ -46,6 +46,13 @@ uv run --project . ruff format src tests
 uv run --project . ruff format --check src tests
 ```
 
+`docs/` dikecualikan dari Ruff formatter melalui
+`extend-exclude = ["docs"]` di `[tool.ruff]`. Dokumentasi memuat snippet Python
+ilustratif di code fence yang tidak selalu mengikuti format kode yang
+dijalankan, sehingga formatter tidak boleh menulis ulang docs. Pemeriksaan
+menyeluruh tetap memakai `uv run --project . ruff format --check .`; path docs
+otomatis dilewati.
+
 Aturan praktis:
 
 - Indentasi empat spasi, tanpa tab.

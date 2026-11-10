@@ -1,7 +1,7 @@
 """Helper caption DOCX: teks, field, nomor bab, anchor, dan gambar.
 
 Semua operasi berjalan pada elemen ``word/document.xml`` yang diberikan
-``DocumentPackage``. Stage ``captions/figures`` memakai modul ini untuk
+``DocumentPackage``. Stage ``captions`` memakai modul ini untuk
 memastikan caption wajib, memberi nomor ``Gambar bab.n``/``Tabel bab.n``,
 memindahkan caption ke sisi yang benar, dan menormalkan paragraf gambar.
 """

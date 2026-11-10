@@ -5,8 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from docgen.errors import ManifestError
-from docgen.features.adeu.manifest import (
+from docgen.adeu.manifest import (
     DEFAULT_MANIFEST_DIR,
     DEFAULT_MANIFEST_NAME,
     MANIFEST_VERSION,
@@ -21,6 +20,7 @@ from docgen.features.adeu.manifest import (
     sha256_text,
     validate_manifest,
 )
+from docgen.errors import ManifestError
 
 
 def _paragraph(

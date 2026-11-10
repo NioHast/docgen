@@ -108,7 +108,7 @@ Untuk dokumen di `examples/<name>/document.md`, output ditulis ke
 | `docs/` | Indeks, panduan agent, dokumen pengembang, kontrak, dan ADR. |
 | `tools/dev/` | Pemeriksa prosa dan audit istilah untuk pengembang. |
 | `tests/` | Unit, integrasi, end-to-end, packaging, dan fixture golden. |
-| `resources/word.ps1` | Adaptor Word untuk finalisasi field dan ekspor PDF. |
+| `scripts/word.ps1` | Adaptor Word untuk finalisasi field dan ekspor PDF. |
 
 Detail arsitektur ada di [docs/dev/architecture.md](docs/dev/architecture.md).
 Panduan penulis ada di [docs/agent/quickstart.md](docs/agent/quickstart.md).

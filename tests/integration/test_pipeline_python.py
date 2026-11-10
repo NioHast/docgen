@@ -12,9 +12,9 @@ from pathlib import Path
 
 import pytest
 
+from docgen.adeu.manifest import load_manifest
 from docgen.document import load_project
 from docgen.docx.package import DocumentPackage
-from docgen.features.adeu.manifest import load_manifest
 from docgen.pipeline import CANONICAL_ORDER, BuildOptions, Pipeline, StageName
 from docgen.stages.mermaid import find_mmdc
 from docgen.stages.pandoc import find_pandoc

@@ -1,7 +1,7 @@
 """Helper tabel DOCX: border, margin, header, dan tabel kode 1x1.
 
 Modul ini adalah satu-satunya tempat yang membangun ``w:tblPr``/``w:tcPr``
-untuk stage ``code`` dan ``captions/figures``. Semua perubahan XML memakai
+untuk stage ``code`` dan ``captions``. Semua perubahan XML memakai
 ``docgen.docx.xml``; tidak ada ``python-docx`` atau ``zipfile`` di sini.
 
 Tabel kode tidak pernah dianggap tabel data: ``is_code_table`` dipakai stage

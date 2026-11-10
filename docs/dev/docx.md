@@ -46,6 +46,9 @@ Aturan global:
 | `bookmarks.py` | Bookmark `pNNNN` dan verifikasi. |
 | `terms.py` | Glosarium, style istilah, transformasi run, verifikasi. |
 
+Penomoran heading Markdown sebelum Pandoc bukan tanggung jawab lapisan DOCX;
+modulnya ada di `src/docgen/markdown/headings.py`.
+
 ## Part yang lazim berubah
 
 | Part | Stage | Isi |

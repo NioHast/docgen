@@ -22,13 +22,13 @@ from typing import Any, ClassVar
 
 from ..config import Format, FrontMatterItem, Structure
 from ..document import Document
-from ..docx.headings import (
+from ..errors import DocgenError
+from ..markdown.headings import (
     NumberingSpec,
     balance_title,
     number_markdown_headings,
     parse_heading,
 )
-from ..errors import DocgenError
 from ..pipeline import BaseStage, StageName, StageResult
 
 __all__ = [

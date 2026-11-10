@@ -147,7 +147,7 @@ flowchart LR
 
 Stage `validate` memeriksa caption tabel dan alt text gambar. Stage `mermaid`
 mengganti blok diagram menjadi PNG sebelum Pandoc membaca Markdown. Setelah
-Pandoc menulis DOCX, stage `code`, `captions/figures`, `normalize`,
+Pandoc menulis DOCX, stage `code`, `captions`, `normalize`,
 `equations`, `numbering`, `blank_lines`, `terms`, `toc`, `page_numbers`, dan
 `lists` bekerja pada `word/document.xml` serta bagian paket terkait.
 

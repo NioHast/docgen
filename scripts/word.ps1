@@ -26,10 +26,10 @@
     Tampilkan jendela Word untuk debugging. Default: Word berjalan tersembunyi.
 
 .EXAMPLE
-    powershell -ExecutionPolicy Bypass -File resources/word.ps1 -DocxPath Laporan.docx
+    powershell -ExecutionPolicy Bypass -File scripts/word.ps1 -DocxPath Laporan.docx
 
 .EXAMPLE
-    powershell -ExecutionPolicy Bypass -File resources/word.ps1 -DocxPath Laporan.docx -PdfPath Laporan.pdf
+    powershell -ExecutionPolicy Bypass -File scripts/word.ps1 -DocxPath Laporan.docx -PdfPath Laporan.pdf
 
 .NOTES
     Mengembalikan exit code 0 hanya bila Word melaporkan sukses, DOCX/PDF

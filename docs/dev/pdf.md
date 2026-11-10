@@ -19,7 +19,7 @@ Ekspor PDF memakai DOCX final, bukan Markdown. Word memperbarui TOC,
 `PAGEREF`, nomor halaman, dan field lain sebelum ekspor. Pipeline memeriksa
 bahwa PDF yang dihasilkan ada dan memiliki header `%PDF-`.
 
-Adaptor Word berada di `resources/word.ps1` dan dipanggil lewat PowerShell.
+Adaptor Word berada di `scripts/word.ps1` dan dipanggil lewat PowerShell.
 Word berjalan tanpa interaksi pengguna. Output ditulis atomic ke direktori
 tujuan.
 
@@ -59,7 +59,7 @@ Jalur PDF resmi tetap Windows. Jangan mengklaim paritas PDF di Debian.
 | --- | --- |
 | `DOCGEN_WINWORD` | Path eksplisit ke `WINWORD.EXE`. |
 | `DOCGEN_POWERSHELL` | Path eksplisit ke PowerShell. |
-| `DOCGEN_WORD_SCRIPT` | Path eksplisit ke `resources/word.ps1`. |
+| `DOCGEN_WORD_SCRIPT` | Path eksplisit ke `scripts/word.ps1`. |
 | `DOCGEN_PANDOC` | Path eksplisit ke Pandoc. |
 | `PANDOC` | Alternatif path Pandoc. |
 

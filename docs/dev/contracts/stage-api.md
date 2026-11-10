@@ -66,7 +66,7 @@ class StageName(StrEnum):
     PANDOC = "pandoc"
     SECTIONS = "sections"
     CODE = "code"
-    CAPTIONS = "captions/figures"
+    CAPTIONS = "captions"
     NORMALIZE = "normalize"
     EQUATIONS = "equations"
     NUMBERING = "numbering"
@@ -80,7 +80,7 @@ class StageName(StrEnum):
 ```
 
 Nama modul `stages/captions.py`; nama stage publik
-`captions/figures` mengikuti daftar kanonik.
+`captions` mengikuti daftar kanonik.
 
 ### 2.3 `StageResult`
 
@@ -117,7 +117,7 @@ class StageResult:
 | 5 | 40 | `pandoc` | `stages/pandoc.py` | WS2 | package baru | semantik |
 | 6 | 50 | `sections` | `stages/sections.py` | WS6 | `word/document.xml` | ya |
 | 7 | 60 | `code` | `stages/code.py` | WS4 | `word/document.xml` | ya |
-| 8 | 70 | `captions/figures` | `stages/captions.py` | WS4 | `word/document.xml` | ya |
+| 8 | 70 | `captions` | `stages/captions.py` | WS4 | `word/document.xml` | ya |
 | 9 | 80 | `normalize` | `stages/normalize.py` | WS5 | `word/document.xml` | ya |
 | 10 | 90 | `equations` | `stages/equations.py` | WS5 | `word/document.xml` | ya |
 | 11 | 100 | `numbering` | `stages/numbering.py` | WS5 | `word/document.xml`, `word/numbering.xml` | ya |
@@ -139,7 +139,7 @@ validate
 -> pandoc
 -> sections
 -> code
--> captions/figures
+-> captions
 -> normalize
 -> equations
 -> numbering
@@ -158,7 +158,7 @@ validate
 berikut tidak benar:
 
 1. `style_reference` sebelum `front_matter` sebelum `pandoc`.
-2. `sections` sebelum `code` sebelum `captions/figures` sebelum `normalize`.
+2. `sections` sebelum `code` sebelum `captions` sebelum `normalize`.
 3. `normalize` sebelum `equations` sebelum `blank_lines`.
 4. `terms` sebelum `toc` sebelum `page_numbers` sebelum `lists`.
 5. `office` sebelum `pdf`.
@@ -179,9 +179,9 @@ atau memanggil stage lain.
   penomoran heading harus sudah materialized di Markdown sebelum konversi.
 - `sections` sebelum `code`/`captions`: heading, section, dan nomor bab harus
   stabil sebelum caption dan tabel kode diproses.
-- `code` sebelum `captions/figures`: tabel kode harus sudah berbentuk tabel
+- `code` sebelum `captions`: tabel kode harus sudah berbentuk tabel
   1x1 agar tidak dianggap tabel data dan tidak diberi caption.
-- `captions/figures` sebelum `normalize`: caption dan gambar diberi format
+- `captions` sebelum `normalize`: caption dan gambar diberi format
   langsung, lalu layout paragraf dinormalisasi.
 - `normalize` sebelum `equations`: spacing/justify direset lebih dulu;
   equations menulis spacing final.
@@ -207,8 +207,8 @@ atau memanggil stage lain.
 | `src/docgen/cli.py` | WS2 | Hanya WS2 mendaftarkan command |
 | `src/docgen/config.py`, `document.py`, `metadata.py`, `assets.py`, `errors.py`, `paths.py` | WS2 | Loader dan model inti |
 | `src/docgen/docx/**` | WS3/WS4/WS5/WS6/WS7/WS10 | Lihat `docs/dev/contracts/docx-api.md` |
-| `src/docgen/features/adeu/**` | WS10 | Manifest, paragraph ID, reconcile |
-| `resources/word.ps1` | WS8 | Satu adapter Word; aset repo-local, bukan package-data wheel |
+| `src/docgen/adeu/**` | WS10 | Manifest, paragraph ID, reconcile |
+| `scripts/word.ps1` | WS8 | Satu adapter Word; aset repo-local, bukan package-data wheel |
 | `tests/_helpers`, `tests/factories`, `tests/packaging`, `tests/e2e`, harness `tests/integration` | WS12 | Shared infrastructure |
 | Tes domain per lane | lane masing-masing | Sesuai tabel plan v0.13 |
 
@@ -394,7 +394,7 @@ Key baku: `markdown`, `reference_docx`, `pandoc_docx`, `manifest`,
 - Tidak memberi caption tabel data.
 - Error: `TableError`; exit 1.
 
-### 5.8 `captions/figures` (WS4, `stages/captions.py`)
+### 5.8 `captions` (WS4, `stages/captions.py`)
 
 - Memberi nomor caption tabel/gambar per bab.
 - Memindahkan caption tabel ke atas dan caption gambar ke bawah.
@@ -462,7 +462,7 @@ Key baku: `markdown`, `reference_docx`, `pandoc_docx`, `manifest`,
 
 - Menulis field `TOC \c "Tabel"` dan `TOC \c "Gambar"`.
 - Memakai `docx/fields.py` milik WS6 tanpa mengedit modul tersebut.
-- Caption `SEQ` sudah disisipkan `captions/figures`.
+- Caption `SEQ` sudah disisipkan `captions`.
 - Gate `SEQ` diputuskan sebelum implementasi; fallback daftar statis harus
   tercatat di ADR.
 - Error: `FieldError`; exit 1.
@@ -496,7 +496,7 @@ Key baku: `markdown`, `reference_docx`, `pandoc_docx`, `manifest`,
   tidak ada output yang bisa dihasilkan, termasuk dengan
   `--allow-missing-word`.
 - Error: `PdfError`; exit 1.
-- `resources/word.ps1` adalah aset repo-local, bukan package-data wheel.
+- `scripts/word.ps1` adalah aset repo-local, bukan package-data wheel.
   `pyproject.toml` hanya memuat `docgen/data/**/*`; skrip ini ditemukan dari
   root repo. Standalone wheel memerlukan keputusan packaging terpisah dan
   tidak dijanjikan oleh kontrak ini.
@@ -551,11 +551,11 @@ tetap menulis bookmark `pNNNN` dan manifest default. Kontrak menempatkan
 Adeu sebagai hook di dalam pass package yang sama:
 
 - Setelah `lists`, sebelum `save`:
-  - `features/adeu/paragraph_ids.py` memanggil `docx/bookmarks.py`
+  - `adeu/paragraph_ids.py` memanggil `docx/bookmarks.py`
     (`add_paragraph_ids`);
   - data manifest disiapkan di memori.
 - Setelah `save`:
-  - `features/adeu/manifest.py` menulis `.laporan/manifest.json` secara
+  - `adeu/manifest.py` menulis `.laporan/manifest.json` secara
     atomic.
 - `office` berjalan setelah manifest; Word wajib mempertahankan bookmark.
   Pipeline memverifikasi bookmark masih ada setelah `office`; jika hilang,
@@ -661,7 +661,7 @@ output tidak berubah.
 | `pandoc` | semantik | Versi Pandoc sama; metadata sama |
 | `sections` | ya | Tidak menambah section ganda |
 | `code` | ya | Tabel kode dinormalisasi |
-| `captions/figures` | ya | Prefix lama dihapus |
+| `captions` | ya | Prefix lama dihapus |
 | `normalize` | ya | Nilai akhir sama |
 | `equations` | ya | Nomor diganti |
 | `numbering` | ya | Indent/tab sama |

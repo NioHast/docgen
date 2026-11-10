@@ -16,7 +16,7 @@ from pathlib import Path
 import pytest
 from lxml import etree
 
-from docgen.features.adeu.manifest import load_manifest
+from docgen.adeu.manifest import load_manifest
 from docgen.stages.mermaid import find_mmdc
 from docgen.stages.office import word_available
 from docgen.stages.pandoc import find_pandoc

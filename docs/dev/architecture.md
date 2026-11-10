@@ -31,7 +31,7 @@ document.md
   +-- package DOCX di memori
   |     +-- sections
   |     +-- code
-  |     +-- captions/figures
+  |     +-- captions
   |     +-- normalize
   |     +-- equations
   |     +-- numbering

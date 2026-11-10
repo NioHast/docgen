@@ -2,12 +2,13 @@
 
 import pytest
 
-from docgen.docx.headings import (
+from docgen.errors import DocgenError
+from docgen.markdown.headings import (
     LINE_BREAK,
     TAB,
     Heading,
-    HeadingError,
     HeadingNumberer,
+    MarkdownHeadingError,
     NumberingSpec,
     balance_title,
     format_chapter_number,
@@ -30,7 +31,8 @@ def test_roman_and_chapter_number() -> None:
 
 
 def test_invalid_numbering_spec_rejected() -> None:
-    with pytest.raises(HeadingError):
+    assert issubclass(MarkdownHeadingError, DocgenError)
+    with pytest.raises(MarkdownHeadingError):
         NumberingSpec(body="ROMAN")  # type: ignore[arg-type]
 
 

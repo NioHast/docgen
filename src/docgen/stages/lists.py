@@ -10,7 +10,7 @@ Spike WS11 (Microsoft Word 16.0, Windows) menunjukkan:
   ``Tabel 2.1`` dan mengisi ``TOC \\c "Tabel"``.
 
 Stage ini tidak menulis caption dari nol. Caption dan nomor bab sudah dibuat
-oleh stage ``captions/figures`` (WS4); stage ini mengganti angka urutan
+oleh stage ``captions`` (WS4); stage ini mengganti angka urutan
 terakhir menjadi field ``SEQ`` agar Word dapat memperbarui daftar. Semua field
 daftar ditulis lewat :mod:`docgen.docx.fields`.
 """

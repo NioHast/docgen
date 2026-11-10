@@ -16,7 +16,7 @@ finalisasi Word dan PDF bila diminta. Kontrak lengkap ada di
 | 40 | `pandoc` | `stages/pandoc.py` | package | Markdown menjadi DOCX. |
 | 50 | `sections` | `stages/sections.py` | `word/document.xml` | Section break, margin, ukuran halaman, nomor heading DOCX. |
 | 60 | `code` | `stages/code.py` | `word/document.xml` | Blok kode menjadi tabel 1x1. |
-| 70 | `captions/figures` | `stages/captions.py` | `word/document.xml` | Caption wajib, nomor bab, layout gambar. |
+| 70 | `captions` | `stages/captions.py` | `word/document.xml` | Caption wajib, nomor bab, layout gambar. |
 | 80 | `normalize` | `stages/normalize.py` | `word/document.xml` | Spasi 1,5, justify, hapus bold body. |
 | 90 | `equations` | `stages/equations.py` | `word/document.xml` | Nomor persamaan `(bab.n)`. |
 | 100 | `numbering` | `stages/numbering.py` | `word/document.xml`, `word/numbering.xml` | Indentasi daftar. |
@@ -57,7 +57,7 @@ memuat dan menyimpan `reference.docx` karena objeknya berbeda.
 
 Adeu bukan stage kanonik, tetapi hook di dalam pass package:
 
-1. Setelah `lists` dan sebelum save, `features/adeu/paragraph_ids.py`
+1. Setelah `lists` dan sebelum save, `adeu/paragraph_ids.py`
    menambahkan bookmark `pNNNN`.
 2. Manifest disiapkan di memori dengan `text_sha256`, `kind`, `heading_path`,
    dan status `protected`.

@@ -10,18 +10,18 @@ import pytest
 from docx import Document
 from lxml import etree
 
-from docgen.docx.bookmarks import bookmark_wraps_content, iter_bookmarks
-from docgen.docx.package import DocumentPackage
-from docgen.docx.xml import parse_xml
-from docgen.errors import ManifestError
-from docgen.features.adeu.manifest import load_manifest, sha256_text
-from docgen.features.adeu.paragraph_ids import (
+from docgen.adeu.manifest import load_manifest, sha256_text
+from docgen.adeu.paragraph_ids import (
     add_paragraph_ids,
     analyze_manifest,
     prepare_manifest,
     resolve_options,
     write_prepared_manifest,
 )
+from docgen.docx.bookmarks import bookmark_wraps_content, iter_bookmarks
+from docgen.docx.package import DocumentPackage
+from docgen.docx.xml import parse_xml
+from docgen.errors import ManifestError
 
 FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "paragraph_ids" / "contoh.docx"
 DOCUMENT_PART = "word/document.xml"

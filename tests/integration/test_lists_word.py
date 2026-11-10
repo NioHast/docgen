@@ -1,7 +1,7 @@
 """Tes Word untuk stage ``lists`` (marker ``word``/``windows``).
 
 Tes ini membangun DOCX kecil, menjalankan :class:`ListsStage`, memperbarui
-field dengan Microsoft Word lewat ``resources/word.ps1``, lalu memeriksa cache
+field dengan Microsoft Word lewat ``scripts/word.ps1``, lalu memeriksa cache
 field di DOCX dan teks PDF. Mock bukan bukti; tes dilewati di luar Windows.
 """
 
@@ -30,7 +30,7 @@ from docgen.docx.xml import iter_paragraphs, paragraph_text  # noqa: E402
 from docgen.stages.lists import ListsStage  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
-WORD_PS1 = ROOT / "resources" / "word.ps1"
+WORD_PS1 = ROOT / "scripts" / "word.ps1"
 
 
 def _word_available() -> bool:

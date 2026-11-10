@@ -22,13 +22,13 @@ import re
 from dataclasses import dataclass
 from typing import Literal
 
-from . import DocxError
+from ..errors import DocgenError
 
 __all__ = [
     "Heading",
-    "HeadingError",
     "HeadingNumberer",
     "MarkdownHeading",
+    "MarkdownHeadingError",
     "NumberingSpec",
     "balance_title",
     "format_chapter_number",
@@ -74,8 +74,8 @@ _ROMAN_MAP = (
 )
 
 
-class HeadingError(DocxError):
-    """Level, atribut, atau format nomor heading tidak valid."""
+class MarkdownHeadingError(DocgenError):
+    """Level, atribut, atau format nomor heading Markdown tidak valid."""
 
     default_code = "HEADING"
 
@@ -90,7 +90,7 @@ class NumberingSpec:
 
     def __post_init__(self) -> None:
         if self.body not in _SUPPORTED_BODY:
-            raise HeadingError(
+            raise MarkdownHeadingError(
                 f"format penomoran body tidak dikenal: {self.body!r}",
                 code="HEADING-SPEC",
                 key="numbering.body",
@@ -141,7 +141,7 @@ def format_chapter_number(value: int, spec: NumberingSpec) -> str:
     """Nomor H1 lengkap: ``BAB I`` atau ``1.``."""
 
     if value <= 0:
-        raise HeadingError(
+        raise MarkdownHeadingError(
             f"nomor bab harus positif, bukan {value}",
             code="HEADING-NUMBER",
         )

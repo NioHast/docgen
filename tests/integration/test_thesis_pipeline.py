@@ -14,9 +14,9 @@ from pathlib import Path
 import pytest
 from lxml import etree
 
+from docgen.adeu.manifest import load_manifest
 from docgen.document import load_project
 from docgen.docx.package import DocumentPackage
-from docgen.features.adeu.manifest import load_manifest
 from docgen.pipeline import (
     CANONICAL_ORDER,
     BuildOptions,

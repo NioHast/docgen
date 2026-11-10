@@ -1,7 +1,7 @@
 """Stage ``office``: finalisasi field DOCX dan ekspor PDF lewat Microsoft Word.
 
 Modul ini adalah satu-satunya adapter Word untuk pipeline. Word desktop
-dijalankan lewat ``resources/word.ps1``; tidak ada mesin konversi lain.
+dijalankan lewat ``scripts/word.ps1``; tidak ada mesin konversi lain.
 Stage ``office`` memperbarui seluruh field (termasuk TOC/PAGEREF), melakukan
 repaginasi, lalu menyimpan DOCX. Ekspor PDF memakai dokumen yang sama dan
 memeriksa hasil Word sebelum dianggap berhasil.
@@ -127,7 +127,7 @@ def find_word_executable() -> str | None:
 
 
 def word_script_path() -> Path | None:
-    """Lokasi ``resources/word.ps1`` di repo maupun paket."""
+    """Lokasi ``scripts/word.ps1`` di repo maupun paket."""
 
     override = os.environ.get(_WORD_SCRIPT_ENV)
     if override:
@@ -136,8 +136,8 @@ def word_script_path() -> Path | None:
 
     module_path = Path(__file__).resolve()
     candidates = (
-        module_path.parents[3] / "resources" / "word.ps1",
-        module_path.parents[1] / "resources" / "word.ps1",
+        module_path.parents[3] / "scripts" / "word.ps1",
+        module_path.parents[1] / "scripts" / "word.ps1",
     )
     for candidate in candidates:
         if candidate.is_file():

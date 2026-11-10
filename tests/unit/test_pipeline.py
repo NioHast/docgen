@@ -33,7 +33,7 @@ def test_stage_name_memuat_semua_stage_kanonik() -> None:
         StageName.PANDOC,
     )
     assert StageName.LISTS in CANONICAL_ORDER
-    assert StageName.CAPTIONS.value == "captions/figures"
+    assert StageName.CAPTIONS.value == "captions"
 
 
 def test_canonical_specs_requires_adalah_prefix() -> None:
