@@ -22,6 +22,12 @@
     Opsional. Path tujuan .pdf. Bila diberikan, skrip menjalankan mode ekspor
     PDF. Direktori induk dibuat bila belum ada.
 
+.PARAMETER PidFile
+    Opsional. Path berkas tujuan untuk mencatat PID proses WINWORD.EXE yang
+    dibuat automation ini. Berisi satu angka PID diikuti newline, atau 0 bila
+    tidak ada proses baru yang terdeteksi (mis. menempel ke instance Word yang
+    sudah berjalan). Berkas tidak dihapus oleh skrip ini.
+
 .PARAMETER Visible
     Tampilkan jendela Word untuk debugging. Default: Word berjalan tersembunyi.
 
@@ -46,6 +52,8 @@ param(
 
     [Parameter(Position = 1)]
     [string]$PdfPath,
+
+    [string]$PidFile,
 
     [switch]$Visible
 )
@@ -183,6 +191,10 @@ try {
     }
 
     # --- Buka Microsoft Word lewat COM ------------------------------------
+    # Catat proses Word yang sudah ada sebelum COM dibuat, agar PID milik
+    # automation ini dapat dibedakan dari instance yang sudah berjalan.
+    $wordPidsBefore = @(Get-Process WINWORD -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Id)
+
     try {
         $word = New-Object -ComObject Word.Application
     }
@@ -194,6 +206,66 @@ try {
         )
     }
 
+    # Tentukan PID proses Word yang baru dibuat. Bila ada beberapa proses baru,
+    # pilih yang StartTime-nya paling awal.
+    $wordPid = 0
+    try {
+        $wordPidsAfter = @(Get-Process WINWORD -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Id)
+        $newWordPids = @($wordPidsAfter | Where-Object { $wordPidsBefore -notcontains $_ })
+        if ($newWordPids.Count -gt 0) {
+            $newWordProcess = Get-Process -Id $newWordPids -ErrorAction SilentlyContinue |
+                Sort-Object -Property StartTime |
+                Select-Object -First 1
+            if ($null -ne $newWordProcess) {
+                $wordPid = [int]$newWordProcess.Id
+            }
+        }
+    }
+    catch {
+        $wordPid = 0
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($PidFile)) {
+        $pidFileFull = [System.IO.Path]::GetFullPath($PidFile)
+        $pidFileDir = [System.IO.Path]::GetDirectoryName($pidFileFull)
+        if (-not [string]::IsNullOrEmpty($pidFileDir) -and -not [System.IO.Directory]::Exists($pidFileDir)) {
+            [void][System.IO.Directory]::CreateDirectory($pidFileDir)
+        }
+        [System.IO.File]::WriteAllText(
+            $pidFileFull,
+            "$wordPid`n",
+            [System.Text.Encoding]::ASCII
+        )
+    }
+
+    Write-Log "STEP word_created pid=$wordPid"
+    if ($wordPid -eq 0) {
+        Write-Log "WARNING: tidak ada proses WINWORD baru; kemungkinan menempel ke instance Word yang sudah berjalan."
+    }
+
+    # Opsi defensif: tolak macro dari dokumen dan jangan memuat update link
+    # eksternal saat membuka berkas. Properti ini opsional per instalasi.
+    try {
+        $word.AutomationSecurity = 3   # msoAutomationSecurityForceDisable
+    }
+    catch {
+        # Properti opsional; tidak semua instalasi mengeksposnya.
+    }
+
+    try {
+        $word.Options.UpdateLinksAtOpen = $false
+    }
+    catch {
+        # Properti opsional; tidak semua instalasi mengeksposnya.
+    }
+
+    try {
+        $word.Options.ConfirmConversions = $false
+    }
+    catch {
+        # Properti opsional; tidak semua instalasi mengeksposnya.
+    }
+
     $word.Visible = [bool]$Visible
     $word.DisplayAlerts = 0   # wdAlertsNone
     try {
@@ -203,6 +275,7 @@ try {
         # Properti opsional; tidak semua instalasi mengeksposnya.
     }
 
+    Write-Log "STEP open"
     try {
         # ConfirmConversions=false, ReadOnly=false, AddToRecentFiles=false
         $doc = $word.Documents.Open($pathToOpen, $false, $false, $false)
@@ -214,6 +287,7 @@ try {
             "Detail: " + $_.Exception.Message
         )
     }
+    Write-Log "STEP opened"
 
     Write-Log "Word $($word.Version) membuka: $pathToOpen"
 
@@ -227,17 +301,23 @@ try {
     # --- Perbarui field dan daftar isi ------------------------------------
     # Repaginate dulu agar Word menghitung ulang nomor halaman sebelum
     # PAGEREF/TOC diperbarui.
+    Write-Log "STEP repaginate"
     [void]$doc.Repaginate()
+    Write-Log "STEP repaginated"
 
     $fieldCount = $doc.Fields.Count
+    Write-Log "STEP fields_update"
     [void]$doc.Fields.Update()
+    Write-Log "STEP fields_updated"
 
     $tocCount = $doc.TablesOfContents.Count
     for ($i = 1; $i -le $tocCount; $i++) {
         $toc = $null
         try {
             $toc = $doc.TablesOfContents.Item($i)
+            Write-Log "STEP toc_update index=$i total=$tocCount"
             [void]$toc.Update()
+            Write-Log "STEP toc_updated index=$i"
         }
         finally {
             Release-ComObject $toc
@@ -253,8 +333,10 @@ try {
         # --- Ekspor ke PDF -------------------------------------------------
         # wdExportFormatPDF = 17.
         Write-Log "Mengekspor PDF: $fullPdf"
+        Write-Log "STEP export"
         try {
             $doc.ExportAsFixedFormat($fullPdf, 17)
+            Write-Log "STEP exported"
         }
         catch {
             throw [System.IO.IOException]::new(
@@ -269,7 +351,9 @@ try {
     else {
         # --- Simpan DOCX ---------------------------------------------------
         try {
+            Write-Log "STEP save"
             [void]$doc.Save()
+            Write-Log "STEP saved"
         }
         catch {
             throw [System.IO.IOException]::new(
@@ -282,6 +366,7 @@ try {
         Write-Log "DOCX disimpan: $fullDocx"
     }
 
+    Write-Log "STEP done"
     $script:ExitCode = 0
 }
 catch {

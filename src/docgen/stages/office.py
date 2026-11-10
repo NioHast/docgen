@@ -6,6 +6,10 @@ Stage ``office`` memperbarui seluruh field (termasuk TOC/PAGEREF), melakukan
 repaginasi, lalu menyimpan DOCX. Ekspor PDF memakai dokumen yang sama dan
 memeriksa hasil Word sebelum dianggap berhasil.
 
+Pemanggilan Word nyata diserialisasi dengan lock file di direktori sementara
+Windows. PID proses Word yang dicatat ``word.ps1`` dipakai untuk membersihkan
+hanya proses milik automation ini; tidak ada ``taskkill`` tanpa PID.
+
 API publik:
 
 ``update_fields(docx_path, ...)``
@@ -18,28 +22,51 @@ Referensi: https://learn.microsoft.com/en-us/office/vba/api/overview/word
 """
 
 import contextlib
+import csv
+import logging
 import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import uuid
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol
+from typing import IO, Protocol
 
 from ..errors import ExternalToolError, PdfError, ToolMissingError, WordError
 from ..pipeline import BaseStage, StageName, StageResult, canonical_prefix
 
+logger = logging.getLogger(__name__)
+
 DEFAULT_TIMEOUT = 300
 """Batas waktu Word dalam detik. Nilai 0 berarti tanpa batas."""
+
+WORD_LOCK_TIMEOUT = 30
+"""Batas tunggu lock serialisasi Word dalam detik."""
+
+WORD_MAX_ATTEMPTS = 2
+"""Jumlah maksimum percobaan untuk kegagalan COM transien."""
+
+_WORD_RETRY_DELAY = 1.0
+"""Jeda sebelum percobaan ulang setelah kegagalan COM transien."""
+
+_TRANSIENT_WORD_MARKERS = (
+    "RPC_E_CALL_REJECTED",
+    "0x80010001",
+    "0x800706BE",
+    "Call was rejected by callee",
+)
 
 _ZIP_MAGIC = b"PK\x03\x04"
 _PDF_MAGIC = b"%PDF-"
 _WORD_SCRIPT_ENV = "DOCGEN_WORD_SCRIPT"
 _WORD_EXE_ENV = "DOCGEN_WINWORD"
 _POWERSHELL_ENV = "DOCGEN_POWERSHELL"
+_PID_FILE_SUFFIX = ".pid"
+_WORD_IMAGE = "WINWORD.EXE"
 
 CommandRunner = Callable[[Sequence[str], int], "WordProcessResult | int"]
 
@@ -227,7 +254,54 @@ def build_export_pdf_command(
 # ---------------------------------------------------------------------------
 
 
-def _terminate_process_tree(process: subprocess.Popen[str]) -> None:
+class _WordBusyError(RuntimeError):
+    """Lock serialisasi Word tidak diperoleh dalam batas waktu."""
+
+
+@contextlib.contextmanager
+def _word_lock(timeout: int) -> Iterator[None]:
+    """Serialisasi pemanggilan Word nyata antarp proses di Windows.
+
+    Lock memakai ``msvcrt.locking`` pada ``%TEMP%/docgen-word.lock`` dan
+    dicoba non-blocking sampai ``timeout`` detik. Bila lock tidak diperoleh,
+    ``_WordBusyError`` dilempar agar ``_execute`` dapat memetakannya ke kode
+    ``WORD-BUSY``. Di platform non-Windows fungsi ini no-op.
+    """
+
+    if os.name != "nt":
+        yield
+        return
+
+    import msvcrt
+
+    lock_path = Path(tempfile.gettempdir()) / "docgen-word.lock"
+    handle = lock_path.open("a+b")
+    try:
+        handle.seek(0, os.SEEK_END)
+        if handle.tell() == 0:
+            handle.write(b"\0")
+            handle.flush()
+        handle.seek(0)
+        deadline = time.monotonic() + max(timeout, 0)
+        while True:
+            try:
+                msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+                break
+            except OSError as exc:
+                if time.monotonic() >= deadline:
+                    raise _WordBusyError(str(lock_path)) from exc
+                time.sleep(0.1)
+        try:
+            yield
+        finally:
+            handle.seek(0)
+            with contextlib.suppress(OSError):
+                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+    finally:
+        handle.close()
+
+
+def _terminate_process_tree(process: subprocess.Popen[bytes]) -> None:
     """Hentikan PowerShell beserta proses Word yang menjadi anaknya."""
 
     if os.name == "nt":
@@ -244,27 +318,176 @@ def _terminate_process_tree(process: subprocess.Popen[str]) -> None:
         process.wait(timeout=10)
 
 
-def _run_process(command: Sequence[str], timeout: int) -> WordProcessResult:
-    """Jalankan PowerShell dan kembalikan stdout/stderr/returncode."""
+def _read_log(handle: IO[bytes]) -> str:
+    """Baca log proses dari file sementara tanpa melempar bila kosong."""
 
-    process = subprocess.Popen(
-        list(command),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-    )
     try:
-        stdout, stderr = process.communicate(timeout=timeout if timeout > 0 else None)
-    except subprocess.TimeoutExpired:
-        _terminate_process_tree(process)
-        raise
-    return WordProcessResult(
-        returncode=process.returncode,
-        stdout=stdout or "",
-        stderr=stderr or "",
+        handle.seek(0)
+        return handle.read().decode("utf-8", errors="replace")
+    except OSError:  # pragma: no cover - file sementara tidak diharapkan gagal
+        return ""
+
+
+def _run_process(command: Sequence[str], timeout: int) -> WordProcessResult:
+    """Jalankan PowerShell dengan log parsial yang tetap terbaca saat timeout.
+
+    stdout/stderr dialirkan ke dua ``TemporaryFile`` agar isi yang sudah
+    dihasilkan tidak hilang ketika proses dihentikan. Saat timeout, tree
+    proses dihentikan lalu ``subprocess.TimeoutExpired`` dilempar ulang dengan
+    ``output``/``stderr`` berisi log parsial tersebut.
+    """
+
+    with (
+        tempfile.TemporaryFile() as stdout_file,
+        tempfile.TemporaryFile() as stderr_file,
+    ):
+        process = subprocess.Popen(
+            list(command),
+            stdout=stdout_file,
+            stderr=stderr_file,
+        )
+        try:
+            process.wait(timeout=timeout if timeout > 0 else None)
+        except subprocess.TimeoutExpired:
+            _terminate_process_tree(process)
+            raise subprocess.TimeoutExpired(
+                cmd=list(command),
+                timeout=timeout,
+                output=_read_log(stdout_file),
+                stderr=_read_log(stderr_file),
+            ) from None
+        stdout = _read_log(stdout_file)
+        stderr = _read_log(stderr_file)
+
+    returncode = process.returncode if process.returncode is not None else -1
+    return WordProcessResult(returncode=returncode, stdout=stdout, stderr=stderr)
+
+
+def _read_pid_file(pid_file: Path) -> int | None:
+    """Baca PID positif dari file yang ditulis ``word.ps1``."""
+
+    try:
+        text = pid_file.read_text(encoding="ascii", errors="ignore").strip()
+    except OSError:
+        return None
+    if not text:
+        return None
+    try:
+        pid = int(text.split()[0])
+    except IndexError, ValueError:
+        return None
+    return pid if pid > 0 else None
+
+
+def _reset_pid_file(pid_file: Path) -> None:
+    """Kosongkan PID lama agar kegagalan awal tidak membunuh proses basi."""
+
+    with contextlib.suppress(OSError):
+        pid_file.write_text("", encoding="ascii")
+
+
+def _process_image_name(pid: int) -> str | None:
+    """Nama image proses Windows untuk ``pid``; ``None`` bila tidak ada."""
+
+    if os.name != "nt" or pid <= 0:
+        return None
+    try:
+        completed = subprocess.run(
+            ["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV", "/NH"],
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+    except OSError:  # pragma: no cover - tasklist praktis selalu ada
+        return None
+    for line in (completed.stdout or "").splitlines():
+        stripped = line.strip()
+        if not stripped.startswith('"'):
+            continue
+        fields = next(csv.reader([stripped]), [])
+        if len(fields) >= 2 and fields[1].strip() == str(pid):
+            return fields[0].strip()
+    return None
+
+
+def _stop_word_process(pid: int) -> bool:
+    """Hentikan satu PID Word beserta pohon prosesnya, tanpa menyentuh proses lain."""
+
+    if os.name != "nt" or pid <= 0:
+        return False
+    try:
+        completed = subprocess.run(
+            ["taskkill", "/PID", str(pid), "/T", "/F"],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except OSError:  # pragma: no cover - taskkill praktis selalu ada
+        return False
+    return completed.returncode == 0
+
+
+def _cleanup_word_pid(pid_file: Path, *, require_winword: bool) -> None:
+    """Hentikan hanya PID yang tercatat dan masih hidup.
+
+    ``require_winword=True`` dipakai pada jalur sukses agar PID yang sudah
+    dipakai ulang proses lain tidak ikut dibunuh. Kegagalan ``taskkill``
+    dilaporkan lewat logger, bukan dijadikan error baru.
+    """
+
+    pid = _read_pid_file(pid_file)
+    if pid is None:
+        return
+    image = _process_image_name(pid)
+    if image is None:
+        return
+    if require_winword and image.upper() != _WORD_IMAGE:
+        return
+    if not _stop_word_process(pid):
+        logger.warning(
+            "gagal menghentikan proses Word PID %s yang masih hidup; periksa proses secara manual.",
+            pid,
+        )
+
+
+def _is_transient_failure(result: WordProcessResult) -> bool:
+    """True bila output menandakan kegagalan COM yang layak dicoba ulang."""
+
+    haystack = f"{result.stdout}\n{result.stderr}".upper()
+    return any(marker.upper() in haystack for marker in _TRANSIENT_WORD_MARKERS)
+
+
+def _text_value(value: str | bytes | None) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
+    return value
+
+
+def _timeout_detail(exc: subprocess.TimeoutExpired) -> str:
+    """Ringkas step terakhir dan 10 baris log terakhir dari timeout."""
+
+    lines = [
+        line
+        for part in (_text_value(exc.stderr), _text_value(exc.output))
+        for line in part.splitlines()
+    ]
+    if not lines:
+        return ""
+    step = next(
+        (line.strip() for line in reversed(lines) if line.strip().startswith("[word] STEP")),
+        "",
     )
+    tail = "\n".join(lines[-10:]).strip()
+    detail = ""
+    if step:
+        detail += f" Step terakhir: {step}"
+    if tail:
+        detail += f" Log terakhir:\n{tail}"
+    return detail
 
 
 def _result_detail(result: WordProcessResult) -> str:
@@ -413,32 +636,105 @@ class WordAdapter:
         path: Path,
         action: str,
     ) -> WordProcessResult:
+        """Jalankan satu aksi Word dengan kontrak error yang stabil.
+
+        Hanya pemanggilan Word nyata (``runner is None``) yang memakai lock
+        serialisasi Windows; runner palsu pada tes tidak terpengaruh. Lock
+        yang tidak diperoleh dalam ``WORD_LOCK_TIMEOUT`` detik dipetakan ke
+        ``WORD-BUSY``.
+
+        Timeout dipetakan ke ``WORD-TIMEOUT`` dengan step ``[word] STEP``
+        terakhir dan 10 baris log terakhir. Kegagalan returncode bukan nol
+        dipetakan ke ``WORD-FAILED``; hanya kegagalan COM transien yang
+        dicoba ulang maksimal ``WORD_MAX_ATTEMPTS`` percobaan. Timeout, DOCX
+        tidak valid, dan error non-transien tidak pernah dicoba ulang.
+        """
+
         effective_timeout = self._timeout if timeout is None else timeout
-        runner = self._runner or _run_process
-        try:
-            raw = runner(command, effective_timeout)
-        except subprocess.TimeoutExpired as exc:
-            raise error_type(
-                f"Word tidak selesai {action} dalam {effective_timeout} detik.",
-                code="WORD-TIMEOUT",
+        if self._runner is not None:
+            return self._execute_attempts(
+                command,
+                effective_timeout=effective_timeout,
+                error_type=error_type,
                 path=path,
-            ) from exc
-        except OSError as exc:
+                action=action,
+            )
+
+        try:
+            with _word_lock(WORD_LOCK_TIMEOUT):
+                return self._execute_attempts(
+                    command,
+                    effective_timeout=effective_timeout,
+                    error_type=error_type,
+                    path=path,
+                    action=action,
+                )
+        except _WordBusyError as exc:
             raise error_type(
-                f"gagal menjalankan PowerShell/Word: {exc}",
-                code="WORD-START",
+                "Microsoft Word sedang dipakai proses lain; "
+                f"lock tidak diperoleh dalam {WORD_LOCK_TIMEOUT} detik.",
+                code="WORD-BUSY",
                 path=path,
             ) from exc
 
-        result = raw if isinstance(raw, WordProcessResult) else WordProcessResult(raw)
-        if result.returncode != 0:
-            raise error_type(
-                f"Microsoft Word gagal {action} (kode {result.returncode})."
-                f"{_result_detail(result)}",
-                code="WORD-FAILED",
-                path=path,
-            )
-        return result
+    def _execute_attempts(
+        self,
+        command: Sequence[str],
+        *,
+        effective_timeout: int,
+        error_type: type[ExternalToolError],
+        path: Path,
+        action: str,
+    ) -> WordProcessResult:
+        """Jalankan command dengan PID file, retry transien, dan cleanup."""
+
+        runner = self._runner or _run_process
+        with tempfile.NamedTemporaryFile(
+            delete=False,
+            prefix="docgen-word-",
+            suffix=_PID_FILE_SUFFIX,
+        ) as pid_handle:
+            pid_path = Path(pid_handle.name)
+        full_command = [*command, "-PidFile", str(pid_path)]
+        try:
+            for attempt in range(1, WORD_MAX_ATTEMPTS + 1):
+                _reset_pid_file(pid_path)
+                try:
+                    raw = runner(full_command, effective_timeout)
+                except subprocess.TimeoutExpired as exc:
+                    _cleanup_word_pid(pid_path, require_winword=False)
+                    detail = _timeout_detail(exc)
+                    raise error_type(
+                        f"Word tidak selesai {action} dalam {effective_timeout} detik.{detail}",
+                        code="WORD-TIMEOUT",
+                        path=path,
+                    ) from exc
+                except OSError as exc:
+                    _cleanup_word_pid(pid_path, require_winword=False)
+                    raise error_type(
+                        f"gagal menjalankan PowerShell/Word: {exc}",
+                        code="WORD-START",
+                        path=path,
+                    ) from exc
+
+                result = raw if isinstance(raw, WordProcessResult) else WordProcessResult(raw)
+                if result.returncode == 0:
+                    _cleanup_word_pid(pid_path, require_winword=True)
+                    return result
+                if attempt < WORD_MAX_ATTEMPTS and _is_transient_failure(result):
+                    _cleanup_word_pid(pid_path, require_winword=False)
+                    time.sleep(_WORD_RETRY_DELAY)
+                    continue
+                raise error_type(
+                    f"Microsoft Word gagal {action} (kode {result.returncode})."
+                    f"{_result_detail(result)}",
+                    code="WORD-FAILED",
+                    path=path,
+                )
+        finally:
+            with contextlib.suppress(OSError):
+                pid_path.unlink()
+        raise AssertionError("loop retry tidak menghasilkan result")  # pragma: no cover
 
     # -- API ------------------------------------------------------------
 
