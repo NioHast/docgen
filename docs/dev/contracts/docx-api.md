@@ -363,6 +363,11 @@ mengembalikan `None` atau melempar error.
 
 ## 8. `docgen/docx/sections.py`
 
+Modul ini hanya menangani section, header/footer, dan geometri halaman
+(`set_page_size`, `set_margins`, nomor halaman). Penomoran heading DOCX berada
+di `docgen/docx/heading_numbering.py` (bagian 9) dan tidak lagi menjadi
+tanggung jawab modul ini.
+
 ### 8.1 Signature
 
 ```python
@@ -429,20 +434,27 @@ nomor halaman tidak valid.
 
 ---
 
-## 9. Heading
+## 9. `docgen/docx/heading_numbering.py`
 
-API heading DOCX (iterasi dan penomoran `BAB I`/`1.1.`/`1.1.1.`) berada di
-`docgen/docx/sections.py` milik WS6. Helper level heading
-`heading_level(paragraph)` dan `paragraph_style_id(paragraph)` berada di
-`docgen/docx/paragraphs.py`; `sections.py` memakainya untuk mengenali heading
-batas section. Modul terpisah `docgen/markdown/headings.py` menangani penomoran
-heading Markdown sebelum Pandoc (`number_markdown`, `balance_title`,
-`HeadingNumberer`) dengan error `MarkdownHeadingError`, dan tidak menyentuh
-package DOCX. Signature API DOCX di bawah tidak berubah.
+Modul ini adalah satu-satunya pemilik penomoran heading DOCX: iterasi heading
+body, penentuan heading unnumbered, pemformatan nomor `BAB I`/`1.1.`/`1.1.1.`,
+dan penulisan ulang run judul. `sections.py` hanya menangani section,
+header/footer, dan geometri halaman; modul ini tidak menyentuh `w:sectPr`,
+header/footer, atau geometri halaman.
+
+Helper level heading `heading_level(paragraph)` dan
+`paragraph_style_id(paragraph)` tetap berada di `docgen/docx/paragraphs.py`.
+Konversi angka Romawi memakai `docgen.docx.numbering.format_roman`; tidak ada
+tabel Romawi kedua di modul ini. Modul terpisah
+`docgen/markdown/headings.py` menangani penomoran heading Markdown sebelum
+Pandoc (`number_markdown`, `balance_title`, `HeadingNumberer`) dengan error
+`MarkdownHeadingError`, dan tidak menyentuh package DOCX.
 
 ### 9.1 Signature
 
 ```python
+class HeadingError(DocxError): ...
+
 @dataclass(frozen=True)
 class Heading:
     level: int
@@ -457,8 +469,15 @@ class NumberingSpec:
     sub_dot: bool = True
     subsub_dot: bool = True
 
+@dataclass(frozen=True)
+class HeadingReport:
+    changed: bool
+    numbered: int
+    unnumbered: int
+    skipped_without_chapter: int
+    headings: tuple[Heading, ...]
+
 def iter_headings(package: DocumentPackage) -> tuple[Heading, ...]: ...
-def heading_level(paragraph: etree._Element) -> int | None: ...
 def heading_text(paragraph: etree._Element,
                  *, include_number: bool = True) -> str: ...
 def is_unnumbered(paragraph: etree._Element) -> bool: ...
@@ -469,7 +488,7 @@ def heading_bookmark_name(heading: Heading) -> str: ...
 
 **Input/output.** Menerima package/paragraf dan `NumberingSpec`; output berupa
 tuple `Heading`, string nomor, `HeadingReport`, atau mutasi teks heading.
-Tidak mengubah run non-heading.
+Tidak mengubah run non-heading dan tidak menyentuh section.
 
 ### 9.2 Invariant
 
@@ -893,12 +912,29 @@ Modul ini murni dan tidak menyentuh package. `chapter_number` menerima `BAB IV`,
 
 ```python
 PAGE_SIZES: Mapping[str, tuple[int, int]]
+
+class PageError(DocxError): ...
+
 def page_size(name: str, orientation: str = "portrait") -> tuple[int, int]: ...
+def content_width(body: etree._Element) -> int: ...
 ```
 
 `PAGE_SIZES` menyimpan ukuran portrait dalam twip; `page_size` menukar lebar
 dan tinggi untuk `landscape`. Nama ukuran yang tidak dikenal menimbulkan
 `KeyError` agar stage dapat menerjemahkannya menjadi error konfigurasi.
+
+`content_width(body)` adalah satu-satunya sumber lebar area teks. Sumbernya
+`w:sectPr` terakhir: child langsung `w:body` bila ada, jika tidak descendant
+`w:sectPr` terakhir (section di dalam `w:pPr`). Lebar dihitung dari satu
+section dengan rumus:
+
+```text
+w:pgSz/@w:w - w:pgMar/@w:left - w:pgMar/@w:right - w:pgMar/@w:gutter
+```
+
+Tidak ada lebar cadangan. Section hilang, `w:pgSz`/`w:pgMar` atau atributnya
+hilang, nilai bukan bilangan bulat, atau hasilnya tidak positif menimbulkan
+`PageError` berkode `PAGE-WIDTH`.
 
 ---
 
@@ -967,6 +1003,7 @@ Aturan per stage:
 | `InvalidPackageError` | Package tidak valid | 1 |
 | `XmlError` | XML tidak valid | 1 |
 | `ParagraphError` | Akses `w:body` gagal | 1 |
+| `PageError` | Ukuran halaman atau lebar konten tidak valid (`PAGE-WIDTH`) | 1 |
 | `StyleError`/`StyleContractError` | Style rusak | 1 |
 | `SectionError` | Section rusak | 1 |
 | `HeadingError` | Heading rusak | 1 |
@@ -991,7 +1028,8 @@ Semua error menyebut part, paragraf (jika ada), dan aksi yang gagal.
 - `tests/unit/test_style_reference.py`: style count, style contract,
   `patch_style`, dan `verify_style_contract`.
 - `tests/unit/test_sections.py`: section, margin, page numbering, tidak ada
-  halaman kosong, dan `apply_heading_numbering`.
+  halaman kosong, dan `apply_heading_numbering` (diimpor dari
+  `heading_numbering.py`).
 - `tests/unit/test_markdown_headings.py`: penomoran heading Markdown `BAB I`,
   `1.1.`, `1.1.1.`, unnumbered, inline formatting, dan `balance_title`.
 - `tests/unit/test_stages_captions.py`: posisi caption, prefix, dan

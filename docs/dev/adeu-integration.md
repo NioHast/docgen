@@ -136,12 +136,15 @@ Default:
 
 | Opsi | Default |
 | --- | --- |
-| `--docx` | `out/<report_name>.docx` bila ada; fallback `<report_name>.docx` di samping dokumen |
+| `--docx` | `docgen.paths.output_directory()`: `examples/<nama>/document.md` -> `<folder>/out/<report_name>.docx`; dokumen lain -> `<folder-dokumen>/<report_name>.docx` |
 | `--manifest` | `.laporan/manifest.json` di samping dokumen |
 | `--out` | `.laporan/reconcile.md` di samping dokumen |
 
-`--docx` mengutamakan output build di `out/`, lalu jatuh ke DOCX di direktori
-dokumen. Nilai `--docx` eksplisit selalu menang.
+Path `--docx` dihitung oleh `docgen.paths.output_directory()`. Dokumen di
+`examples/<nama>/document.md` memakai `<folder>/out/`; dokumen lain memakai
+folder dokumen. Nilai `--docx` eksplisit selalu menang. Bila DOCX tidak ada,
+`reconcile` gagal dengan `ReconcileError` berkode `RECONCILE-INPUT` yang
+menyebut path yang diharapkan; tidak ada fallback ke lokasi lain.
 
 Alur:
 

@@ -77,7 +77,7 @@ Tabel ini adalah default yang mengikat. Kelima item di bagian 6 telah dikonfirma
 | Dependency | Pindahkan `python-docx` ke dev dependency. Hapus `Pillow`. `pypdf` tetap dev. |
 | PDF baseline | Jangan commit PDF fixture besar. Ganti dengan E2E build PDF dari `examples/thesis-single` di Windows, verifikasi page count/TOC/teks kunci lewat `pdf-baseline.json`. Debian hanya skip platform. Fixture DOCX lama yang memuat Typst dihapus atau di-refresh. |
 | Word adapter | Jangan migrasi ke Python COM sekarang. Jika standalone wheel dibutuhkan, masukkan `word.ps1` sebagai package-data. |
-| API yang dipertahankan | `W_ALIASES`, `STYLE_ORDER`, `is_code_table`, dual artifact `markdown`/`mermaid.markdown`, `open_docx`, `number_markdown`, `DocxPackage`, `NormalizeError`. |
+| API yang dipertahankan | `W_ALIASES`, `STYLE_ORDER`, `is_code_table`, dua nama artifact `markdown` (output untuk Pandoc) dan `mermaid.markdown` (input front_matter) dengan satu sumber baca tanpa fallback, `open_docx`, `number_markdown`, `DocxPackage`, `NormalizeError`. |
 | Dokumen historis | Setelah isi penting dipindah ke plan ini, arsipkan `duplication-map.md` dan `restructure-plan.md` ke `docs/dev/archive/`. Hapus di Fase 6 jika tidak ada nilai audit. |
 | Folder acuan | `acuan/` tetap ignored, tidak disentuh, dan tidak dirujuk oleh kode, build, contoh, atau dokumentasi pengguna aktif. Archive historis tidak menjadi acuan. |
 | Dokumentasi pemula | Letakkan materi belajar di `docs/dev/learn/00-06`. |
@@ -130,7 +130,7 @@ Catatan penting:
 | `W_ALIASES` | Tabel pemetaan elemen OOXML, dipakai untuk normalisasi XML. |
 | `STYLE_ORDER` | Menjaga urutan child style deterministik. |
 | `is_code_table` | Predikat publik untuk membedakan tabel kode dari tabel data. |
-| Dual artifact `markdown` dan `mermaid.markdown` | Kontrak artifact pipeline dan stage Mermaid. |
+| Dua nama artifact `markdown` (output front_matter untuk Pandoc) dan `mermaid.markdown` (input front_matter) | Peran berbeda, bukan dual source: hanya ada satu sumber baca dan tidak ada fallback. |
 | `open_docx` | Loader path publik yang tetap dipakai tes dan alat. |
 | `number_markdown` | API penomoran heading Markdown yang sudah menjadi kontrak. |
 | `DocxPackage` | Nama publik package di kontrak dan tes. |
@@ -491,7 +491,7 @@ Tujuan: menghapus jalur cadangan diam-diam agar satu input menghasilkan satu out
 | Z1 | Pandoc wajib artifact `markdown` | `src/docgen/stages/pandoc.py`, `tests/unit/test_pandoc_stage.py`, tests terkait | N4 | `_markdown_path` hanya menerima artifact `markdown`; fallback `workspace/front_matter.md` hilang; tidak ada file cadangan yang dibaca; `PANDOC-INPUT` dipertahankan. | Z |
 | Z2 | Satu sumber `content_width` | `src/docgen/docx/layout.py`, `src/docgen/docx/tables.py`, `src/docgen/stages/equations.py`, tests | R4 | Hanya satu fungsi/konstanta lebar konten; fallback 9072/9360 dan `DEFAULT_RIGHT_TAB_TWIPS` 9072 dihapus atau diturunkan dari satu sumber; lebar tidak tersedia → error domain, bukan angka tebakan. | Z |
 | Z3 | Path reconcile tunggal | `src/docgen/adeu/reconcile.py`, `src/docgen/adeu/cli.py`, tests | N2 | `_default_docx_path` tidak mencoba `out/` lalu folder dokumen; path dihitung dari aturan output yang sama dengan build atau diberikan eksplisit; DOCX tidak ada → `ReconcileError` jelas. | Z |
-| Z4 | Sumber front matter tunggal | `src/docgen/stages/front_matter.py`, `src/docgen/stages/pandoc.py`, tests | Z1 | `_markdown_source` hanya membaca satu artifact yang dideklarasikan (bukan `markdown` lalu `mermaid.markdown` lalu `ctx.document.body`); tidak ada dual artifact; error `FRONT-MATTER-INPUT` bila sumber tidak ada. | Z |
+| Z4 | Sumber front matter tunggal | `src/docgen/stages/front_matter.py`, `src/docgen/stages/pandoc.py`, tests | Z1 | `_markdown_source` hanya membaca satu artifact yang dideklarasikan (bukan `markdown` lalu `mermaid.markdown` lalu `ctx.document.body`); tidak ada dual sumber bacaan; error `FRONT-MATTER-INPUT` bila sumber tidak ada. | Z |
 
 Catatan:
 

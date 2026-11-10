@@ -40,7 +40,8 @@ Aturan global:
 | `paragraphs.py` | Akses `w:body`, child langsung, style dan level heading, teks paragraf, hapus child, atribut integer. |
 | `runs.py` | Pembuatan, penyalinan, dan pembersihan `w:r`/`w:rPr`. |
 | `numbering.py` | Konversi angka Romawi dan nomor bab. |
-| `page.py` | Konstanta dan helper ukuran halaman. |
+| `heading_numbering.py` | Penomoran heading DOCX: iterasi, nomor H1/H2/H3, unnumbered, nama bookmark. |
+| `page.py` | Konstanta/helper ukuran halaman, `content_width`, dan `PageError`. |
 | `styles.py` | Style paragraf, karakter, tabel, dan page layout. |
 | `sections.py` | Section break, margin, ukuran halaman, header/footer. |
 | `captions.py` | Caption tabel/gambar, numbering, layout gambar. |
@@ -52,7 +53,10 @@ Aturan global:
 
 `heading_level(paragraph)` dan `paragraph_style_id(paragraph)` berada di
 `paragraphs.py`, bukan `sections.py`. `sections.py` memakai helper tersebut untuk
-mengenali heading batas section.
+mengenali heading batas section, tetapi tidak memiliki penomoran heading:
+`apply_heading_numbering` dan `is_unnumbered` ada di `heading_numbering.py`.
+Modul itu memakai `numbering.py` untuk angka Romawi dan tidak menyentuh
+section, header/footer, atau geometri halaman.
 
 Penomoran heading Markdown sebelum Pandoc bukan tanggung jawab lapisan DOCX;
 modulnya ada di `src/docgen/markdown/headings.py`.

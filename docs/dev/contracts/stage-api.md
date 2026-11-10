@@ -96,8 +96,8 @@ class StageResult:
     artifacts: tuple[Path, ...] = ()
 ```
 
-- `status="skipped"` hanya untuk stage yang `enabled(ctx)` false atau
-  precondition opsional tidak ada (mis. tidak ada blok Mermaid).
+- `status="skipped"` hanya untuk stage yang `enabled(ctx)` false (mis. `terms`
+  tanpa `--terms` atau `toc: false`) atau precondition opsional tidak ada.
 - Error tidak dikembalikan sebagai `StageResult`; error dilempar sebagai
   `StageError`.
 - `changed=False` wajib benar untuk run kedua stage idempoten.
@@ -317,7 +317,8 @@ class ArtifactStore:
 ```
 
 Key baku: `markdown`, `reference_docx`, `pandoc_docx`, `manifest`,
-`terms_review`, `docx`, `pdf`. Key lain wajib berprefix nama stage.
+`terms_review`, `docx`, `pdf`. Key berprefix nama stage juga sah; kontrak ini
+memakai `mermaid.markdown` sebagai input body `front_matter`.
 
 ---
 
@@ -337,7 +338,9 @@ Key baku: `markdown`, `reference_docx`, `pandoc_docx`, `manifest`,
   gambar di Markdown materialized.
 - Cache berdasarkan hash blok + versi `mmdc`; render kedua tidak memanggil
   `mmdc`.
-- Jika tidak ada blok Mermaid, `status="skipped"`.
+- Stage selalu `status="ok"` dan selalu menulis `mermaid.md` serta memasang
+  artifact `mermaid.markdown`, termasuk bila tidak ada diagram. Metrik
+  `blocks=0` dan Markdown disalin tanpa perubahan.
 - Jika `mmdc` hilang, `ToolMissingError` dengan pesan instalasi.
 - Menulis hanya ke workspace/cache.
 
@@ -352,6 +355,10 @@ Key baku: `markdown`, `reference_docx`, `pandoc_docx`, `manifest`,
 
 ### 5.4 `front_matter` (FrontMatterStage, WS6, `stages/front_matter.py`)
 
+- Input **wajib** artifact `mermaid.markdown` dari stage `mermaid`. Body tidak
+  dibaca dari `ctx.document.body`, dan artifact `markdown` lama tidak diterima
+  sebagai sumber. Artifact yang tidak ada atau tidak terbaca menghasilkan
+  `FrontMatterError` berkode `FRONT-MATTER-INPUT`; tidak ada fallback.
 - Mematerialisasi cover, template legal approval/statement, preface, abstract
   ID/EN, dan kata kunci menjadi Markdown sebelum Pandoc.
 - Menomori Heading 1/2/3 body; `# Lampiran` dan turunannya tetap unnumbered
@@ -359,13 +366,17 @@ Key baku: `markdown`, `reference_docx`, `pandoc_docx`, `manifest`,
 - Menulis page break/section break front matter ke workspace.
 - TOC dan daftar tabel/gambar **tidak** ditulis di sini; keduanya milik stage
   post-Pandoc.
-- Output: artifact `markdown` di workspace.
+- Output: `front_matter.md` di workspace dan artifact `markdown` untuk Pandoc.
 - Error: `FrontMatterError`; exit 1.
 
 ### 5.5 `pandoc` (WS2, `stages/pandoc.py`)
 
+- Input Markdown **wajib** artifact `markdown` dari `front_matter`. Tidak ada
+  fallback ke `workspace/front_matter.md` atau file workspace lain; artifact
+  yang tidak ada menghasilkan `PandocError` berkode `PANDOC-INPUT`.
 - Menjalankan Pandoc dengan:
-  - Markdown materialized (hasil `mermaid` dan `front_matter`);
+  - Markdown materialized dari artifact `markdown` (sudah memuat hasil
+    `mermaid` dan `front_matter`);
   - metadata front matter;
   - `--reference-doc` dari `style_reference`;
   - `--citeproc`, `--bibliography`, `--csl`;
@@ -854,8 +865,12 @@ docgen reconcile <file>
 ```
 
 - `<file>` adalah `document.md`.
-- Default `--docx` = `out/<report_name>.docx` bila ada, fallback
-  `<report_name>.docx` di samping dokumen; `--docx` eksplisit menang.
+- Default `--docx` dihitung oleh `docgen.paths.output_directory()`:
+  `examples/<nama>/document.md` -> `<folder>/out/<report_name>.docx`;
+  dokumen lain -> `<folder-dokumen>/<report_name>.docx`. `--docx` eksplisit
+  selalu menang.
+- Jika DOCX tidak ada, `reconcile` melempar `ReconcileError` berkode
+  `RECONCILE-INPUT` dengan path yang diharapkan; tidak ada fallback.
 - Default `--manifest` = `.laporan/manifest.json` di samping dokumen.
 - Default `--out` = `.laporan/reconcile.md`.
 - Membaca manifest, DOCX, dan sumber Markdown; menulis laporan Markdown.

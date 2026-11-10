@@ -142,7 +142,7 @@ flowchart LR
   C -- Ya --> D[Pandoc]
   C -- Tidak --> E[Perbaiki front matter]
   D --> F[Stage DOCX]
-  F --> G[out/document.docx]
+  F --> G[out/Tugas.docx]
 ```
 
 Stage `validate` memeriksa caption tabel dan alt text gambar. Stage `mermaid`
