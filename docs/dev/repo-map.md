@@ -47,7 +47,7 @@ single-file, tes, serta dokumentasi. Semua path relatif terhadap akar repo.
 |   `-- thesis-single/
 |-- docs/
 |   |-- README.md
-|   |-- agent/
+|   |-- user/
 |   `-- dev/
 |       |-- contracts/
 |       `-- decisions/
@@ -85,7 +85,7 @@ single-file, tes, serta dokumentasi. Semua path relatif terhadap akar repo.
 | `examples/assignment-single/` | Contoh tiga bab, tabel, dan Mermaid. |
 | `examples/proposal-single/` | Contoh empat bab dan daftar isi. |
 | `examples/thesis-single/` | Contoh lengkap dengan front matter, gambar, kode, dan lampiran. |
-| `docs/agent/` | Panduan penulis dan agent. |
+| `docs/user/` | Panduan pengguna dan penulis `document.md`. |
 | `docs/dev/` | Dokumentasi pengembang, kontrak, ADR, dan rencana. |
 | `tools/dev/check_prose.py` | Pemeriksa prosa dan pembanding versi. |
 | `tools/dev/audit_terms.py` | Audit italic istilah pada DOCX. |

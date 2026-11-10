@@ -19,7 +19,7 @@ bila merujuk dokumentasi eksternal. Label harus unik; URL harus memakai skema
 | WordprocessingML API reference | https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.wordprocessing?view=openxml-3.0.1 | Nama elemen dan properti `w:*`; `src/docgen/docx/` (`fields.py`, `sections.py`, `numbering.py`, `page.py`, `paragraphs.py`, `terms/model.py`), `docs/dev/docx/`, `docs/dev/contracts/docx-api.md`. |
 | Word COM object model (VBA reference) | https://learn.microsoft.com/en-us/office/vba/api/overview/word | Otomasi Word melalui COM; `src/docgen/stages/office.py`, `scripts/word.ps1`, `docs/dev/pdf.md`. |
 | Pandoc manual | https://pandoc.org/MANUAL.html | Konversi Markdown ke DOCX dan opsi CLI; `src/docgen/stages/pandoc.py`, `src/docgen/stages/front_matter.py`, `README.md`, `docs/dev/pipeline/overview.md`. |
-| Pandoc installation | https://pandoc.org/installing.html | Prasyarat pemasangan Pandoc; `README.md`, `docs/agent/troubleshooting.md`. |
+| Pandoc installation | https://pandoc.org/installing.html | Prasyarat pemasangan Pandoc; `README.md`, `docs/user/troubleshooting.md`. |
 | Pandoc Lua filters | https://pandoc.org/lua-filters.html | Referensi filter Lua; pipeline tidak memakai `--lua-filter`, tetapi kontrak historis menyebut paritasnya. |
 | Ruff configuration | https://docs.astral.sh/ruff/configuration/ | Konfigurasi `[tool.ruff]`; `pyproject.toml`, `docs/dev/code-style.md`. |
 | Ruff rules | https://docs.astral.sh/ruff/rules/ | Daftar kode aturan; `docs/dev/code-style.md`. |
@@ -55,8 +55,8 @@ bila merujuk dokumentasi eksternal. Label harus unik; URL harus memakai skema
 | coverage.py | https://coverage.readthedocs.io/ | Pengukuran coverage sebagai diagnostik; `docs/dev/test-quality.md`. |
 | mutmut | https://github.com/boxed/mutmut | Mutation testing opsional untuk modul kritis; `docs/dev/test-quality.md`. |
 | uv documentation | https://docs.astral.sh/uv/ | Environment, `uv run`, dan `uv sync`; `README.md`, `docs/dev/contributing.md`. |
-| Mermaid CLI | https://github.com/mermaid-js/mermaid-cli | Perintah `mmdc` dan opsi render; `src/docgen/stages/mermaid.py`, `README.md`, `docs/agent/mermaid.md`. |
-| Mermaid documentation | https://mermaid.js.org/ | Sintaks diagram Mermaid; `docs/agent/mermaid.md`. |
+| Mermaid CLI | https://github.com/mermaid-js/mermaid-cli | Perintah `mmdc` dan opsi render; `src/docgen/stages/mermaid.py`, `README.md`, `docs/user/mermaid.md`. |
+| Mermaid documentation | https://mermaid.js.org/ | Sintaks diagram Mermaid; `docs/user/mermaid.md`. |
 | lxml documentation | https://lxml.de/ | API `lxml.etree`; `src/docgen/docx/`, `docs/dev/contracts/docx-api.md`. |
 | python-docx documentation | https://python-docx.readthedocs.io/ | Referensi pembanding untuk API DOCX; `docs/dev/contracts/docx-api.md`. |
 | pypdf documentation | https://pypdf.readthedocs.io/ | Pemeriksaan PDF pada tes; `tests/integration/test_golden_pdf.py`. |

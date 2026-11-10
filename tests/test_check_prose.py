@@ -140,7 +140,7 @@ class TesKE13(unittest.TestCase):
 
 class TesSelfLint(unittest.TestCase):
     def test_guide_dan_docs_bersih(self):
-        for nama in ("docs/agent/writing-rules.md", "docs/dev/contributing.md"):
+        for nama in ("docs/user/writing-rules.md", "docs/dev/contributing.md"):
             teks = (AKAR / nama).read_text(encoding="utf-8")
             self.assertEqual(check_prose.periksa(teks), [], nama)
 

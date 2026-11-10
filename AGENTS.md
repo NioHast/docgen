@@ -45,6 +45,12 @@ uv run --project <repo> docgen reconcile document.md
 
 ## Dokumentasi
 
-- [docs/agent/quickstart.md](docs/agent/quickstart.md), [docs/agent/document-format.md](docs/agent/document-format.md)
-- [docs/agent/single-file.md](docs/agent/single-file.md), [docs/agent/writing-rules.md](docs/agent/writing-rules.md)
+- [docs/user/quickstart.md](docs/user/quickstart.md), [docs/user/document-format.md](docs/user/document-format.md)
+- [docs/user/single-file.md](docs/user/single-file.md), [docs/user/writing-rules.md](docs/user/writing-rules.md)
 - Detail implementasi ada di [docs/dev/architecture.md](docs/dev/architecture.md).
+
+## Peta audiens dokumentasi
+
+- `AGENTS.md` (root): instruksi untuk AI agent.
+- `docs/user/`: panduan pengguna dan penulis `document.md`.
+- `docs/dev/`: dokumentasi teknis yang mencakup arsitektur, kontrak, pipeline, dan detail implementasi.

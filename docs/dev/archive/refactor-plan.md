@@ -249,7 +249,7 @@ scripts/
 
 docs/
   README.md
-  agent/
+  user/
   dev/
     README.md
     refactor-plan.md
@@ -443,7 +443,7 @@ Tujuan: menghapus jalur lama, memindahkan dependency test, dan mewajibkan nama o
 | L2.4 | Perbarui test dan docs legacy | `tests/unit/test_config.py`, `tests/unit/test_document.py`, `tests/unit/test_stages_terms.py`, `tests/unit/test_stages_layout.py`, `tests/unit/test_stages_equations.py`, `tests/unit/test_stages_captions.py`, `tests/unit/test_stages_numbering.py`, `tests/unit/test_lists.py`, `tests/unit/test_toc.py`, `tests/unit/test_page_numbers.py`, `tests/unit/test_pipeline.py`, `tests/unit/test_style_reference.py`, `docs/dev/terms.md`, `docs/dev/contracts/config.md` | L2.1, L2.2, L2.3 | Test lama diubah ke perilaku baru; tidak ada test yang dihapus tanpa pengganti; docs tidak menyebut fallback. | L2 |
 | L3.1 | Wajibkan `report_name` dan bersihkan metadata | `metadata.py`, `tests/unit/test_metadata.py` | S5 | `report_name` hilang, kosong, atau whitespace menghasilkan `CFG-REQUIRED`; field menjadi `str` tanpa default; `DEFAULT_REPORT_NAME` dan `normalize_author` hilang. | L3 |
 | L3.2 | Hapus fallback nama output | `stages/pandoc.py`, `stages/office.py`, `features/adeu/reconcile.py`, handoff `pipeline.py` ke L2 | L3.1 | Tidak ada literal `"Tugas"` sebagai fallback di `src`; semua path memakai `metadata.report_name` langsung. | L3 |
-| L3.3 | Perbarui contoh, test, docs | `examples/*/document.md`, `examples/README.md`, `tests/unit/test_cli.py`, `tests/unit/test_front_matter.py`, `tests/integration/*`, `docs/agent/*`, `docs/dev/pipeline.md`, `docs/dev/testing.md`, `docs/dev/adeu-integration.md`, `docs/dev/contracts/stage-api.md` | L2.2, L3.1, L3.2 | Semua contoh punya `report_name` eksplisit; test missing/empty; tidak ada flag `--report-name`; docs menyatakan field wajib. | L3 |
+| L3.3 | Perbarui contoh, test, docs | `examples/*/document.md`, `examples/README.md`, `tests/unit/test_cli.py`, `tests/unit/test_front_matter.py`, `tests/integration/*`, `docs/user/*`, `docs/dev/pipeline.md`, `docs/dev/testing.md`, `docs/dev/adeu-integration.md`, `docs/dev/contracts/stage-api.md` | L2.2, L3.1, L3.2 | Semua contoh punya `report_name` eksplisit; test missing/empty; tidak ada flag `--report-name`; docs menyatakan field wajib. | L3 |
 | L4.1 | Arsipkan plan lama | `docs/dev/restructure-plan.md`, `docs/dev/duplication-map.md`, `docs/dev/archive/*`, `docs/README.md`, tautan masuk | S5 | Kedua dokumen pindah ke archive dengan status superseded; tidak ada tautan rusak; plan ini menjadi acuan. | L4 |
 
 Gate per lane:
@@ -543,7 +543,7 @@ Tujuan: dokumentasi berlapis, tautan resmi, TOC, dan tanpa komentar historis.
 | D6 | TOC dokumen panjang | Semua `docs/**/*.md` | D3, D5 | Setiap dokumen lebih dari 150 baris punya TOC anchor yang valid; checker gagal jika TOC hilang. | D-F |
 | D7a | Bersihkan komentar historis di kode | `src/docgen/**` | F5 | Token `WS\d+`, `Fase`, `lane`, `spike`, `cutover`, `legacy`, `docx.lua`, `presets/` hilang dari kode aktif; komentar menjelaskan perilaku sekarang. | D-D |
 | D7b | Bersihkan komentar historis di test | `tests/**` | F5 | Token historis hilang; fixture dan baseline bebas Typst; literal `Typst` di `test_golden_fixtures.py` hanya untuk assertion negatif. | D-E |
-| D7c | Bersihkan komentar historis di docs | `docs/agent/**`, `docs/dev/**` kecuali `archive/**`, `decisions/**`, dan `refactor-plan.md` | D5 | Token historis hilang dari docs aktif, termasuk sisa `from __future__` di `docs/dev/contributing.md`; ADR, archive, dan plan ini tetap menyimpan instruksi sejarah. | D-E |
+| D7c | Bersihkan komentar historis di docs | `docs/user/**`, `docs/dev/**` kecuali `archive/**`, `decisions/**`, dan `refactor-plan.md` | D5 | Token historis hilang dari docs aktif, termasuk sisa `from __future__` di `docs/dev/contributing.md`; ADR, archive, dan plan ini tetap menyimpan instruksi sejarah. | D-E |
 | D7d | Bersihkan komentar historis di data dan config | `src/docgen/data/**`, `pyproject.toml` | L1 | Komentar `presets/` dan referensi historis hilang; data menjelaskan nilai sekarang. | D-E |
 | D8 | Docstring modul kunci | `pipeline.py`, `config.py`, `errors.py`, `document.py`, fungsi lebih dari 40 baris | D7a | Module docstring menjelaskan tujuan, invariant, API masuk, dan non-goals; fungsi lebih dari 40 baris punya docstring atau dipecah. | D-D |
 | D9 | Tautkan dokumentasi resmi | Module docstring dan docs page | D5, D8 | URL dokumentasi eksternal hanya dari registry; namespace XML tidak dihitung sebagai link dokumen; link checker 0 broken; tidak ada link spam. | D-F |

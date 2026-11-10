@@ -106,13 +106,13 @@ Untuk dokumen di `examples/<name>/document.md`, output ditulis ke
 | `src/docgen/` | CLI, loader konfigurasi, pipeline, stage, dan API DOCX. |
 | `src/docgen/data/` | Format, struktur, template, glosarium, logo, CSL, dan `reference.docx` sumber. |
 | `examples/` | Tiga contoh single-file: `assignment-single`, `proposal-single`, dan `thesis-single`. |
-| `docs/` | Indeks, panduan agent, dokumen pengembang, kontrak, dan ADR. |
+| `docs/` | Indeks, panduan pengguna, dokumen pengembang, kontrak, dan ADR. |
 | `tools/dev/` | Pemeriksa prosa dan audit istilah untuk pengembang. |
 | `tests/` | Unit, integrasi, end-to-end, packaging, dan fixture golden. |
 | `scripts/word.ps1` | Adaptor Word untuk finalisasi field dan ekspor PDF. |
 
 Detail arsitektur ada di [docs/dev/architecture.md](docs/dev/architecture.md).
-Panduan penulis ada di [docs/agent/quickstart.md](docs/agent/quickstart.md). Indeks lengkap ada di [docs/README.md](docs/README.md).
+Panduan penulis ada di [docs/user/quickstart.md](docs/user/quickstart.md). Indeks lengkap ada di [docs/README.md](docs/README.md).
 
 ## Contoh
 

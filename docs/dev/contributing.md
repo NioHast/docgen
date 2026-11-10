@@ -64,7 +64,7 @@ berubah. Jangan menambahkan build DOCX (Word) ke tes unit.
 - Tautan internal harus relatif dan menunjuk berkas yang ada.
 - Jangan mengklaim fitur yang belum ada. TOC (table of contents) dan daftar memakai field native;
   daftar tabel/gambar memakai hybrid `SEQ`. PDF hanya Word di Windows.
-- Dokumentasi pengguna ada di `docs/agent/`; detail implementasi di
+- Dokumentasi pengguna ada di `docs/user/`; detail implementasi di
   `docs/dev/`. Jangan menduplikasi isi yang sama di dua tempat.
 
 ## Perubahan kontrak

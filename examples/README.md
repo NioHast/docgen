@@ -86,5 +86,5 @@ ada nama default. DOCX dan PDF memakai stem yang sama. Tidak ada output di
 - `proposal-single` adalah contoh empat bab dengan daftar isi dan satu tabel.
 
 Rincian format ada di
-[docs/agent/document-format.md](../docs/agent/document-format.md). Rincian
-perintah ada di [docs/agent/quickstart.md](../docs/agent/quickstart.md).
+[docs/user/document-format.md](../docs/user/document-format.md). Rincian
+perintah ada di [docs/user/quickstart.md](../docs/user/quickstart.md).

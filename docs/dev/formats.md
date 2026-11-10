@@ -210,7 +210,7 @@ Kunci wajib: `title`, `author`, `structure`, `format`. Kunci opsional mencakup
 identitas, abstrak, kata pengantar, kata kunci, `bibliography`, `report_name`,
 dan `lang`. Daftar lengkap ada di
 [contracts/config.md](contracts/config.md) bagian 4 dan di
-[docs/agent/document-format.md](../agent/document-format.md).
+[docs/user/document-format.md](../user/document-format.md).
 
 Kunci lama seperti `preset`, `daftar_gambar`, `daftar_tabel`, `approval`,
 `statement`, `references`, `csl`, `reference-doc`, `template`, dan `cover`

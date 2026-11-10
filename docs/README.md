@@ -12,12 +12,13 @@ bila baru mengenal repo, lalu pilih salah satu pintu berikut:
 
 | Dokumen | Isi |
 | --- | --- |
-| [agent/quickstart.md](agent/quickstart.md) | Langkah awal memilih struktur, check, build, dan output. |
-| [agent/document-format.md](agent/document-format.md) | Front matter, heading, caption, gambar, tabel, kode, persamaan, dan sitasi. |
-| [agent/single-file.md](agent/single-file.md) | Alur satu berkas `document.md` dan asetnya. |
-| [agent/mermaid.md](agent/mermaid.md) | Diagram Mermaid, caption wajib, dan `mmdc`. |
-| [agent/writing-rules.md](agent/writing-rules.md) | Aturan prosa, istilah, sitasi, dan perintah pemeriksa. |
-| [agent/troubleshooting.md](agent/troubleshooting.md) | Masalah umum caption, Mermaid, Pandoc, Word, dan path. |
+| [user/README.md](user/README.md) | Indeks panduan pengguna dan penulis. |
+| [user/quickstart.md](user/quickstart.md) | Langkah awal memilih struktur, check, build, dan output. |
+| [user/document-format.md](user/document-format.md) | Front matter, heading, caption, gambar, tabel, kode, persamaan, dan sitasi. |
+| [user/single-file.md](user/single-file.md) | Alur satu berkas `document.md` dan asetnya. |
+| [user/mermaid.md](user/mermaid.md) | Diagram Mermaid, caption wajib, dan `mmdc`. |
+| [user/writing-rules.md](user/writing-rules.md) | Aturan prosa, istilah, sitasi, dan perintah pemeriksa. |
+| [user/troubleshooting.md](user/troubleshooting.md) | Masalah umum caption, Mermaid, Pandoc, Word, dan path. |
 
 ## Untuk developer
 

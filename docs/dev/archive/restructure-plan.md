@@ -107,7 +107,7 @@ WS1-WS15 selesai. Artefak generated lama dibersihkan; `uv.lock` dan dokumen ini 
 ├── uv.lock
 ├── docs/
 │   ├── README.md
-│   ├── agent/
+│   ├── user/
 │   │   ├── quickstart.md
 │   │   ├── document-format.md
 │   │   ├── single-file.md
@@ -939,7 +939,7 @@ Acceptance:
 ### WS13 final
 
 - README/AGENTS final.
-- `docs/agent/` dan `docs/dev/`.
+- `docs/user/` dan `docs/dev/`.
 - `repo-map.md`, `testing.md`, `packaging.md`, `pipeline.md`.
 - ADR.
 - Link check.
