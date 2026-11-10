@@ -61,7 +61,7 @@ Baseline awal memiliki 1 skip PDF fixture yang dihapus P0.4. Setelah P0.4, basel
 
 ## 1. Keputusan final
 
-Tabel ini adalah default yang mengikat. Kelima item di bagian 6 telah dikonfirmasi dan dicatat di P0.2 serta [ADR 0008](decisions/0008-refactor-boundaries.md).
+Tabel ini adalah default yang mengikat. Kelima item di bagian 6 telah dikonfirmasi dan dicatat di P0.2 serta [ADR 0008](../decisions/0008-refactor-boundaries.md).
 
 | Area | Keputusan final |
 | --- | --- |
@@ -313,7 +313,7 @@ Tujuan: mengunci perilaku sebelum ada perubahan kode.
 | ID | Task | File | Dependency | Acceptance | Lane |
 | --- | --- | --- | --- | --- | --- |
 | P0.1 | Bekukan golden DOCX baseline | `tests/integration/test_golden_docx.py`, `tests/integration/test_golden_pipeline.py`, `tests/e2e/test_thesis_e2e.py`, `tests/fixtures/golden/baseline-4a5b777.json` | - | Baseline sebelum guard: `475 passed, 1 skipped (PDF fixture), 2 subtests`; build thesis DOCX/PDF; hash c14n `word/document.xml` dan fingerprint artifact dicatat; setelah guard ditambahkan, tidak ada tes baseline yang hilang dan total minimal 475. | B0 |
-| P0.2 | Catat keputusan | `docs/dev/refactor-plan.md`, `docs/dev/decisions/0008-refactor-boundaries.md` | P0.1 | **Selesai 2026-11-10.** Semua item bagian 6 dikonfirmasi; keputusan dicatat di [ADR 0008](decisions/0008-refactor-boundaries.md); tabel keputusan dan target struktur tidak bertentangan; tidak ada TBD. | B0 |
+| P0.2 | Catat keputusan | `docs/dev/refactor-plan.md`, `docs/dev/decisions/0008-refactor-boundaries.md` | P0.1 | **Selesai 2026-11-10.** Semua item bagian 6 dikonfirmasi; keputusan dicatat di [ADR 0008](../decisions/0008-refactor-boundaries.md); tabel keputusan dan target struktur tidak bertentangan; tidak ada TBD. | B0 |
 | P0.4 | Bersihkan skip PDF dan fixture Typst | `tests/integration/test_golden_pdf.py`, `tests/integration/test_golden_docx.py`, `tests/unit/test_golden_fixtures.py`, `tests/unit/test_docx_package.py`, `tests/unit/test_page_numbers.py`, `tests/unit/test_sections.py`, `tests/unit/test_toc.py`, `tests/fixtures/golden/pdf-baseline.json`, `tests/fixtures/golden/laporan-baseline.docx`, `tests/fixtures/golden/baseline-4a5b777.json` | P0.1, P0.2 | `tests/integration/test_golden_pdf.py::test_pdf_fixture_matches_baseline` tidak skip saat fixture hilang; tes diganti E2E `test_pdf_build_matches_baseline`; baseline JSON berasal dari `examples/thesis-single`; Debian skip hanya platform `windows`; tidak ada PDF fixture di repo; `pdf-baseline.json` dan DOCX fixture hasil refresh bebas Typst; semua konsumen fixture diperbarui; `test_golden_fixtures.py` lulus. | B0 |
 | P0.3 | Tag baseline lokal | Tidak ada file | P0.1, P0.2, P0.4 | Annotated tag `baseline-4a5b777`; `git status` bersih; tidak dipush. | B0 |
 
@@ -698,7 +698,7 @@ Catatan grep:
 
 ## 6. Keputusan yang telah dikonfirmasi
 
-Item berikut telah dikonfirmasi pada 2026-11-10 dengan pilihan rekomendasi di bawah. Kelima keputusan mengikat dan dicatat di P0.2 serta [ADR 0008](decisions/0008-refactor-boundaries.md).
+Item berikut telah dikonfirmasi pada 2026-11-10 dengan pilihan rekomendasi di bawah. Kelima keputusan mengikat dan dicatat di P0.2 serta [ADR 0008](../decisions/0008-refactor-boundaries.md).
 
 | Item | Pilihan | Rekomendasi | Alasan | Dampak jika berbeda | Status |
 | --- | --- | --- | --- | --- | --- |
@@ -708,7 +708,7 @@ Item berikut telah dikonfirmasi pada 2026-11-10 dengan pilihan rekomendasi di ba
 | 4. Dokumen historis | Arsipkan atau hapus setelah plan baru | Arsipkan dulu, hapus di Fase 6 jika tidak ada nilai audit | Archive menjaga jejak keputusan selama refactor; G4 mencegah archive permanen yang tidak perlu. | Hapus sekarang menghilangkan konteks audit; pertahankan permanen menambah beban docs. | **confirmed** |
 | 5. Naming moves | Semua move atau subset | Lakukan semua: headings, adeu, scripts, captions | Keempatnya memperbaiki lapisan dan menghilangkan nama menyesatkan. Tidak ada alasan kuat untuk menyisakan subset. | Subset membuat struktur target tidak konsisten dan menyisakan tech debt. | **confirmed** |
 
-Kelima keputusan telah dikonfirmasi dan dicatat di P0.2 serta [ADR 0008](decisions/0008-refactor-boundaries.md). Setelah tag baseline, perubahan pilihan harus melalui ADR baru, bukan perubahan di tengah fase.
+Kelima keputusan telah dikonfirmasi dan dicatat di P0.2 serta [ADR 0008](../decisions/0008-refactor-boundaries.md). Setelah tag baseline, perubahan pilihan harus melalui ADR baru, bukan perubahan di tengah fase.
 
 Keputusan tambahan yang telah dikonfirmasi:
 

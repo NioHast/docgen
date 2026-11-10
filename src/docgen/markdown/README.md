@@ -47,6 +47,6 @@ teks, tanpa menyentuh DOCX. Tidak ada parser Markdown kedua di fitur Adeu.
 
 - [Arsitektur](../../../docs/dev/architecture.md)
 - [Kontrak stage](../../../docs/dev/contracts/stage-api.md)
-- [Rencana refactor](../../../docs/dev/refactor-plan.md)
+- [Rencana refactor](../../../docs/dev/archive/refactor-plan.md)
 - [README paket](../README.md)
 - [README Adeu](../adeu/README.md)

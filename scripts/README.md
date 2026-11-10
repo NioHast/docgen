@@ -55,6 +55,6 @@ snapshot tanpa menyimpan DOCX.
 
 - [PDF dan Word](../docs/dev/pdf.md)
 - [Kontrak stage](../docs/dev/contracts/stage-api.md)
-- [Rencana refactor](../docs/dev/refactor-plan.md)
+- [Rencana refactor](../docs/dev/archive/refactor-plan.md)
 - [Pemanggil Python](../src/docgen/stages/office.py)
 - [Adapter Word](word.ps1)

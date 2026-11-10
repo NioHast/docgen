@@ -52,5 +52,5 @@ pipeline dijalankan setelah stage `lists` dan sebelum save; urutan itu dimiliki
 - [Kontrak DOCX](../../../docs/dev/contracts/docx-api.md)
 - [Kontrak stage](../../../docs/dev/contracts/stage-api.md)
 - [Peta repo](../../../docs/dev/repo-map.md)
-- [Rencana refactor](../../../docs/dev/refactor-plan.md)
+- [Rencana refactor](../../../docs/dev/archive/refactor-plan.md)
 - [README paket](../README.md)

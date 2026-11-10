@@ -11,7 +11,7 @@ pengembang tidak boleh menjadi dependensi runtime.
 ## Ownership
 
 - Perubahan API publik, urutan stage, dan struktur folder harus mengikuti
-  [rencana refactor](../../docs/dev/refactor-plan.md) dan kontrak di
+  [rencana refactor](../../docs/dev/archive/refactor-plan.md) dan kontrak di
   `docs/dev/contracts/`.
 - `pipeline.py` dan `cli.py` dimiliki pemilik orkestrasi. Folder `docx/`,
   `stages/`, `markdown/`, `adeu/`, dan `data/` memiliki README serta kontrak
@@ -57,7 +57,7 @@ pengembang tidak boleh menjadi dependensi runtime.
 
 ## Tautan
 
-- [Rencana refactor](../../docs/dev/refactor-plan.md)
+- [Rencana refactor](../../docs/dev/archive/refactor-plan.md)
 - [Arsitektur](../../docs/dev/architecture.md)
 - [Kontrak stage](../../docs/dev/contracts/stage-api.md)
 - [Kontrak config](../../docs/dev/contracts/config.md)

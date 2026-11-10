@@ -6,7 +6,7 @@
 ## Konteks
 
 Refactor docgen memakai baseline commit `4a5b777` dan target struktur di
-[refactor-plan.md](../refactor-plan.md). Pada P0.2, sebelum tag baseline
+[refactor-plan.md](../archive/refactor-plan.md). Pada P0.2, sebelum tag baseline
 `baseline-4a5b777` (P0.3), lima keputusan di bagian 6 plan masih terbuka:
 adapter Word, future import, split `config.py`, dokumen historis, dan naming
 moves. Keputusan ini memengaruhi dependency, packaging, batas modul, dan
@@ -72,5 +72,5 @@ target struktur, dan acceptance tidak bertentangan.
 
 ## Rujukan
 
-- [refactor-plan.md](../refactor-plan.md), bagian 1 dan 6.
-- [refactor-plan.md](../refactor-plan.md), P0.2 dan P0.3.
+- [refactor-plan.md](../archive/refactor-plan.md), bagian 1 dan 6.
+- [refactor-plan.md](../archive/refactor-plan.md), P0.2 dan P0.3.

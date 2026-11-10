@@ -64,6 +64,6 @@ modul dari `tools/dev/` melalui `conftest.py`.
 - [Testing](../docs/dev/testing.md)
 - [Kontrak stage](../docs/dev/contracts/stage-api.md)
 - [Kontrak DOCX](../docs/dev/contracts/docx-api.md)
-- [Rencana refactor](../docs/dev/refactor-plan.md)
+- [Rencana refactor](../docs/dev/archive/refactor-plan.md)
 - [Marker pytest](../pytest.ini)
 - [README fixture reconcile](fixtures/reconcile/README.md)

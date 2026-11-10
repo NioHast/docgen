@@ -65,6 +65,6 @@ kelas `*Stage` dan fungsi transformasi utamanya:
 - [Kontrak stage](../../../docs/dev/contracts/stage-api.md)
 - [Arsitektur](../../../docs/dev/architecture.md)
 - [Kontrak DOCX](../../../docs/dev/contracts/docx-api.md)
-- [Rencana refactor](../../../docs/dev/refactor-plan.md)
+- [Rencana refactor](../../../docs/dev/archive/refactor-plan.md)
 - [README paket](../README.md)
 - [README DOCX](../docx/README.md)

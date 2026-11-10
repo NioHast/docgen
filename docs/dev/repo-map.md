@@ -128,6 +128,6 @@ Semua di-ignore Git. Jangan menyunting artefak ini sebagai sumber.
 ## Di luar cakupan
 
 Folder `tests/fixtures/golden/` menyimpan baseline DOCX dan invariant PDF.
-Fixture itu hanya untuk tes, bukan contoh penggunaan. `docs/dev/refactor-plan.md`
+Fixture itu hanya untuk tes, bukan contoh penggunaan. `docs/dev/archive/refactor-plan.md`
 adalah acuan kerja aktif; arsip historis berada di `docs/dev/archive/`, dan
 kontrak adalah acuan implementasi, bukan panduan pengguna.

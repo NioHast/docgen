@@ -55,6 +55,6 @@ untuk pemeriksa dan aturan prosa.
 - [Testing](../docs/dev/testing.md)
 - [Code style](../docs/dev/code-style.md)
 - [Registry referensi](../docs/dev/references.md)
-- [Rencana refactor](../docs/dev/refactor-plan.md)
+- [Rencana refactor](../docs/dev/archive/refactor-plan.md)
 - [Aturan prosa](dev/rules.yml)
 - [README scripts](../scripts/README.md)

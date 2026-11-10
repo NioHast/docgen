@@ -18,7 +18,7 @@ pilih jalur baca yang sesuai di indeks materi belajar.
 | [architecture.md](architecture.md) | Lapisan konten, struktur, format, pipeline, dan invariant utama. |
 | [repo-map.md](repo-map.md) | Peta direktori dan tanggung jawab berkas. |
 | [glossary.md](glossary.md) | Istilah codebase: artefak, package, part, manifest, dan sejenisnya. |
-| [refactor-plan.md](refactor-plan.md) | Rencana refactor aktif dan keputusan kerja. |
+| [refactor-plan.md](archive/refactor-plan.md) | Rencana refactor aktif dan keputusan kerja. |
 
 ## Pipeline
 

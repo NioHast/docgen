@@ -58,5 +58,5 @@ utamanya adalah satu load, satu save, dan part non-target tetap byte-identik.
 - [Arsitektur](../../../docs/dev/architecture.md)
 - [Peta repo](../../../docs/dev/repo-map.md)
 - [Testing](../../../docs/dev/testing.md)
-- [Rencana refactor](../../../docs/dev/refactor-plan.md)
+- [Rencana refactor](../../../docs/dev/archive/refactor-plan.md)
 - [README paket](../README.md)

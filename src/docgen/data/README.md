@@ -71,5 +71,5 @@ data	no
 - [Kontrak config](../../../docs/dev/contracts/config.md)
 - [Format dan struktur](../../../docs/dev/formats.md)
 - [Peta repo](../../../docs/dev/repo-map.md)
-- [Rencana refactor](../../../docs/dev/refactor-plan.md)
+- [Rencana refactor](../../../docs/dev/archive/refactor-plan.md)
 - [README paket](../README.md)
