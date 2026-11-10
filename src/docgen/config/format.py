@@ -1,744 +1,61 @@
-"""Pembacaan dan validasi ``format.yml`` serta ``structure.yml``.
+"""Parser ``format.yml`` dan validasi aset format.
 
-Skema bersifat tertutup: key yang tidak dikenal ditolak. Semua nilai dimensi
-dikonversi ke twip dan semua ukuran font dikonversi ke setengah poin di
-lapisan ini.
+Modul ini memuat :func:`load_format` dan :func:`format_override_warning`.
+Parser membangun model immutable dari blok ``page``, ``font``, ``headings``,
+``captions``, ``figures``, ``code``, ``bibliography_style``, ``citation``, dan
+``assets``; validasi aset (logo, ``reference.docx``, CSL) khusus format dan
+tidak dipakai struktur.
+
+Semua kegagalan input dilempar sebagai ``ConfigError`` dengan kode stabil;
+modul ini tidak menulis berkas dan tidak menyediakan fallback format.
+Kontrak data ada di ``docs/dev/formats.md``.
 """
 
-import re
 import zipfile
-from collections.abc import Iterable, Mapping
-from dataclasses import dataclass, field, replace
+from collections.abc import Mapping
+from dataclasses import replace
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any
 from xml.etree import ElementTree
 
-from ruamel.yaml import YAML
-from ruamel.yaml.constructor import DuplicateKeyError
-from ruamel.yaml.error import YAMLError
-from ruamel.yaml.nodes import MappingNode, Node, ScalarNode, SequenceNode
-
-from . import paths as path_mod
-from .errors import ConfigError
-
-# ---------------------------------------------------------------------------
-# YAML
-# ---------------------------------------------------------------------------
-
-_ALLOWED_YAML_TAGS = frozenset(
-    {
-        "tag:yaml.org,2002:map",
-        "tag:yaml.org,2002:seq",
-        "tag:yaml.org,2002:str",
-        "tag:yaml.org,2002:int",
-        "tag:yaml.org,2002:float",
-        "tag:yaml.org,2002:bool",
-        "tag:yaml.org,2002:null",
-    }
+from .. import paths as path_mod
+from ..errors import ConfigError
+from .common import (
+    _alignment,
+    _boolean,
+    _color,
+    _dimension,
+    _enum,
+    _font_size,
+    _number,
+    _text,
+    _text_list,
+    load_yaml_mapping,
 )
-
-
-def _walk_yaml_nodes(node: Node, *, source: Path | str, label: str) -> None:
-    tag = getattr(node, "tag", None)
-    if getattr(node, "anchor", None) is not None:
-        raise ConfigError(
-            f"{label} memakai anchor/alias YAML; alias tidak didukung",
-            code="CFG-YAML-ALIAS",
-            path=str(source),
-            key=label,
-        )
-    if tag not in _ALLOWED_YAML_TAGS:
-        raise ConfigError(
-            f"{label} memakai tag YAML yang tidak didukung: {tag}",
-            code="CFG-YAML-TYPE",
-            path=str(source),
-            key=label,
-        )
-    if isinstance(node, MappingNode):
-        for key_node, value_node in node.value:
-            if isinstance(key_node, ScalarNode) and key_node.value == "<<":
-                raise ConfigError(
-                    f"{label} memakai merge key '<<'; alias tidak didukung",
-                    code="CFG-YAML-ALIAS",
-                    path=str(source),
-                    key=label,
-                )
-            _walk_yaml_nodes(key_node, source=source, label=label)
-            _walk_yaml_nodes(value_node, source=source, label=label)
-    elif isinstance(node, SequenceNode):
-        for child in node.value:
-            _walk_yaml_nodes(child, source=source, label=label)
-
-
-def _assert_safe_value(value: Any, *, source: Path | str, label: str, key: str = "") -> None:
-    if value is None or isinstance(value, (str, bool, int, float)):
-        return
-    if isinstance(value, list):
-        for index, item in enumerate(value):
-            _assert_safe_value(
-                item,
-                source=source,
-                label=label,
-                key=f"{key}[{index}]" if key else str(index),
-            )
-        return
-    if isinstance(value, dict):
-        for child_key, child in value.items():
-            if not isinstance(child_key, str):
-                raise ConfigError(
-                    f"{label} memuat kunci non-teks: {child_key!r}",
-                    code="CFG-YAML-TYPE",
-                    path=str(source),
-                    key=key or label,
-                )
-            _assert_safe_value(
-                child,
-                source=source,
-                label=label,
-                key=f"{key}.{child_key}" if key else child_key,
-            )
-        return
-    raise ConfigError(
-        f"{label} memuat tipe YAML yang tidak didukung: {type(value).__name__}",
-        code="CFG-YAML-TYPE",
-        path=str(source),
-        key=key or label,
-    )
-
-
-def parse_yaml_mapping(
-    text: str,
-    *,
-    source: Path | str,
-    label: str = "YAML",
-) -> dict[str, Any]:
-    """Parse YAML menjadi mapping aman, menolak duplikat/alias/tag kustom."""
-
-    if not text.strip():
-        raise ConfigError(
-            f"{label} kosong",
-            code="CFG-REQUIRED",
-            path=str(source),
-            key=label,
-        )
-    try:
-        composer = YAML(typ="safe", pure=True)
-        root_node = composer.compose(text)
-    except YAMLError as exc:
-        raise ConfigError(
-            f"{label} tidak valid: {exc}",
-            code="CFG-YAML",
-            path=str(source),
-            key=label,
-        ) from exc
-
-    if root_node is None:
-        raise ConfigError(
-            f"{label} kosong",
-            code="CFG-REQUIRED",
-            path=str(source),
-            key=label,
-        )
-    _walk_yaml_nodes(root_node, source=source, label=label)
-    if not isinstance(root_node, MappingNode):
-        raise ConfigError(
-            f"{label} wajib berupa pemetaan YAML",
-            code="CFG-YAML-TYPE",
-            path=str(source),
-            key=label,
-        )
-
-    try:
-        loader = YAML(typ="safe", pure=True)
-        loader.allow_duplicate_keys = False
-        data = loader.load(text)
-    except DuplicateKeyError as exc:
-        raise ConfigError(
-            f"{label} memuat kunci YAML duplikat: {exc}",
-            code="CFG-YAML-DUPLICATE",
-            path=str(source),
-            key=label,
-        ) from exc
-    except YAMLError as exc:
-        raise ConfigError(
-            f"{label} tidak valid: {exc}",
-            code="CFG-YAML",
-            path=str(source),
-            key=label,
-        ) from exc
-
-    if not isinstance(data, dict):
-        raise ConfigError(
-            f"{label} wajib berupa pemetaan YAML",
-            code="CFG-YAML-TYPE",
-            path=str(source),
-            key=label,
-        )
-    _assert_safe_value(data, source=source, label=label)
-    return {str(key): value for key, value in data.items()}
-
-
-def load_yaml_mapping(path: Path, *, label: str = "YAML") -> dict[str, Any]:
-    try:
-        text = path.read_text(encoding="utf-8-sig")
-    except FileNotFoundError as exc:
-        raise ConfigError(
-            f"berkas tidak ditemukan: {path}",
-            code="CFG-ASSET-MISSING",
-            path=path,
-        ) from exc
-    except UnicodeDecodeError as exc:
-        raise ConfigError(
-            f"berkas harus UTF-8: {exc}",
-            code="CFG-YAML",
-            path=path,
-        ) from exc
-    except OSError as exc:
-        raise ConfigError(
-            f"berkas tidak dapat dibaca: {exc}",
-            code="CFG-ASSET-MISSING",
-            path=path,
-        ) from exc
-    return parse_yaml_mapping(text, source=path, label=label)
-
-
-# ---------------------------------------------------------------------------
-# Tipe dan nilai
-# ---------------------------------------------------------------------------
-
-_DIMENSION_RE = re.compile(
-    r"^(?P<value>[+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*(?P<unit>cm|mm|in|pt|twip)$"
+from .models import (
+    AssetsFormat,
+    BibliographyStyle,
+    BodyFont,
+    CaptionFont,
+    CaptionsFormat,
+    CaptionStyle,
+    CitationFormat,
+    CodeBorder,
+    CodeFont,
+    CodeFormat,
+    CodeTable,
+    FigureStyle,
+    FontFormat,
+    Format,
+    HeadingStyle,
+    Margins,
+    MonoFont,
+    PageFormat,
+    Structure,
+    TocHeadingStyle,
 )
-_COLOR_RE = re.compile(r"^[0-9A-Fa-f]{6}$")
-_ALIGNMENTS = frozenset({"left", "right", "center", "justify", "both"})
-
-
-def _err(message: str, *, code: str, path: Path, key: str) -> ConfigError:
-    return ConfigError(message, code=code, path=path, key=key)
-
-
-def _expect_mapping(value: Any, *, path: Path, key: str) -> Mapping[str, Any]:
-    if not isinstance(value, Mapping):
-        raise _err(
-            f"'{key}' harus berupa pemetaan",
-            code="CFG-TYPE",
-            path=path,
-            key=key,
-        )
-    return value
-
-
-def _expect_list(value: Any, *, path: Path, key: str) -> list[Any]:
-    if not isinstance(value, list):
-        raise _err(
-            f"'{key}' harus berupa daftar",
-            code="CFG-TYPE",
-            path=path,
-            key=key,
-        )
-    return value
-
-
-def _check_unknown(
-    mapping: Mapping[str, Any],
-    allowed: Iterable[str],
-    *,
-    path: Path,
-    key: str,
-) -> None:
-    allowed_set = set(allowed)
-    for raw_key in mapping:
-        child = str(raw_key)
-        if child in allowed_set:
-            continue
-        raise _err(
-            f"kunci '{child}' tidak dikenal",
-            code="CFG-UNKNOWN-KEY",
-            path=path,
-            key=f"{key}.{child}" if key else child,
-        )
-
-
-def _required(mapping: Mapping[str, Any], child: str, *, path: Path, key: str) -> Any:
-    if child not in mapping or mapping[child] is None:
-        raise _err(
-            f"kunci '{child}' wajib diisi",
-            code="CFG-REQUIRED",
-            path=path,
-            key=f"{key}.{child}" if key else child,
-        )
-    return mapping[child]
-
-
-def _text(
-    value: Any,
-    *,
-    path: Path,
-    key: str,
-    default: str | None = None,
-    allow_empty: bool = False,
-) -> str:
-    if value is None:
-        if default is None:
-            raise _err(
-                f"'{key}' wajib diisi",
-                code="CFG-REQUIRED",
-                path=path,
-                key=key,
-            )
-        text = default
-    elif isinstance(value, str):
-        text = value.strip()
-    else:
-        raise _err(
-            f"'{key}' harus berupa teks",
-            code="CFG-TYPE",
-            path=path,
-            key=key,
-        )
-    if not text and not allow_empty:
-        raise _err(
-            f"'{key}' tidak boleh kosong",
-            code="CFG-REQUIRED",
-            path=path,
-            key=key,
-        )
-    return text
-
-
-def _boolean(value: Any, *, path: Path, key: str, default: bool | None = None) -> bool:
-    if value is None:
-        if default is None:
-            raise _err(
-                f"'{key}' wajib diisi",
-                code="CFG-REQUIRED",
-                path=path,
-                key=key,
-            )
-        return default
-    if not isinstance(value, bool):
-        raise _err(
-            f"'{key}' harus bernilai true/false",
-            code="CFG-TYPE",
-            path=path,
-            key=key,
-        )
-    return value
-
-
-def _number(
-    value: Any,
-    *,
-    path: Path,
-    key: str,
-    default: float | None = None,
-    minimum: float | None = None,
-    maximum: float | None = None,
-) -> float:
-    if value is None:
-        if default is None:
-            raise _err(
-                f"'{key}' wajib diisi",
-                code="CFG-REQUIRED",
-                path=path,
-                key=key,
-            )
-        result = default
-    elif isinstance(value, bool) or not isinstance(value, (int, float)):
-        raise _err(
-            f"'{key}' harus berupa angka",
-            code="CFG-TYPE",
-            path=path,
-            key=key,
-        )
-    else:
-        result = float(value)
-    if minimum is not None and result < minimum:
-        raise _err(
-            f"'{key}' harus >= {minimum}",
-            code="CFG-TYPE",
-            path=path,
-            key=key,
-        )
-    if maximum is not None and result > maximum:
-        raise _err(
-            f"'{key}' harus <= {maximum}",
-            code="CFG-TYPE",
-            path=path,
-            key=key,
-        )
-    return result
-
-
-def _dimension(
-    value: Any,
-    *,
-    path: Path,
-    key: str,
-    default: str | None = None,
-    minimum: int = 0,
-    positive: bool = False,
-) -> int:
-    raw = value if value is not None else default
-    if raw is None:
-        raise _err(
-            f"'{key}' wajib diisi",
-            code="CFG-REQUIRED",
-            path=path,
-            key=key,
-        )
-    if not isinstance(raw, str):
-        raise _err(
-            f"'{key}' harus berupa dimensi teks (mis. 4cm)",
-            code="CFG-TYPE",
-            path=path,
-            key=key,
-        )
-    match = _DIMENSION_RE.fullmatch(raw.strip())
-    if match is None:
-        raise _err(
-            f"'{key}' bukan dimensi yang valid: {raw!r}",
-            code="CFG-TYPE",
-            path=path,
-            key=key,
-        )
-    number = float(match.group("value"))
-    unit = match.group("unit")
-    factor = {"cm": 1440 / 2.54, "mm": 1440 / 25.4, "in": 1440, "pt": 20, "twip": 1}[unit]
-    twips = round(number * factor)
-    if positive and twips <= 0:
-        raise _err(
-            f"'{key}' harus > 0",
-            code="CFG-TYPE",
-            path=path,
-            key=key,
-        )
-    if not positive and twips < minimum:
-        raise _err(
-            f"'{key}' harus >= {minimum} twip",
-            code="CFG-TYPE",
-            path=path,
-            key=key,
-        )
-    return twips
-
-
-def _font_size(value: Any, *, path: Path, key: str, default: str | None = None) -> int:
-    raw = value if value is not None else default
-    if raw is None:
-        raise _err(
-            f"'{key}' wajib diisi",
-            code="CFG-REQUIRED",
-            path=path,
-            key=key,
-        )
-    if not isinstance(raw, str):
-        raise _err(
-            f"'{key}' harus berupa ukuran font (mis. 12pt)",
-            code="CFG-TYPE",
-            path=path,
-            key=key,
-        )
-    match = _DIMENSION_RE.fullmatch(raw.strip())
-    if match is None or match.group("unit") != "pt":
-        raise _err(
-            f"'{key}' harus memakai satuan pt: {raw!r}",
-            code="CFG-TYPE",
-            path=path,
-            key=key,
-        )
-    points = float(match.group("value"))
-    if points < 6 or points > 72:
-        raise _err(
-            f"'{key}' harus 6-72 pt",
-            code="CFG-TYPE",
-            path=path,
-            key=key,
-        )
-    return round(points * 2)
-
-
-def _color(value: Any, *, path: Path, key: str, default: str = "000000") -> str:
-    raw = value if value is not None else default
-    if not isinstance(raw, str) or not _COLOR_RE.fullmatch(raw.strip()):
-        raise _err(
-            f"'{key}' harus berupa warna heksadesimal 6 digit",
-            code="CFG-TYPE",
-            path=path,
-            key=key,
-        )
-    return raw.strip().upper()
-
-
-def _alignment(value: Any, *, path: Path, key: str, default: str = "justify") -> str:
-    raw = value if value is not None else default
-    if not isinstance(raw, str) or raw.strip().lower() not in _ALIGNMENTS:
-        raise _err(
-            f"'{key}' harus salah satu: {', '.join(sorted(_ALIGNMENTS))}",
-            code="CFG-TYPE",
-            path=path,
-            key=key,
-        )
-    text = raw.strip().lower()
-    return "justify" if text == "both" else text
-
-
-def _enum(
-    value: Any,
-    *,
-    path: Path,
-    key: str,
-    choices: Iterable[str],
-    default: str | None = None,
-) -> str:
-    raw = value if value is not None else default
-    allowed = set(choices)
-    if not isinstance(raw, str) or raw not in allowed:
-        raise _err(
-            f"'{key}' harus salah satu: {', '.join(sorted(allowed))}",
-            code="CFG-TYPE",
-            path=path,
-            key=key,
-        )
-    return raw
-
-
-def _text_list(
-    value: Any, *, path: Path, key: str, default: tuple[str, ...] = ()
-) -> tuple[str, ...]:
-    raw = value if value is not None else list(default)
-    if not isinstance(raw, list):
-        raise _err(
-            f"'{key}' harus berupa daftar teks",
-            code="CFG-TYPE",
-            path=path,
-            key=key,
-        )
-    result: list[str] = []
-    seen: set[str] = set()
-    for index, item in enumerate(raw, start=1):
-        if not isinstance(item, str) or not item.strip():
-            raise _err(
-                f"item ke-{index} pada '{key}' harus berupa teks tidak kosong",
-                code="CFG-TYPE",
-                path=path,
-                key=f"{key}[{index}]",
-            )
-        text = item.strip()
-        folded = text.casefold()
-        if folded in seen:
-            raise _err(
-                f"item '{text}' duplikat pada '{key}'",
-                code="CFG-DUPLICATE",
-                path=path,
-                key=key,
-            )
-        seen.add(folded)
-        result.append(text)
-    if not result:
-        raise _err(
-            f"'{key}' minimal memuat satu item",
-            code="CFG-REQUIRED",
-            path=path,
-            key=key,
-        )
-    return tuple(result)
-
-
-# ---------------------------------------------------------------------------
-# Model format
-# ---------------------------------------------------------------------------
-
-
-@dataclass(frozen=True)
-class Margins:
-    top: int
-    bottom: int
-    left: int
-    right: int
-
-
-@dataclass(frozen=True)
-class PageFormat:
-    size: str
-    orientation: str
-    margins: Margins
-    header_distance: int
-    footer_distance: int
-    gutter: int
-
-
-@dataclass(frozen=True)
-class BodyFont:
-    family: str
-    size_half_points: int
-    color: str
-    line_spacing: float
-    space_before: int
-    space_after: int
-    alignment: str
-    first_line_indent: int
-
-
-@dataclass(frozen=True)
-class MonoFont:
-    family: str
-    size_half_points: int
-
-
-@dataclass(frozen=True)
-class FontFormat:
-    body: BodyFont
-    monospace: MonoFont
-
-
-@dataclass(frozen=True)
-class HeadingStyle:
-    font_family: str
-    font_size_half_points: int
-    bold: bool
-    color: str
-    alignment: str
-    space_before: int
-    space_after: int
-    line_spacing: float
-    keep_next: bool
-    keep_lines: bool
-    outline_level: int
-    first_line_indent: int
-    indent_left: int
-    indent_hanging: int
-
-
-@dataclass(frozen=True)
-class TocHeadingStyle:
-    heading_style: str
-    font_family: str
-    font_size_half_points: int
-    bold: bool
-    color: str
-    alignment: str
-    space_before: int
-    space_after: int
-    line_spacing: float
-    first_line_indent: int
-
-
-@dataclass(frozen=True)
-class CaptionFont:
-    family: str
-    size_half_points: int
-    bold: bool
-    italic: bool
-    color: str
-    alignment: str
-    space_before: int
-    space_after: int
-    line_spacing: float
-
-
-@dataclass(frozen=True)
-class CaptionStyle:
-    label: str
-    separator: str
-    font: CaptionFont
-    keep_next: bool = False
-
-
-@dataclass(frozen=True)
-class CaptionsFormat:
-    figure: CaptionStyle
-    table: CaptionStyle
-
-
-@dataclass(frozen=True)
-class FigureStyle:
-    caption_alignment: str
-    image_alignment: str
-    numbering: str
-    space_before: int
-    space_after: int
-    first_line_indent: int
-
-
-@dataclass(frozen=True)
-class CodeFont:
-    family: str
-    size_half_points: int
-    color: str
-
-
-@dataclass(frozen=True)
-class CodeBorder:
-    style: str
-    width: int
-    color: str
-
-
-@dataclass(frozen=True)
-class CodeTable:
-    width_percent: int
-    cell_margin: int
-
-
-@dataclass(frozen=True)
-class CodeFormat:
-    style: str
-    font: CodeFont
-    line_spacing: float
-    space_before: int
-    space_after: int
-    alignment: str
-    shading: str
-    border: CodeBorder
-    table: CodeTable
-    detect_styles: tuple[str, ...]
-
-
-@dataclass(frozen=True)
-class BibliographyStyle:
-    heading: str
-    font_family: str
-    font_size_half_points: int
-    line_spacing: float
-    space_before: int
-    space_after: int
-    indent_left: int
-    indent_hanging: int
-
-
-@dataclass(frozen=True)
-class CitationFormat:
-    csl: Path
-    bibliography: str
-    locale: str
-
-
-@dataclass(frozen=True)
-class AssetsFormat:
-    logo: Path
-    reference_docx: Path
-
-
-@dataclass(frozen=True)
-class Format:
-    id: str
-    name: str
-    description: str
-    path: Path
-    data: Mapping[str, Any]
-    page: PageFormat
-    font: FontFormat
-    headings: Mapping[str, HeadingStyle]
-    toc_heading: TocHeadingStyle
-    captions: CaptionsFormat
-    figures: FigureStyle
-    code: CodeFormat
-    bibliography_style: BibliographyStyle
-    citation: CitationFormat
-    assets: AssetsFormat
-
+from .validation import _check_unknown, _err, _expect_mapping, _required
 
 _FORMAT_KEYS = frozenset(
     {
@@ -873,6 +190,12 @@ _DEFAULT_DETECT_STYLES = (
 
 
 def _parse_page(data: Mapping[str, Any], *, path: Path) -> PageFormat:
+    """Bangun ``PageFormat`` dari blok ``page`` dengan default kontrak.
+
+    Ukuran, orientasi, margin, jarak header/footer, dan gutter divalidasi;
+    error tipe atau nilai dilempar sebagai ``ConfigError``.
+    """
+
     _check_unknown(data, _PAGE_KEYS, path=path, key="page")
     margins = _expect_mapping(
         _required(data, "margins", path=path, key="page"),
@@ -943,6 +266,8 @@ def _parse_page(data: Mapping[str, Any], *, path: Path) -> PageFormat:
 
 
 def _parse_body_font(data: Mapping[str, Any], *, path: Path) -> BodyFont:
+    """Bangun ``BodyFont`` dari ``font.body`` dengan default spasi dan indent."""
+
     _check_unknown(data, _BODY_FONT_KEYS, path=path, key="font.body")
     return BodyFont(
         family=_text(
@@ -1010,6 +335,13 @@ def _parse_heading_style(
     body: BodyFont,
     path: Path,
 ) -> HeadingStyle:
+    """Bangun ``HeadingStyle`` untuk ``heading{level}``.
+
+    Field yang tidak diisi mewarisi ``body`` dan default per level. Ukuran,
+    warna, perataan, spasi, indent, dan outline divalidasi sebagai
+    ``ConfigError``.
+    """
+
     key = f"headings.styles.heading{level}"
     _check_unknown(data, _HEADING_STYLE_KEYS, path=path, key=key)
     default_alignment = "center" if level == 1 else "justify"
@@ -1095,6 +427,8 @@ def _parse_toc_heading(
     heading1: HeadingStyle,
     path: Path,
 ) -> TocHeadingStyle:
+    """Bangun ``TocHeadingStyle``; ``None`` mewarisi nilai dari heading 1."""
+
     if data is None:
         return TocHeadingStyle(
             heading_style="TOCHeading",
@@ -1190,6 +524,8 @@ def _parse_caption_font(
     defaults: CaptionFont,
     allow_alignment: bool,
 ) -> CaptionFont:
+    """Bangun ``CaptionFont`` dari mapping font caption di atas ``defaults``."""
+
     _check_unknown(
         data,
         _TABLE_CAPTION_FONT_KEYS if allow_alignment else _CAPTION_FONT_KEYS,
@@ -1251,6 +587,13 @@ def _parse_captions(
     body: BodyFont,
     path: Path,
 ) -> CaptionsFormat:
+    """Bangun ``CaptionsFormat`` gambar dan tabel.
+
+    ``None`` memakai label serta font default. ``keep_next`` tabel wajib
+    ``true`` dan separator tidak boleh memuat baris baru; pelanggaran melempar
+    ``ConfigError``.
+    """
+
     default_figure_font = CaptionFont(
         family=body.family,
         size_half_points=20,
@@ -1358,6 +701,8 @@ def _parse_figures(
     *,
     path: Path,
 ) -> FigureStyle:
+    """Bangun ``FigureStyle`` dari ``figures`` dengan default kontrak."""
+
     raw = data or {}
     _check_unknown(raw, _FIGURE_KEYS, path=path, key="figures")
     return FigureStyle(
@@ -1407,6 +752,13 @@ def _parse_code(
     mono: MonoFont,
     path: Path,
 ) -> CodeFormat:
+    """Bangun ``CodeFormat`` dari ``code``.
+
+    Hanya ``table.width=100%``, ``shading=none``, dan border ``single`` yang
+    didukung; font mewarisi monospace bila tidak diisi. Pelanggaran melempar
+    ``ConfigError``.
+    """
+
     raw = data or {}
     _check_unknown(raw, _CODE_KEYS, path=path, key="code")
     font_raw = _expect_mapping(raw.get("font", {}), path=path, key="code.font")
@@ -1517,6 +869,8 @@ def _parse_bibliography_style(
     body: BodyFont,
     path: Path,
 ) -> BibliographyStyle:
+    """Bangun ``BibliographyStyle`` dari ``bibliography_style``."""
+
     raw = data or {}
     _check_unknown(raw, _BIBLIOGRAPHY_STYLE_KEYS, path=path, key="bibliography_style")
     font_value = raw.get("font")
@@ -1648,6 +1002,12 @@ def _validate_csl(path: Path) -> None:
 
 
 def _parse_citation(data: Mapping[str, Any], *, format_dir: Path, path: Path) -> CitationFormat:
+    """Validasi ``citation`` dan resolve path asetnya terhadap ``format_dir``.
+
+    File CSL wajib ada, ber-ekstensi ``.csl``, dan XML valid; bibliography
+    wajib ``.bib`` serta path relatif aman. Error aset memakai ``ConfigError``.
+    """
+
     _check_unknown(data, _CITATION_KEYS, path=path, key="citation")
     csl = path_mod.safe_relative_path(
         _required(data, "csl", path=path, key="citation"),
@@ -1726,7 +1086,13 @@ def _parse_assets(data: Mapping[str, Any] | None, *, format_dir: Path, path: Pat
 
 
 def load_format(format_id: str, *, root: Path | None = None) -> Format:
-    """Muat dan validasi ``formats/<format_id>/format.yml``."""
+    """Muat dan validasi ``formats/<format_id>/format.yml``.
+
+    Mengembalikan ``Format`` immutable dengan path aset yang sudah di-resolve
+    dan data YAML read-only. ``root`` opsional mengganti direktori data paket.
+    Semua kegagalan I/O, skema, tipe, nilai, dan aset dilempar sebagai
+    ``ConfigError``; tidak ada fallback ke format lain.
+    """
 
     path_mod.validate_id(format_id, kind="format")
     directory = path_mod.format_dir(format_id, root=root)
@@ -1888,476 +1254,9 @@ def load_format(format_id: str, *, root: Path | None = None) -> Format:
     )
 
 
-# ---------------------------------------------------------------------------
-# Model struktur
-# ---------------------------------------------------------------------------
-
-
-@dataclass(frozen=True)
-class FrontMatterItem:
-    id: str
-    source: str
-    template: str | None = None
-
-
-@dataclass(frozen=True)
-class BodyChapter:
-    id: str
-    title: str
-
-
-@dataclass(frozen=True)
-class BackMatterItem:
-    id: str
-    source: str
-
-
-@dataclass(frozen=True)
-class Numbering:
-    body: str
-    sub_dot: bool
-    subsub_dot: bool
-
-
-@dataclass(frozen=True)
-class ListSettings:
-    figures: bool
-    tables: bool
-
-
-@dataclass(frozen=True)
-class CoverOverrides:
-    show_lecturer: bool = True
-    logo_width: int = 2767  # 4.88 cm
-    title_split: bool = True
-
-
-@dataclass(frozen=True)
-class Structure:
-    id: str
-    format_id: str
-    path: Path
-    data: Mapping[str, Any]
-    front_matter: tuple[FrontMatterItem, ...]
-    body: tuple[BodyChapter, ...]
-    back_matter: tuple[BackMatterItem, ...]
-    toc: bool
-    numbering: Numbering
-    lists: ListSettings
-    cover: CoverOverrides = field(default_factory=CoverOverrides)
-
-    @property
-    def template_dir(self) -> Path:
-        return self.path / "templates"
-
-
-_STRUCTURE_KEYS = frozenset(
-    {"format", "front_matter", "body", "back_matter", "toc", "numbering", "lists", "cover"}
-)
-_FRONT_MATTER_RULES: Mapping[str, frozenset[str]] = MappingProxyType(
-    {
-        "cover": frozenset({"generated"}),
-        "approval": frozenset({"template"}),
-        "statement": frozenset({"template"}),
-        "preface": frozenset({"document"}),
-        "abstract_id": frozenset({"document"}),
-        "abstract_en": frozenset({"document"}),
-        "toc": frozenset({"generated"}),
-        "list_of_tables": frozenset({"generated"}),
-        "list_of_figures": frozenset({"generated"}),
-    }
-)
-_BACK_MATTER_RULES: Mapping[str, frozenset[str]] = MappingProxyType(
-    {
-        "bibliography": frozenset({"generated"}),
-        "appendices": frozenset({"document"}),
-    }
-)
-_FRONT_ITEM_KEYS = frozenset({"id", "source", "template"})
-_BODY_KEYS = frozenset({"id", "title"})
-_BACK_KEYS = frozenset({"id", "source"})
-_NUMBERING_KEYS = frozenset({"body", "sub_dot", "subsub_dot"})
-_LISTS_KEYS = frozenset({"figures", "tables"})
-_COVER_KEYS = frozenset({"show_lecturer", "logo_width", "title_split"})
-_BODY_ID_RE = re.compile(r"^[a-z][a-z0-9-]*$")
-
-
-def _normalize_title(title: str) -> str:
-    return " ".join(title.split()).casefold()
-
-
-def _parse_front_matter(
-    data: Any,
-    *,
-    path: Path,
-    templates: Path,
-    toc: bool,
-    lists: ListSettings,
-) -> tuple[FrontMatterItem, ...]:
-    entries = _expect_list(data, path=path, key="front_matter")
-    if not entries:
-        raise _err(
-            "front_matter minimal memuat satu entri",
-            code="CFG-REQUIRED",
-            path=path,
-            key="front_matter",
-        )
-    result: list[FrontMatterItem] = []
-    seen: set[str] = set()
-    for index, raw in enumerate(entries, start=1):
-        key = f"front_matter[{index}]"
-        item = _expect_mapping(raw, path=path, key=key)
-        _check_unknown(item, _FRONT_ITEM_KEYS, path=path, key=key)
-        item_id = _text(
-            _required(item, "id", path=path, key=key),
-            path=path,
-            key=f"{key}.id",
-        )
-        if item_id not in _FRONT_MATTER_RULES:
-            raise _err(
-                f"ID front matter '{item_id}' tidak didukung",
-                code="CFG-UNKNOWN-FRONT-MATTER",
-                path=path,
-                key=f"{key}.id",
-            )
-        if item_id in seen:
-            raise _err(
-                f"ID front matter '{item_id}' duplikat",
-                code="CFG-DUPLICATE",
-                path=path,
-                key=f"{key}.id",
-            )
-        seen.add(item_id)
-        source = _text(
-            _required(item, "source", path=path, key=key),
-            path=path,
-            key=f"{key}.source",
-        )
-        if source not in _FRONT_MATTER_RULES[item_id]:
-            allowed = ", ".join(sorted(_FRONT_MATTER_RULES[item_id]))
-            raise _err(
-                f"front matter '{item_id}' tidak mendukung source '{source}'; gunakan {allowed}",
-                code="CFG-CONDITIONAL",
-                path=path,
-                key=f"{key}.source",
-            )
-        template_value = item.get("template")
-        if source == "template":
-            template = _text(
-                template_value,
-                path=path,
-                key=f"{key}.template",
-            )
-            if not template.lower().endswith(".md"):
-                raise _err(
-                    f"template '{item_id}' harus berekstensi .md",
-                    code="CFG-TYPE",
-                    path=path,
-                    key=f"{key}.template",
-                )
-            resolved = path_mod.safe_relative_path(
-                template,
-                base=templates,
-                label=f"{key}.template",
-                code="CFG-TEMPLATE-MISSING",
-                must_exist=True,
-                expect_file=True,
-            )
-            result.append(FrontMatterItem(id=item_id, source=source, template=resolved.name))
-        else:
-            if template_value is not None:
-                raise _err(
-                    f"template hanya boleh untuk source 'template' ({item_id})",
-                    code="CFG-CONDITIONAL",
-                    path=path,
-                    key=f"{key}.template",
-                )
-            result.append(FrontMatterItem(id=item_id, source=source))
-
-    if "cover" not in seen:
-        raise _err(
-            "front_matter wajib memuat 'cover'",
-            code="CFG-REQUIRED",
-            path=path,
-            key="front_matter",
-        )
-    if toc and "toc" not in seen:
-        raise _err(
-            "front_matter wajib memuat 'toc' karena structure.toc bernilai true",
-            code="CFG-CONDITIONAL",
-            path=path,
-            key="front_matter",
-        )
-    if not toc and "toc" in seen:
-        raise _err(
-            "front_matter tidak boleh memuat 'toc' karena structure.toc bernilai false",
-            code="CFG-CONDITIONAL",
-            path=path,
-            key="front_matter",
-        )
-    tables_expected = "list_of_tables" in seen
-    figures_expected = "list_of_figures" in seen
-    if lists.tables != tables_expected:
-        raise _err(
-            "front_matter.list_of_tables tidak konsisten dengan lists.tables",
-            code="CFG-CONDITIONAL",
-            path=path,
-            key="lists.tables",
-        )
-    if lists.figures != figures_expected:
-        raise _err(
-            "front_matter.list_of_figures tidak konsisten dengan lists.figures",
-            code="CFG-CONDITIONAL",
-            path=path,
-            key="lists.figures",
-        )
-    return tuple(result)
-
-
-def _parse_body(data: Any, *, path: Path) -> tuple[BodyChapter, ...]:
-    entries = _expect_list(data, path=path, key="body")
-    if not entries:
-        raise _err(
-            "body minimal memuat satu bab",
-            code="CFG-REQUIRED",
-            path=path,
-            key="body",
-        )
-    result: list[BodyChapter] = []
-    ids: set[str] = set()
-    titles: set[str] = set()
-    for index, raw in enumerate(entries, start=1):
-        key = f"body[{index}]"
-        item = _expect_mapping(raw, path=path, key=key)
-        _check_unknown(item, _BODY_KEYS, path=path, key=key)
-        chapter_id = _text(
-            _required(item, "id", path=path, key=key),
-            path=path,
-            key=f"{key}.id",
-        )
-        if not _BODY_ID_RE.fullmatch(chapter_id):
-            raise _err(
-                f"ID bab '{chapter_id}' tidak valid; gunakan [a-z][a-z0-9-]*",
-                code="CFG-TYPE",
-                path=path,
-                key=f"{key}.id",
-            )
-        if chapter_id in ids:
-            raise _err(
-                f"ID bab '{chapter_id}' duplikat",
-                code="CFG-DUPLICATE",
-                path=path,
-                key=f"{key}.id",
-            )
-        ids.add(chapter_id)
-        title = _text(
-            _required(item, "title", path=path, key=key),
-            path=path,
-            key=f"{key}.title",
-        )
-        normalized = _normalize_title(title)
-        if normalized in titles:
-            raise _err(
-                f"judul bab '{title}' duplikat",
-                code="CFG-DUPLICATE",
-                path=path,
-                key=f"{key}.title",
-            )
-        titles.add(normalized)
-        result.append(BodyChapter(id=chapter_id, title=title))
-    return tuple(result)
-
-
-def _parse_back_matter(data: Any, *, path: Path) -> tuple[BackMatterItem, ...]:
-    if data is None:
-        return ()
-    entries = _expect_list(data, path=path, key="back_matter")
-    result: list[BackMatterItem] = []
-    seen: set[str] = set()
-    for index, raw in enumerate(entries, start=1):
-        key = f"back_matter[{index}]"
-        item = _expect_mapping(raw, path=path, key=key)
-        _check_unknown(item, _BACK_KEYS, path=path, key=key)
-        item_id = _text(
-            _required(item, "id", path=path, key=key),
-            path=path,
-            key=f"{key}.id",
-        )
-        if item_id not in _BACK_MATTER_RULES:
-            raise _err(
-                f"ID back matter '{item_id}' tidak didukung",
-                code="CFG-UNKNOWN-FRONT-MATTER",
-                path=path,
-                key=f"{key}.id",
-            )
-        if item_id in seen:
-            raise _err(
-                f"ID back matter '{item_id}' duplikat",
-                code="CFG-DUPLICATE",
-                path=path,
-                key=f"{key}.id",
-            )
-        seen.add(item_id)
-        source = _text(
-            _required(item, "source", path=path, key=key),
-            path=path,
-            key=f"{key}.source",
-        )
-        if source not in _BACK_MATTER_RULES[item_id]:
-            allowed = ", ".join(sorted(_BACK_MATTER_RULES[item_id]))
-            raise _err(
-                f"back matter '{item_id}' tidak mendukung source '{source}'; gunakan {allowed}",
-                code="CFG-CONDITIONAL",
-                path=path,
-                key=f"{key}.source",
-            )
-        result.append(BackMatterItem(id=item_id, source=source))
-    return tuple(result)
-
-
-def _parse_numbering(data: Any, *, path: Path) -> Numbering:
-    mapping = _expect_mapping(data, path=path, key="numbering")
-    _check_unknown(mapping, _NUMBERING_KEYS, path=path, key="numbering")
-    return Numbering(
-        body=_enum(
-            _required(mapping, "body", path=path, key="numbering"),
-            path=path,
-            key="numbering.body",
-            choices=("BAB_ROMAN", "ARABIC_DOTTED"),
-        ),
-        sub_dot=_boolean(mapping.get("sub_dot"), path=path, key="numbering.sub_dot", default=True),
-        subsub_dot=_boolean(
-            mapping.get("subsub_dot"),
-            path=path,
-            key="numbering.subsub_dot",
-            default=True,
-        ),
-    )
-
-
-def _parse_lists(data: Any, *, path: Path) -> ListSettings:
-    mapping = _expect_mapping(data, path=path, key="lists")
-    _check_unknown(mapping, _LISTS_KEYS, path=path, key="lists")
-    return ListSettings(
-        figures=_boolean(
-            _required(mapping, "figures", path=path, key="lists"),
-            path=path,
-            key="lists.figures",
-        ),
-        tables=_boolean(
-            _required(mapping, "tables", path=path, key="lists"),
-            path=path,
-            key="lists.tables",
-        ),
-    )
-
-
-def _parse_cover(data: Any, *, path: Path) -> CoverOverrides:
-    if data is None:
-        return CoverOverrides()
-    mapping = _expect_mapping(data, path=path, key="cover")
-    _check_unknown(mapping, _COVER_KEYS, path=path, key="cover")
-    return CoverOverrides(
-        show_lecturer=_boolean(
-            mapping.get("show_lecturer"),
-            path=path,
-            key="cover.show_lecturer",
-            default=True,
-        ),
-        logo_width=_dimension(
-            mapping.get("logo_width"),
-            path=path,
-            key="cover.logo_width",
-            default="4.88cm",
-            positive=True,
-        ),
-        title_split=_boolean(
-            mapping.get("title_split"),
-            path=path,
-            key="cover.title_split",
-            default=True,
-        ),
-    )
-
-
-def load_structure(structure_id: str, *, root: Path | None = None) -> Structure:
-    """Muat dan validasi ``structures/<structure_id>/structure.yml``."""
-
-    path_mod.validate_id(structure_id, kind="struktur")
-    directory = path_mod.structure_dir(structure_id, root=root)
-    path = directory / "structure.yml"
-    if not path.is_file():
-        raise ConfigError(
-            f"struktur '{structure_id}': structure.yml tidak ditemukan",
-            code="CFG-STRUCTURE-MISSING",
-            path=path,
-        )
-    data = load_yaml_mapping(path, label="structure.yml")
-    _check_unknown(
-        data,
-        _STRUCTURE_KEYS,
-        path=path,
-        key="structure",
-    )
-    format_id = _text(
-        _required(data, "format", path=path, key="structure"),
-        path=path,
-        key="format",
-    )
-    path_mod.validate_id(format_id, kind="format")
-
-    toc = _boolean(
-        _required(data, "toc", path=path, key="structure"),
-        path=path,
-        key="toc",
-    )
-    numbering = _parse_numbering(
-        _required(data, "numbering", path=path, key="structure"),
-        path=path,
-    )
-    lists = _parse_lists(
-        _required(data, "lists", path=path, key="structure"),
-        path=path,
-    )
-    templates = directory / "templates"
-    if templates.exists() and not templates.is_dir():
-        raise _err(
-            "'templates' harus berupa direktori",
-            code="CFG-ASSET-MISSING",
-            path=templates,
-            key="templates",
-        )
-    path_mod.check_case_collisions(templates, label="templates")
-    front_matter = _parse_front_matter(
-        _required(data, "front_matter", path=path, key="structure"),
-        path=path,
-        templates=templates,
-        toc=toc,
-        lists=lists,
-    )
-    body = _parse_body(
-        _required(data, "body", path=path, key="structure"),
-        path=path,
-    )
-    back_matter = _parse_back_matter(data.get("back_matter"), path=path)
-    cover = _parse_cover(data.get("cover"), path=path)
-
-    return Structure(
-        id=structure_id,
-        format_id=format_id,
-        path=directory,
-        data=MappingProxyType(dict(data)),
-        front_matter=front_matter,
-        body=body,
-        back_matter=back_matter,
-        toc=toc,
-        numbering=numbering,
-        lists=lists,
-        cover=cover,
-    )
-
-
 def format_override_warning(document_format: str, structure: Structure) -> str | None:
+    """Kembalikan peringatan bila format dokumen mengalahkan format struktur."""
+
     if document_format == structure.format_id:
         return None
     return (
