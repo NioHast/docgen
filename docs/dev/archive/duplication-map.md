@@ -1,3 +1,7 @@
+> **SUPERSEDED:** Dokumen ini diarsipkan pada 2026-11-10 dan tidak lagi menjadi
+> acuan kerja. Acuan aktif adalah [refactor-plan.md](../refactor-plan.md).
+> Isi di bawah dipertahankan hanya untuk jejak audit.
+
 # Peta Duplikasi DOCX
 
 **Tanggal:** 2026-11-09
@@ -202,8 +206,8 @@ fungsi dengan nama yang sama atau setara. Hasilnya diringkas di tabel bagian 3.
 
 ## 8. Rujukan
 
-- [Kontrak API DOCX](contracts/docx-api.md)
-- [Kontrak Stage API](contracts/stage-api.md)
-- [Arsitektur](architecture.md)
-- [Panduan testing](testing.md)
+- [Kontrak API DOCX](../contracts/docx-api.md)
+- [Kontrak Stage API](../contracts/stage-api.md)
+- [Arsitektur](../architecture.md)
+- [Panduan testing](../testing.md)
 - [Rencana restrukturisasi](restructure-plan.md)

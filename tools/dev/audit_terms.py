@@ -1531,8 +1531,8 @@ def render_report(result: AuditResult, docx_path: Path, glossary_path: Path) -> 
     )
     lines.append(
         "3. **`unknown` / `mixed_case_name`** — belum ada keputusan. Tambahkan "
-        "baris ke `src/docgen/data/glossary/istilah.tsv` (`term`, `italic=yes/no`, "
-        "`gloss_first`, `status`) atau pastikan istilah memang tegak dan tidak "
+        "baris ke `src/docgen/data/glossary/istilah.tsv` (`term`, `italic` dengan "
+        "nilai `yes` atau `no`) atau pastikan istilah memang tegak dan tidak "
         "perlu masuk glosarium. Nama dengan kapital di tengah ditandai `name`."
     )
     lines.append(

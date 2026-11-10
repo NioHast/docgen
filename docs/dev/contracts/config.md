@@ -3,7 +3,7 @@
 **Status:** beku untuk Fase 0.
 **Ruang lingkup:** `format.yml`, `structure.yml`, dan front matter `document.md`.
 **Pemilik kontrak:** WS0. **Pemilik implementasi:** WS1 (data dan schema), WS2 (`config.py`, `document.py`).
-**Rujukan:** `docs/dev/restructure-plan.md` v0.13, bagian P0.2, 2.3, dan WS1.
+**Rujukan:** `docs/dev/archive/restructure-plan.md` v0.13, bagian P0.2, 2.3, dan WS1.
 
 Kontrak ini menetapkan satu sumber kebenaran untuk setiap nilai. Tidak ada
 nilai visual di `structure.yml`, tidak ada urutan bab di `format.yml`, dan
@@ -806,6 +806,7 @@ Body setelah front matter:
 | `author` | teks, mapping, atau daftar | Minimal satu; setiap entri punya `name` |
 | `structure` | ID | Direktori struktur harus ada |
 | `format` | ID | Direktori format harus ada; mengalahkan `structure.format`; perbedaan menghasilkan warning |
+| `report_name` | teks | Wajib, tidak kosong; tanpa karakter path; aman untuk nama berkas |
 
 ### 4.4 Field opsional
 
@@ -822,7 +823,6 @@ Body setelah front matter:
 | `date` | teks | - | - |
 | `lang` | BCP-47 | `id-ID` | Locale valid |
 | `bibliography` | path relatif | `format.citation.bibliography` | `.bib`, ada, tidak keluar dari direktori dokumen |
-| `report_name` | teks | `Tugas` | Tanpa karakter path; aman untuk nama berkas |
 | `preface` | teks Markdown | - | Wajib jika struktur mendeklarasikan `preface` |
 | `abstract_id` | teks Markdown | - | Wajib jika struktur mendeklarasikan `abstract_id` |
 | `abstract_en` | teks Markdown | - | Wajib jika struktur mendeklarasikan `abstract_en` |
@@ -866,18 +866,17 @@ Aturan:
 - Jika `author` lebih dari satu, setiap NIM harus ditulis di entri
   masing-masing.
 
-### 4.6 Field lama yang ditolak atau dikompatibilitaskan
+### 4.6 Field lama ditolak
 
-Field berikut bukan bagian dari kontrak target. Semuanya menghasilkan error
-`CFG-LEGACY` dengan pesan migrasi, kecuali `toc`: nilai `toc` yang sama dengan
-`structure.toc` masih diterima sebagai warning kompatibilitas, sedangkan nilai
-yang bertentangan tetap error. Dokumen baru tidak boleh menulis field ini.
+Field berikut bukan bagian dari kontrak target. Skema front matter bersifat
+tertutup, sehingga semuanya menghasilkan error `CFG-UNKNOWN-KEY`. Dokumen baru
+tidak boleh menulis field ini.
 
 | Field lama | Alasan | Pengganti |
 |---|---|---|
 | `preset` | Format sudah menjadi `format.yml` | `format` |
 | `margin_preset` | Format sudah menjadi `format.yml` | `format` |
-| `toc` | Kompatibilitas sementara; nilai yang sama dengan `structure.toc` menghasilkan warning `CFG-LEGACY`, nilai yang bertentangan adalah error | `structure.yml` |
+| `toc` | Daftar isi milik struktur | `structure.yml` `toc` |
 | `daftar_gambar` | Daftar milik struktur | `structure.yml` `lists.figures` |
 | `daftar_tabel` | Daftar milik struktur | `structure.yml` `lists.tables` |
 | `keywords_id` | Nama tidak konsisten | `keywords` |
@@ -918,7 +917,6 @@ yang bertentangan tetap error. Dokumen baru tidak boleh menulis field ini.
 | `CFG-ASSET-MISSING` | Aset format/dokumen tidak ada | error |
 | `CFG-FORMAT-OVERRIDE` | `document.format` != `structure.format` | warning |
 | `CFG-CONDITIONAL` | Key kondisional tidak sesuai `source` | error |
-| `CFG-LEGACY` | Key lama yang sudah dihapus | error |
 | `CFG-BODY-ORDER` | Heading 1 tidak cocok urutan `body` | error |
 | `CFG-YAML-DUPLICATE` | Duplikat key YAML | error |
 
@@ -928,8 +926,7 @@ Semua error menyebut path berkas dan key yang bermasalah. Contoh:
 document.md: front matter: kunci 'structure' wajib diisi (CFG-REQUIRED)
 structure 'thesis': template 'approval.md' tidak ditemukan di
   src/docgen/data/structures/thesis/templates (CFG-TEMPLATE-MISSING)
-format 'undip-msi': kunci 'presets' tidak dikenal; gunakan format.yml
-  (CFG-LEGACY)
+format 'undip-msi': kunci 'presets' tidak dikenal (CFG-UNKNOWN-KEY)
 ```
 
 `docgen check` dan `docgen build` mengembalikan exit code `1` untuk semua
@@ -974,14 +971,13 @@ konsumen nyata, dan tes positif/negatif.
 - `docgen check examples/assignment-single/document.md`,
   `examples/thesis-single/document.md`, dan
   `examples/proposal-single/document.md` lulus.
-- `tests/unit/test_config.py` mencakup schema format/structure, key legacy,
-  key tidak dikenal, margin wajib, template hilang, konsistensi TOC/lists,
-  cover, dan path escape.
+- `tests/unit/test_config.py` mencakup schema format/structure, key tidak
+  dikenal, margin wajib, template hilang, konsistensi TOC/lists, cover, dan
+  path escape.
 - `tests/unit/test_document.py` mencakup author scalar/list, NIM,
   abstract/keywords kondisional, body order, duplikat YAML, dan path escape.
 - Validator menolak `preset`, `margin_preset`, `daftar_gambar`,
   `daftar_tabel`, `keywords_id`, `approval`, `statement`, `references`,
-  `csl`, `reference-doc`, `template`, dan `cover` di front matter dokumen.
-- `toc` dokumen hanya diterima sebagai warning `CFG-LEGACY` bila nilainya
-  sama dengan `structure.toc`; nilai yang bertentangan adalah error.
+  `csl`, `reference-doc`, `template`, `cover`, dan `toc` di front matter
+  dokumen sebagai `CFG-UNKNOWN-KEY`.
 - Path `chapters/` tidak dikenali.

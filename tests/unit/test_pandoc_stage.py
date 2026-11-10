@@ -45,7 +45,12 @@ def _project(tmp_path: Path) -> Path:
     return directory
 
 
-def _document(project: Path, *, bibliography: str | None = "references.bib"):
+def _document(
+    project: Path,
+    *,
+    bibliography: str | None = "references.bib",
+    report_name: str = "Tugas",
+):
     path = project / "document.md"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
@@ -55,7 +60,7 @@ def _document(project: Path, *, bibliography: str | None = "references.bib"):
     return SimpleNamespace(
         path=path.resolve(),
         body="# Pendahuluan\n\nTeks dengan sitasi [@pandoc2024].\n",
-        metadata=SimpleNamespace(lang="id-ID", report_name="Tugas"),
+        metadata=SimpleNamespace(lang="id-ID", report_name=report_name),
         bibliography=bibliography,
     )
 
@@ -277,6 +282,28 @@ def test_resolve_bibliography_dari_dokumen_dan_format(
 # ---------------------------------------------------------------------------
 # Eksekusi dengan fake Pandoc
 # ---------------------------------------------------------------------------
+
+
+def test_stage_output_memakai_report_name(
+    tmp_path: Path,
+    format_spec,
+) -> None:
+    reference = _reference(tmp_path, format_spec)
+    fake, _ = _fake_pandoc(tmp_path, reference)
+    project = _project(tmp_path)
+    ctx = _context(
+        tmp_path,
+        format_spec=format_spec,
+        fake_pandoc=fake,
+        reference=reference,
+        document=_document(project, report_name="Laporan Akhir"),
+    )
+
+    PandocStage().run(ctx)
+
+    output = Path(ctx.workspace.path("Laporan Akhir.docx"))
+    assert output.is_file()
+    assert ctx.artifacts.require("pandoc_docx") == output
 
 
 def test_stage_menjalankan_fake_pandoc_dan_menghasilkan_docx(

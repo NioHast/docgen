@@ -1,107 +1,107 @@
-term	italic	gloss_first	status
-accuracy	yes	yes	confirmed
-activation function	yes	yes	confirmed
-algoritma	no	no	confirmed
-analisis	no	no	confirmed
-aplikasi	no	no	confirmed
-Arduino	no	no	confirmed
-artificial intelligence	yes	yes	confirmed
-attention mechanism	yes	yes	confirmed
-baseline	yes	yes	confirmed
-batch size	yes	yes	confirmed
-big data	yes	yes	confirmed
-boosting	yes	yes	confirmed
-classification	yes	yes	confirmed
-cloud computing	yes	yes	confirmed
-clustering	yes	yes	confirmed
-convolutional neural network	yes	yes	confirmed
-cross-validation	yes	yes	confirmed
-data	no	no	confirmed
-data augmentation	yes	yes	confirmed
-data cleaning	yes	yes	confirmed
-data collection	yes	yes	confirmed
-data integration	yes	yes	confirmed
-data mining	yes	yes	confirmed
-data quality	yes	yes	confirmed
-data science	yes	yes	confirmed
-data set	yes	yes	review
-data validation	yes	yes	confirmed
-database	no	no	review
-dataset	yes	yes	review
-decision tree	yes	yes	confirmed
-deep learning	yes	yes	confirmed
-deep neural network	yes	yes	confirmed
-deployment	yes	yes	confirmed
-dimensionality reduction	yes	yes	confirmed
-dropout	yes	yes	confirmed
-embedding	yes	yes	confirmed
-endpoint	yes	yes	confirmed
-ensemble learning	yes	yes	confirmed
-epoch	yes	yes	confirmed
-evaluasi	no	no	confirmed
-Excel	no	no	confirmed
-feature	yes	yes	confirmed
-feature engineering	yes	yes	confirmed
-feature extraction	yes	yes	confirmed
-feature selection	yes	yes	confirmed
-fine-tuning	yes	yes	confirmed
-framework	yes	yes	review
-gradient descent	yes	yes	confirmed
-graphical user interface	yes	yes	confirmed
-ground truth	yes	yes	confirmed
-ground truth data	yes	yes	confirmed
-hardware	no	no	review
-hyperparameter	yes	yes	confirmed
-implementasi	no	no	confirmed
-inference	yes	yes	confirmed
-informasi	no	no	confirmed
-information retrieval	yes	yes	confirmed
-internet	no	no	confirmed
-JavaScript	no	no	confirmed
-komputer	no	no	confirmed
-kuesioner	no	no	confirmed
-Laravel	no	no	confirmed
-layer	yes	yes	confirmed
-learning rate	yes	yes	confirmed
-machine learning	yes	yes	confirmed
-metode	no	no	confirmed
-Microsoft Word	no	no	confirmed
-MySQL	no	no	confirmed
-natural language processing	yes	yes	confirmed
-neural network	yes	yes	confirmed
-normalization	yes	yes	confirmed
-object detection	yes	yes	confirmed
-overfitting	yes	yes	confirmed
-pipeline	yes	yes	confirmed
-PostgreSQL	no	no	confirmed
-preprocessing	yes	yes	confirmed
-Python	no	no	confirmed
-query	yes	yes	confirmed
-random forest	yes	yes	confirmed
-raw data	yes	yes	review
-recall	yes	yes	confirmed
-regression	yes	yes	confirmed
-reinforcement learning	yes	yes	confirmed
-responden	no	no	confirmed
-response time	yes	yes	confirmed
-sentiment analysis	yes	yes	confirmed
-server	no	no	confirmed
-sistem	no	no	confirmed
-software	no	no	review
-supervised learning	yes	yes	confirmed
-teknologi	no	no	confirmed
-testing	yes	yes	confirmed
-text classification	yes	yes	confirmed
-text mining	yes	yes	confirmed
-tokenization	yes	yes	confirmed
-training	yes	yes	confirmed
-training data	yes	yes	confirmed
-training set	yes	yes	confirmed
-transfer learning	yes	yes	confirmed
-underfitting	yes	yes	confirmed
-unsupervised learning	yes	yes	confirmed
-user experience	yes	yes	confirmed
-user interface	yes	yes	confirmed
-validation set	yes	yes	confirmed
-web scraping	yes	yes	confirmed
-workflow	yes	yes	confirmed
+term	italic
+accuracy	yes
+activation function	yes
+algoritma	no
+analisis	no
+aplikasi	no
+Arduino	no
+artificial intelligence	yes
+attention mechanism	yes
+baseline	yes
+batch size	yes
+big data	yes
+boosting	yes
+classification	yes
+cloud computing	yes
+clustering	yes
+convolutional neural network	yes
+cross-validation	yes
+data	no
+data augmentation	yes
+data cleaning	yes
+data collection	yes
+data integration	yes
+data mining	yes
+data quality	yes
+data science	yes
+data set	yes
+data validation	yes
+database	no
+dataset	yes
+decision tree	yes
+deep learning	yes
+deep neural network	yes
+deployment	yes
+dimensionality reduction	yes
+dropout	yes
+embedding	yes
+endpoint	yes
+ensemble learning	yes
+epoch	yes
+evaluasi	no
+Excel	no
+feature	yes
+feature engineering	yes
+feature extraction	yes
+feature selection	yes
+fine-tuning	yes
+framework	yes
+gradient descent	yes
+graphical user interface	yes
+ground truth	yes
+ground truth data	yes
+hardware	no
+hyperparameter	yes
+implementasi	no
+inference	yes
+informasi	no
+information retrieval	yes
+internet	no
+JavaScript	no
+komputer	no
+kuesioner	no
+Laravel	no
+layer	yes
+learning rate	yes
+machine learning	yes
+metode	no
+Microsoft Word	no
+MySQL	no
+natural language processing	yes
+neural network	yes
+normalization	yes
+object detection	yes
+overfitting	yes
+pipeline	yes
+PostgreSQL	no
+preprocessing	yes
+Python	no
+query	yes
+random forest	yes
+raw data	yes
+recall	yes
+regression	yes
+reinforcement learning	yes
+responden	no
+response time	yes
+sentiment analysis	yes
+server	no
+sistem	no
+software	no
+supervised learning	yes
+teknologi	no
+testing	yes
+text classification	yes
+text mining	yes
+tokenization	yes
+training	yes
+training data	yes
+training set	yes
+transfer learning	yes
+underfitting	yes
+unsupervised learning	yes
+user experience	yes
+user interface	yes
+validation set	yes
+web scraping	yes
+workflow	yes

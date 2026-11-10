@@ -22,7 +22,6 @@ from .manifest import (
 )
 from .paragraph_ids import (
     AdeuOptions,
-    ParagraphIdError,
     add_paragraph_ids,
     analyze_manifest,
     prepare_manifest,
@@ -52,7 +51,6 @@ __all__ = [
     "Manifest",
     "ManifestParagraph",
     "MarkdownBlock",
-    "ParagraphIdError",
     "ReconcileResult",
     "SourceMatch",
     "add_paragraph_ids",

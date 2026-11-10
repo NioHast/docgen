@@ -90,20 +90,18 @@ class StageSpec:
     name: StageName
     order: int
     module: str
-    owner: str
     mutates: frozenset[str]
     idempotent: bool
     requires: tuple[StageName, ...] = ()
 
 
-_RAW_STAGE_SPECS: tuple[tuple[StageName, int, str, str, frozenset[str], bool], ...] = (
-    (StageName.VALIDATE, 10, "stages/validate.py", "WS4", frozenset(), True),
-    (StageName.MERMAID, 20, "stages/mermaid.py", "WS9", frozenset({"workspace"}), True),
+_RAW_STAGE_SPECS: tuple[tuple[StageName, int, str, frozenset[str], bool], ...] = (
+    (StageName.VALIDATE, 10, "stages/validate.py", frozenset(), True),
+    (StageName.MERMAID, 20, "stages/mermaid.py", frozenset({"workspace"}), True),
     (
         StageName.STYLE_REFERENCE,
         30,
         "stages/style_reference.py",
-        "WS7",
         frozenset({"workspace", "cache"}),
         True,
     ),
@@ -111,25 +109,22 @@ _RAW_STAGE_SPECS: tuple[tuple[StageName, int, str, str, frozenset[str], bool], .
         StageName.FRONT_MATTER,
         35,
         "stages/front_matter.py",
-        "WS6",
         frozenset({"workspace"}),
         True,
     ),
-    (StageName.PANDOC, 40, "stages/pandoc.py", "WS2", frozenset({"package"}), True),
+    (StageName.PANDOC, 40, "stages/pandoc.py", frozenset({"package"}), True),
     (
         StageName.SECTIONS,
         50,
         "stages/sections.py",
-        "WS6",
         frozenset({"word/document.xml"}),
         True,
     ),
-    (StageName.CODE, 60, "stages/code.py", "WS4", frozenset({"word/document.xml"}), True),
+    (StageName.CODE, 60, "stages/code.py", frozenset({"word/document.xml"}), True),
     (
         StageName.CAPTIONS,
         70,
         "stages/captions.py",
-        "WS4",
         frozenset({"word/document.xml"}),
         True,
     ),
@@ -137,7 +132,6 @@ _RAW_STAGE_SPECS: tuple[tuple[StageName, int, str, str, frozenset[str], bool], .
         StageName.NORMALIZE,
         80,
         "stages/normalize.py",
-        "WS5",
         frozenset({"word/document.xml"}),
         True,
     ),
@@ -145,7 +139,6 @@ _RAW_STAGE_SPECS: tuple[tuple[StageName, int, str, str, frozenset[str], bool], .
         StageName.EQUATIONS,
         90,
         "stages/equations.py",
-        "WS5",
         frozenset({"word/document.xml"}),
         True,
     ),
@@ -153,7 +146,6 @@ _RAW_STAGE_SPECS: tuple[tuple[StageName, int, str, str, frozenset[str], bool], .
         StageName.NUMBERING,
         100,
         "stages/numbering.py",
-        "WS5",
         frozenset({"word/document.xml", "word/numbering.xml"}),
         True,
     ),
@@ -161,7 +153,6 @@ _RAW_STAGE_SPECS: tuple[tuple[StageName, int, str, str, frozenset[str], bool], .
         StageName.BLANK_LINES,
         110,
         "stages/blank_lines.py",
-        "WS5",
         frozenset({"word/document.xml"}),
         True,
     ),
@@ -169,7 +160,6 @@ _RAW_STAGE_SPECS: tuple[tuple[StageName, int, str, str, frozenset[str], bool], .
         StageName.TERMS,
         120,
         "stages/terms.py",
-        "WS7",
         frozenset({"word/document.xml", "word/styles.xml"}),
         True,
     ),
@@ -177,7 +167,6 @@ _RAW_STAGE_SPECS: tuple[tuple[StageName, int, str, str, frozenset[str], bool], .
         StageName.TOC,
         130,
         "stages/toc.py",
-        "WS6",
         frozenset({"word/document.xml", "word/styles.xml"}),
         True,
     ),
@@ -185,7 +174,6 @@ _RAW_STAGE_SPECS: tuple[tuple[StageName, int, str, str, frozenset[str], bool], .
         StageName.PAGE_NUMBERS,
         140,
         "stages/page_numbers.py",
-        "WS6",
         frozenset(
             {
                 "word/document.xml",
@@ -201,7 +189,6 @@ _RAW_STAGE_SPECS: tuple[tuple[StageName, int, str, str, frozenset[str], bool], .
         StageName.LISTS,
         150,
         "stages/lists.py",
-        "WS11",
         frozenset({"word/document.xml"}),
         True,
     ),
@@ -209,22 +196,20 @@ _RAW_STAGE_SPECS: tuple[tuple[StageName, int, str, str, frozenset[str], bool], .
         StageName.OFFICE,
         160,
         "stages/office.py",
-        "WS8",
         frozenset({"package"}),
         False,
     ),
-    (StageName.PDF, 170, "stages/pdf.py", "WS8", frozenset(), False),
+    (StageName.PDF, 170, "stages/pdf.py", frozenset(), False),
 )
 
 _CANONICAL_SPECS: list[StageSpec] = []
 _CANONICAL_PREFIX: list[StageName] = []
-for _name, _order, _module, _owner, _mutates, _idempotent in _RAW_STAGE_SPECS:
+for _name, _order, _module, _mutates, _idempotent in _RAW_STAGE_SPECS:
     _CANONICAL_SPECS.append(
         StageSpec(
             name=_name,
             order=_order,
             module=_module,
-            owner=_owner,
             mutates=_mutates,
             idempotent=_idempotent,
             requires=tuple(_CANONICAL_PREFIX),
@@ -880,7 +865,7 @@ class Pipeline:
                     code="STAGE-PACKAGE",
                 )
 
-            report_name = ctx.document.metadata.report_name or "Tugas"
+            report_name = ctx.document.metadata.report_name
             if target == "pdf":
                 docx_path = workspace.path(f"{report_name}.docx")
             else:

@@ -73,8 +73,9 @@ examples/thesis-single/
 ```
 
 `out/`, `.laporan/`, dan `.laporan-build/` di-ignore Git. Nama berkas
-mengikuti `report_name` (default `Tugas`). Tidak ada output di `build/` atau
-`review/`.
+mengikuti `report_name` yang wajib ditulis eksplisit di front matter; tidak
+ada nama default. DOCX dan PDF memakai stem yang sama. Tidak ada output di
+`build/` atau `review/`.
 
 ## Catatan
 

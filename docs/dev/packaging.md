@@ -25,8 +25,17 @@ environment proyek.
 | Package discovery | `src/docgen` |
 | Package data | `docgen = ["data/**/*"]` |
 
-Dependensi runtime: `python-docx`, `lxml`, dan `ruamel.yaml`. Dependensi dev:
-`pytest`, `pypdf`, dan `Pillow`.
+## Dependensi
+
+| Jenis | Paket | Alasan |
+| --- | --- | --- |
+| Runtime | `lxml`, `ruamel.yaml` | Dipakai pipeline saat `docgen` dijalankan. |
+| Dev | `pytest`, `pypdf`, `python-docx`, `mypy`, `ruff` | Tes dan tooling pengembangan. |
+
+`python-docx` hanya dependensi dev karena `src/docgen` tidak mengimpornya.
+Paket itu dipakai tes untuk membuat fixture DOCX dan memeriksa hasil build.
+`pypdf` juga hanya untuk tes PDF. `Pillow` tidak dipakai; fixture PNG dibuat
+tanpa Pillow, jadi paket itu tidak ada di manifest maupun lock.
 
 `src/docgen/data/` wajib ikut sebagai package data karena berisi format,
 struktur, template, glosarium, logo, CSL, dan `reference.docx`. Data dibaca
@@ -35,8 +44,15 @@ lewat `src/docgen/paths.py`; tidak ada fallback ke direktori kerja.
 ## Environment pengembangan
 
 ```bash
+uv sync --extra dev
+uv run --extra dev pytest tests/unit
+```
+
+Dari luar repo, tambahkan `--project <repo>`:
+
+```bash
 uv sync --project <repo> --extra dev
-uv run --project <repo> pytest tests/unit
+uv run --project <repo> --extra dev pytest tests/unit
 ```
 
 `uv.lock` menyimpan resolusi dependensi. Jangan mengedit lock secara manual.
@@ -71,9 +87,9 @@ Perintah resmi selalu memakai `uv run --project <repo> docgen`.
 ## Menjalankan tes
 
 ```bash
-uv run --project <repo> pytest tests/unit
-uv run --project <repo> pytest -m "not integration and not packaging and not e2e and not word and not windows"
-uv run --project <repo> pytest
+uv run --project <repo> --extra dev pytest tests/unit
+uv run --project <repo> --extra dev pytest -m "not integration and not packaging and not e2e and not word and not windows"
+uv run --project <repo> --extra dev pytest
 ```
 
 Di Debian, tes Word dan Windows dilewati. Tes PDF golden hanya berjalan di

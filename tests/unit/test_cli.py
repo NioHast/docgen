@@ -24,6 +24,7 @@ Teks.
 _FRONT_MATTER = """title: "Laporan Uji"
 author: "Nama Mahasiswa"
 nim: "30000000000000"
+report_name: "Tugas"
 structure: assignment
 format: undip-msi
 bibliography: references.bib
@@ -80,6 +81,13 @@ def test_build_flag_options() -> None:
     assert args.allow_missing_word is True
 
 
+def test_build_menolak_flag_report_name() -> None:
+    with pytest.raises(SystemExit) as error:
+        cli.build_parser().parse_args(["build", "document.md", "--report-name", "Laporan"])
+
+    assert error.value.code == 2
+
+
 def test_reconcile_parser_registered() -> None:
     args = cli.build_parser().parse_args(
         [
@@ -125,6 +133,27 @@ def test_check_invalid_document(tmp_path: Path, capsys: pytest.CaptureFixture[st
     path.write_text('---\ntitle: "Tanpa Struktur"\n---\n\n# Bab\n', encoding="utf-8")
     assert cli.main(["check", str(path)]) == 1
     assert "[ERROR]" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("line", [None, 'report_name: ""\n', 'report_name: "   "\n'])
+def test_check_menolak_report_name_hilang_atau_kosong(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    line: str | None,
+) -> None:
+    (tmp_path / "references.bib").write_text("@book{x}\n", encoding="utf-8", newline="\n")
+    front_matter = (
+        _FRONT_MATTER.replace('report_name: "Tugas"\n', "")
+        if line is None
+        else _FRONT_MATTER.replace('report_name: "Tugas"\n', line)
+    )
+    path = tmp_path / "document.md"
+    path.write_text("---\n" + front_matter + "---\n\n" + _BODY, encoding="utf-8", newline="\n")
+
+    assert cli.main(["check", str(path)]) == 1
+    error = capsys.readouterr().err
+    assert "CFG-REQUIRED" in error
+    assert "report_name" in error
 
 
 def test_build_maps_flags_to_options(monkeypatch: pytest.MonkeyPatch) -> None:

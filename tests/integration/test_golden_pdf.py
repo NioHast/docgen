@@ -19,6 +19,8 @@ from pathlib import Path
 
 import pytest
 
+from docgen.document import load_project
+
 pytestmark = [
     pytest.mark.integration,
     pytest.mark.windows,
@@ -166,7 +168,8 @@ def test_pdf_build_matches_baseline(baseline: dict[str, object], tmp_path: Path)
     )
     assert completed.returncode == 0, completed.stderr
 
-    pdf = project / "Tugas.pdf"
+    report_name = load_project(project / "document.md").document.metadata.report_name
+    pdf = project / f"{report_name}.pdf"
     assert pdf.is_file() and pdf.read_bytes().startswith(b"%PDF-")
 
     _assert_pdf_matches_baseline(PdfReader(str(pdf)), baseline)

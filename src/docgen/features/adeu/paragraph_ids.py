@@ -32,7 +32,7 @@ from ...docx.names import (
 )
 from ...docx.package import DocumentPackage
 from ...docx.xml import paragraph_text
-from ...errors import DocgenError, ManifestError
+from ...errors import DocgenError
 from ...markdown.blocks import (
     iter_candidate_texts,
     load_markdown_directory,
@@ -50,9 +50,6 @@ from .manifest import (
 )
 
 TOC_FIELD = "TOC"
-
-# Nama error lama dipertahankan agar pemanggil hasil port tetap kompatibel.
-ParagraphIdError = ManifestError
 
 _PROTECTED_FIELD_ORDER = (
     ("SEQ", "seq_field"),
@@ -549,7 +546,6 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 __all__ = [
     "AdeuOptions",
-    "ParagraphIdError",
     "add_paragraph_ids",
     "analyze_manifest",
     "build_parser",

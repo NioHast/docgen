@@ -145,7 +145,8 @@ dokumen. Nilai `--docx` eksplisit selalu menang.
 
 Alur:
 
-1. Baca `document.md` dan front matter untuk `report_name`.
+1. Baca `document.md` dan front matter untuk `report_name`; field ini wajib
+   dan tidak punya nilai default. Tidak ada flag CLI `--report-name`.
 2. Muat manifest dan validasi hash.
 3. Baca DOCX hasil edit dan ambil teks paragraf ber-bookmark.
 4. Bandingkan teks DOCX dengan manifest.

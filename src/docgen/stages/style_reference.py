@@ -395,11 +395,6 @@ def style_specs_for_format(
     return specs
 
 
-# Nama lama dari tools/build_style.py agar pemanggil lama dan tes golden dapat
-# memakai helper yang sudah dipecah tanpa ketergantungan ke regex.
-resolve_style_specs = style_specs_for_format
-
-
 def _digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -548,20 +543,13 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
-generate_reference_docx = build_reference_docx
-build_reference = build_reference_docx
-
-
 __all__ = [
     "DEFAULT_REFERENCE_NAME",
     "ISTILAH_STYLES",
     "StyleReferenceStage",
-    "build_reference",
     "build_reference_docx",
     "build_style_patch",
-    "generate_reference_docx",
     "main",
-    "resolve_style_specs",
     "style_specs_for_format",
     "verify_reference_docx",
 ]

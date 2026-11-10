@@ -1,3 +1,7 @@
+> **SUPERSEDED:** Dokumen ini diarsipkan pada 2026-11-10 dan tidak lagi menjadi
+> acuan kerja. Acuan aktif adalah [refactor-plan.md](../refactor-plan.md).
+> Isi di bawah dipertahankan hanya untuk jejak audit.
+
 # RESTRUCTURE_PLAN - design-system-format-laporan menjadi docgen
 
 **Versi:** 0.13

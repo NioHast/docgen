@@ -121,10 +121,6 @@ class EquationReport:
         }
 
 
-# Alias nama legacy agar pemanggil lama tetap dapat memakai tipe laporan.
-FormatEquationsReport = EquationReport
-
-
 # ---------------------------------------------------------------------------
 # Deteksi persamaan dan nomor
 # ---------------------------------------------------------------------------
@@ -386,16 +382,6 @@ def format_equations(
     return report
 
 
-# Alias API yang lebih pendek.
-number_equations = format_equations
-
-# Alias privat kompatibel dengan tes/tool lama.
-_run_number_text = run_number_text
-_content_width = content_width
-_display_equation = display_equation
-_paragraph_text = paragraph_text
-
-
 class EquationsStage(BaseStage):
     """Stage penomoran persamaan display per bab."""
 
@@ -447,10 +433,6 @@ def _spec_from_context(ctx: object) -> EquationSpec:
     return EquationSpec()
 
 
-# Alias nama stage tunggal.
-EquationStage = EquationsStage
-
-
 __all__ = [
     "BAB_RE",
     "DEFAULT_LEFT_INDENT_TWIPS",
@@ -463,14 +445,11 @@ __all__ = [
     "EquationError",
     "EquationReport",
     "EquationSpec",
-    "EquationStage",
     "EquationsStage",
-    "FormatEquationsReport",
     "display_equation",
     "format_equation_paragraph",
     "format_equations",
     "is_chapter_paragraph",
     "iter_equation_paragraphs",
-    "number_equations",
     "run_number_text",
 ]

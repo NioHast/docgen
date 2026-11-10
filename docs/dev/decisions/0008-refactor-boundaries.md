@@ -59,9 +59,9 @@ target struktur, dan acceptance tidak bertentangan.
   file diganti package `config/__init__.py`, `config/models.py`,
   `config/parsers.py`, dan `config/validation.py`; API publik tetap. Jika tidak,
   `config.py` dipertahankan.
-- `docs/dev/restructure-plan.md` dan `docs/dev/duplication-map.md` tidak lagi
-  menjadi acuan aktif; keduanya berstatus superseded di archive. G4 wajib
-  memutuskan hapus atau pertahankan dengan status archived yang jelas.
+- `docs/dev/archive/restructure-plan.md` dan `docs/dev/archive/duplication-map.md`
+  tidak lagi menjadi acuan aktif; keduanya berstatus superseded di archive. G4
+  wajib memutuskan hapus atau pertahankan dengan status archived yang jelas.
 - Target struktur final memuat `markdown/headings.py`, `adeu/`,
   `scripts/word.ps1`, dan stage `captions`; `docx/headings.py`, `features/`,
   `resources/`, dan `captions/figures` tidak boleh tersisa di kode aktif.

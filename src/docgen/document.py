@@ -60,23 +60,6 @@ _DOCUMENT_KEYS = frozenset(
     }
 )
 
-_DOCUMENT_COMPAT_KEYS = frozenset({"toc"})
-
-_DOCUMENT_LEGACY = {
-    "preset": "gunakan kunci 'format'",
-    "margin_preset": "margin milik format.yml",
-    "daftar_gambar": "pindahkan ke structure.yml lists.figures",
-    "daftar_tabel": "pindahkan ke structure.yml lists.tables",
-    "keywords_id": "gunakan kunci 'keywords'",
-    "approval": "teks legal berasal dari template struktur",
-    "statement": "teks legal berasal dari template struktur",
-    "references": "gunakan bibliografi .bib melalui kunci 'bibliography'",
-    "csl": "CSL milik format.yml citation.csl",
-    "reference-doc": "reference milik format.yml assets.reference_docx",
-    "template": "template milik structure.yml front_matter",
-    "cover": "sampul dihasilkan dari format dan structure",
-}
-
 
 @dataclass(frozen=True)
 class RawDocument:
@@ -94,7 +77,6 @@ class Document:
     structure_id: str
     format_id: str
     bibliography: str | None
-    legacy_toc: bool | None
 
 
 @dataclass(frozen=True)
@@ -238,18 +220,10 @@ def parse_document(document: str | Path) -> RawDocument:
 
 
 def _check_front_matter_keys(front_matter: Mapping[str, Any], *, path: Path) -> None:
-    allowed = _DOCUMENT_KEYS | _DOCUMENT_COMPAT_KEYS
     for raw_key in front_matter:
         key = str(raw_key)
-        if key in allowed:
+        if key in _DOCUMENT_KEYS:
             continue
-        if key in _DOCUMENT_LEGACY:
-            raise _doc_error(
-                f"kunci '{key}' sudah dihapus; {_DOCUMENT_LEGACY[key]}",
-                code="CFG-LEGACY",
-                path=path,
-                key=key,
-            )
         raise _doc_error(
             f"kunci '{key}' tidak dikenal di front matter",
             code="CFG-UNKNOWN-KEY",
@@ -441,36 +415,6 @@ def _validate_structure_document_fields(
             )
 
 
-def _validate_legacy_toc(
-    front_matter: Mapping[str, Any],
-    *,
-    structure: Structure,
-    path: Path,
-) -> tuple[bool | None, str | None]:
-    if "toc" not in front_matter:
-        return None, None
-    value = front_matter["toc"]
-    if not isinstance(value, bool):
-        raise _doc_error(
-            "kunci 'toc' harus bernilai true/false",
-            code="CFG-TYPE",
-            path=path,
-            key="toc",
-        )
-    if value != structure.toc:
-        raise _doc_error(
-            f"kunci 'toc' di document.md ({value}) bertentangan dengan "
-            f"structure.toc ({structure.toc}); hapus kunci dokumen",
-            code="CFG-LEGACY",
-            path=path,
-            key="toc",
-        )
-    return value, (
-        "kunci 'toc' di document.md sudah tidak dipakai; structure.toc "
-        "menentukan daftar isi (CFG-LEGACY)"
-    )
-
-
 def load_project(document: str | Path, *, root: Path | None = None) -> Project:
     """Muat dokumen, format, struktur, aset, dan validasi silang."""
 
@@ -502,11 +446,6 @@ def load_project(document: str | Path, *, root: Path | None = None) -> Project:
         structure=structure,
         path=raw.path,
     )
-    legacy_toc, toc_warning = _validate_legacy_toc(
-        raw.front_matter,
-        structure=structure,
-        path=raw.path,
-    )
     _validate_body(raw.body, structure=structure, path=raw.path)
 
     bibliography_value = raw.front_matter.get("bibliography")
@@ -530,8 +469,6 @@ def load_project(document: str | Path, *, root: Path | None = None) -> Project:
     override_warning = format_override_warning(format_id, structure)
     if override_warning is not None:
         warnings.append(override_warning)
-    if toc_warning is not None:
-        warnings.append(toc_warning)
 
     document_model = Document(
         path=raw.path,
@@ -542,7 +479,6 @@ def load_project(document: str | Path, *, root: Path | None = None) -> Project:
         format_id=format_id,
         bibliography=bibliography_value
         or (format_.citation.bibliography if assets.bibliography is not None else None),
-        legacy_toc=legacy_toc,
     )
     return Project(
         document=document_model,

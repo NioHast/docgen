@@ -7,6 +7,7 @@ faculty: "Program Studi Magister Sistem Informasi"
 year: "2026"
 date: "November 2026"
 lang: "id-ID"
+report_name: "Tugas"
 structure: proposal
 format: undip-msi
 bibliography: references.bib

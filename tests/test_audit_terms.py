@@ -30,9 +30,9 @@ def write_glossary(tmp_path: Path, rows: list[tuple[str, str]]) -> Path:
     """Tulis glosarium TSV minimal dengan header yang valid."""
 
     path = tmp_path / "istilah.tsv"
-    lines = ["term\titalic\tgloss_first\tstatus"]
+    lines = ["term\titalic"]
     for term, italic in rows:
-        lines.append(f"{term}\t{italic}\tno\tconfirmed")
+        lines.append(f"{term}\t{italic}")
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return path
 

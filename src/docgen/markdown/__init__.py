@@ -16,7 +16,6 @@ from .blocks import (
     normalize_inline,
     normalize_path,
     parse_markdown_blocks,
-    plain_inline,
 )
 
 __all__ = [
@@ -31,5 +30,4 @@ __all__ = [
     "normalize_inline",
     "normalize_path",
     "parse_markdown_blocks",
-    "plain_inline",
 ]

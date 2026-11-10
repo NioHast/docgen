@@ -39,6 +39,7 @@ report_name: "Tugas"
 | --- | --- | --- |
 | `title` | teks | Tidak kosong. |
 | `author` | teks, mapping, atau daftar | Minimal satu; setiap entri punya `name`. |
+| `report_name` | teks | Tidak kosong; nama berkas output tanpa ekstensi. |
 | `structure` | ID | `assignment`, `proposal`, atau `thesis`. |
 | `format` | ID | Saat ini hanya `undip-msi`. |
 
@@ -57,12 +58,15 @@ report_name: "Tugas"
 | `date` | teks | - | Bulan atau tanggal. |
 | `lang` | BCP-47 | `id-ID` | Locale sitasi. |
 | `bibliography` | path relatif | `references.bib` | Harus berekstensi `.bib` dan ada. |
-| `report_name` | teks | `Tugas` | Nama berkas output tanpa ekstensi. |
 | `preface` | Markdown | - | Wajib untuk struktur `thesis`. |
 | `abstract_id` | Markdown | - | Wajib untuk struktur `thesis`. |
 | `abstract_en` | Markdown | - | Wajib untuk struktur `thesis`. |
 | `keywords` | daftar atau teks | - | Hanya boleh jika `abstract_id` ada. |
 | `keywords_en` | daftar atau teks | - | Hanya boleh jika `abstract_en` ada. |
+
+`report_name` wajib dan tidak memiliki nilai default. Nilai kosong atau hanya
+whitespace ditolak dengan `CFG-REQUIRED`. DOCX dan PDF memakai stem yang sama;
+tidak ada flag CLI `--report-name`, jadi ubah nilainya di front matter.
 
 `author` menerima tiga bentuk:
 

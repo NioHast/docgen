@@ -311,6 +311,16 @@ def test_stage_office_sukses(tmp_path: Path) -> None:
     assert adapter.calls == [(docx, None)]
 
 
+def test_path_output_memakai_report_name_tanpa_fallback(tmp_path: Path) -> None:
+    ctx, _ = _context(tmp_path)
+    ctx.artifacts = None
+    ctx.document.metadata.report_name = "Laporan"
+    (tmp_path / "Laporan.docx").write_bytes(_ZIP_STUB)
+
+    assert office._docx_path(ctx) == tmp_path / "Laporan.docx"
+    assert office._pdf_path(ctx) == tmp_path / "Laporan.pdf"
+
+
 def test_stage_office_meneruskan_error_word(tmp_path: Path) -> None:
     adapter = FakeWordAdapter(error=WordError("Word rusak"))
     ctx, _ = _context(tmp_path, adapter=adapter)

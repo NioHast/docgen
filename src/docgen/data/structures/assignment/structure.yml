@@ -26,10 +26,8 @@ lists:
   figures: false
   tables: false
 
-# Override cover mengikuti preset proposal lama. Key ini belum ada di kontrak
-# docs/dev/contracts/config.md bagian structure.yml; lihat laporan WS1.
-# show_lecturer: false adalah warisan mapping lama dan perlu konfirmasi
-# pengguna, bukan blocker.
+# Override cover mengikuti preset proposal lama; assignment tidak menampilkan
+# dosen (`show_lecturer: false`).
 cover:
   show_lecturer: false
   logo_width: 4.7cm

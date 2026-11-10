@@ -50,6 +50,7 @@ def _write_project(root: Path) -> Path:
         'title: "Uji Pipeline Mini"\n'
         'author: "Nama Mahasiswa"\n'
         'nim: "30000000000000"\n'
+        'report_name: "Tugas"\n'
         "structure: assignment\n"
         "format: undip-msi\n"
         'year: "2026"\n'
@@ -106,7 +107,7 @@ def test_pandoc_nyata_menghasilkan_docx_valid(tmp_path: Path) -> None:
 
     result = PandocStage().run(ctx)
 
-    output = workspace.path("Tugas.docx")
+    output = workspace.path(f"{project.document.metadata.report_name}.docx")
     assert result.status == "ok"
     assert output.is_file()
     assert zipfile.is_zipfile(output)

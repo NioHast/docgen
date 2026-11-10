@@ -87,11 +87,12 @@ Perilaku tes:
 
 ## Hasil verifikasi akhir
 
-Diverifikasi ulang pada 2026-11-09 setelah seluruh stage Python aktif:
+Diverifikasi ulang pada 2026-11-10 setelah seluruh stage Python aktif:
 
-- Suite penuh: **475 passed, 1 skipped, 2 subtests**.
+- Suite penuh: **508 passed, 2 subtests**.
 - Build contoh thesis (`examples/thesis-single`, target `both`) menghasilkan
-  `out/Tugas.docx` dan `out/Tugas.pdf`.
+  `out/<report_name>.docx` dan `out/<report_name>.pdf`; contoh memakai
+  `report_name: "Tugas"`.
 - Tes golden DOCX (`tests/integration/test_golden_docx.py`) lulus.
 
 Angka suite penuh berlaku untuk keadaan tes saat ini; perbarui bila menambah

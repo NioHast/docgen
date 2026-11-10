@@ -1,8 +1,8 @@
 """Pembacaan dan validasi ``format.yml`` serta ``structure.yml``.
 
-Skema bersifat tertutup: key yang tidak dikenal ditolak. Key lama yang sudah
-dihapus menghasilkan pesan migrasi. Semua nilai dimensi dikonversi ke twip
-dan semua ukuran font dikonversi ke setengah poin di lapisan ini.
+Skema bersifat tertutup: key yang tidak dikenal ditolak. Semua nilai dimensi
+dikonversi ke twip dan semua ukuran font dikonversi ke setengah poin di
+lapisan ini.
 """
 
 import re
@@ -246,21 +246,12 @@ def _check_unknown(
     *,
     path: Path,
     key: str,
-    legacy: Mapping[str, str] | None = None,
 ) -> None:
     allowed_set = set(allowed)
-    legacy = legacy or {}
     for raw_key in mapping:
         child = str(raw_key)
         if child in allowed_set:
             continue
-        if child in legacy:
-            raise _err(
-                f"kunci '{child}' sudah dihapus; {legacy[child]}",
-                code="CFG-LEGACY",
-                path=path,
-                key=f"{key}.{child}" if key else child,
-            )
         raise _err(
             f"kunci '{child}' tidak dikenal",
             code="CFG-UNKNOWN-KEY",
@@ -766,13 +757,6 @@ _FORMAT_KEYS = frozenset(
         "assets",
     }
 )
-_FORMAT_LEGACY = {
-    "presets": "gabungkan ke satu format.yml",
-    "preset": "gunakan kunci 'format'",
-    "margin_preset": "margin ditulis eksplisit di page.margins",
-    "toc": "gunakan 'toc_heading'; toggle daftar isi ada di structure.toc",
-    "bibliography": "gunakan 'bibliography_style' dan citation.bibliography",
-}
 _PAGE_KEYS = frozenset(
     {"size", "orientation", "margins", "header_distance", "footer_distance", "gutter"}
 )
@@ -1759,7 +1743,6 @@ def load_format(format_id: str, *, root: Path | None = None) -> Format:
         _FORMAT_KEYS,
         path=path,
         key="format",
-        legacy=_FORMAT_LEGACY,
     )
     declared = _text(
         _required(data, "format", path=path, key="format"),
@@ -1971,10 +1954,6 @@ class Structure:
 _STRUCTURE_KEYS = frozenset(
     {"format", "front_matter", "body", "back_matter", "toc", "numbering", "lists", "cover"}
 )
-_STRUCTURE_LEGACY = {
-    "structure": "gunakan direktori structures/<id>/structure.yml",
-    "chapters": "gunakan daftar body berisi {id, title}",
-}
 _FRONT_MATTER_RULES: Mapping[str, frozenset[str]] = MappingProxyType(
     {
         "cover": frozenset({"generated"}),
@@ -2319,7 +2298,6 @@ def load_structure(structure_id: str, *, root: Path | None = None) -> Structure:
         _STRUCTURE_KEYS,
         path=path,
         key="structure",
-        legacy=_STRUCTURE_LEGACY,
     )
     format_id = _text(
         _required(data, "format", path=path, key="structure"),

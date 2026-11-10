@@ -18,7 +18,7 @@ Glosarium pengguna opsional berada di samping `document.md`:
 istilah.tsv
 ```
 
-Format TSV memakai header `term` dan `italic`:
+Format TSV wajib memakai header `term` dan `italic`:
 
 ```tsv
 term	italic
@@ -26,9 +26,9 @@ machine learning	yes
 data	no
 ```
 
-Header lama `term	italic	gloss_first	status` masih diterima; dua kolom
-terakhir diabaikan. Setiap baris harus memiliki jumlah kolom yang tepat.
-Nilai `italic` hanya `yes` atau `no`. Baris kosong dan baris berawalan `#`
+Header wajib persis `term<TAB>italic`; header lain ditolak dengan error
+`GLOSSARY-HEADER`. Setiap baris harus memiliki tepat dua kolom. Nilai
+`italic` hanya `yes` atau `no`. Baris kosong dan baris berawalan `#`
 diabaikan.
 
 Pencocokan istilah:

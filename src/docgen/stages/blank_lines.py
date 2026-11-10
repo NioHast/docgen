@@ -520,14 +520,6 @@ def insert_blank_lines(
     return report
 
 
-# Alias API.
-blank_lines = insert_blank_lines
-
-# Alias privat kompatibel dengan tes/tool lama.
-_classify = classify
-_make_empty_paragraph = make_empty_paragraph
-
-
 class BlankLinesStage(BaseStage):
     """Stage penyisipan paragraf kosong fisik."""
 
@@ -572,10 +564,6 @@ class BlankLinesStage(BaseStage):
         )
 
 
-# Alias nama stage tunggal.
-BlankLineStage = BlankLinesStage
-
-
 __all__ = [
     "EMPTY_FONT",
     "EMPTY_HALF_POINTS",
@@ -583,9 +571,7 @@ __all__ = [
     "BlankLineError",
     "BlankLineReport",
     "BlankLineSpec",
-    "BlankLineStage",
     "BlankLinesStage",
-    "blank_lines",
     "classify",
     "insert_blank_lines",
     "make_empty_paragraph",

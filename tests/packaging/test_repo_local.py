@@ -23,6 +23,7 @@ _MINIMAL_DOCUMENT = """---
 title: "Tes Packaging"
 author: "Nama Mahasiswa"
 nim: "30000000000000"
+report_name: "Tugas"
 structure: assignment
 format: undip-msi
 bibliography: references.bib

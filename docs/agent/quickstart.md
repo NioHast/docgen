@@ -50,13 +50,14 @@ Jangan menyalin `out/` atau `.laporan/` dari contoh. Keduanya artefak build.
 ## 3. Tulis front matter
 
 Front matter wajib berada di awal `document.md` dan dibatasi `---`. Kunci
-wajib adalah `title`, `author`, `structure`, dan `format`.
+wajib adalah `title`, `author`, `report_name`, `structure`, dan `format`.
 
 ```yaml
 ---
 title: "Analisis Pipeline Markdown untuk Laporan Tugas"
 author: "Nama Mahasiswa"
 nim: "30000000000000"
+report_name: "Tugas"
 structure: assignment
 format: undip-msi
 bibliography: references.bib
@@ -134,8 +135,9 @@ tugas/
 `-- .laporan-build/      # hanya dengan --keep
 ```
 
-Nama berkas mengikuti `report_name` di front matter. Default-nya `Tugas`.
-Manifest berisi bookmark `pNNNN` untuk rekonsiliasi edit Word.
+Nama berkas mengikuti `report_name` yang wajib di front matter. Tidak ada nama
+default, dan DOCX serta PDF memakai stem yang sama. Manifest berisi bookmark
+`pNNNN` untuk rekonsiliasi edit Word.
 
 ## 7. Rekonsiliasi edit Word
 

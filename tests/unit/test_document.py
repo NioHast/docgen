@@ -78,6 +78,7 @@ def _assignment_front_matter(extra: str = "") -> str:
         'title: "Laporan Uji"\n'
         'author: "Nama Mahasiswa"\n'
         'nim: "30000000000000"\n'
+        'report_name: "Tugas"\n'
         "structure: assignment\n"
         "format: undip-msi\n"
         "bibliography: references.bib\n" + extra
@@ -106,6 +107,7 @@ def test_author_list_and_keywords_scalar(tmp_path: Path) -> None:
         '    nim: "30000000000001"\n'
         '  - name: "Nama Dua"\n'
         '    nim: "30000000000002"\n'
+        'report_name: "Tugas"\n'
         "structure: assignment\n"
         "format: undip-msi\n"
         "bibliography: references.bib\n"
@@ -133,6 +135,7 @@ def test_top_level_nim_with_multiple_authors_rejected(tmp_path: Path) -> None:
         '  - name: "Nama Satu"\n'
         '  - name: "Nama Dua"\n'
         'nim: "30000000000000"\n'
+        'report_name: "Tugas"\n'
         "structure: assignment\n"
         "format: undip-msi\n"
         "bibliography: references.bib\n"
@@ -149,6 +152,7 @@ def test_conflicting_nim_rejected(tmp_path: Path) -> None:
         '  name: "Nama Mahasiswa"\n'
         '  nim: "30000000000001"\n'
         'nim: "30000000000002"\n'
+        'report_name: "Tugas"\n'
         "structure: assignment\n"
         "format: undip-msi\n"
         "bibliography: references.bib\n"
@@ -164,6 +168,7 @@ def test_author_unknown_key_rejected(tmp_path: Path) -> None:
         "author:\n"
         '  name: "Nama Mahasiswa"\n'
         '  gelar: "S.Kom."\n'
+        'report_name: "Tugas"\n'
         "structure: assignment\n"
         "format: undip-msi\n"
         "bibliography: references.bib\n"
@@ -184,21 +189,17 @@ def test_legacy_preset_rejected(tmp_path: Path) -> None:
     front_matter = _assignment_front_matter("preset: undip-skripsi\n")
     with pytest.raises(DocgenError) as error:
         load_project(_write_document(tmp_path, front_matter))
-    assert error.value.code == "CFG-LEGACY"
+    assert error.value.code == "CFG-UNKNOWN-KEY"
+    assert error.value.key == "preset"
 
 
-def test_legacy_toc_matching_structure_is_warning(tmp_path: Path) -> None:
-    front_matter = _assignment_front_matter("toc: false\n")
-    project = load_project(_write_document(tmp_path, front_matter))
-    assert project.document.legacy_toc is False
-    assert any("CFG-LEGACY" in warning for warning in project.warnings)
-
-
-def test_legacy_toc_conflict_is_error(tmp_path: Path) -> None:
-    front_matter = _assignment_front_matter("toc: true\n")
+@pytest.mark.parametrize("value", ["false", "true"])
+def test_toc_front_matter_rejected(tmp_path: Path, value: str) -> None:
+    front_matter = _assignment_front_matter(f"toc: {value}\n")
     with pytest.raises(DocgenError) as error:
         load_project(_write_document(tmp_path, front_matter))
-    assert error.value.code == "CFG-LEGACY"
+    assert error.value.code == "CFG-UNKNOWN-KEY"
+    assert error.value.key == "toc"
 
 
 def test_unknown_document_key_rejected(tmp_path: Path) -> None:
@@ -339,6 +340,7 @@ def test_thesis_requires_document_front_matter(tmp_path: Path) -> None:
     front_matter = (
         'title: "Tesis Uji"\n'
         'author: "Nama Mahasiswa"\n'
+        'report_name: "Tugas"\n'
         "structure: thesis\n"
         "format: undip-msi\n"
         "bibliography: references.bib\n"
@@ -354,6 +356,7 @@ def test_thesis_with_all_document_sources_accepted(tmp_path: Path) -> None:
     front_matter = (
         'title: "Tesis Uji"\n'
         'author: "Nama Mahasiswa"\n'
+        'report_name: "Tugas"\n'
         "structure: thesis\n"
         "format: undip-msi\n"
         "bibliography: references.bib\n"
@@ -371,7 +374,10 @@ def test_thesis_with_all_document_sources_accepted(tmp_path: Path) -> None:
 
 
 def test_report_name_rejects_path_characters(tmp_path: Path) -> None:
-    front_matter = _assignment_front_matter('report_name: "a/b"\n')
+    front_matter = _assignment_front_matter().replace(
+        'report_name: "Tugas"',
+        'report_name: "a/b"',
+    )
     with pytest.raises(DocgenError) as error:
         load_project(_write_document(tmp_path, front_matter))
     assert error.value.code == "CFG-TYPE"

@@ -5,7 +5,7 @@
 lifecycle workspace, dan CLI `docgen`.
 **Pemilik kontrak:** WS0. **Pemilik implementasi:** WS2 (pipeline Fase 1),
 WS15 (pipeline Fase 3), lane stage masing-masing.
-**Rujukan:** `docs/dev/restructure-plan.md` v0.13, bagian P0.2, 2.2, 2.4, 2.5,
+**Rujukan:** `docs/dev/archive/restructure-plan.md` v0.13, bagian P0.2, 2.2, 2.4, 2.5,
 WS2, WS15, dan 14.
 
 ## 1. Prinsip
@@ -826,7 +826,11 @@ bookmark.
 
 Output:
 
-- Nama default `Tugas.docx`/`Tugas.pdf`; `report_name` dari front matter.
+- `report_name` wajib di front matter; tidak ada nama default. Nilai kosong
+  atau whitespace menghasilkan `CFG-REQUIRED`.
+- DOCX dan PDF memakai stem yang sama: `<report_name>.docx` dan
+  `<report_name>.pdf`.
+- Tidak ada flag CLI `--report-name`.
 - Untuk dokumen pengguna, output ditulis di samping `document.md`.
 - Untuk dokumen di `examples/<name>/document.md`, output ditulis ke
   `examples/<name>/out/` dan direktori `out/` dibuat bila belum ada.
@@ -889,7 +893,11 @@ docgen reconcile <file>
   `test_stages_equations.py`, `test_stages_numbering.py`, `test_toc.py`,
   `test_lists.py`, `test_front_matter.py`, dan `test_adeu_paragraph_ids.py`.
 - `tests/unit/test_cli.py`: default `--target both`, `--keep`, `--terms`,
-  `--no-manifest`, `--no-adeu`, `--allow-missing-word`, dan exit code.
+  `--no-manifest`, `--no-adeu`, `--allow-missing-word`, penolakan
+  `--report-name`, dan exit code.
+- `tests/unit/test_metadata.py`: `report_name` hilang, kosong, atau whitespace
+  menghasilkan `CFG-REQUIRED`; `DEFAULT_REPORT_NAME` dan `normalize_author`
+  tidak ada.
 - `tests/integration/test_pipeline_python.py` dan
   `tests/integration/test_thesis_pipeline.py`: `load`/`save` package target
   masing-masing satu kali, stage dijalankan sesuai urutan, dan stage

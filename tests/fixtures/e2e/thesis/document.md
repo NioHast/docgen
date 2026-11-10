@@ -10,9 +10,9 @@ faculty: "Program Studi Magister Sistem Informasi"
 year: "2026"
 date: "November 2026"
 lang: "id-ID"
+report_name: "Tugas"
 structure: thesis
 format: undip-msi
-toc: true
 bibliography: references.bib
 preface: |
   Puji syukur penulis panjatkan atas selesainya tesis ini. Penulis

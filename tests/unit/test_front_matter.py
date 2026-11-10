@@ -42,6 +42,7 @@ _BASE_FRONT_MATTER: dict[str, Any] = {
     "faculty": "Program Studi Magister Sistem Informasi",
     "year": "2026",
     "date": "Agustus 2026",
+    "report_name": "Tugas",
     "abstract_id": "Abstrak baris pertama.\n\nAbstrak baris kedua.",
     "abstract_en": "First paragraph.\n\nSecond paragraph.",
     "keywords": "machine learning",
@@ -68,7 +69,6 @@ def _document(
         structure_id=structure_id,
         format_id="undip-msi",
         bibliography=None,
-        legacy_toc=None,
     )
 
 

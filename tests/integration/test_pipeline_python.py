@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest
 
+from docgen.document import load_project
 from docgen.docx.package import DocumentPackage
 from docgen.features.adeu.manifest import load_manifest
 from docgen.pipeline import CANONICAL_ORDER, BuildOptions, Pipeline, StageName
@@ -69,6 +70,7 @@ def test_build_contoh_assignment_lewat_pipeline_python(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     assert EXAMPLE.is_file()
+    report_name = load_project(EXAMPLE).document.metadata.report_name
     commands = _record_subprocess(monkeypatch)
     loads, saves = _record_package_io(monkeypatch)
 
@@ -76,7 +78,7 @@ def test_build_contoh_assignment_lewat_pipeline_python(
 
     assert result.docx is not None
     output = result.docx
-    assert output == EXAMPLE.parent / "out" / "Tugas.docx"
+    assert output == EXAMPLE.parent / "out" / f"{report_name}.docx"
     assert output.is_file()
     assert zipfile.is_zipfile(output)
 
@@ -100,15 +102,15 @@ def test_build_contoh_assignment_lewat_pipeline_python(
 
     # Satu load target (output Pandoc) dan satu save target. style_reference
     # boleh load/save reference.docx karena objeknya berbeda.
-    target_saves = [path for path in saves if path.name == "Tugas.docx"]
+    target_saves = [path for path in saves if path.name == f"{report_name}.docx"]
     assert len(target_saves) == 1
-    assert not any(path.name == "Tugas.docx" for path in loads)
+    assert not any(path.name == f"{report_name}.docx" for path in loads)
 
     assert result.manifest is not None
     manifest_path = EXAMPLE.parent / ".laporan" / "manifest.json"
     assert result.manifest == manifest_path
     manifest = load_manifest(manifest_path)
-    assert manifest.docx == "Tugas.docx"
+    assert manifest.docx == f"{report_name}.docx"
     assert len(manifest) > 0
     assert manifest[0].id == "p0001"
 

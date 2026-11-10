@@ -91,9 +91,12 @@ Aturan target:
 
 ## Output
 
-Nama default adalah `Tugas.docx` dan `Tugas.pdf`; `report_name` di front matter
-mengubahnya. Output ditulis di samping `document.md`, kecuali dokumen di
-`examples/<name>/` yang ditulis ke `examples/<name>/out/`.
+`report_name` wajib di front matter dan tidak memiliki nilai default. Nilai
+kosong atau hanya whitespace menghasilkan `CFG-REQUIRED`. DOCX dan PDF memakai
+stem yang sama, misalnya `report_name: "Tugas"` menghasilkan `Tugas.docx` dan
+`Tugas.pdf`. Tidak ada flag CLI `--report-name`. Output ditulis di samping
+`document.md`, kecuali dokumen di `examples/<name>/` yang ditulis ke
+`examples/<name>/out/`.
 
 | Artefak | Lokasi | Kapan |
 | --- | --- | --- |

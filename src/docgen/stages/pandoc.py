@@ -563,7 +563,12 @@ class PandocStage(BaseStage):
             document = getattr(ctx, "document", None)
             format_spec = getattr(ctx, "format", None)
             metadata = getattr(document, "metadata", None)
-            report_name = getattr(metadata, "report_name", None) or "Tugas"
+            if metadata is None:
+                raise PandocError(
+                    "metadata dokumen tidak tersedia; stage pandoc membutuhkan report_name.",
+                    code="PANDOC-METADATA",
+                )
+            report_name = metadata.report_name
             output = Path(workspace.path(f"{report_name}.docx"))
             temporary = _temporary_output(output)
             bibliography = resolve_bibliography(document, format_spec)

@@ -43,9 +43,9 @@ report_name: "Tugas"
 Naskah dimulai di sini.
 ```
 
-Kunci `structure` dan `format` wajib. `bibliography` wajib ada karena ketiga
-struktur memiliki daftar pustaka. Nilai default-nya `references.bib`, tetapi
-berkasnya tetap harus tersedia.
+Kunci `title`, `author`, `report_name`, `structure`, dan `format` wajib.
+`bibliography` wajib ada karena ketiga struktur memiliki daftar pustaka. Nilai
+default-nya `references.bib`, tetapi berkasnya tetap harus tersedia.
 
 ## Body dan bab
 
@@ -100,8 +100,9 @@ laporan/
 `-- .laporan-build/      # hanya dengan --keep
 ```
 
-Nama berkas mengikuti `report_name`. Output ditulis di samping `document.md`;
-tidak ada direktori `build/` atau `review/`.
+Nama berkas mengikuti `report_name` yang wajib diisi; DOCX dan PDF memakai
+stem yang sama. Tidak ada nama default. Output ditulis di samping
+`document.md`; tidak ada direktori `build/` atau `review/`.
 
 ## Batasan
 

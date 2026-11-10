@@ -10,6 +10,7 @@ from docx.opc.constants import RELATIONSHIP_TYPE as RT
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 
+from docgen import paths
 from docgen.docx import DocumentPackage
 from docgen.docx.terms import (
     GlossaryError,
@@ -44,12 +45,8 @@ def write_glossary(
 ) -> Path:
     path = tmp_path / filename
     lines = ["# glosarium tes", header]
-    legacy = header.startswith("term\titalic\t")
     for row in rows:
-        values = list(row)
-        if legacy and len(values) == 2:
-            values.extend(["no", "confirmed"])
-        lines.append("\t".join(values))
+        lines.append("\t".join(row))
     path.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
     return path
 
@@ -162,16 +159,33 @@ def test_glossary_hanya_memuat_field_hidup(tmp_path: Path) -> None:
     assert entry.italic is True
 
 
-def test_glossary_format_lama_tetap_dibaca(tmp_path: Path) -> None:
-    path = write_glossary(
-        tmp_path,
-        [("data", "no")],
-        header="term\titalic\tgloss_first\tstatus",
+def test_glossary_header_lama_ditolak(tmp_path: Path) -> None:
+    path = tmp_path / "istilah.tsv"
+    path.write_text(
+        "term\titalic\tgloss_first\tstatus\ndata\tno\tno\tconfirmed\n",
+        encoding="utf-8",
+        newline="\n",
     )
+
+    with pytest.raises(GlossaryError) as error:
+        load_glossary(path)
+
+    assert error.value.code == "GLOSSARY-HEADER"
+
+
+def test_package_glossary_memuat_semua_entri() -> None:
+    path = paths.glossary_file()
+    lines = [
+        line
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
 
     glossary = load_glossary(path)
 
-    assert glossary.entries["data"].italic is False
+    assert lines[0] == "term\titalic"
+    assert len(glossary) == len(lines) - 1
+    assert "data" in glossary.entries
 
 
 def test_glossary_duplikat_dan_nilai_salah(tmp_path: Path) -> None:

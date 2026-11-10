@@ -37,7 +37,9 @@ Dokumentasi dipisahkan untuk penulis dan pengembang. Mulai dari
 | [dev/contracts/config.md](dev/contracts/config.md) | Kontrak `format.yml`, `structure.yml`, dan front matter. |
 | [dev/contracts/docx-api.md](dev/contracts/docx-api.md) | Kontrak API `src/docgen/docx/`. |
 | [dev/contracts/stage-api.md](dev/contracts/stage-api.md) | Kontrak stage, urutan, error, dan CLI. |
-| [dev/restructure-plan.md](dev/restructure-plan.md) | Rencana restrukturisasi dan keputusan kerja. |
+| [dev/refactor-plan.md](dev/refactor-plan.md) | Rencana refactor aktif dan keputusan kerja. |
+| [dev/archive/restructure-plan.md](dev/archive/restructure-plan.md) | Arsip rencana restrukturisasi (superseded). |
+| [dev/archive/duplication-map.md](dev/archive/duplication-map.md) | Arsip peta duplikasi DOCX (superseded). |
 
 ## Architecture Decision Record
 

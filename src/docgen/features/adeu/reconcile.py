@@ -57,6 +57,7 @@ from ...markdown.blocks import (
     normalize_path,
     parse_markdown_blocks,
 )
+from ...metadata import normalize_metadata
 from .manifest import (
     ManifestParagraph,
     default_manifest_path,
@@ -66,7 +67,6 @@ from .manifest import (
 W_SOFT_HYPHEN = W + "softHyphen"
 BOOKMARK_RE = re.compile(r"^p\d{4,}$")
 SIMILARITY_THRESHOLD = 0.35
-_REPORT_NAME_FORBIDDEN = re.compile(r'[\\/:*?"<>|\x00-\x1f]')
 
 
 @dataclass(frozen=True)
@@ -630,16 +630,6 @@ def write_report(path: str | Path, report: str) -> Path:
     return destination
 
 
-def _report_name(front_matter) -> str:
-    value = front_matter.get("report_name") if front_matter is not None else None
-    if not isinstance(value, str):
-        return "Tugas"
-    text = value.strip()
-    if not text or text in {".", ".."} or _REPORT_NAME_FORBIDDEN.search(text):
-        return "Tugas"
-    return text
-
-
 def _default_docx_path(document_file: Path, report_name: str) -> Path:
     """DOCX hasil build: ``out/<report_name>.docx`` lalu di samping dokumen."""
 
@@ -660,7 +650,7 @@ def run(
 
     raw = parse_document(document_path)
     document_file = raw.path
-    report_name = _report_name(raw.front_matter)
+    report_name = normalize_metadata(raw.front_matter, source=raw.path).report_name
     docx = (
         Path(docx_path) if docx_path is not None else _default_docx_path(document_file, report_name)
     )

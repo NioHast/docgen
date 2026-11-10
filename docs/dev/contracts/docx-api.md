@@ -3,7 +3,7 @@
 **Status:** beku untuk Fase 0.
 **Ruang lingkup:** `src/docgen/docx/` dan aturan pemakaiannya oleh stage.
 **Pemilik kontrak:** WS0. **Pemilik implementasi:** WS3 (fondasi), WS4, WS5, WS6, WS7, WS10 (helper domain).
-**Rujukan:** `docs/dev/restructure-plan.md` v0.13, bagian P0.2, 2.2, WS3, dan Batas ownership.
+**Rujukan:** `docs/dev/archive/restructure-plan.md` v0.13, bagian P0.2, 2.2, WS3, dan Batas ownership.
 
 Kontrak ini menetapkan satu pintu untuk membaca, mengubah, dan menulis DOCX.
 Stage tidak boleh memakai `zipfile`, `python-docx`, atau traversal `lxml`
@@ -707,8 +707,6 @@ field.
 class GlossaryEntry:
     term: str
     italic: bool
-    gloss_first: bool
-    status: Literal["confirmed", "review"]
 
 @dataclass(frozen=True)
 class Glossary:

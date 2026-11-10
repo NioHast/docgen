@@ -130,7 +130,8 @@ def test_legacy_format_key_rejected(tmp_path: Path) -> None:
 
     with pytest.raises(ConfigError) as error:
         load_format("undip-msi", root=data_root)
-    assert error.value.code == "CFG-LEGACY"
+    assert error.value.code == "CFG-UNKNOWN-KEY"
+    assert error.value.key == "format.presets"
 
 
 def test_missing_margin_rejected(tmp_path: Path) -> None:
@@ -249,7 +250,7 @@ def test_structure_toc_consistency(tmp_path: Path) -> None:
     assert error.value.code == "CFG-CONDITIONAL"
 
 
-def test_structure_unknown_and_legacy_keys(tmp_path: Path) -> None:
+def test_structure_unknown_keys(tmp_path: Path) -> None:
     data_root = tmp_path / "data"
     _write_structure(
         data_root,
@@ -267,7 +268,8 @@ def test_structure_unknown_and_legacy_keys(tmp_path: Path) -> None:
     )
     with pytest.raises(ConfigError) as error:
         load_structure("contoh", root=data_root)
-    assert error.value.code == "CFG-LEGACY"
+    assert error.value.code == "CFG-UNKNOWN-KEY"
+    assert error.value.key == "structure.chapters"
 
 
 def test_structure_cover_title_split_and_path_escape(tmp_path: Path) -> None:

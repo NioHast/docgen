@@ -4,6 +4,7 @@ import hashlib
 import json
 from pathlib import Path
 
+import pytest
 from docx import Document
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
@@ -283,6 +284,23 @@ def test_default_docx_falls_back_to_document_directory(tmp_path: Path) -> None:
     report_path = tmp_path / ".laporan" / "reconcile.md"
     assert report_path.is_file()
     assert "- Diperiksa: 7 paragraf" in read_report(report_path)
+
+
+def test_report_name_wajib_tanpa_fallback(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    document = make_document(tmp_path)
+    document.write_text(
+        document.read_text(encoding="utf-8").replace("report_name: Laporan\n", ""),
+        encoding="utf-8",
+        newline="\n",
+    )
+
+    assert run_cli(document) == 1
+    error = capsys.readouterr().err
+    assert "CFG-REQUIRED" in error
+    assert "report_name" in error
 
 
 def test_explicit_docx_overrides_out_default(tmp_path: Path) -> None:

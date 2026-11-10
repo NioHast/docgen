@@ -172,8 +172,9 @@ file is being used by another process
 
 Tindakan:
 
-1. Tutup Word, LibreOffice, atau PDF viewer yang membuka `Tugas.docx` atau
-   `Tugas.pdf`.
+1. Tutup Word, LibreOffice, atau PDF viewer yang membuka berkas output DOCX
+   atau PDF (nama mengikuti `report_name`, misalnya `Tugas.docx` atau
+   `Tugas.pdf`).
 2. Pastikan direktori dokumen dapat ditulis.
 3. Build ulang.
 

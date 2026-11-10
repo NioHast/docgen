@@ -15,7 +15,6 @@ from .errors import MetadataError
 _LANG_RE = re.compile(r"^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$")
 _REPORT_NAME_FORBIDDEN = re.compile(r'[\\/:*?"<>|\x00-\x1f]')
 
-DEFAULT_REPORT_NAME = "Tugas"
 DEFAULT_LANG = "id-ID"
 
 
@@ -33,6 +32,7 @@ class Metadata:
 
     title: str
     authors: tuple[Author, ...]
+    report_name: str
     subtitle: str | None = None
     lecturer: str | None = None
     lecturer_label: str = "Dosen Pengampu:"
@@ -47,7 +47,6 @@ class Metadata:
     preface: str | None = None
     keywords: tuple[str, ...] = ()
     keywords_en: tuple[str, ...] = ()
-    report_name: str = DEFAULT_REPORT_NAME
 
     @property
     def author_names(self) -> tuple[str, ...]:
@@ -215,17 +214,6 @@ def _normalize_author_entry(entry: Any, *, index: int, source: object) -> Author
     return Author(name=author_name, nim=nim)
 
 
-def normalize_author(
-    value: Any,
-    *,
-    nim: Any = None,
-    source: object = "metadata",
-) -> tuple[Author, ...]:
-    """Alias publik untuk normalisasi satu/daftar author."""
-
-    return normalize_authors(value, top_level_nim=nim, source=source)
-
-
 def normalize_authors(
     value: Any,
     *,
@@ -288,7 +276,8 @@ def normalize_authors(
 
 
 def _report_name(value: Any, *, source: object) -> str:
-    text = _text(value, key="report_name", source=source) or DEFAULT_REPORT_NAME
+    text = _text(value, key="report_name", source=source, required=True)
+    assert text is not None
     if text in {".", ".."} or _REPORT_NAME_FORBIDDEN.search(text):
         raise _error(
             f"report_name '{text}' tidak aman sebagai nama berkas",

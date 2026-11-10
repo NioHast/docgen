@@ -89,7 +89,7 @@ Untuk dokumen pengguna, output ditulis di direktori yang sama dengan
 
 | Artefak | Lokasi | Keterangan |
 | --- | --- | --- |
-| `<report_name>.docx` | samping `document.md` | Nama default `Tugas`. |
+| `<report_name>.docx` | samping `document.md` | `report_name` wajib di front matter; tidak ada default; tidak ada flag CLI. |
 | `<report_name>.pdf` | samping `document.md` | Hanya Windows dengan Word. |
 | `.laporan/manifest.json` | samping `document.md` | Bookmark `pNNNN` dan manifest Adeu. |
 | `.laporan/istilah-baru.txt` | samping `document.md` | Hanya dengan `--terms`. |

@@ -85,7 +85,6 @@ __all__ = [
     "insert_ordered",
     "is_bold_run",
     "is_chapter_heading",
-    "is_deleted",
     "is_exempt",
     "is_exempt_style",
     "is_field_run",
@@ -103,14 +102,12 @@ __all__ = [
     "paragraph_style_id",
     "paragraph_text",
     "preserve_tabs",
-    "read_document",
     "read_part",
     "roman_to_int",
     "set_document_root",
     "strip_bold_from_rpr",
     "strip_bold_from_run",
     "strip_paragraph_bold",
-    "write_document",
     "write_part",
 ]
 
@@ -190,24 +187,6 @@ class LayoutReport:
     unchanged: int = 0
     bold_paragraphs: int = 0
     bold_runs_removed: int = 0
-
-    @property
-    def paragraphs(self) -> int:
-        """Alias legacy untuk ``checked``."""
-
-        return self.checked
-
-    @property
-    def skipped_style(self) -> int:
-        """Alias legacy untuk ``skipped`` (pengecualian gaya)."""
-
-        return self.skipped
-
-    @property
-    def skipped_field(self) -> int:
-        """Alias legacy untuk ``fields_preserved``."""
-
-        return self.fields_preserved
 
 
 # ---------------------------------------------------------------------------
@@ -378,12 +357,6 @@ def has_deleted_ancestor(element: etree._Element) -> bool:
             return True
         parent = parent.getparent()
     return False
-
-
-def is_deleted(element: etree._Element) -> bool:
-    """Alias semantik untuk :func:`has_deleted_ancestor`."""
-
-    return has_deleted_ancestor(element)
 
 
 def iter_field_runs(paragraph: etree._Element) -> Iterator[etree._Element]:
@@ -724,11 +697,6 @@ def write_part(package: object, name: str, data: bytes) -> None:
             f"part {name} tidak dapat ditulis: {exc}",
             path=name,
         ) from exc
-
-
-# Alias nama yang lazim dipakai di stage.
-read_document = document_root
-write_document = set_document_root
 
 
 # ---------------------------------------------------------------------------

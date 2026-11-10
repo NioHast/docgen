@@ -86,7 +86,6 @@ def test_validate_stage_order_menolak_requires_bukan_prefix() -> None:
         name=specs[5].name,
         order=specs[5].order,
         module=specs[5].module,
-        owner=specs[5].owner,
         mutates=specs[5].mutates,
         idempotent=specs[5].idempotent,
         requires=(StageName.PANDOC,),

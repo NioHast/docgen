@@ -248,7 +248,4 @@ __all__ = [
     "CodeStage",
     "apply_code",
     "code_spec_from_format",
-    "format_code",
 ]
-
-format_code = apply_code

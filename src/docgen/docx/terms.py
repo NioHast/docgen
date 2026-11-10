@@ -66,7 +66,6 @@ MARKER_SUFFIX = "?}}"
 MARKER_RE = re.compile(r"\{\{\?((?:(?!\{\{|\}\}|\r|\n).)+?)\?\}\}")
 
 _GLOSSARY_HEADER = ("term", "italic")
-_LEGACY_GLOSSARY_HEADER = ("term", "italic", "gloss_first", "status")
 _TRUE = "yes"
 _FALSE = "no"
 
@@ -135,11 +134,10 @@ class TermMatch:
 
 
 def load_glossary(path: str | Path) -> Glossary:
-    """Baca TSV ``term<TAB>italic``.
+    """Baca TSV dengan header wajib ``term<TAB>italic``.
 
-    Header lama ``term<TAB>italic<TAB>gloss_first<TAB>status`` tetap diterima
-    agar glosarium paket yang sudah ada tidak perlu dimigrasikan; dua kolom
-    terakhir diabaikan karena bukan bagian model target.
+    Setiap baris harus memiliki tepat dua kolom. Header lama dengan kolom
+    ``gloss_first``/``status`` ditolak agar format glosarium seragam.
     """
 
     source = Path(path)
@@ -176,14 +174,9 @@ def load_glossary(path: str | Path) -> Glossary:
 
         columns = [column.strip() for column in line.split("\t")]
         if not header_seen:
-            if tuple(columns) == _LEGACY_GLOSSARY_HEADER:
-                expected_columns = 4
-            elif tuple(columns) != _GLOSSARY_HEADER:
+            if tuple(columns) != _GLOSSARY_HEADER:
                 raise GlossaryError(
-                    f"Baris {line_number}: header harus "
-                    "'term<TAB>italic' (format lama "
-                    "'term<TAB>italic<TAB>gloss_first<TAB>status' juga "
-                    "diterima).",
+                    f"Baris {line_number}: header harus 'term<TAB>italic'.",
                     code="GLOSSARY-HEADER",
                     path=source,
                 )
@@ -941,18 +934,6 @@ class TermsReport:
     review_path: Path | None = None
     changed: bool = False
 
-    @property
-    def term_count(self) -> int:
-        """Alias lama ``ApplyResult.term_count``."""
-
-        return self.applied
-
-    @property
-    def review_count(self) -> int:
-        """Alias lama ``ApplyResult.review_count``."""
-
-        return len(self.reviews)
-
 
 def apply_terms(
     package: object,
@@ -1057,18 +1038,6 @@ def apply_terms(
 class TermsVerifyReport:
     violations: tuple[str, ...]
     warnings: tuple[str, ...] = ()
-
-    @property
-    def failures(self) -> tuple[str, ...]:
-        """Alias lama ``VerifyResult.failures``."""
-
-        return self.violations
-
-    @property
-    def direct_formatting(self) -> tuple[str, ...]:
-        """Alias lama ``VerifyResult.direct_formatting``."""
-
-        return self.warnings
 
 
 def _unique_runs(chars: Sequence[TextChar | None]) -> list[etree._Element]:
@@ -1243,7 +1212,7 @@ def list_review_items(package: object) -> tuple[ReviewItem, ...]:
 
 
 # ---------------------------------------------------------------------------
-# Kompatibilitas API path lama (tools/terms.py)
+# Loader package
 # ---------------------------------------------------------------------------
 
 
@@ -1253,73 +1222,6 @@ def open_docx(path: str | Path) -> object:
     from .package import DocumentPackage
 
     return DocumentPackage.load(Path(path))
-
-
-def apply_to_docx(
-    path: str | Path,
-    glossary: Glossary,
-    review_path: str | Path | None = None,
-) -> TermsReport:
-    """Apply ke DOCX di path lalu simpan kembali (API path kompatibilitas)."""
-
-    from .package import DocumentPackage
-
-    target = Path(path)
-    package = DocumentPackage.load(target)
-    report = apply_terms(
-        package,
-        glossary,
-        review_path=Path(review_path) if review_path is not None else None,
-    )
-    package.save(target)
-    return report
-
-
-def verify_docx(
-    path_or_package: str | Path | object,
-    glossary: Glossary,
-) -> TermsVerifyReport:
-    """Verify DOCX path atau package (API path kompatibilitas)."""
-
-    if isinstance(path_or_package, (str, Path)):
-        package = open_docx(path_or_package)
-    else:
-        package = path_or_package
-    return verify_terms(package, glossary)
-
-
-def check_markdown(
-    path: str | Path,
-    glossary_path: str | Path | None = None,
-    review_path: str | Path | None = None,
-) -> tuple[list[str], Path]:
-    """Validasi penanda Markdown dan tulis review file."""
-
-    markdown = Path(path)
-    try:
-        text = markdown.read_text(encoding="utf-8-sig")
-    except FileNotFoundError as exc:
-        raise TermsError(
-            f"File Markdown tidak ditemukan: {markdown}",
-            code="TERMS-MARKDOWN-MISSING",
-            path=markdown,
-        ) from exc
-    except UnicodeDecodeError as exc:
-        raise TermsError(
-            f"File Markdown bukan UTF-8 yang valid: {markdown}",
-            code="TERMS-MARKDOWN-ENCODING",
-            path=markdown,
-        ) from exc
-    if glossary_path is not None:
-        load_glossary(glossary_path)
-    terms = list(collect_markdown_terms(text))
-    output = (
-        Path(review_path)
-        if review_path is not None
-        else (markdown.parent / "review" / "istilah-baru.txt")
-    )
-    write_review_file(output, terms)
-    return terms, output
 
 
 __all__ = [
@@ -1347,9 +1249,7 @@ __all__ = [
     "TermsVerifyReport",
     "TextChar",
     "apply_terms",
-    "apply_to_docx",
     "build_paragraph_model",
-    "check_markdown",
     "collect_markdown_terms",
     "direct_en_us",
     "direct_italic",
@@ -1367,7 +1267,6 @@ __all__ = [
     "resolve_style",
     "transform_runs",
     "unique_terms",
-    "verify_docx",
     "verify_terms",
     "write_review_file",
 ]

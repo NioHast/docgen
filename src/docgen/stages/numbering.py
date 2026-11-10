@@ -432,10 +432,6 @@ def format_numbering(
     return report
 
 
-# Alias API.
-normalize_numbering = format_numbering
-
-
 class NumberingStage(BaseStage):
     """Stage normalisasi indentasi/tab/bold daftar berurut."""
 
@@ -499,5 +495,4 @@ __all__ = [
     "NumberingSpec",
     "NumberingStage",
     "format_numbering",
-    "normalize_numbering",
 ]

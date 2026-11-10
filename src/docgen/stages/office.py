@@ -631,6 +631,16 @@ def _word_adapter(ctx: object, *, action: str) -> WordAdapterProtocol:
     return WordAdapter()
 
 
+def _document_report_name(ctx: object) -> str:
+    metadata = getattr(getattr(ctx, "document", None), "metadata", None)
+    if metadata is None:
+        raise WordError(
+            "metadata dokumen tidak tersedia; stage office/pdf membutuhkan report_name.",
+            code="WORD-INPUT",
+        )
+    return str(metadata.report_name)
+
+
 def _docx_path(ctx: object) -> Path:
     artifacts = getattr(ctx, "artifacts", None)
     if artifacts is not None and "docx" in artifacts.keys():  # noqa: SIM118 - Artifacts bukan Mapping
@@ -643,8 +653,7 @@ def _docx_path(ctx: object) -> Path:
             path=path,
         )
 
-    metadata = getattr(getattr(ctx, "document", None), "metadata", None)
-    report_name = getattr(metadata, "report_name", None) or "Tugas"
+    report_name = _document_report_name(ctx)
     candidates = [
         getattr(ctx, "output_dir", Path.cwd()) / f"{report_name}.docx",
     ]
@@ -662,8 +671,7 @@ def _docx_path(ctx: object) -> Path:
 
 
 def _pdf_path(ctx: object) -> Path:
-    metadata = getattr(getattr(ctx, "document", None), "metadata", None)
-    report_name = getattr(metadata, "report_name", None) or "Tugas"
+    report_name = _document_report_name(ctx)
     output_dir = getattr(ctx, "output_dir", Path.cwd())
     return output_dir / f"{report_name}.pdf"
 

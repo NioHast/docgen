@@ -356,11 +356,6 @@ class CaptionsStage(BaseStage):
 
 
 __all__ = [
-    "CaptionStage",
     "CaptionsStage",
     "apply_captions",
-    "format_figures",
 ]
-
-CaptionStage = CaptionsStage
-format_figures = apply_captions

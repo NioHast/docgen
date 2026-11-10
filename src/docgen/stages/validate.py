@@ -442,6 +442,3 @@ __all__ = [
     "main",
     "validate_markdown",
 ]
-
-check_captions = check_markdown
-validate_captions = validate_markdown

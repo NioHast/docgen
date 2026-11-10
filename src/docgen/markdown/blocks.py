@@ -102,10 +102,6 @@ def normalize_inline(text: str) -> str:
     return text.strip()
 
 
-# Nama lama dipertahankan agar pemanggil lama tidak perlu menulis ulang.
-plain_inline = normalize_inline
-
-
 def normalize_heading(text: str) -> str:
     """Normalisasi heading untuk pencocokan lintas nomor bab/subbab."""
 
@@ -486,6 +482,5 @@ __all__ = [
     "normalize_inline",
     "normalize_path",
     "parse_markdown_blocks",
-    "plain_inline",
     "split_table_cells",
 ]

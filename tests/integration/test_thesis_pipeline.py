@@ -14,6 +14,7 @@ from pathlib import Path
 import pytest
 from lxml import etree
 
+from docgen.document import load_project
 from docgen.docx.package import DocumentPackage
 from docgen.features.adeu.manifest import load_manifest
 from docgen.pipeline import (
@@ -156,6 +157,7 @@ def test_build_thesis_example_lewat_pipeline_python(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     document = _copy_example(tmp_path)
+    report_name = load_project(document).document.metadata.report_name
     commands = _record_subprocess(monkeypatch)
     loads, saves = _record_package_io(monkeypatch)
 
@@ -164,7 +166,7 @@ def test_build_thesis_example_lewat_pipeline_python(
     assert result.docx is not None and result.docx.is_file()
     assert zipfile.is_zipfile(result.docx)
     output = result.docx
-    assert output == document.parent / "Tugas.docx"
+    assert output == document.parent / f"{report_name}.docx"
     if TARGET == "both":
         assert result.pdf is not None and result.pdf.is_file()
         assert result.pdf.read_bytes().startswith(b"%PDF-")
@@ -172,8 +174,8 @@ def test_build_thesis_example_lewat_pipeline_python(
         assert result.pdf is None
 
     # Satu load/save package target. Verifikasi bookmark membaca ZIP mentah.
-    assert len([path for path in saves if path.name == "Tugas.docx"]) == 1
-    assert not any(path.name == "Tugas.docx" for path in loads)
+    assert len([path for path in saves if path.name == f"{report_name}.docx"]) == 1
+    assert not any(path.name == f"{report_name}.docx" for path in loads)
 
     # Trust boundary: tidak ada docx.lua/shell lama yang dieksekusi.
     for command in commands:
@@ -245,7 +247,7 @@ def test_build_thesis_example_lewat_pipeline_python(
     manifest = load_manifest(result.manifest)
     assert len(manifest) > 0
     assert any(paragraph.source_file for paragraph in manifest)
-    assert manifest.docx == "Tugas.docx"
+    assert manifest.docx == f"{report_name}.docx"
 
     # Bookmark pNNNN dipertahankan Word dan sama dengan manifest.
     with zipfile.ZipFile(output) as archive:
