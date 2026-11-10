@@ -435,10 +435,11 @@ nomor halaman tidak valid.
 ## 9. Heading
 
 API heading DOCX (iterasi, level, penomoran `BAB I`/`1.1.`/`1.1.1.`) berada di
-`docgen/docx/sections.py` milik WS6. Modul terpisah `docgen/docx/headings.py`
-menangani penomoran heading Markdown sebelum Pandoc (`number_markdown`,
-`balance_title`, `HeadingNumberer`) dan tidak menyentuh package DOCX. Kedua
-modul ada di target tree v0.13; signature API DOCX di bawah tidak berubah.
+`docgen/docx/sections.py` milik WS6. Modul terpisah
+`docgen/markdown/headings.py` menangani penomoran heading Markdown sebelum
+Pandoc (`number_markdown`, `balance_title`, `HeadingNumberer`) dengan error
+`MarkdownHeadingError`, dan tidak menyentuh package DOCX. Signature API DOCX di
+bawah tidak berubah.
 
 ### 9.1 Signature
 
@@ -691,6 +692,11 @@ memutasi `word/document.xml` dan mengembalikan field baru.
 - `strip_update_fields` hanya menghapus `w:updateFields`; tidak mengubah
   field.
 
+Field selalu ditulis **tanpa** atribut `w:dirty`. Pembaruan dilakukan eksplisit
+oleh stage `office` melalui `Fields.Update()` dan
+`TablesOfContents.Update()`; `w:dirty` pada beberapa field TOC membuat Word 16
+berhenti merespons saat memperbarui field.
+
 ### 13.3 Error
 
 `FieldError` untuk field tidak lengkap, instruksi tidak valid, atau konflik
@@ -904,7 +910,7 @@ Semua error menyebut part, paragraf (jika ada), dan aksi yang gagal.
   `patch_style`, dan `verify_style_contract`.
 - `tests/unit/test_sections.py`: section, margin, page numbering, tidak ada
   halaman kosong, dan `apply_heading_numbering`.
-- `tests/unit/test_docx_headings.py`: penomoran heading Markdown `BAB I`,
+- `tests/unit/test_markdown_headings.py`: penomoran heading Markdown `BAB I`,
   `1.1.`, `1.1.1.`, unnumbered, inline formatting, dan `balance_title`.
 - `tests/unit/test_stages_captions.py`: posisi caption, prefix, dan
   idempotensi.

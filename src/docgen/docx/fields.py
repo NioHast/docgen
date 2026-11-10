@@ -265,7 +265,6 @@ def _append_run(
     text: str | None = None,
     instr: str | None = None,
     fld_char: str | None = None,
-    dirty: bool = False,
     rpr: etree._Element | None = None,
 ) -> etree._Element:
     run = etree.SubElement(paragraph, W_R)
@@ -274,8 +273,6 @@ def _append_run(
     if fld_char is not None:
         element = etree.SubElement(run, W_FLDCHAR)
         element.set(W + "fldCharType", fld_char)
-        if dirty:
-            element.set(W + "dirty", "true")
     if instr is not None:
         element = etree.SubElement(run, W_INSTRTEXT)
         element.set(qn("xml:space"), "preserve")
@@ -291,10 +288,9 @@ def _field_runs(
     instruction: str,
     *,
     result: str = "",
-    dirty: bool = True,
     end_field: bool = True,
 ) -> tuple[etree._Element, etree._Element, etree._Element | None]:
-    begin = _append_run(paragraph, fld_char="begin", dirty=dirty)
+    begin = _append_run(paragraph, fld_char="begin")
     _append_run(paragraph, instr=instruction)
     separate = _append_run(paragraph, fld_char="separate")
     if result:

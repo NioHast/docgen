@@ -6,10 +6,13 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from docgen.docx.fields import (
+    Field,
     FieldKind,
     ensure_no_blank_page_after_toc,
     field_instruction,
     field_result_text,
+    insert_pageref,
+    insert_seq,
     insert_toc,
     iter_fields,
     iter_fields_in_paragraph,
@@ -192,6 +195,28 @@ def _has_page_break(paragraph) -> bool:
     return ppr is not None and ppr.find(qn("w:pageBreakBefore")) is not None
 
 
+def _assert_no_dirty(root) -> None:
+    dirty = qn("w:dirty")
+    offenders = [element.tag for element in root.iter() if dirty in element.attrib]
+    assert offenders == []
+
+
+def _assert_complex_field_order(field: Field) -> None:
+    root = field.begin.getroottree().getroot()
+    assert root is not None
+    sequence: list[str] = []
+    for element in root.iter():
+        if element is field.begin:
+            sequence.append("begin")
+        elif element is field.separate:
+            sequence.append("separate")
+        elif element is field.end:
+            sequence.append("end")
+        elif element.tag == qn("w:instrText") and element.text == field.instruction:
+            sequence.append("instrText")
+    assert sequence == ["begin", "instrText", "separate", "end"]
+
+
 # ---------------------------------------------------------------------------
 # Golden baseline
 # ---------------------------------------------------------------------------
@@ -294,6 +319,47 @@ def test_insert_toc_caption_uses_c_field(tmp_path: Path) -> None:
     package = DocumentPackage.load(path)
     field = insert_toc(package, title="DAFTAR GAMBAR", caption="Gambar")
     assert 'TOC \\c "Gambar"' in field_instruction(field)
+
+
+def test_insert_toc_field_is_not_dirty(tmp_path: Path) -> None:
+    path = _write_package(
+        tmp_path,
+        _paragraph("Sampul", style="CoverTitle") + _paragraph("BAB I", style="Heading1"),
+    )
+    package = DocumentPackage.load(path)
+    field = insert_toc(package, title="DAFTAR ISI")
+
+    _assert_no_dirty(package.xml(DOCUMENT_PART))
+    _assert_complex_field_order(field)
+
+
+def test_insert_toc_caption_field_is_not_dirty(tmp_path: Path) -> None:
+    path = _write_package(tmp_path, _paragraph("BAB I", style="Heading1"))
+    package = DocumentPackage.load(path)
+    field = insert_toc(package, title="DAFTAR TABEL", caption="Tabel")
+
+    _assert_no_dirty(package.xml(DOCUMENT_PART))
+    _assert_complex_field_order(field)
+
+
+def test_insert_seq_field_is_not_dirty(tmp_path: Path) -> None:
+    path = _write_package(tmp_path, _paragraph("Tabel 1 Judul", style="TableCaption"))
+    package = DocumentPackage.load(path)
+    paragraph = next(package.xml(DOCUMENT_PART).iter(qn("w:p")))
+    field = insert_seq(package, paragraph=paragraph, label="Tabel")
+
+    _assert_no_dirty(package.xml(DOCUMENT_PART))
+    _assert_complex_field_order(field)
+
+
+def test_insert_pageref_field_is_not_dirty(tmp_path: Path) -> None:
+    path = _write_package(tmp_path, _paragraph("Lihat halaman"))
+    package = DocumentPackage.load(path)
+    paragraph = next(package.xml(DOCUMENT_PART).iter(qn("w:p")))
+    field = insert_pageref(package, paragraph=paragraph, bookmark="_Ref1")
+
+    _assert_no_dirty(package.xml(DOCUMENT_PART))
+    _assert_complex_field_order(field)
 
 
 def test_ensure_toc_styles_is_idempotent(tmp_path: Path) -> None:
