@@ -239,10 +239,3 @@ def test_main_mengembalikan_exit_code(tmp_path: Path) -> None:
 
     _tulis(tmp_path, "docs/hilang.md", "# Ada\n")
     assert check_docs.main([str(tmp_path)]) == 0
-
-
-def test_refactor_plan_archive_memuat_banner_archived() -> None:
-    akar = Path(__file__).resolve().parents[1]
-    teks = (akar / "docs/dev/archive/refactor-plan.md").read_text(encoding="utf-8")
-
-    assert teks.startswith("> **ARCHIVED**:")

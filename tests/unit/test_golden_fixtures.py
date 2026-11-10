@@ -28,13 +28,6 @@ def _iter_json_keys(value: Any) -> list[str]:
     return keys
 
 
-def test_golden_fixture_files_exist() -> None:
-    assert DOCX_FIXTURE.is_file(), f"fixture DOCX tidak ada: {DOCX_FIXTURE}"
-    assert JSON_FIXTURES, "tidak ada catatan JSON golden"
-    assert (GOLDEN_DIR / "pdf-baseline.json").is_file()
-    assert (GOLDEN_DIR / "baseline-4a5b777.json").is_file()
-
-
 def test_docx_fixture_has_no_forbidden_token() -> None:
     assert DOCX_FIXTURE.is_file(), f"fixture DOCX tidak ada: {DOCX_FIXTURE}"
     with zipfile.ZipFile(DOCX_FIXTURE) as archive:

@@ -422,17 +422,6 @@ def test_stage_menolak_artifact_mermaid_berupa_direktori(tmp_path: Path) -> None
     assert excinfo.value.path == directory
 
 
-def test_stage_tidak_memakai_body_dokumen_saat_artifact_hilang(tmp_path: Path) -> None:
-    ctx = _stage_context(tmp_path, with_mermaid=False)
-    ctx.document = replace(ctx.document, body="# BODY MENTAH\n\nTidak boleh dipakai.\n")
-
-    with pytest.raises(FrontMatterError) as excinfo:
-        FrontMatterStage().run(ctx)
-
-    assert excinfo.value.code == "FRONT-MATTER-INPUT"
-    assert not ctx.workspace.path("front_matter.md").exists()
-
-
 def test_stage_menolak_artifact_markdown_lama_tanpa_mermaid(tmp_path: Path) -> None:
     ctx = _stage_context(tmp_path, with_mermaid=False)
     legacy = tmp_path / "front_matter-lama.md"

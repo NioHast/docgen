@@ -554,13 +554,16 @@ Sepuluh pola berikut muncul berulang dan menjadi prioritas perbaikan:
 
 Perbaikan dilakukan bertahap agar setiap fase dapat ditinjau sendiri:
 
-1. **Fase 1**: hapus 15 test REMOVE dan gabungkan 39 test MERGE.
-2. **Fase 2**: perkuat 78 test KEEP-WEAK, terutama kode error, hitungan eksak,
-   dan penghapusan tautologi.
-3. **Fase 3**: rapikan 38 test TRIM; pertahankan assertion semantik dan buang
-   detail implementasi.
+1. **Fase 1a**: hapus 15 test REMOVE. **Status: sudah dijalankan** (15 test
+   REMOVE sudah dihapus).
+2. **Fase 1b**: gabungkan 39 test MERGE. **Status: belum dijalankan.**
+3. **Fase 2**: perkuat 78 test KEEP-WEAK, terutama kode error, hitungan eksak,
+   dan penghapusan tautologi. **Status: belum dijalankan.**
+4. **Fase 3**: rapikan 38 test TRIM; pertahankan assertion semantik dan buang
+   detail implementasi. **Status: belum dijalankan.**
 
-Audit ini belum mengubah test apa pun. Daftar di atas adalah backlog, bukan
+Status faktual saat ini: 15 test REMOVE sudah dijalankan; 39 MERGE, 78
+KEEP-WEAK, dan 38 TRIM masih backlog. Daftar di atas adalah backlog, bukan
 alasan untuk langsung menghapus atau melonggarkan test tanpa membaca konteks.
 
 ## Referensi resmi

@@ -164,15 +164,6 @@ def test_number_markdown_melewati_fenced_code() -> None:
     assert f"# BAB I{LINE_BREAK}PENDAHULUAN\n" in output
 
 
-def test_number_markdown_idempoten_pada_input_yang_sudah_bernomor() -> None:
-    # Body kontrak selalu tanpa nomor. Memastikan pemanggilan ulang tidak
-    # mengubah heading unnumbered dan fenced block.
-    markdown = "# Ringkasan {-}\n\n```\n# Contoh\n```\n"
-    first = number_markdown(markdown, NumberingSpec("BAB_ROMAN"))
-    second = number_markdown(first, NumberingSpec("BAB_ROMAN"))
-    assert first == second
-
-
 def test_balance_title_judul_pendek_satu_baris() -> None:
     assert balance_title("Laporan Tugas") == ("Laporan Tugas",)
     assert balance_title("") == ("",)

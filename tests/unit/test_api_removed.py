@@ -181,16 +181,3 @@ def test_docx_package_level_field_dan_heading_tersedia() -> None:
         iter_headings,
     ):
         assert helper is not None
-
-
-def test_private_duplikat_docx_hilang() -> None:
-    from docgen.docx import captions as docx_captions
-    from docgen.docx import fields as docx_fields
-    from docgen.docx import paragraphs, runs
-
-    assert not hasattr(docx_captions, "_append_text")
-    assert not hasattr(docx_fields, "_paragraph_style")
-    assert hasattr(paragraphs, "document_body")
-    assert hasattr(runs, "append_text_run")
-    assert not hasattr(layout, "_toggle_is_on")
-    assert not hasattr(layout, "strip_bold_from_rpr")

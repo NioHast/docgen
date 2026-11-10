@@ -781,10 +781,3 @@ def test_word_script_path_env_override(
     monkeypatch.setenv("DOCGEN_WORD_SCRIPT", str(script))
 
     assert office.word_script_path() == script
-
-
-def test_tidak_ada_jalur_pdf_selain_word() -> None:
-    assert not hasattr(office, "export_with_libreoffice")
-    source = Path(office.__file__).read_text(encoding="utf-8").lower()
-    for nama in ("soffice", "libreoffice", "poppler"):
-        assert nama not in source

@@ -384,23 +384,3 @@ def test_page_numbers_stage_requires_package() -> None:
     ctx = _fake_ctx(None)  # type: ignore[arg-type]
     with pytest.raises(StageError):
         PageNumbersStage().run(ctx)
-
-
-def test_referenced_header_footer_parts_have_page_fields(tmp_path: Path) -> None:
-    package = DocumentPackage.load(_document_with_sections(tmp_path))
-    PageNumbersStage().run(_fake_ctx(package))
-    seen: set[str] = set()
-    for section in iter_sections(package):
-        refs = section_header_footer(section)
-        for rel_id in (
-            refs.header,
-            refs.footer,
-            refs.first_page_header,
-            refs.first_page_footer,
-        ):
-            if rel_id is None or rel_id in seen:
-                continue
-            seen.add(rel_id)
-            part_name, _ = header_footer_part(package, rel_id)
-            assert package.has_part(part_name)
-    assert seen

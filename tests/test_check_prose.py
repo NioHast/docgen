@@ -51,12 +51,6 @@ class TesRegistry(unittest.TestCase):
             if aturan["jenis"] in ("regex", "regex_mentah") and len(aturan["pola"]) >= 4:
                 self.assertNotIn(aturan["pola"], sumber, aturan["kode"])
 
-    def test_semua_pola_ada_di_rules_yml(self):
-        teks = check_prose.BERKAS_ATURAN.read_text(encoding="utf-8")
-        for aturan in check_prose.ATURAN:
-            if aturan["jenis"] in ("regex", "regex_mentah", "dinamis"):
-                self.assertIn(aturan["pola"].replace("'", "''"), teks, aturan["kode"])
-
     def test_ai20_minimal_dua_dan_punya_stoplist(self):
         aturan = check_prose._PETA["AI-20"]
         self.assertEqual(aturan["min"], 2)

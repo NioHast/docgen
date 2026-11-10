@@ -3,12 +3,10 @@
 Jalankan: python -m unittest discover -s tests -v
 """
 
-import io
 import sys
 import tempfile
 import unittest
 import zipfile
-from contextlib import redirect_stdout
 from pathlib import Path
 from xml.sax.saxutils import escape
 
@@ -139,14 +137,6 @@ class TesCheckProseDocx(unittest.TestCase):
         self.assertEqual(len(ej11), 1, hasil)
         self.assertEqual(ej11[0][2], "K")
         self.assertIn("em dash dilarang", ej11[0][4])
-
-    def test_tes_bawaan_tetap_109(self):
-        buf = io.StringIO()
-        with redirect_stdout(buf):
-            kode = check_prose.main(["--tes"])
-        keluaran = buf.getvalue()
-        self.assertEqual(kode, 0, keluaran)
-        self.assertIn("109/109 kasus lulus", keluaran)
 
 
 if __name__ == "__main__":

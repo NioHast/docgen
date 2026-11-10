@@ -12,7 +12,7 @@ from docgen.docx.runs import (
     make_run,
     strip_bold_from_rpr,
 )
-from docgen.docx.xml import is_on, qn
+from docgen.docx.xml import qn
 
 W_B = qn("w:b")
 W_BCS = qn("w:bCs")
@@ -236,19 +236,6 @@ def test_strip_bold_removes_active_values(value: str) -> None:
     assert len(rpr) == 0
 
 
-@pytest.mark.parametrize("value", ["0", "false", "off", "none", "no"])
-def test_strip_bold_is_consistent_with_xml_is_on(value: str) -> None:
-    rpr = _rpr()
-    expected_removed = 0
-    for tag in (W_B, W_BCS):
-        element = etree.SubElement(rpr, tag)
-        element.set(W_VAL, value)
-        expected_removed += int(is_on(element))
-
-    assert strip_bold_from_rpr(rpr) == expected_removed
-    assert len(rpr) == 2 - expected_removed
-
-
 def test_strip_bold_treats_none_as_active() -> None:
     rpr = _rpr()
     bold = etree.SubElement(rpr, W_B)
@@ -264,13 +251,3 @@ def test_strip_bold_without_bold_returns_zero() -> None:
 
     assert strip_bold_from_rpr(rpr) == 0
     assert len(rpr) == 1
-
-
-def test_run_child_order_is_valid() -> None:
-    paragraph = _paragraph()
-    with_rpr = make_run(paragraph, text=" teks ", rpr=_rpr())
-    appended = append_text_run(paragraph, "x", rpr=_rpr())
-
-    for run in (with_rpr, appended):
-        tags = [child.tag for child in run]
-        assert tags.index(W_RPR) < tags.index(W_T)

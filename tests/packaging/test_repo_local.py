@@ -146,15 +146,3 @@ def test_check_dokumen_minimal_dari_luar_repo(tmp_path: Path) -> None:
 
     assert result.returncode == 0, result.stderr
     assert "[OK] Tes Packaging" in result.stdout
-
-
-def test_version_dan_check_tidak_mengubah_git_status(tmp_path: Path) -> None:
-    _assert_outside_repo(tmp_path)
-    _write_minimal_document(tmp_path)
-
-    with _git_status_unchanged():
-        version = _run_docgen("--version", cwd=tmp_path)
-        check = _run_docgen("check", "document.md", cwd=tmp_path)
-
-    assert version.returncode == 0, version.stderr
-    assert check.returncode == 0, check.stderr

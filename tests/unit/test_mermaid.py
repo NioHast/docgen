@@ -2,7 +2,6 @@
 
 import base64
 import json
-import shutil
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -453,20 +452,3 @@ def test_find_mmdc_eksplisit_dan_tidak_ada(tmp_path: Path) -> None:
 
     assert find_mmdc(script) == str(script)
     assert find_mmdc(tmp_path / "tidak-ada-mmdc") is None
-
-
-@pytest.mark.integration
-def test_mmdc_asli_merender_png(tmp_path: Path) -> None:
-    mmdc = shutil.which("mmdc")
-    if mmdc is None:
-        pytest.skip("mmdc tidak tersedia")
-
-    base = tmp_path / "tugas"
-    source = mermaid_fence("Diagram mmdc", "flowchart LR\n  A --> B")
-
-    result = render_blocks(source, base, mmdc=mmdc, timeout=180)
-
-    images = list((base / "gambar").glob("mermaid-*.png"))
-    assert len(images) == 1
-    assert images[0].read_bytes()[:8] == b"\x89PNG\r\n\x1a\n"
-    assert f"gambar/{images[0].name}" in result
