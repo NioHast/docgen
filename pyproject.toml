@@ -23,6 +23,7 @@ dev = [
     "mypy==2.4.1",
     "ruff==0.17.4",
     "pytest-cov==7.1.0",
+    "import-linter==2.16",
 ]
 
 [project.scripts]
@@ -97,3 +98,59 @@ warn_unused_ignores = true
 warn_redundant_casts = true
 # Stub pihak ketiga belum lengkap; longgarkan dulu, ketatkan per modul.
 ignore_missing_imports = true
+
+[tool.importlinter]
+# Kontrak import dicek dari paket yang terpasang (editable) di src/docgen.
+root_packages = ["docgen"]
+
+[[tool.importlinter.contracts]]
+name = "docx tidak boleh mengimpor stage, pipeline, CLI, atau adeu"
+type = "forbidden"
+source_modules = ["docgen.docx"]
+forbidden_modules = [
+    "docgen.stages",
+    "docgen.pipeline",
+    "docgen.cli",
+    "docgen.adeu",
+]
+
+[[tool.importlinter.contracts]]
+name = "config tidak boleh mengimpor docx, stage, pipeline, CLI, adeu, atau markdown"
+type = "forbidden"
+source_modules = ["docgen.config"]
+forbidden_modules = [
+    "docgen.docx",
+    "docgen.stages",
+    "docgen.pipeline",
+    "docgen.cli",
+    "docgen.adeu",
+    "docgen.markdown",
+]
+
+[[tool.importlinter.contracts]]
+name = "markdown tidak boleh mengimpor docx, stage, pipeline, CLI, atau adeu"
+type = "forbidden"
+source_modules = ["docgen.markdown"]
+forbidden_modules = [
+    "docgen.docx",
+    "docgen.stages",
+    "docgen.pipeline",
+    "docgen.cli",
+    "docgen.adeu",
+]
+
+[[tool.importlinter.contracts]]
+name = "adeu tidak boleh mengimpor stage, pipeline, atau CLI"
+type = "forbidden"
+source_modules = ["docgen.adeu"]
+forbidden_modules = [
+    "docgen.stages",
+    "docgen.pipeline",
+    "docgen.cli",
+]
+
+[[tool.importlinter.contracts]]
+name = "stage tidak boleh mengimpor CLI"
+type = "forbidden"
+source_modules = ["docgen.stages"]
+forbidden_modules = ["docgen.cli"]

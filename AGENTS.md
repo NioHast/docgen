@@ -43,6 +43,13 @@ uv run --project <repo> docgen reconcile document.md
 - Jangan memperbaiki naskah dengan menyunting DOCX. Perbaiki Markdown lalu
   build ulang.
 
+## Definition of done
+
+- Jalankan `powershell -ExecutionPolicy Bypass -File scripts/check.ps1`.
+- Jangan commit atau push jika gate gagal.
+- Perbarui test dan docs yang terdampak.
+- Jangan mengubah file di luar scope tanpa izin.
+
 ## Dokumentasi
 
 - [docs/user/quickstart.md](docs/user/quickstart.md), [docs/user/document-format.md](docs/user/document-format.md)

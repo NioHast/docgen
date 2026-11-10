@@ -8,6 +8,35 @@ Dokumen ini mencatat invariant golden baseline P0.1. Baseline diambil dari
 output lama commit `06bda0b` tanpa build ulang. Tujuannya membekukan perilaku
 output sebelum refactor, bukan menggantikan tes domain yang sudah ada.
 
+## Gerbang check lokal
+
+Jalankan gate dari root repo sebelum commit:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/check.ps1
+```
+
+Gate berhenti pada kegagalan pertama dan menjalankan urutan berikut:
+
+1. `uv run --extra dev ruff format --check .`
+2. `uv run --extra dev ruff check .`
+3. `uv run --extra dev mypy`
+4. `uv run --extra dev lint-imports --config pyproject.toml --no-cache`
+5. `uv run --extra dev pytest -q`
+6. `uv run python tools/dev/check_docs.py`
+7. `uv lock --check`
+8. `uv run --extra dev python tools/dev/check_tests.py tests --format json > $null`
+
+Langkah `lint-imports` memeriksa kontrak import di `[tool.importlinter]` pada
+`pyproject.toml`. Langkah terakhir bersifat **warning-only**: `check_tests.py`
+belum memakai `--fail-on` karena backlog temuan test belum dibersihkan.
+Keluaran JSON-nya dibuang oleh gate; jalankan perintah yang sama tanpa
+`> $null` untuk membaca temuannya secara manual.
+
+Bila semua langkah lulus, gate menulis `[check] OK`. Bila ada yang gagal, gate
+menulis `[check] GAGAL: <nama>` dan keluar dengan kode perintah tersebut. Gate
+tidak memakai Microsoft Word dan tidak mengubah berkas.
+
 ## Golden invariant P0.1
 
 ### Fixture
