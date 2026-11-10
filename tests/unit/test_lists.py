@@ -21,7 +21,8 @@ from docgen.docx.package import (
     REL_TYPE_STYLES,
     DocumentPackage,
 )
-from docgen.docx.xml import paragraph_text, qn, sha256_c14n
+from docgen.docx.paragraphs import paragraph_text
+from docgen.docx.xml import qn, sha256_c14n
 from docgen.pipeline import StageName, canonical_prefix
 from docgen.stages.lists import ListsStage
 

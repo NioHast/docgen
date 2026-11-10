@@ -7,7 +7,7 @@ Modul ini adalah satu tempat untuk:
 * parser field kompleks/sederhana;
 * penghapusan bold langsung dengan pengecualian run field;
 * pembacaan/penulisan ``word/document.xml`` melalui ``DocumentPackage``;
-* helper nomor bab (``BAB I``, ``BAB IV``, ``BAB 2``) dan ``ChapterTitle``.
+* deteksi ``ChapterTitle``/Heading1 sebagai paragraf bab.
 
 Tidak ada I/O ZIP di modul ini. Semua mutasi part dilakukan lewat
 ``DocumentPackage`` agar aturan satu load/satu save tetap berlaku.
@@ -20,9 +20,8 @@ from dataclasses import dataclass
 
 from lxml import etree
 
-from . import DocxError
+from . import DocxError, paragraphs, runs
 from .names import (
-    W_BODY,
     W_DEL,
     W_FLDCHAR,
     W_FLDCHARTYPE,
@@ -33,7 +32,6 @@ from .names import (
     W_MOVEFROM,
     W_P,
     W_PPR,
-    W_PSTYLE,
     W_RPR,
     W_SDT,
     W_SECTPR,
@@ -53,7 +51,6 @@ from .xml import (
     is_on,
     iter_paragraphs,
     iter_runs,
-    paragraph_text,
     qn,
     sha256_c14n,
 )
@@ -62,16 +59,13 @@ W_B = qn("w:b")
 W_BCS = qn("w:bCs")
 
 __all__ = [
-    "BAB_RE",
     "PPR_ORDER",
     "RPR_ORDER",
     "BodyUnit",
     "LayoutError",
     "LayoutReport",
     "LayoutSpec",
-    "chapter_number",
     "content_width",
-    "document_body",
     "document_root",
     "ensure_ppr",
     "ensure_rpr",
@@ -81,7 +75,6 @@ __all__ = [
     "has_deleted_ancestor",
     "has_exempt_field",
     "has_field",
-    "heading_level",
     "insert_ordered",
     "is_bold_run",
     "is_chapter_heading",
@@ -99,13 +92,9 @@ __all__ = [
     "new_element",
     "normalize_layout",
     "normalize_paragraph",
-    "paragraph_style_id",
-    "paragraph_text",
     "preserve_tabs",
     "read_part",
-    "roman_to_int",
     "set_document_root",
-    "strip_bold_from_rpr",
     "strip_bold_from_run",
     "strip_paragraph_bold",
     "write_part",
@@ -207,19 +196,6 @@ EXEMPT_FIELDS = frozenset({"TOC", "PAGEREF", "SEQ"})
 
 FIELD_NAME_RE = re.compile(r"\s*([A-Za-z]+)")
 
-BAB_RE = re.compile(
-    r"^\s*BAB\s+(?P<number>[IVXLCDM]+|\d+)(?=\s|[.:;,\-\u2013\u2014]|$)",
-    re.IGNORECASE,
-)
-ROMAN_VALUES = {
-    "I": 1,
-    "V": 5,
-    "X": 10,
-    "L": 50,
-    "C": 100,
-    "D": 500,
-    "M": 1000,
-}
 DEFAULT_CONTENT_WIDTH_TWIPS = 9072
 
 TRACKED_INSERT_TAGS = frozenset({qn("w:ins"), W_MOVE_TO})
@@ -237,15 +213,6 @@ def new_element(tag: str) -> etree._Element:
     """Buat elemen baru dari nama OOXML (``w:tab``, ``w:r``, dst.)."""
 
     return etree.Element(qn(tag))
-
-
-def paragraph_style_id(paragraph: etree._Element) -> str | None:
-    """Ambil ``w:pStyle/@w:val`` langsung dari paragraf."""
-
-    style = paragraph.find(f"{W_PPR}/{W_PSTYLE}")
-    if style is None:
-        return None
-    return style.get(W_VAL)
 
 
 def iter_paragraph_runs(paragraph: etree._Element) -> Iterator[etree._Element]:
@@ -407,15 +374,6 @@ def is_field_run(
 # ---------------------------------------------------------------------------
 
 
-def _toggle_is_on(element: etree._Element) -> bool:
-    """Nilai toggle OOXML; nilai ``none`` juga dianggap nonaktif."""
-
-    value = element.get(W_VAL)
-    if value is None:
-        return True
-    return value.strip().casefold() not in {"0", "false", "off", "none", "no"}
-
-
 def is_bold_run(run: etree._Element) -> bool:
     """True bila run memiliki ``w:b``/``w:bCs`` yang efektif aktif."""
 
@@ -424,7 +382,7 @@ def is_bold_run(run: etree._Element) -> bool:
         return False
     for tag in (W_B, W_BCS):
         element = properties.find(tag)
-        if element is not None and _toggle_is_on(element):
+        if element is not None and is_on(element):
             return True
     return False
 
@@ -435,26 +393,13 @@ def has_bold_field(paragraph: etree._Element) -> bool:
     return any(is_bold_run(run) for run in iter_field_runs(paragraph))
 
 
-def strip_bold_from_rpr(rpr: etree._Element) -> int:
-    """Hapus ``w:b``/``w:bCs`` aktif langsung dari satu ``w:rPr``."""
-
-    removed = 0
-    for tag in (W_B, W_BCS):
-        for element in list(rpr.findall(tag)):
-            if not _toggle_is_on(element):
-                continue
-            rpr.remove(element)
-            removed += 1
-    return removed
-
-
 def strip_bold_from_run(run: etree._Element) -> int:
     """Hapus bold langsung dari satu run."""
 
     properties = run.find(W_RPR)
     if properties is None:
         return 0
-    return strip_bold_from_rpr(properties)
+    return runs.strip_bold_from_rpr(properties)
 
 
 def strip_paragraph_bold(
@@ -504,24 +449,12 @@ def is_exempt_style(style_id: str | None) -> bool:
 def is_exempt(paragraph: etree._Element) -> bool:
     """True bila paragraf dikecualikan dari normalisasi layout."""
 
-    return is_exempt_style(paragraph_style_id(paragraph)) or has_exempt_field(paragraph)
+    return is_exempt_style(paragraphs.paragraph_style_id(paragraph)) or has_exempt_field(paragraph)
 
 
 def _cover_bold_to_strip(style_id: str | None) -> bool:
     normalized = normalize_style_id(style_id)
     return normalized.startswith(COVER_PREFIX) and normalized != COVER_TITLE_STYLE
-
-
-def heading_level(style_id: str | None) -> int | None:
-    """Level heading dari style; ``ChapterTitle`` dianggap level 1."""
-
-    normalized = normalize_style_id(style_id)
-    if normalized in CUSTOM_HEADING_STYLES:
-        return 1
-    match = HEADING_STYLE_RE.fullmatch(normalized)
-    if match is None:
-        return None
-    return int(match.group(1))
 
 
 def is_chapter_heading(value: str | etree._Element | None) -> bool:
@@ -530,42 +463,8 @@ def is_chapter_heading(value: str | etree._Element | None) -> bool:
     Menerima style ID maupun elemen paragraf agar helper aman dipakai stage.
     """
 
-    style_id = paragraph_style_id(value) if isinstance(value, etree._Element) else value
+    style_id = paragraphs.paragraph_style_id(value) if isinstance(value, etree._Element) else value
     return normalize_style_id(style_id) in CHAPTER_HEADING_STYLES
-
-
-# ---------------------------------------------------------------------------
-# Helper bab
-# ---------------------------------------------------------------------------
-
-
-def roman_to_int(token: str) -> int | None:
-    """Konversi angka Romawi valid menjadi integer; ``None`` bila invalid."""
-
-    total = 0
-    previous = 0
-    for character in reversed(token.upper()):
-        value = ROMAN_VALUES.get(character)
-        if value is None:
-            return None
-        if value < previous:
-            total -= value
-        else:
-            total += value
-            previous = value
-    return total or None
-
-
-def chapter_number(text: str) -> int | None:
-    """Nomor bab dari teks ``BAB <romawi/arab>``; ``None`` bila tidak cocok."""
-
-    match = BAB_RE.match(text)
-    if match is None:
-        return None
-    token = match.group("number")
-    if token.isdigit():
-        return int(token)
-    return roman_to_int(token)
 
 
 # ---------------------------------------------------------------------------
@@ -641,19 +540,6 @@ def document_root(package: object) -> etree._Element:
             f"{DOCUMENT_PART} tidak dapat dibaca: {exc}",
             path=DOCUMENT_PART,
         ) from exc
-
-
-def document_body(package_or_root: object) -> etree._Element:
-    """Ambil ``w:body`` dari package atau root dokumen."""
-
-    if isinstance(package_or_root, etree._Element):
-        root = package_or_root
-    else:
-        root = document_root(package_or_root)
-    body = root.find(W_BODY)
-    if body is None:
-        raise LayoutError("word/document.xml tidak memiliki w:body")
-    return body
 
 
 def set_document_root(package: object, root: etree._Element) -> None:
@@ -788,7 +674,7 @@ def normalize_layout(
         if has_deleted_ancestor(paragraph):
             skipped += 1
             continue
-        style_id = paragraph_style_id(paragraph)
+        style_id = paragraphs.paragraph_style_id(paragraph)
 
         if is_exempt_style(style_id):
             if _cover_bold_to_strip(style_id) and spec.strip_bold:
@@ -841,16 +727,6 @@ def normalize_layout(
 # ---------------------------------------------------------------------------
 
 
-def _int_attribute(element: etree._Element, name: str) -> int | None:
-    value = element.get(name)
-    if value is None:
-        return None
-    try:
-        return int(value)
-    except TypeError, ValueError:
-        return None
-
-
 def content_width(
     body: etree._Element,
     *,
@@ -870,11 +746,11 @@ def content_width(
     if page_size is None or page_margin is None:
         return fallback
 
-    width = _int_attribute(page_size, qn("w:w"))
-    left = _int_attribute(page_margin, qn("w:left"))
-    right = _int_attribute(page_margin, qn("w:right"))
+    width = paragraphs.int_attribute(page_size, qn("w:w"))
+    left = paragraphs.int_attribute(page_margin, qn("w:left"))
+    right = paragraphs.int_attribute(page_margin, qn("w:right"))
     if width is None or left is None or right is None:
         return fallback
-    gutter = _int_attribute(page_margin, qn("w:gutter")) or 0
+    gutter = paragraphs.int_attribute(page_margin, qn("w:gutter")) or 0
     result = width - left - right - gutter
     return result if result > 0 else fallback

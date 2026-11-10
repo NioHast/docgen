@@ -219,6 +219,25 @@ def test_nomor_per_bab_chapter_title_dan_romawi(equations_docx: Path, tmp_path: 
     assert report.bab_headings == 3
 
 
+def test_heading_arab_bertitik_dikenali_sebagai_bab(tmp_path: Path) -> None:
+    source = tmp_path / "arabic.docx"
+    document = Document()
+    _configure_a4(document)
+    heading = document.add_paragraph("4. Metode")
+    _set_style(heading, "Heading1")
+    equation = document.add_paragraph()
+    _add_equation(equation, "x = y")
+    document.save(source)
+
+    package = DocumentPackage.load(source)
+    report = equations.format_equations(package)
+    result = DocumentPackage.load(_save(package, tmp_path / "out.docx"))
+
+    assert report.bab_headings == 1
+    assert report.numbered == 1
+    assert [_direct_run_text(paragraph) for paragraph in _equation_paragraphs(result)] == ["(4.1)"]
+
+
 def test_nomor_di_run_luar_omml(equations_docx: Path, tmp_path: Path) -> None:
     before = DocumentPackage.load(equations_docx)
     before_equation = _equation_paragraphs(before)[0].find(M_O_MATH_PARA)

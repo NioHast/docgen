@@ -11,9 +11,8 @@ from dataclasses import dataclass
 
 from lxml import etree
 
-from . import DocxError
+from . import DocxError, paragraphs
 from .names import (
-    W_BODY,
     W_BOOKMARK_END,
     W_BOOKMARK_START,
     W_BR,
@@ -26,12 +25,10 @@ from .names import (
     W_P,
     W_PICT,
     W_PPR,
-    W_PSTYLE,
     W_PTAB,
     W_T,
     W_TAB,
     W_TBL,
-    W_VAL,
     is_caption_style,
     is_cover_style,
     is_heading_style,
@@ -39,10 +36,8 @@ from .names import (
     normalize_style_id,
 )
 from .package import DOCUMENT_PART
-from .xml import paragraph_text
 
 PARAGRAPH_ID_RE = re.compile(r"^p\d{4,}$")
-_HEADING_LEVEL_RE = re.compile(r"^heading([1-9])$")
 
 
 class BookmarkError(DocxError):
@@ -73,39 +68,16 @@ class ParagraphBookmark:
 
 
 def _body(package) -> etree._Element:
-    root = package.xml(DOCUMENT_PART)
-    body = root.find(W_BODY)
-    if body is None:
-        raise BookmarkError(
-            f"{DOCUMENT_PART} tidak memiliki elemen w:body",
-            path=DOCUMENT_PART,
-        )
-    return body
+    try:
+        return paragraphs.document_body(package)
+    except paragraphs.ParagraphError as exc:
+        raise BookmarkError(str(exc), path=DOCUMENT_PART) from exc
 
 
 def _paragraphs(body: etree._Element) -> list[etree._Element]:
     """Semua paragraf body, termasuk tabel dan text box, dalam urutan dokumen."""
 
     return list(body.iter(W_P))
-
-
-def paragraph_style_id(paragraph: etree._Element) -> str | None:
-    """Style ID paragraf atau ``None``."""
-
-    style = paragraph.find(f"{W_PPR}/{W_PSTYLE}")
-    if style is None:
-        return None
-    return style.get(W_VAL)
-
-
-def paragraph_heading_level(paragraph: etree._Element) -> int | None:
-    """Level heading 1-9 dari style paragraf."""
-
-    style = paragraph_style_id(paragraph)
-    if style is None:
-        return None
-    match = _HEADING_LEVEL_RE.fullmatch(normalize_style_id(style))
-    return int(match.group(1)) if match is not None else None
 
 
 def _in_table(paragraph: etree._Element) -> bool:
@@ -115,7 +87,7 @@ def _in_table(paragraph: etree._Element) -> bool:
 def paragraph_kind(paragraph: etree._Element) -> str:
     """Klasifikasi kasar paragraf berdasarkan style dan posisi tabel."""
 
-    style = paragraph_style_id(paragraph)
+    style = paragraphs.paragraph_style_id(paragraph)
     if is_heading_style(style):
         return "heading"
     if is_caption_style(style):
@@ -244,10 +216,10 @@ def add_paragraph_ids(package) -> tuple[ParagraphBookmark, ...]:
     body = _body(package)
     remove_paragraph_bookmarks(package)
 
-    paragraphs = _paragraphs(body)
+    items = _paragraphs(body)
     start_id = next_bookmark_id(package)
     records: list[ParagraphBookmark] = []
-    for index, paragraph in enumerate(paragraphs):
+    for index, paragraph in enumerate(items):
         name = f"p{index + 1:04d}"
         _insert_bookmark(paragraph, start_id + index, name)
         records.append(
@@ -255,8 +227,8 @@ def add_paragraph_ids(package) -> tuple[ParagraphBookmark, ...]:
                 name=name,
                 paragraph_index=index,
                 kind=paragraph_kind(paragraph),
-                text=paragraph_text(paragraph),
-                heading_level=paragraph_heading_level(paragraph),
+                text=paragraphs.paragraph_text(paragraph),
+                heading_level=paragraphs.heading_level(paragraph),
             )
         )
 
@@ -305,8 +277,6 @@ __all__ = [
     "bookmark_wraps_content",
     "iter_bookmarks",
     "next_bookmark_id",
-    "paragraph_heading_level",
     "paragraph_kind",
-    "paragraph_style_id",
     "remove_paragraph_bookmarks",
 ]

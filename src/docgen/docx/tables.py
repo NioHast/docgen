@@ -14,8 +14,9 @@ from typing import TYPE_CHECKING
 
 from lxml import etree
 
-from . import DocxError, names
+from . import DocxError, names, paragraphs
 from .package import DOCUMENT_PART
+from .runs import append_text_run
 from .xml import (
     RPR_ORDER,
     TBLPR_ORDER,
@@ -25,7 +26,6 @@ from .xml import (
     ensure_tcpr,
     get_or_add,
     insert_ordered,
-    paragraph_text,
     qn,
     sha256_c14n,
 )
@@ -78,10 +78,8 @@ CELL_MARGIN_ORDER: tuple[str, ...] = tuple(qn(tag) for tag in CELL_MARGIN_TAGS)
 
 CONTENT_WIDTH_FALLBACK = 9360  # letter: 12240 - 2 x 1440 twip
 
-W_BODY = names.W_BODY
 W_P = names.W_P
 W_PPR = names.W_PPR
-W_PSTYLE = names.W_PSTYLE
 W_VAL = names.W_VAL
 W_T = names.W_T
 W_TAB = names.W_TAB
@@ -133,7 +131,6 @@ W_ASCII = qn("w:ascii")
 W_HANSI = qn("w:hAnsi")
 W_CS = qn("w:cs")
 W_EAST_ASIA = qn("w:eastAsia")
-XML_SPACE = names.XML + "space"
 
 UNSAFE_CODE_TAGS = frozenset(
     {
@@ -279,35 +276,8 @@ def document_root(package: DocumentPackage) -> etree._Element:
     return package.xml(DOCUMENT_PART)
 
 
-def document_body(package: DocumentPackage) -> etree._Element:
-    """Kembalikan elemen ``w:body`` atau melempar ``TableError``."""
-
-    body = document_root(package).find(W_BODY)
-    if body is None:
-        raise TableError(
-            f"{DOCUMENT_PART} tidak memiliki elemen w:body",
-            code="TABLE-NO-BODY",
-        )
-    return body
-
-
 def _new_element(tag: str) -> etree._Element:
     return etree.Element(qn(tag))
-
-
-def _remove_direct_children(parent: etree._Element, tag: str) -> None:
-    for child in parent.findall(tag):
-        parent.remove(child)
-
-
-def _paragraph_style_id(paragraph: etree._Element) -> str | None:
-    properties = paragraph.find(W_PPR)
-    if properties is None:
-        return None
-    style = properties.find(W_PSTYLE)
-    if style is None:
-        return None
-    return style.get(W_VAL)
 
 
 def _normalized_detect_styles(detect_styles: Sequence[str] | None) -> frozenset[str]:
@@ -323,7 +293,7 @@ def is_code_paragraph(
 
     if paragraph.tag != W_P:
         return False
-    style_id = _paragraph_style_id(paragraph)
+    style_id = paragraphs.paragraph_style_id(paragraph)
     if style_id is None:
         return False
     normalized = names.normalize_style_id(style_id)
@@ -380,7 +350,7 @@ def _new_border(
 
 
 def _set_table_borders(table_properties: etree._Element, spec: BorderSpec) -> None:
-    _remove_direct_children(table_properties, W_TBL_BORDERS)
+    paragraphs.remove_direct_children(table_properties, W_TBL_BORDERS)
     borders = get_or_add(table_properties, W_TBL_BORDERS, TBLPR_ORDER)
     for tag, value, size in spec.sides:
         borders.append(
@@ -402,7 +372,7 @@ def _set_margin_values(
     bottom: int,
     right: int,
 ) -> None:
-    _remove_direct_children(table_properties, W_TBL_CELL_MAR)
+    paragraphs.remove_direct_children(table_properties, W_TBL_CELL_MAR)
     margins = get_or_add(table_properties, W_TBL_CELL_MAR, TBLPR_ORDER)
     for tag, value in (
         ("w:top", top),
@@ -426,7 +396,7 @@ def _margin_element(tag: str, value: int) -> etree._Element:
 
 
 def _set_cell_margin_element(cell_properties: etree._Element, value: int) -> None:
-    _remove_direct_children(cell_properties, W_TC_MAR)
+    paragraphs.remove_direct_children(cell_properties, W_TC_MAR)
     insert_ordered(
         cell_properties,
         _margin_element("w:tcMar", value),
@@ -441,7 +411,7 @@ def _set_header_cell_bottom_border(
     color: str,
 ) -> None:
     cell_properties = ensure_tcpr(cell)
-    _remove_direct_children(cell_properties, W_TC_BORDERS)
+    paragraphs.remove_direct_children(cell_properties, W_TC_BORDERS)
     borders = get_or_add(cell_properties, W_TC_BORDERS, TCPR_ORDER)
     borders.append(_new_border("w:bottom", "single", size, color=color, space=0))
 
@@ -484,7 +454,7 @@ def _table_caption_text(table: etree._Element) -> str:
 
 
 def _is_table_caption_paragraph(paragraph: etree._Element) -> bool:
-    style_id = _paragraph_style_id(paragraph)
+    style_id = paragraphs.paragraph_style_id(paragraph)
     if not names.is_caption_style(style_id):
         return False
     normalized = names.normalize_style_id(style_id)
@@ -492,7 +462,7 @@ def _is_table_caption_paragraph(paragraph: etree._Element) -> bool:
         return True
     if normalized != "caption":
         return False
-    text = paragraph_text(paragraph).strip()
+    text = paragraphs.paragraph_text(paragraph).strip()
     return text.lower().startswith("tabel")
 
 
@@ -502,7 +472,7 @@ def _previous_meaningful(element: etree._Element) -> etree._Element | None:
         if sibling.tag in NEUTRAL_BODY_TAGS:
             sibling = sibling.getprevious()
             continue
-        if sibling.tag == W_P and not paragraph_text(sibling).strip():
+        if sibling.tag == W_P and not paragraphs.paragraph_text(sibling).strip():
             sibling = sibling.getprevious()
             continue
         break
@@ -515,7 +485,7 @@ def _next_meaningful(element: etree._Element) -> etree._Element | None:
         if sibling.tag in NEUTRAL_BODY_TAGS:
             sibling = sibling.getnext()
             continue
-        if sibling.tag == W_P and not paragraph_text(sibling).strip():
+        if sibling.tag == W_P and not paragraphs.paragraph_text(sibling).strip():
             sibling = sibling.getnext()
             continue
         break
@@ -545,20 +515,20 @@ def _normalize_table_rows(
     for row_index, row in enumerate(rows):
         table_exception = row.find(W_TBL_PR_EX)
         if table_exception is not None:
-            _remove_direct_children(table_exception, W_TBL_BORDERS)
-            _remove_direct_children(table_exception, W_SHD)
-            _remove_direct_children(table_exception, W_TBL_CELL_MAR)
+            paragraphs.remove_direct_children(table_exception, W_TBL_BORDERS)
+            paragraphs.remove_direct_children(table_exception, W_SHD)
+            paragraphs.remove_direct_children(table_exception, W_TBL_CELL_MAR)
 
         row_properties = row.find(W_TR_PR)
         if row_properties is not None:
-            _remove_direct_children(row_properties, W_SHD)
+            paragraphs.remove_direct_children(row_properties, W_SHD)
 
         for cell in row.findall(W_TC):
             cell_properties = cell.find(qn("w:tcPr"))
             if cell_properties is not None:
-                _remove_direct_children(cell_properties, W_SHD)
-                _remove_direct_children(cell_properties, W_TC_BORDERS)
-                _remove_direct_children(cell_properties, W_TC_MAR)
+                paragraphs.remove_direct_children(cell_properties, W_SHD)
+                paragraphs.remove_direct_children(cell_properties, W_TC_BORDERS)
+                paragraphs.remove_direct_children(cell_properties, W_TC_MAR)
             if row_index == header_bottom_index:
                 _set_header_cell_bottom_border(
                     cell,
@@ -571,7 +541,7 @@ def _normalize_table(table: etree._Element, spec: TableSpec) -> bool:
     before = sha256_c14n(table)
 
     table_properties = ensure_tblpr(table)
-    _remove_direct_children(table_properties, W_SHD)
+    paragraphs.remove_direct_children(table_properties, W_SHD)
     _set_table_borders(table_properties, spec.borders)
     _set_margin_values(
         table_properties,
@@ -659,7 +629,7 @@ def _format_code_table(table: etree._Element, spec: CodeSpec) -> bool:
     before = sha256_c14n(table)
 
     table_properties = ensure_tblpr(table)
-    _remove_direct_children(table_properties, W_SHD)
+    paragraphs.remove_direct_children(table_properties, W_SHD)
     _set_table_borders(table_properties, _code_border_spec(spec))
     _set_margin_values(
         table_properties,
@@ -673,18 +643,18 @@ def _format_code_table(table: etree._Element, spec: CodeSpec) -> bool:
     for row in table.findall(W_TR):
         table_exception = row.find(W_TBL_PR_EX)
         if table_exception is not None:
-            _remove_direct_children(table_exception, W_TBL_BORDERS)
-            _remove_direct_children(table_exception, W_SHD)
-            _remove_direct_children(table_exception, W_TBL_CELL_MAR)
+            paragraphs.remove_direct_children(table_exception, W_TBL_BORDERS)
+            paragraphs.remove_direct_children(table_exception, W_SHD)
+            paragraphs.remove_direct_children(table_exception, W_TBL_CELL_MAR)
 
         row_properties = row.find(W_TR_PR)
         if row_properties is not None:
-            _remove_direct_children(row_properties, W_SHD)
+            paragraphs.remove_direct_children(row_properties, W_SHD)
 
         for cell in row.findall(W_TC):
             cell_properties = ensure_tcpr(cell)
-            _remove_direct_children(cell_properties, W_SHD)
-            _remove_direct_children(cell_properties, W_TC_BORDERS)
+            paragraphs.remove_direct_children(cell_properties, W_SHD)
+            paragraphs.remove_direct_children(cell_properties, W_TC_BORDERS)
             _set_cell_margin_element(cell_properties, spec.cell_margin)
 
     return sha256_c14n(table) != before
@@ -709,7 +679,7 @@ def normalize_code_tables(
 
     code_spec = spec or CodeSpec()
     normalized = 0
-    body = document_body(package)
+    body = paragraphs.document_body(package)
     for table in body.iter(W_TBL):
         if _is_code_table(table, code_spec.detect_styles) and _format_code_table(table, code_spec):
             normalized += 1
@@ -719,16 +689,6 @@ def normalize_code_tables(
 # ---------------------------------------------------------------------------
 # Pembuatan tabel kode
 # ---------------------------------------------------------------------------
-
-
-def _int_attribute(element: etree._Element, name: str) -> int | None:
-    value = element.get(name)
-    if value is None:
-        return None
-    try:
-        return int(value)
-    except ValueError:
-        return None
 
 
 def _content_width(body: etree._Element) -> int:
@@ -744,12 +704,12 @@ def _content_width(body: etree._Element) -> int:
     if page_size is None or page_margin is None:
         return CONTENT_WIDTH_FALLBACK
 
-    width = _int_attribute(page_size, W_W)
-    left = _int_attribute(page_margin, W_LEFT)
-    right = _int_attribute(page_margin, W_RIGHT)
+    width = paragraphs.int_attribute(page_size, W_W)
+    left = paragraphs.int_attribute(page_margin, W_LEFT)
+    right = paragraphs.int_attribute(page_margin, W_RIGHT)
     if width is None or left is None or right is None:
         return CONTENT_WIDTH_FALLBACK
-    gutter = _int_attribute(page_margin, W_GUTTER) or 0
+    gutter = paragraphs.int_attribute(page_margin, W_GUTTER) or 0
 
     content_width = width - left - right - gutter
     return content_width if content_width > 0 else CONTENT_WIDTH_FALLBACK
@@ -816,25 +776,6 @@ def _run_properties(spec: CodeSpec) -> etree._Element:
     return properties
 
 
-def _append_text_run(paragraph: etree._Element, text: str, spec: CodeSpec) -> None:
-    """Tambahkan run kode; tab dipertahankan sebagai ``w:tab``."""
-
-    run = _new_element("w:r")
-    run.append(_run_properties(spec))
-
-    parts = text.split("\t")
-    for index, part in enumerate(parts):
-        if index:
-            run.append(_new_element("w:tab"))
-        if part:
-            text_node = _new_element("w:t")
-            text_node.set(XML_SPACE, "preserve")
-            text_node.text = part
-            run.append(text_node)
-
-    paragraph.append(run)
-
-
 def _make_code_paragraph(
     line: _Line,
     style_id: str | None,
@@ -870,7 +811,7 @@ def _make_code_paragraph(
 
     for marker in line.markers_start:
         paragraph.append(marker)
-    _append_text_run(paragraph, line.text, spec)
+    append_text_run(paragraph, line.text, rpr=_run_properties(spec))
     for marker in line.markers_end:
         paragraph.append(marker)
 
@@ -939,7 +880,7 @@ def _build_code_cell(
 
 def make_code_table(
     package: DocumentPackage,
-    paragraphs: Sequence[etree._Element],
+    items: Sequence[etree._Element],
     spec: CodeSpec | None = None,
 ) -> etree._Element:
     """Bangun tabel kode 1x1 dari paragraf kode berurutan.
@@ -948,17 +889,17 @@ def make_code_table(
     """
 
     code_spec = spec or CodeSpec()
-    body = document_body(package)
+    body = paragraphs.document_body(package)
     content_width = _content_width(body)
-    if not paragraphs:
+    if not items:
         raise TableError(
             "tabel kode membutuhkan minimal satu paragraf",
             code="TABLE-NO-CODE",
         )
-    style_id = _paragraph_style_id(paragraphs[0])
+    style_id = paragraphs.paragraph_style_id(items[0])
 
     lines: list[_Line] = []
-    for paragraph in paragraphs:
+    for paragraph in items:
         lines.extend(_paragraph_lines(paragraph))
 
     table = _new_element("w:tbl")
@@ -1000,7 +941,7 @@ def format_tables(
     """Format semua tabel (data dan kode) dan kembalikan jumlah yang berubah."""
 
     changed = 0
-    for table in document_body(package).iter(W_TBL):
+    for table in paragraphs.document_body(package).iter(W_TBL):
         if _format_table(table, spec, code_spec):
             changed += 1
     return changed
@@ -1014,7 +955,7 @@ def iter_tables(
     """Iterasi tabel body beserta status kode dan caption."""
 
     tables: list[TableInfo] = []
-    for table in document_body(package).iter(W_TBL):
+    for table in paragraphs.document_body(package).iter(W_TBL):
         rows = table.findall(W_TR)
         columns = len(rows[0].findall(W_TC)) if rows else 0
         tables.append(
@@ -1054,7 +995,6 @@ __all__ = [
     "TableInfo",
     "TableSpec",
     "collect_unsafe_children",
-    "document_body",
     "document_root",
     "format_code_table",
     "format_tables",

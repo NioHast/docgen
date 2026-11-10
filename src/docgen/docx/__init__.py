@@ -53,6 +53,7 @@ class XmlError(DocxError):
 # dari package ini tanpa siklus inisialisasi.
 from .names import *  # noqa: E402, F403
 from .names import __all__ as _names_all  # noqa: E402
+from .numbering import chapter_number, format_roman, roman_to_int, to_roman  # noqa: E402
 from .package import (  # noqa: E402
     CONTENT_TYPES_PART,
     DOCUMENT_PART,
@@ -70,6 +71,25 @@ from .package import (  # noqa: E402
     PartInfo,
     Relationship,
 )
+from .page import PAGE_SIZES, page_size  # noqa: E402
+from .paragraphs import (  # noqa: E402
+    ParagraphError,
+    body_children,
+    document_body,
+    heading_level,
+    int_attribute,
+    paragraph_style_id,
+    paragraph_text,
+    remove_direct_children,
+)
+from .runs import (  # noqa: E402
+    append_text_run,
+    build_run,
+    clone_run,
+    copy_rpr,
+    make_run,
+    strip_bold_from_rpr,
+)
 from .xml import (  # noqa: E402
     PPR_ORDER,
     RPR_ORDER,
@@ -86,7 +106,6 @@ from .xml import (  # noqa: E402
     is_on,
     iter_paragraphs,
     iter_runs,
-    paragraph_text,
     parse_xml,
     qn,
     run_text,
@@ -103,8 +122,10 @@ __all__ = [
     "InvalidPackageError",
     "MAIN_DOCUMENT_CONTENT_TYPE",
     "PACKAGE_RELS_PART",
+    "PAGE_SIZES",
     "PPR_ORDER",
     "PackageError",
+    "ParagraphError",
     "PartExistsError",
     "PartInfo",
     "PartNotFoundError",
@@ -122,21 +143,38 @@ __all__ = [
     "TBLPR_ORDER",
     "TCPR_ORDER",
     "XmlError",
+    "append_text_run",
+    "body_children",
+    "build_run",
     "canonicalize_xml",
+    "chapter_number",
+    "clone_run",
+    "copy_rpr",
+    "document_body",
     "ensure_ppr",
     "ensure_rpr",
     "ensure_tblpr",
     "ensure_tcpr",
+    "format_roman",
     "get_or_add",
+    "heading_level",
     "insert_ordered",
+    "int_attribute",
     "is_on",
     "iter_paragraphs",
     "iter_runs",
+    "make_run",
+    "page_size",
+    "paragraph_style_id",
     "paragraph_text",
     "parse_xml",
     "qn",
+    "remove_direct_children",
+    "roman_to_int",
     "run_text",
     "serialize_xml",
     "sha256_c14n",
+    "strip_bold_from_rpr",
+    "to_roman",
     *_names_all,
 ]

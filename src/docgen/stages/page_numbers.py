@@ -12,7 +12,8 @@ from lxml import etree
 
 from ..docx.fields import FieldKind, iter_fields_in_part
 from ..docx.names import R_ID, W, local_name
-from ..docx.package import DOCUMENT_PART
+from ..docx.package import DOCUMENT_PART, DocumentPackage
+from ..docx.runs import copy_rpr, make_run
 from ..docx.sections import (
     Section,
     SectionError,
@@ -69,8 +70,7 @@ def _append_page_run(
     fld_char: str | None = None,
     rpr: etree._Element,
 ) -> None:
-    run = etree.SubElement(paragraph, W + "r")
-    run.append(_copy_rpr(rpr))
+    run = make_run(paragraph, rpr=rpr)
     if fld_char is not None:
         element = etree.SubElement(run, W + "fldChar")
         element.set(W + "fldCharType", fld_char)
@@ -81,12 +81,6 @@ def _append_page_run(
     if text is not None:
         element = etree.SubElement(run, W + "t")
         element.text = text
-
-
-def _copy_rpr(rpr: etree._Element) -> etree._Element:
-    import copy
-
-    return copy.deepcopy(rpr)
 
 
 def page_part(
@@ -117,7 +111,7 @@ def page_part(
         hidden=hidden,
         size_half_points=size_half_points,
     )
-    ppr.append(_copy_rpr(rpr))
+    ppr.append(copy_rpr(rpr))
     _append_page_run(paragraph, fld_char="begin", rpr=rpr)
     _append_page_run(paragraph, instr=PAGE_FIELD_INSTRUCTION, rpr=rpr)
     _append_page_run(paragraph, fld_char="separate", rpr=rpr)
@@ -273,7 +267,7 @@ def _configure_body(
     )
 
 
-def _page_field_count(package: object) -> int:
+def _page_field_count(package: DocumentPackage) -> int:
     count = 0
     seen: set[str] = set()
     for section in iter_sections(package):

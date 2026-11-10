@@ -26,7 +26,7 @@ def page_size(name: str, orientation: str = "portrait") -> tuple[int, int]:
 
     ``PAGE_SIZES`` menyimpan dimensi portrait. Orientasi ``landscape`` menukar
     lebar dan tinggi; orientasi lain diperlakukan sebagai portrait, sama
-    seperti ``_page_size`` pada stage ``sections``. Nama yang tidak dikenal
+    seperti perilaku historis stage ``sections``. Nama yang tidak dikenal
     tidak memiliki fallback dan menimbulkan ``KeyError``.
     """
 

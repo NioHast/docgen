@@ -20,12 +20,12 @@ from lxml import etree
 
 from ..docx import names
 from ..docx.package import DOCUMENT_PART
+from ..docx.paragraphs import document_body
 from ..docx.tables import (
     NEUTRAL_BODY_TAGS,
     CodeSpec,
     TableError,
     collect_unsafe_children,
-    document_body,
     is_code_paragraph,
     make_code_table,
     normalize_code_tables,

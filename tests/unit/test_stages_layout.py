@@ -13,15 +13,15 @@ from docx.shared import Pt, Twips
 
 from docgen.docx import DOCUMENT_PART, DocumentPackage
 from docgen.docx.layout import (
-    chapter_number,
     content_width,
     has_bold_field,
     is_chapter_heading,
     is_exempt,
     iter_body_units,
     normalize_layout,
-    paragraph_text,
 )
+from docgen.docx.numbering import chapter_number
+from docgen.docx.paragraphs import heading_level, paragraph_text
 from docgen.pipeline import BuildOptions, StageName
 from docgen.stages import blank_lines, equations, normalize, numbering
 
@@ -461,6 +461,20 @@ def test_helper_layout_field_bold_dan_bab() -> None:
     assert is_chapter_heading("ChapterTitle") is True
     assert is_chapter_heading("Heading1") is True
     assert is_chapter_heading("Heading2") is False
+
+
+def test_heading_level_paragraph_dan_is_chapter_heading() -> None:
+    document = Document()
+    paragraph = document.add_paragraph("BAB I")
+    _set_style(paragraph, "ChapterTitle")
+
+    assert heading_level(paragraph._p) is None
+    assert is_chapter_heading(paragraph._p) is True
+
+    _set_style(paragraph, "Heading 2")
+
+    assert heading_level(paragraph._p) == 2
+    assert is_chapter_heading(paragraph._p) is False
 
 
 def test_content_width_dari_sectpr() -> None:

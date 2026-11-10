@@ -18,6 +18,14 @@ import time
 from lxml import etree
 
 from ..docx.package import DOCUMENT_PART, DocumentPackage
+from ..docx.page import page_size
+from ..docx.paragraphs import (
+    body_children,
+    document_body,
+    heading_level,
+    paragraph_style_id,
+    paragraph_text,
+)
 from ..docx.sections import (
     HeadingError,
     NumberingSpec,
@@ -29,14 +37,9 @@ from ..docx.sections import (
     set_page_size,
     set_section_type,
 )
-from ..docx.xml import paragraph_text, sha256_c14n
+from ..docx.xml import sha256_c14n
 from ..errors import StageError
 from ..pipeline import BaseStage, StageName, StageResult, canonical_prefix
-
-PAGE_SIZES_TWIP: dict[str, tuple[int, int]] = {
-    "A4": (11906, 16838),
-    "Letter": (12240, 15840),
-}
 
 _CHAPTER_RE = re.compile(
     r"^(?:BAB\s+(?:[IVXLCDM]+|\d+)(?=\b|\s)|\d+\.(?=\s|$))",
@@ -58,52 +61,6 @@ def _document_hash(package: DocumentPackage) -> str:
     return sha256_c14n(package.xml(DOCUMENT_PART))
 
 
-def _page_size(page: object) -> tuple[int, int]:
-    size = str(getattr(page, "size", "A4"))
-    orientation = str(getattr(page, "orientation", "portrait"))
-    try:
-        width, height = PAGE_SIZES_TWIP[size]
-    except KeyError as exc:
-        raise SectionsError(f"Ukuran halaman tidak dikenal: {size!r}") from exc
-    if orientation == "landscape":
-        return height, width
-    return width, height
-
-
-def _style(paragraph: etree._Element) -> str | None:
-    ppr = paragraph.find("{http://schemas.openxmlformats.org/wordprocessingml/2006/main}pPr")
-    if ppr is None:
-        return None
-    style = ppr.find("{http://schemas.openxmlformats.org/wordprocessingml/2006/main}pStyle")
-    if style is None:
-        return None
-    return style.get("{http://schemas.openxmlformats.org/wordprocessingml/2006/main}val")
-
-
-def _paragraph_text(paragraph: etree._Element) -> str:
-    return " ".join(paragraph_text(paragraph).split())
-
-
-def _heading_level(paragraph: etree._Element) -> int | None:
-    style = _style(paragraph)
-    if style is None:
-        return None
-    match = re.fullmatch(r"Heading([1-9])", style)
-    return int(match.group(1)) if match else None
-
-
-def _body_children(package: DocumentPackage) -> list[etree._Element]:
-    from ..docx.names import W_BODY, W_DOCUMENT
-
-    root = package.xml(DOCUMENT_PART)
-    if not isinstance(root.tag, str) or root.tag != W_DOCUMENT:
-        raise SectionsError("Root document.xml bukan w:document")
-    body = root.find(W_BODY)
-    if body is None:
-        raise SectionsError("w:body tidak ditemukan")
-    return [child for child in body if isinstance(child.tag, str)]
-
-
 def _first_heading_after_cover(package: DocumentPackage) -> etree._Element | None:
     """Heading1 pertama setelah paragraf bergaya Cover*."""
 
@@ -113,17 +70,17 @@ def _first_heading_after_cover(package: DocumentPackage) -> etree._Element | Non
     if not sections:
         return None
     first = sections[0]
-    children = _body_children(package)
+    children = body_children(document_body(package))
     last_cover = -1
     for index in range(first.start, first.end):
         child = children[index] if index < len(children) else None
         if child is not None and child.tag == W_P:
-            style = _style(child)
+            style = paragraph_style_id(child)
             if style is not None and style.casefold().startswith("cover"):
                 last_cover = index
     for index in range(max(last_cover + 1, first.start), first.end):
         child = children[index] if index < len(children) else None
-        if child is not None and child.tag == W_P and _heading_level(child) == 1:
+        if child is not None and child.tag == W_P and heading_level(child) == 1:
             return child
     return None
 
@@ -134,19 +91,24 @@ def _break_headings(package: DocumentPackage) -> list[etree._Element]:
     from ..docx.names import W_P
 
     headings: list[etree._Element] = []
-    for paragraph in _body_children(package):
+    for paragraph in body_children(document_body(package)):
         if paragraph.tag != W_P:
             continue
-        if _heading_level(paragraph) != 1:
+        if heading_level(paragraph) != 1:
             continue
-        text = _paragraph_text(paragraph)
+        text = " ".join(paragraph_text(paragraph).split())
         if _CHAPTER_RE.match(text) or _BACK_MATTER_RE.match(text):
             headings.append(paragraph)
     return headings
 
 
 def _apply_page_format(package: DocumentPackage, page: object) -> int:
-    width, height = _page_size(page)
+    size = str(getattr(page, "size", "A4"))
+    orientation = str(getattr(page, "orientation", "portrait"))
+    try:
+        width, height = page_size(size, orientation)
+    except KeyError as exc:
+        raise SectionsError(f"Ukuran halaman tidak dikenal: {size!r}") from exc
     margins = getattr(page, "margins", None)
     if margins is None:
         raise SectionsError("format.page.margins tidak tersedia")
@@ -157,7 +119,7 @@ def _apply_page_format(package: DocumentPackage, page: object) -> int:
             section,
             width=width,
             height=height,
-            orientation=str(getattr(page, "orientation", "portrait")),  # type: ignore[arg-type]
+            orientation=orientation,  # type: ignore[arg-type]
         )
         set_margins(
             section,
@@ -180,14 +142,14 @@ def _ensure_breaks(package: DocumentPackage) -> int:
     if cover_heading is not None:
         sections = iter_sections(package)
         first = sections[0]
-        children = _body_children(package)
+        children = body_children(document_body(package))
         index = children.index(cover_heading)
         if first.start < index < first.end:
             add_section_break(package, before=cover_heading, kind="nextPage")
             added += 1
 
     for heading in _break_headings(package):
-        children = _body_children(package)
+        children = body_children(document_body(package))
         index = children.index(heading)
         sections = iter_sections(package)
         section = next(
@@ -280,7 +242,6 @@ class SectionsStage(BaseStage):
 
 
 __all__ = [
-    "PAGE_SIZES_TWIP",
     "SectionsError",
     "SectionsStage",
 ]

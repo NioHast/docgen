@@ -19,7 +19,6 @@ from lxml import etree
 from ..docx import DOCUMENT_PART
 from ..docx import bookmarks as bookmark_mod
 from ..docx.names import (
-    W_BODY,
     W_FLDCHAR,
     W_FLDCHARTYPE,
     W_FLDSIMPLE,
@@ -31,7 +30,7 @@ from ..docx.names import (
     W_TXBXCONTENT,
 )
 from ..docx.package import DocumentPackage
-from ..docx.xml import paragraph_text
+from ..docx.paragraphs import ParagraphError, document_body, heading_level, paragraph_text
 from ..errors import DocgenError
 from ..markdown.blocks import (
     iter_candidate_texts,
@@ -213,14 +212,10 @@ def _protected_reason(
 
 
 def _body(package: DocumentPackage) -> etree._Element:
-    root = package.xml(DOCUMENT_PART)
-    body = root.find(W_BODY)
-    if body is None:
-        raise bookmark_mod.BookmarkError(
-            f"{DOCUMENT_PART} tidak memiliki elemen w:body",
-            path=DOCUMENT_PART,
-        )
-    return body
+    try:
+        return document_body(package)
+    except ParagraphError as exc:
+        raise bookmark_mod.BookmarkError(str(exc), path=DOCUMENT_PART) from exc
 
 
 def _body_paragraphs(package: DocumentPackage) -> list[etree._Element]:
@@ -254,7 +249,7 @@ def analyze_manifest(
         if index in toc_indices:
             kind = "toc"
         text = paragraph_text(paragraph)
-        level = bookmark_mod.paragraph_heading_level(paragraph)
+        level = heading_level(paragraph)
         if kind == "heading" and level is not None:
             for existing in list(heading_state):
                 if existing >= level:

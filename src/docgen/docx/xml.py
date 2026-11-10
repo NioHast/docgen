@@ -446,7 +446,7 @@ def iter_runs(paragraph: etree._Element) -> Iterator[etree._Element]:
     yield from walk(paragraph)
 
 
-def _text_content(element: etree._Element, *, include_fields: bool) -> str:
+def _text_content(element: etree._Element) -> str:
     parts: list[str] = []
 
     def walk(node: etree._Element) -> None:
@@ -462,10 +462,7 @@ def _text_content(element: etree._Element, *, include_fields: bool) -> str:
                 parts.append("\n")
             elif tag == W_NO_BREAK_HYPHEN:
                 parts.append("\u2011")
-            elif tag == W_INSTRTEXT:
-                if include_fields:
-                    parts.append(child.text or "")
-            elif tag in _TEXT_SKIP_DESCEND:
+            elif tag == W_INSTRTEXT or tag in _TEXT_SKIP_DESCEND:
                 continue
             else:
                 walk(child)
@@ -477,21 +474,7 @@ def _text_content(element: etree._Element, *, include_fields: bool) -> str:
 def run_text(run: etree._Element) -> str:
     """Teks satu run: ``w:t``, tab, dan line break; field tidak disertakan."""
 
-    return _text_content(run, include_fields=False)
-
-
-def paragraph_text(
-    paragraph: etree._Element,
-    *,
-    include_fields: bool = False,
-) -> str:
-    """Teks paragraf dalam urutan dokumen.
-
-    ``w:instrText`` hanya disertakan bila ``include_fields=True``. Teks di
-    dalam gambar, text box, dan paragraf bersarang tidak disertakan.
-    """
-
-    return _text_content(paragraph, include_fields=include_fields)
+    return _text_content(run)
 
 
 def _ensure_first_child(
@@ -616,7 +599,6 @@ __all__ = [
     "is_on",
     "iter_paragraphs",
     "iter_runs",
-    "paragraph_text",
     "parse_xml",
     "qn",
     "run_text",

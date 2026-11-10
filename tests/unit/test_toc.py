@@ -25,11 +25,13 @@ from docgen.docx.package import (
     REL_TYPE_STYLES,
     DocumentPackage,
 )
-from docgen.docx.xml import paragraph_text, qn
+from docgen.docx.paragraphs import paragraph_text
+from docgen.docx.xml import qn
 from docgen.pipeline import StageName
 from docgen.stages.toc import (
     TOC_STYLE_IDS,
     TocStage,
+    _format_fallback,
     ensure_toc_styles,
     tab_position,
 )
@@ -412,6 +414,28 @@ def test_tab_position_uses_page_geometry(tmp_path: Path) -> None:
     path = _write_package(tmp_path, _paragraph("BAB I", style="Heading1"))
     package = DocumentPackage.load(path)
     assert tab_position(package, fallback=(11906, 1440, 1440, 0)) == 9026
+
+
+def _format_ctx(size: str, orientation: str) -> SimpleNamespace:
+    return SimpleNamespace(
+        format=SimpleNamespace(
+            page=SimpleNamespace(
+                size=size,
+                orientation=orientation,
+                margins=SimpleNamespace(left=1440, right=1440),
+            )
+        )
+    )
+
+
+def test_format_fallback_memakai_ukuran_kanonis_dan_landscape() -> None:
+    assert _format_fallback(_format_ctx("A4", "portrait")) == (11906, 1440, 1440, 0)
+    assert _format_fallback(_format_ctx("Letter", "landscape")) == (15840, 1440, 1440, 0)
+
+
+def test_format_fallback_mengembalikan_none_untuk_ukuran_tidak_dikenal() -> None:
+    assert _format_fallback(_format_ctx("A5", "portrait")) is None
+    assert _format_fallback(_format_ctx("LETTER", "portrait")) is None
 
 
 # ---------------------------------------------------------------------------

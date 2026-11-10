@@ -17,7 +17,8 @@ from ..docx.fields import (
     iter_fields,
 )
 from ..docx.names import W
-from ..docx.package import DOCUMENT_PART
+from ..docx.package import DOCUMENT_PART, DocumentPackage
+from ..docx.page import PAGE_SIZES, page_size
 from ..docx.sections import iter_sections
 from ..docx.xml import parse_xml, sha256_c14n
 from ..errors import StageError
@@ -46,7 +47,9 @@ def _twips(value: str | None) -> int | None:
         return None
 
 
-def tab_position(package: object, *, fallback: tuple[int, int, int, int] | None = None) -> int:
+def tab_position(
+    package: DocumentPackage, *, fallback: tuple[int, int, int, int] | None = None
+) -> int:
     """Posisi tab kanan TOC dari geometri section pertama.
 
     ``fallback`` berisi ``(width, left_margin, right_margin, _)`` dalam twip
@@ -184,7 +187,7 @@ def _styles_root(package: object) -> etree._Element:
     return root
 
 
-def ensure_toc_styles(package: object, *, tab_pos: int | None = None) -> int:
+def ensure_toc_styles(package: DocumentPackage, *, tab_pos: int | None = None) -> int:
     """Pastikan style ``TOCHeading`` dan ``TOC1``/``TOC2``/``TOC3`` ada.
 
     Style yang sudah ada diganti agar geometri tab leader mengikuti margin
@@ -229,14 +232,10 @@ def _format_fallback(ctx: object) -> tuple[int, int, int, int] | None:
     page = getattr(getattr(ctx, "format", None), "page", None)
     if page is None:
         return None
-    from .sections import PAGE_SIZES_TWIP
-
-    try:
-        width, height = PAGE_SIZES_TWIP[str(getattr(page, "size", "A4"))]
-    except KeyError:
+    size = str(getattr(page, "size", "A4"))
+    if size not in PAGE_SIZES:
         return None
-    if str(getattr(page, "orientation", "portrait")) == "landscape":
-        width, height = height, width
+    width, _height = page_size(size, str(getattr(page, "orientation", "portrait")))
     margins = getattr(page, "margins", None)
     if margins is None:
         return None

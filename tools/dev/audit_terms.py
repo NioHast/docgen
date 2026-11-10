@@ -23,6 +23,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from docgen.docx import DocxError
+from docgen.docx.paragraphs import paragraph_style_id
 from docgen.docx.terms import (
     BIBLIOGRAPHY_STYLE,
     Glossary,
@@ -31,7 +32,6 @@ from docgen.docx.terms import (
     load_glossary,
     match_terms,
     open_docx,
-    paragraph_style_id,
 )
 from docgen.docx.xml import iter_paragraphs
 

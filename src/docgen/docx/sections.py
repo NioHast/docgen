@@ -20,15 +20,13 @@ from typing import Literal
 from lxml import etree
 
 from ..errors import DocgenError
+from . import paragraphs
 from .names import (
     R_ID,
-    W_BODY,
     W_BR,
     W_CR,
-    W_DOCUMENT,
     W_P,
     W_PPR,
-    W_R,
     W_SECTPR,
     W_T,
     W_TAB,
@@ -39,15 +37,16 @@ from .package import (
     DOCUMENT_PART,
     REL_TYPE_FOOTER,
     REL_TYPE_HEADER,
+    DocumentPackage,
     Relationship,
 )
+from .runs import build_run, clone_run
 from .xml import (
     SECTPR_ORDER,
     get_or_add,
     insert_ordered,
     iter_paragraphs,
     iter_runs,
-    paragraph_text,
     run_text,
     serialize_xml,
     sha256_c14n,
@@ -121,18 +120,11 @@ class HeaderFooterRefs:
 # ---------------------------------------------------------------------------
 
 
-def _body(package: object) -> etree._Element:
-    root = package.xml(DOCUMENT_PART)  # type: ignore[attr-defined]
-    if not isinstance(root.tag, str) or root.tag != W_DOCUMENT:
-        raise SectionError("Root document.xml bukan w:document")
-    body = root.find(W_BODY)
-    if body is None:
-        raise SectionError("w:body tidak ditemukan")
-    return body
-
-
-def _body_children(body: etree._Element) -> list[etree._Element]:
-    return [child for child in body if isinstance(child.tag, str)]
+def _body(package: DocumentPackage) -> etree._Element:
+    try:
+        return paragraphs.document_body(package)
+    except paragraphs.ParagraphError as exc:
+        raise SectionError(str(exc)) from exc
 
 
 def _paragraph_sect_pr(paragraph: etree._Element) -> etree._Element | None:
@@ -147,26 +139,8 @@ def _paragraph_sect_pr(paragraph: etree._Element) -> etree._Element | None:
     return matches[0] if matches else None
 
 
-def _paragraph_style(paragraph: etree._Element) -> str | None:
-    ppr = paragraph.find(W_PPR)
-    if ppr is None:
-        return None
-    style = ppr.find(W + "pStyle")
-    if style is None:
-        return None
-    return style.get(W + "val")
-
-
-def _heading_level(paragraph: etree._Element) -> int | None:
-    style = _paragraph_style(paragraph)
-    if style is None:
-        return None
-    match = re.fullmatch(r"Heading([1-9])", style)
-    return int(match.group(1)) if match else None
-
-
 def _text(paragraph: etree._Element) -> str:
-    return " ".join(paragraph_text(paragraph).split())
+    return " ".join(paragraphs.paragraph_text(paragraph).split())
 
 
 def _has_visible_content(child: etree._Element) -> bool:
@@ -198,11 +172,13 @@ def _section_kind(
     body_start: int | None,
     back_start: int | None,
 ) -> SectionKind:
-    paragraphs = [
+    section_paragraphs = [
         child for child in children[start:end] if isinstance(child.tag, str) and child.tag == W_P
     ]
     styles = {
-        style for paragraph in paragraphs if (style := _paragraph_style(paragraph)) is not None
+        style
+        for paragraph in section_paragraphs
+        if (style := paragraphs.paragraph_style_id(paragraph)) is not None
     }
     has_cover_style = any(style.casefold().startswith("cover") for style in styles)
     if index == 0 and has_cover_style:
@@ -211,16 +187,16 @@ def _section_kind(
         if back_start is not None and start >= back_start:
             return "back_matter"
         return "body"
-    if not paragraphs:
+    if not section_paragraphs:
         return "cover" if index == 0 else "front_matter"
     return "front_matter"
 
 
-def iter_sections(package: object) -> tuple[Section, ...]:
+def iter_sections(package: DocumentPackage) -> tuple[Section, ...]:
     """Kembalikan seluruh section di ``word/document.xml``."""
 
     body = _body(package)
-    children = _body_children(body)
+    children = paragraphs.body_children(body)
     final_sect = body.find(W_SECTPR)
     if final_sect is None:
         raise SectionError("w:sectPr terakhir tidak ditemukan di w:body")
@@ -239,11 +215,11 @@ def iter_sections(package: object) -> tuple[Section, ...]:
     for index, child in enumerate(children):
         if child.tag != W_P:
             continue
-        if body_start is None and _heading_level(child) == 1:
+        if body_start is None and paragraphs.heading_level(child) == 1:
             text = _text(child)
             if _CHAPTER_RE.match(text):
                 body_start = index
-        if body_start is not None and index >= body_start and _heading_level(child) == 1:
+        if body_start is not None and index >= body_start and paragraphs.heading_level(child) == 1:
             text = _text(child)
             if _BACK_MATTER_RE.match(text):
                 back_start = index
@@ -270,12 +246,12 @@ def iter_sections(package: object) -> tuple[Section, ...]:
     return tuple(sections)
 
 
-def section_at(package: object, paragraph_index: int) -> Section:
+def section_at(package: DocumentPackage, paragraph_index: int) -> Section:
     """Section yang memuat child ``w:body`` pada ``paragraph_index``."""
 
     if not isinstance(paragraph_index, int) or paragraph_index < 0:
         raise SectionError("Indeks paragraf section harus bilangan bulat >= 0")
-    children = _body_children(_body(package))
+    children = paragraphs.body_children(_body(package))
     if paragraph_index >= len(children):
         raise SectionError(
             f"Indeks paragraf {paragraph_index} di luar batas body ({len(children)} child)"
@@ -420,7 +396,7 @@ def _section_is_empty(
     return not (break_child.tag == W_P and _has_visible_content(break_child))
 
 
-def remove_empty_sections(package: object) -> int:
+def remove_empty_sections(package: DocumentPackage) -> int:
     """Hapus section kosong yang tidak membawa konten.
 
     Paragraf pemutus yang hanya berisi ``w:sectPr`` dihapus bila section
@@ -431,7 +407,7 @@ def remove_empty_sections(package: object) -> int:
     removed = 0
     while True:
         body = _body(package)
-        children = _body_children(body)
+        children = paragraphs.body_children(body)
         sections = iter_sections(package)
         candidate: Section | None = None
         for section in sections[:-1]:
@@ -449,11 +425,13 @@ def remove_empty_sections(package: object) -> int:
         removed += 1
 
 
-def _section_start_child(package: object, before: etree._Element) -> tuple[etree._Element, int]:
+def _section_start_child(
+    package: DocumentPackage, before: etree._Element
+) -> tuple[etree._Element, int]:
     body = _body(package)
     if before.getparent() is not body:
         raise SectionError("Paragraf target section break bukan child langsung w:body")
-    children = _body_children(body)
+    children = paragraphs.body_children(body)
     try:
         index = children.index(before)
     except ValueError as exc:
@@ -462,7 +440,7 @@ def _section_start_child(package: object, before: etree._Element) -> tuple[etree
 
 
 def add_section_break(
-    package: object,
+    package: DocumentPackage,
     *,
     before: etree._Element,
     kind: Literal["nextPage", "continuous"],
@@ -695,11 +673,10 @@ def set_part_xml(package: object, part_name: str, root: etree._Element) -> None:
     package.set_xml(part_name, root)  # type: ignore[attr-defined]
 
 
-def _referenced_header_footer_parts(package: object) -> set[str]:
+def _referenced_header_footer_parts(package: DocumentPackage) -> set[str]:
     referenced: set[str] = set()
     relationships = {
-        relationship.rel_id: relationship
-        for relationship in package.relationships(DOCUMENT_PART)  # type: ignore[attr-defined]
+        relationship.rel_id: relationship for relationship in package.relationships(DOCUMENT_PART)
     }
     for section in iter_sections(package):
         for reference in section.sect_pr:
@@ -719,22 +696,22 @@ def _referenced_header_footer_parts(package: object) -> set[str]:
                 part_name = posixpath.normpath(
                     posixpath.join(posixpath.dirname(DOCUMENT_PART), target)
                 )
-            if package.has_part(part_name):  # type: ignore[attr-defined]
+            if package.has_part(part_name):
                 referenced.add(part_name)
     return referenced
 
 
-def remove_unused_header_footer_parts(package: object) -> int:
+def remove_unused_header_footer_parts(package: DocumentPackage) -> int:
     """Hapus part header/footer yang tidak dirujuk section mana pun."""
 
     referenced = _referenced_header_footer_parts(package)
     removed = 0
-    for name in list(package.part_names()):  # type: ignore[attr-defined]
+    for name in list(package.part_names()):
         if not re.fullmatch(r"word/(?:header|footer)\d+\.xml", name):
             continue
         if name in referenced:
             continue
-        package.remove_part(name)  # type: ignore[attr-defined]
+        package.remove_part(name)
         removed += 1
     return removed
 
@@ -854,12 +831,6 @@ def _normalized(text: str) -> str:
     return " ".join(text.split())
 
 
-def heading_level(paragraph: etree._Element) -> int | None:
-    """Level heading 1-9 dari ``w:pStyle``, atau ``None``."""
-
-    return _heading_level(paragraph)
-
-
 def _number_from_text(level: int, text: str) -> str | None:
     if level == 1:
         match = _H1_NUMBER_RE.match(text)
@@ -885,12 +856,12 @@ def is_unnumbered(paragraph: etree._Element) -> bool:
     ``unnumbered``, serta heading front/back matter yang lazim.
     """
 
-    if _heading_level(paragraph) is None:
+    if paragraphs.heading_level(paragraph) is None:
         return False
-    style = _paragraph_style(paragraph) or ""
+    style = paragraphs.paragraph_style_id(paragraph) or ""
     if "unnumbered" in style.casefold():
         return True
-    text = paragraph_text(paragraph).strip()
+    text = paragraphs.paragraph_text(paragraph).strip()
     if _EXPLICIT_UNNUMBERED_RE.match(text):
         return True
     normalized = _normalized(text).upper()
@@ -911,10 +882,10 @@ def heading_text(
 ) -> str:
     """Teks heading; ``include_number=False`` membuang prefix nomor lama."""
 
-    full = paragraph_text(paragraph).strip()
+    full = paragraphs.paragraph_text(paragraph).strip()
     if include_number:
         return full
-    level = _heading_level(paragraph) or 0
+    level = paragraphs.heading_level(paragraph) or 0
     if level == 1:
         stripped = _H1_NUMBER_RE.sub("", full)
     elif level in (2, 3):
@@ -930,10 +901,10 @@ def iter_headings(package: object) -> tuple[Heading, ...]:
     root = package.xml(DOCUMENT_PART)  # type: ignore[attr-defined]
     headings: list[Heading] = []
     for paragraph in iter_paragraphs(root):
-        level = _heading_level(paragraph)
+        level = paragraphs.heading_level(paragraph)
         if level is None:
             continue
-        text = paragraph_text(paragraph).strip()
+        text = paragraphs.paragraph_text(paragraph).strip()
         headings.append(
             Heading(
                 level=level,
@@ -946,10 +917,6 @@ def iter_headings(package: object) -> tuple[Heading, ...]:
     return tuple(headings)
 
 
-def _copy_run(run: etree._Element) -> etree._Element:
-    return copy.deepcopy(run)
-
-
 def _strip_prefix_from_runs(
     runs: list[etree._Element],
     prefix: str,
@@ -957,7 +924,7 @@ def _strip_prefix_from_runs(
     remaining = len(prefix)
     result: list[etree._Element] = []
     for run in runs:
-        clone = _copy_run(run)
+        clone = clone_run(run)
         for child in list(clone):
             if not isinstance(child.tag, str):
                 continue
@@ -1001,23 +968,26 @@ def _uppercase_runs(runs: list[etree._Element]) -> None:
                 text.text = text.text.upper()
 
 
+def _template_rpr(template: etree._Element | None) -> etree._Element | None:
+    return template.find(W + "rPr") if template is not None else None
+
+
+def _detached_run(
+    template: etree._Element | None,
+    *,
+    text: str | None = None,
+) -> etree._Element:
+    """Run baru ber-``rPr`` templat, belum terpasang di paragraf mana pun."""
+
+    return build_run(text=text, rpr=_template_rpr(template))
+
+
 def _run_with_text(template: etree._Element | None, text: str) -> etree._Element:
-    run = etree.Element(W_R)
-    if template is not None:
-        rpr = template.find(W + "rPr")
-        if rpr is not None:
-            run.append(copy.deepcopy(rpr))
-    node = etree.SubElement(run, W_T)
-    node.text = text
-    return run
+    return _detached_run(template, text=text)
 
 
 def _run_with_break(template: etree._Element | None, tag: str) -> etree._Element:
-    run = etree.Element(W_R)
-    if template is not None:
-        rpr = template.find(W + "rPr")
-        if rpr is not None:
-            run.append(copy.deepcopy(rpr))
+    run = build_run(rpr=_template_rpr(template))
     etree.SubElement(run, tag)
     return run
 
@@ -1104,7 +1074,7 @@ def _heading_title_runs(
     level: int,
     uppercase: bool,
 ) -> list[etree._Element]:
-    text = paragraph_text(paragraph)
+    text = paragraphs.paragraph_text(paragraph)
     if level == 1:
         match = _H1_NUMBER_RE.match(text)
     elif level in (2, 3):
@@ -1266,7 +1236,6 @@ __all__ = [
     "create_header_footer_part",
     "header_footer_part",
     "heading_bookmark_name",
-    "heading_level",
     "heading_text",
     "is_unnumbered",
     "iter_headings",

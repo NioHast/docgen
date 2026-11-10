@@ -123,6 +123,27 @@ def test_nomor_caption_per_bab_reset(docs, tmp_path):
     ]
 
 
+def test_heading_arabic_dotted_memberi_nomor_bab_empat(tmp_path):
+    document = Document()
+    document.add_paragraph("4. Metode", style="Heading 1")
+    document.styles.add_style("TableCaption", WD_STYLE_TYPE.PARAGRAPH)
+    document.styles.add_style("ImageCaption", WD_STYLE_TYPE.PARAGRAPH)
+    document.add_paragraph("Tabel 1.1 Data", style="TableCaption")
+    document.add_paragraph("Gambar 1.1 Diagram", style="ImageCaption")
+
+    source = tmp_path / "arabic.docx"
+    document.save(source)
+    package = DocumentPackage.load(source)
+
+    report = apply_captions(package)
+    output = tmp_path / "out.docx"
+    package.save(output)
+
+    assert report.bab_headings == 1
+    assert caption_texts(output, "TableCaption") == ["Tabel 4.1 Data"]
+    assert caption_texts(output, "ImageCaption") == ["Gambar 4.1 Diagram"]
+
+
 def test_prefix_lama_dihapus_dan_idempoten(docs, tmp_path):
     package = DocumentPackage.load(docs.main)
     apply_captions(package)

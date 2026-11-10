@@ -28,6 +28,10 @@ single-file, tes, serta dokumentasi. Semua path relatif terhadap akar repo.
 |       |   |-- structures/{assignment,proposal,thesis}/
 |       |   `-- glossary/istilah.tsv
 |       |-- docx/
+|       |   |-- paragraphs.py
+|       |   |-- runs.py
+|       |   |-- numbering.py
+|       |   `-- page.py
 |       |-- adeu/
 |       |-- markdown/
 |       `-- stages/
@@ -68,7 +72,7 @@ single-file, tes, serta dokumentasi. Semua path relatif terhadap akar repo.
 | `src/docgen/paths.py` | Lokasi data paket dan validasi path relatif. |
 | `src/docgen/errors.py` | Hierarki error dan pemetaan exit code. |
 | `src/docgen/data/` | Format, struktur, template, glosarium, logo, CSL, `reference.docx`. |
-| `src/docgen/docx/` | Model package DOCX dan seluruh mutasi XML. |
+| `src/docgen/docx/` | Model package DOCX dan seluruh mutasi XML; helper kanonis ada di `paragraphs.py`, `runs.py`, `numbering.py`, dan `page.py`. |
 | `src/docgen/adeu/` | Bookmark `pNNNN`, manifest, source scan, reconcile. |
 | `src/docgen/markdown/` | Parser blok Markdown dan penomoran heading Markdown untuk manifest, reconcile, dan front matter. |
 | `src/docgen/stages/` | Stage kanonik pipeline. |

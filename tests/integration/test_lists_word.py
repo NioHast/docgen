@@ -26,7 +26,8 @@ from docx import Document  # noqa: E402
 
 from docgen.docx.fields import field_instruction, insert_toc, iter_fields  # noqa: E402
 from docgen.docx.package import DocumentPackage  # noqa: E402
-from docgen.docx.xml import iter_paragraphs, paragraph_text  # noqa: E402
+from docgen.docx.paragraphs import paragraph_text  # noqa: E402
+from docgen.docx.xml import iter_paragraphs  # noqa: E402
 from docgen.stages.lists import ListsStage  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]

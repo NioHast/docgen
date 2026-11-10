@@ -29,12 +29,12 @@ from ..docx.names import (
     W_VAL,
 )
 from ..docx.package import DocumentPackage
+from ..docx.paragraphs import int_attribute
+from ..docx.runs import strip_bold_from_rpr
 from ..docx.xml import ensure_ppr, get_or_add, iter_paragraphs, qn, sha256_c14n
 from ..errors import DocgenError
 from ..pipeline import BaseStage, StageName, StageResult, canonical_prefix
 
-W_B = qn("w:b")
-W_BCS = qn("w:bCs")
 W_ILVL = qn("w:ilvl")
 W_LEFT = qn("w:left")
 W_NUMID = qn("w:numId")
@@ -142,18 +142,13 @@ class NumberingReport:
 # ---------------------------------------------------------------------------
 
 
-def _int_attribute(
+def _int_or(
     element: etree._Element,
     attribute: str,
-    default: int | None = None,
+    default: int | None,
 ) -> int | None:
-    value = element.get(attribute)
-    if value is None:
-        return default
-    try:
-        return int(value)
-    except TypeError, ValueError:
-        return default
+    value = int_attribute(element, attribute)
+    return default if value is None else value
 
 
 def _int_child(
@@ -164,19 +159,7 @@ def _int_child(
     element = parent.find(tag)
     if element is None:
         return default
-    return _int_attribute(element, W_VAL, default)
-
-
-def _strip_bold_from_rpr_local(rpr: etree._Element) -> int:
-    removed = 0
-    for tag in (W_B, W_BCS):
-        for element in list(rpr.findall(tag)):
-            value = (element.get(W_VAL) or "").strip().lower()
-            if value in {"0", "false", "off"}:
-                continue
-            rpr.remove(element)
-            removed += 1
-    return removed
+    return _int_or(element, W_VAL, default)
 
 
 def _strip_paragraph_bold(paragraph: etree._Element) -> int:
@@ -185,14 +168,14 @@ def _strip_paragraph_bold(paragraph: etree._Element) -> int:
     if ppr is not None:
         rpr = ppr.find(W_RPR)
         if rpr is not None:
-            removed += _strip_bold_from_rpr_local(rpr)
+            removed += strip_bold_from_rpr(rpr)
 
     for run in iter_paragraph_runs(paragraph):
         if has_deleted_ancestor(run) or is_field_run(run, paragraph):
             continue
         rpr = run.find(W_RPR)
         if rpr is not None:
-            removed += _strip_bold_from_rpr_local(rpr)
+            removed += strip_bold_from_rpr(rpr)
     return removed
 
 
@@ -290,13 +273,13 @@ def _build_numbering_index(
 ) -> dict[tuple[int, int], etree._Element]:
     abstracts: dict[int, etree._Element] = {}
     for abstract in root.findall(W_ABSTRACT_NUM):
-        abstract_id = _int_attribute(abstract, W_ABSTRACT_NUM_ID)
+        abstract_id = _int_or(abstract, W_ABSTRACT_NUM_ID, None)
         if abstract_id is not None:
             abstracts[abstract_id] = abstract
 
     num_to_abstract: dict[int, int] = {}
     for num in root.findall(W_NUM):
-        num_id = _int_attribute(num, W_NUMID)
+        num_id = _int_or(num, W_NUMID, None)
         abstract_id = _int_child(num, W_ABSTRACT_NUM_ID)
         if num_id is not None and abstract_id is not None:
             num_to_abstract[num_id] = abstract_id
@@ -307,7 +290,7 @@ def _build_numbering_index(
         if abstract is None:
             continue
         for level in abstract.findall(W_LVL):
-            ilvl = _int_attribute(level, W_ILVL, 0) or 0
+            ilvl = _int_or(level, W_ILVL, 0) or 0
             index[(num_id, ilvl)] = level
     return index
 
@@ -316,7 +299,7 @@ def _normalize_level(
     level: etree._Element,
     spec: NumberingSpec,
 ) -> tuple[bool, int]:
-    ilvl = _int_attribute(level, W_ILVL, 0) or 0
+    ilvl = _int_or(level, W_ILVL, 0) or 0
     if ilvl < 0 or ilvl > spec.max_level:
         ilvl = 0
 
@@ -331,7 +314,7 @@ def _normalize_level(
     if spec.strip_bold:
         rpr = level.find(W_RPR)
         if rpr is not None:
-            removed = _strip_bold_from_rpr_local(rpr)
+            removed = strip_bold_from_rpr(rpr)
 
     return changed or removed > 0, removed
 

@@ -19,8 +19,6 @@ from lxml import etree
 
 from ..errors import DocgenError
 from .names import (
-    W_BODY,
-    W_DOCUMENT,
     W_FLDCHAR,
     W_FLDCHARTYPE,
     W_FLDSIMPLE,
@@ -37,8 +35,10 @@ from .names import (
     W_TBL,
     W,
 )
-from .package import DOCUMENT_PART
-from .xml import paragraph_text, qn
+from .package import DOCUMENT_PART, DocumentPackage
+from .paragraphs import ParagraphError, document_body, paragraph_style_id, paragraph_text
+from .runs import make_run
+from .xml import qn
 
 SETTINGS_PART = "word/settings.xml"
 
@@ -267,9 +267,7 @@ def _append_run(
     fld_char: str | None = None,
     rpr: etree._Element | None = None,
 ) -> etree._Element:
-    run = etree.SubElement(paragraph, W_R)
-    if rpr is not None:
-        run.append(rpr)
+    run = make_run(paragraph, rpr=rpr)
     if fld_char is not None:
         element = etree.SubElement(run, W_FLDCHAR)
         element.set(W + "fldCharType", fld_char)
@@ -308,32 +306,21 @@ def _new_paragraph(style: str | None = None) -> etree._Element:
     return paragraph
 
 
-def _body(package: object) -> etree._Element:
-    root = package.xml(DOCUMENT_PART)  # type: ignore[attr-defined]
-    if not isinstance(root.tag, str) or root.tag != W_DOCUMENT:
-        raise FieldError("Root document.xml bukan w:document")
-    body = root.find(W_BODY)
-    if body is None:
-        raise FieldError("w:body tidak ditemukan")
-    return body
+def _body(package: DocumentPackage) -> etree._Element:
+    try:
+        return document_body(package)
+    except ParagraphError as exc:
+        raise FieldError(str(exc)) from exc
 
 
 def _normalized_text(paragraph: etree._Element) -> str:
     return " ".join(paragraph_text(paragraph).split())
 
 
-def _paragraph_style(paragraph: etree._Element) -> str | None:
-    ppr = paragraph.find(W + "pPr")
-    if ppr is None:
-        return None
-    style = ppr.find(W + "pStyle")
-    return style.get(W + "val") if style is not None else None
-
-
 def _is_body_chapter(paragraph: etree._Element) -> bool:
     if paragraph.tag != W_P:
         return False
-    if _paragraph_style(paragraph) != "Heading1":
+    if paragraph_style_id(paragraph) != "Heading1":
         return False
     text = _normalized_text(paragraph)
     return (
@@ -433,7 +420,7 @@ def _remove_existing_toc(root: etree._Element, title: str) -> None:
     for paragraph in list(root.iter(W_P)):
         if _normalized_text(paragraph) != title:
             continue
-        if _paragraph_style(paragraph) not in ("TOCHeading", "Heading1"):
+        if paragraph_style_id(paragraph) not in ("TOCHeading", "Heading1"):
             continue
         if _nearest_sdt(paragraph) is not None:
             continue
@@ -471,13 +458,13 @@ def _sdt_toc(
     jc.set(W + "val", "center")
     outline = etree.SubElement(title_ppr, qn("w:outlineLvl"))
     outline.set(W + "val", "9")
-    title_run = etree.SubElement(title_paragraph, W_R)
-    title_rpr = etree.SubElement(title_run, qn("w:rPr"))
+    title_rpr = etree.Element(qn("w:rPr"))
     etree.SubElement(title_rpr, qn("w:b"))
     sz = etree.SubElement(title_rpr, qn("w:sz"))
     sz.set(W + "val", "24")
     sz_cs = etree.SubElement(title_rpr, qn("w:szCs"))
     sz_cs.set(W + "val", "24")
+    title_run = make_run(title_paragraph, rpr=title_rpr)
     title_text = etree.SubElement(title_run, W_T)
     title_text.text = title
     content.append(title_paragraph)
@@ -561,7 +548,7 @@ def _remove_blank_breaks_after(body: etree._Element, sdt: etree._Element) -> int
 
 
 def insert_toc(
-    package: object,
+    package: DocumentPackage,
     *,
     title: str,
     levels: tuple[int, int] = (1, 3),
@@ -719,7 +706,7 @@ def strip_update_fields(package: object) -> bool:
     return removed
 
 
-def ensure_no_blank_page_after_toc(package: object) -> int:
+def ensure_no_blank_page_after_toc(package: DocumentPackage) -> int:
     """Bersihkan page-break kosong setelah setiap TOC ``w:sdt``."""
 
     body = _body(package)

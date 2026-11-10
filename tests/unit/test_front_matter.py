@@ -2,6 +2,7 @@
 
 import re
 from collections.abc import Mapping
+from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -87,6 +88,17 @@ def _render(
         body=body,
         include_logo=include_logo,
         logo=logo,
+    )
+
+
+def _render_with_page(**page_overrides: Any) -> str:
+    format_ = load_format("undip-msi")
+    return render_front_matter(
+        _document(),
+        load_structure("thesis"),
+        replace(format_, page=replace(format_.page, **page_overrides)),
+        body=_BODY,
+        include_logo=False,
     )
 
 
@@ -238,6 +250,41 @@ def test_section_break_memakai_margin_format_yml() -> None:
     # Default Lua lama tidak boleh dipakai.
     assert 'w:top="1134"' not in output
     assert 'w:right="1417"' not in output
+
+
+def test_section_break_menormalisasi_alias_ukuran_lama() -> None:
+    portrait = _render_with_page(size="LETTER", orientation="portrait")
+    assert 'w:w="12240"' in portrait
+    assert 'w:h="15840"' in portrait
+    assert 'w:orient="landscape"' not in portrait
+
+    landscape = _render_with_page(size="LETTER", orientation="landscape")
+    assert 'w:w="15840"' in landscape
+    assert 'w:h="12240"' in landscape
+    assert 'w:orient="landscape"' in landscape
+
+    lowercase = _render_with_page(size="a4", orientation="portrait")
+    assert 'w:w="11906"' in lowercase
+    assert 'w:h="16838"' in lowercase
+
+
+@pytest.mark.parametrize(
+    ("size", "orientation"),
+    [
+        ("A5", "portrait"),
+        ("A4", "diagonal"),
+    ],
+)
+def test_section_break_menolak_ukuran_atau_orientasi_tidak_valid(
+    size: str,
+    orientation: str,
+) -> None:
+    with pytest.raises(FrontMatterError) as excinfo:
+        _render_with_page(size=size, orientation=orientation)
+
+    assert excinfo.value.code == "FRONT-MATTER-PAGE"
+    assert size in str(excinfo.value)
+    assert orientation in str(excinfo.value)
 
 
 def test_spacer_adalah_spacing_eksplisit() -> None:

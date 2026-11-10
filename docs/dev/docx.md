@@ -37,6 +37,10 @@ Aturan global:
 | `io.py` | Baca/tulis ZIP dan penulisan atomic. |
 | `xml.py` | Parse, serialisasi, c14n, hash, helper elemen. |
 | `names.py` | Namespace, tag, style, dan konstanta lain. |
+| `paragraphs.py` | Akses `w:body`, child langsung, style dan level heading, teks paragraf, hapus child, atribut integer. |
+| `runs.py` | Pembuatan, penyalinan, dan pembersihan `w:r`/`w:rPr`. |
+| `numbering.py` | Konversi angka Romawi dan nomor bab. |
+| `page.py` | Konstanta dan helper ukuran halaman. |
 | `styles.py` | Style paragraf, karakter, tabel, dan page layout. |
 | `sections.py` | Section break, margin, ukuran halaman, header/footer. |
 | `captions.py` | Caption tabel/gambar, numbering, layout gambar. |
@@ -45,6 +49,10 @@ Aturan global:
 | `fields.py` | TOC, PAGEREF, SEQ, PAGE, NUMPAGES. |
 | `bookmarks.py` | Bookmark `pNNNN` dan verifikasi. |
 | `terms.py` | Glosarium, style istilah, transformasi run, verifikasi. |
+
+`heading_level(paragraph)` dan `paragraph_style_id(paragraph)` berada di
+`paragraphs.py`, bukan `sections.py`. `sections.py` memakai helper tersebut untuk
+mengenali heading batas section.
 
 Penomoran heading Markdown sebelum Pandoc bukan tanggung jawab lapisan DOCX;
 modulnya ada di `src/docgen/markdown/headings.py`.

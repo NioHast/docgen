@@ -20,7 +20,7 @@ from pathlib import Path
 
 from lxml import etree
 
-from . import DocxError
+from . import DocxError, paragraphs
 from .names import (
     STYLE_BIBLIOGRAPHY,
     STYLE_ISTILAH_ASING,
@@ -32,8 +32,6 @@ from .names import (
     W_HYPERLINK,
     W_INSTRTEXT,
     W_NO_BREAK_HYPHEN,
-    W_PPR,
-    W_PSTYLE,
     W_R,
     W_RPR,
     W_RSTYLE,
@@ -42,6 +40,7 @@ from .names import (
     W_VAL,
     W,
 )
+from .runs import copy_rpr, make_run
 from .styles import StyleError, ensure_character_style
 from .xml import is_on, iter_paragraphs, qn
 
@@ -377,16 +376,6 @@ class ParagraphModel:
     ignored_texts: list[str] = field(default_factory=list)
 
 
-def paragraph_style_id(paragraph: etree._Element) -> str | None:
-    ppr = paragraph.find(W_PPR)
-    if ppr is None:
-        return None
-    pstyle = ppr.find(W_PSTYLE)
-    if pstyle is None:
-        return None
-    return pstyle.get(W_VAL)
-
-
 def _relation_index(package: object) -> dict[str, object]:
     try:
         relationships = package.relationships(W_DOCUMENT_PART)  # type: ignore[attr-defined]
@@ -543,7 +532,7 @@ def _iter_all_paragraphs(
     root = package.xml(W_DOCUMENT_PART)  # type: ignore[attr-defined]
     relations = _relation_index(package)
     for paragraph in iter_paragraphs(root):
-        skipped = paragraph_style_id(paragraph) == BIBLIOGRAPHY_STYLE
+        skipped = paragraphs.paragraph_style_id(paragraph) == BIBLIOGRAPHY_STYLE
         yield paragraph, relations, skipped
 
 
@@ -643,7 +632,7 @@ class StyleResolver:
         if resolution.italic is not None:
             return resolution.italic
         if paragraph is not None:
-            styled = self.resolve(paragraph_style_id(paragraph))
+            styled = self.resolve(paragraphs.paragraph_style_id(paragraph))
             if styled.italic is not None:
                 return styled.italic
         return False
@@ -662,7 +651,7 @@ class StyleResolver:
         if resolution.lang is not None:
             return resolution.lang
         if paragraph is not None:
-            return self.resolve(paragraph_style_id(paragraph)).lang
+            return self.resolve(paragraphs.paragraph_style_id(paragraph)).lang
         return None
 
     def effective(
@@ -780,41 +769,48 @@ def _range_already_handled(model: ParagraphModel, start: int, end: int) -> bool:
     return True
 
 
-def _make_run(
-    run_element: etree._Element,
+def _run_properties(
     rpr_template: etree._Element | None,
-    text: str,
     style: str | None,
+) -> etree._Element | None:
+    """Susun ``w:rPr`` lokal dari templat dan gaya istilah yang diminta."""
+
+    if rpr_template is None and style is None:
+        return None
+    properties = copy_rpr(rpr_template) if rpr_template is not None else etree.Element(W_RPR)
+    if style is None:
+        return properties
+
+    for old_style in properties.findall(W_RSTYLE):
+        properties.remove(old_style)
+    rstyle = etree.Element(W_RSTYLE)
+    rstyle.set(W_VAL, style)
+    properties.insert(0, rstyle)
+    if style == ISTILAH_ASING:
+        for old in properties.findall(W_I):
+            properties.remove(old)
+        properties.append(etree.Element(W_I))
+        for old in properties.findall(W_LANG):
+            properties.remove(old)
+        lang = etree.Element(W_LANG)
+        lang.set(W_VAL, "en-US")
+        properties.append(lang)
+    return properties
+
+
+def _detached_run(
+    run_element: etree._Element,
+    *,
+    text: str | None = None,
+    rpr: etree._Element | None = None,
 ) -> etree._Element:
-    new_run = etree.Element(W_R)
+    """Buat run lewat :func:`make_run`, salin atribut, lalu lepaskan dari parent sementara."""
+
+    holder = etree.Element(W_R)
+    new_run = make_run(holder, text=text, rpr=rpr)
     for key, value in run_element.attrib.items():
         new_run.set(key, value)
-    if rpr_template is not None:
-        new_run.append(copy.deepcopy(rpr_template))
-    if style is not None:
-        rpr = new_run.find(W_RPR)
-        if rpr is None:
-            rpr = etree.Element(W_RPR)
-            new_run.insert(0, rpr)
-        for old_style in rpr.findall(W_RSTYLE):
-            rpr.remove(old_style)
-        rstyle = etree.Element(W_RSTYLE)
-        rstyle.set(W_VAL, style)
-        rpr.insert(0, rstyle)
-        if style == ISTILAH_ASING:
-            for old in rpr.findall(W_I):
-                rpr.remove(old)
-            rpr.append(etree.Element(W_I))
-            for old in rpr.findall(W_LANG):
-                rpr.remove(old)
-            lang = etree.Element(W_LANG)
-            lang.set(W_VAL, "en-US")
-            rpr.append(lang)
-    text_node = etree.Element(W_T)
-    text_node.text = text
-    if text[:1].isspace() or text[-1:].isspace():
-        text_node.set(qn("xml:space"), "preserve")
-    new_run.append(text_node)
+    holder.remove(new_run)
     return new_run
 
 
@@ -823,11 +819,7 @@ def _copy_non_text_child(
     rpr_template: etree._Element | None,
     child: etree._Element,
 ) -> etree._Element:
-    new_run = etree.Element(W_R)
-    for key, value in run_element.attrib.items():
-        new_run.set(key, value)
-    if rpr_template is not None:
-        new_run.append(copy.deepcopy(rpr_template))
+    new_run = _detached_run(run_element, rpr=rpr_template)
     new_run.append(copy.deepcopy(child))
     return new_run
 
@@ -878,11 +870,10 @@ def transform_runs(model: ParagraphModel, actions: list[CharAction]) -> bool:
                         end += 1
                     if not action.delete:
                         output.append(
-                            _make_run(
+                            _detached_run(
                                 run,
-                                rpr_template,
-                                text[index:end],
-                                action.style,
+                                text=text[index:end],
+                                rpr=_run_properties(rpr_template, action.style),
                             )
                         )
                     index = end
@@ -1263,7 +1254,6 @@ __all__ = [
     "match_terms",
     "merge_glossaries",
     "open_docx",
-    "paragraph_style_id",
     "resolve_style",
     "transform_runs",
     "unique_terms",

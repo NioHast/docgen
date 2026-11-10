@@ -26,16 +26,13 @@ from ..docx.layout import (
     COVER_PREFIX,
     TOC_STYLE_RE,
     BodyUnit,
-    document_body,
     document_root,
     field_name,
-    heading_level,
+    is_chapter_heading,
     iter_body_units,
     iter_field_instructions,
     new_element,
     normalize_style_id,
-    paragraph_style_id,
-    paragraph_text,
     set_document_root,
 )
 from ..docx.names import (
@@ -57,6 +54,13 @@ from ..docx.names import (
     W_TAB,
     W_TBL,
     W_VAL,
+)
+from ..docx.package import DocumentPackage
+from ..docx.paragraphs import (
+    document_body,
+    heading_level,
+    paragraph_style_id,
+    paragraph_text,
 )
 from ..docx.xml import qn, sha256_c14n
 from ..errors import DocgenError
@@ -272,7 +276,9 @@ def classify(element: etree._Element, *, deleted: bool = False) -> str:
             return IGNORE
 
         style_id = normalize_style_id(paragraph_style_id(element))
-        level = heading_level(style_id)
+        level = heading_level(element)
+        if level is None and is_chapter_heading(element):
+            level = 1
         if level is not None:
             if level <= 3:
                 return f"h{level}"
@@ -461,7 +467,7 @@ def make_empty_paragraph(spec: BlankLineSpec | None = None) -> etree._Element:
 
 
 def insert_blank_lines(
-    package: object,
+    package: DocumentPackage,
     *,
     spec: BlankLineSpec | None = None,
 ) -> BlankLineReport:
@@ -469,7 +475,7 @@ def insert_blank_lines(
 
     spec = spec or BlankLineSpec()
     root = document_root(package)
-    body = document_body(root)
+    body = document_body(package)
     units = list(iter_body_units(body))
     kinds = [classify(unit.element, deleted=unit.deleted) for unit in units]
     blocks = _build_blocks(units, kinds)

@@ -6,12 +6,13 @@ from lxml import etree
 from docgen.docx.names import W_R, W_RPR, W_T, W_TAB, W_VAL
 from docgen.docx.runs import (
     append_text_run,
+    build_run,
     clone_run,
     copy_rpr,
     make_run,
     strip_bold_from_rpr,
 )
-from docgen.docx.xml import qn
+from docgen.docx.xml import is_on, qn
 
 W_B = qn("w:b")
 W_BCS = qn("w:bCs")
@@ -25,6 +26,23 @@ def _paragraph() -> etree._Element:
 
 def _rpr() -> etree._Element:
     return etree.Element(W_RPR)
+
+
+def test_build_run_has_no_parent() -> None:
+    template = _rpr()
+    etree.SubElement(template, W_I)
+
+    run = build_run(text=" teks", rpr=template)
+
+    assert run.tag == W_R
+    assert run.getparent() is None
+    assert [child.tag for child in run] == [W_RPR, W_T]
+    assert run.find(W_RPR) is not template
+    node = run.find(W_T)
+    assert node is not None
+    assert node.text == " teks"
+    assert node.get(XML_SPACE) == "preserve"
+    assert template.getparent() is None
 
 
 def test_make_run_minimal() -> None:
@@ -97,6 +115,44 @@ def test_append_text_run_without_rpr_starts_with_text() -> None:
     assert run.find(W_RPR) is None
 
 
+def test_append_text_run_empty_text_keeps_rpr_without_t() -> None:
+    paragraph = _paragraph()
+    template = _rpr()
+    etree.SubElement(template, W_I)
+
+    run = append_text_run(paragraph, "", rpr=template)
+
+    assert [child.tag for child in run] == [W_RPR]
+    assert run.find(W_T) is None
+
+
+def test_append_text_run_preserves_tabs_and_edge_spaces_per_segment() -> None:
+    paragraph = _paragraph()
+
+    run = append_text_run(paragraph, "a\t b\t")
+
+    assert [child.tag for child in run] == [W_T, W_TAB, W_T, W_TAB]
+    nodes = run.findall(W_T)
+    assert [node.text for node in nodes] == ["a", " b"]
+    assert all(node.get(XML_SPACE) == "preserve" for node in nodes)
+
+
+def test_append_text_run_empty_segments_produce_no_t() -> None:
+    paragraph = _paragraph()
+
+    run = append_text_run(paragraph, "\ta\t\tb\t")
+
+    assert [child.tag for child in run] == [
+        W_TAB,
+        W_T,
+        W_TAB,
+        W_TAB,
+        W_T,
+        W_TAB,
+    ]
+    assert [node.text for node in run.findall(W_T)] == ["a", "b"]
+
+
 def test_clone_run_is_independent() -> None:
     paragraph = _paragraph()
     run = make_run(paragraph, text="asli", rpr=_rpr())
@@ -158,7 +214,7 @@ def test_strip_bold_removes_active_toggles_and_counts_them() -> None:
     assert rpr.find(W_I) is italic
 
 
-@pytest.mark.parametrize("value", ["0", "false", "off", "none", "no", "False", " off "])
+@pytest.mark.parametrize("value", ["0", "false", "off", "no", "False", " off "])
 def test_strip_bold_keeps_inactive_values(value: str) -> None:
     rpr = _rpr()
     for tag in (W_B, W_BCS):
@@ -178,6 +234,28 @@ def test_strip_bold_removes_active_values(value: str) -> None:
 
     assert strip_bold_from_rpr(rpr) == 2
     assert len(rpr) == 0
+
+
+@pytest.mark.parametrize("value", ["0", "false", "off", "none", "no"])
+def test_strip_bold_is_consistent_with_xml_is_on(value: str) -> None:
+    rpr = _rpr()
+    expected_removed = 0
+    for tag in (W_B, W_BCS):
+        element = etree.SubElement(rpr, tag)
+        element.set(W_VAL, value)
+        expected_removed += int(is_on(element))
+
+    assert strip_bold_from_rpr(rpr) == expected_removed
+    assert len(rpr) == 2 - expected_removed
+
+
+def test_strip_bold_treats_none_as_active() -> None:
+    rpr = _rpr()
+    bold = etree.SubElement(rpr, W_B)
+    bold.set(W_VAL, "none")
+
+    assert strip_bold_from_rpr(rpr) == 1
+    assert rpr.find(W_B) is None
 
 
 def test_strip_bold_without_bold_returns_zero() -> None:

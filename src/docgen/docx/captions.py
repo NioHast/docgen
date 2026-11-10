@@ -14,8 +14,16 @@ from typing import TYPE_CHECKING
 
 from lxml import etree
 
-from . import DocxError, names
-from .package import DOCUMENT_PART
+from . import DocxError, names, numbering
+from .paragraphs import (
+    ParagraphError,
+    document_body,
+    int_attribute,
+    paragraph_style_id,
+    paragraph_text,
+    remove_direct_children,
+)
+from .runs import make_run
 from .tables import is_code_table
 from .xml import (
     PPR_ORDER,
@@ -23,7 +31,6 @@ from .xml import (
     ensure_ppr,
     ensure_rpr,
     get_or_add,
-    paragraph_text,
     qn,
 )
 
@@ -140,23 +147,6 @@ CAPTION_PREFIX_RE = re.compile(
 )
 CAPTION_LABEL_RE = re.compile(r"^\s*(Gambar|Tabel)\b", re.IGNORECASE)
 _LABEL_PREFIX_RE = re.compile(r"^\s*(Gambar|Tabel)\b[ \t]*", re.IGNORECASE)
-BAB_RE = re.compile(
-    r"^\s*BAB\s+(?P<number>[IVXLCDM]+|\d+)(?=\s|[.:;,\-\u2013\u2014]|$)",
-    re.IGNORECASE,
-)
-ARABIC_CHAPTER_RE = re.compile(r"^\s*(?P<number>\d+)(?!\.\d)[\.\s]+")
-
-ROMAN_VALUES = {
-    "I": 1,
-    "V": 5,
-    "X": 10,
-    "L": 50,
-    "C": 100,
-    "D": 500,
-    "M": 1000,
-}
-
-W_BODY = names.W_BODY
 W_P = names.W_P
 W_PPR = names.W_PPR
 W_PSTYLE = names.W_PSTYLE
@@ -254,35 +244,16 @@ COVER_STYLE_PREFIX = "cover"
 
 
 def _body(package: DocumentPackage) -> etree._Element:
-    root = package.xml(DOCUMENT_PART)
-    body = root.find(W_BODY)
-    if body is None:
-        raise CaptionError(
-            f"{DOCUMENT_PART} tidak memiliki elemen w:body",
-            code="CAPTION-NO-BODY",
-        )
-    return body
+    try:
+        return document_body(package)
+    except ParagraphError as exc:
+        raise CaptionError(str(exc), code="CAPTION-NO-BODY") from exc
 
 
 def _set_text(node: etree._Element, text: str) -> None:
     node.text = text
     if text != text.strip():
         node.set(XML_SPACE, "preserve")
-
-
-def _remove_direct_children(parent: etree._Element, tag: str) -> None:
-    for child in parent.findall(tag):
-        parent.remove(child)
-
-
-def _paragraph_style_id(paragraph: etree._Element) -> str | None:
-    properties = paragraph.find(W_PPR)
-    if properties is None:
-        return None
-    style = properties.find(W_PSTYLE)
-    if style is None:
-        return None
-    return style.get(W_VAL)
 
 
 def _caption_text_nodes(paragraph: etree._Element) -> list[etree._Element]:
@@ -417,14 +388,6 @@ def _replace_caption_prefix(
     return True
 
 
-def _append_text(paragraph: etree._Element, text: str) -> None:
-    run = etree.Element(W_R)
-    text_node = etree.Element(W_T)
-    _set_text(text_node, text)
-    run.append(text_node)
-    paragraph.append(run)
-
-
 def _caption_kind(
     style_id: str | None,
     text: str,
@@ -455,7 +418,7 @@ def is_caption_paragraph(
 
     if paragraph is None or paragraph.tag != W_P:
         return False
-    style_id = _paragraph_style_id(paragraph)
+    style_id = paragraph_style_id(paragraph)
     if not names.is_caption_style(style_id):
         return False
     if kind is None:
@@ -547,7 +510,7 @@ def format_caption_paragraph(
         keep_next = get_or_add(properties, W_KEEP_NEXT, PPR_ORDER)
         keep_next.attrib.pop(W_VAL, None)
     else:
-        _remove_direct_children(properties, W_KEEP_NEXT)
+        remove_direct_children(properties, W_KEEP_NEXT)
 
     for run in paragraph.iter(W_R):
         _format_run(run, font)
@@ -578,19 +541,9 @@ def _set_image_paragraph_properties(
     indentation.set(W_FIRST_LINE, str(spec.first_line_indent))
 
 
-def _int_attribute(element: etree._Element, name: str) -> int | None:
-    value = element.get(name)
-    if value is None:
-        return None
-    try:
-        return int(value)
-    except ValueError:
-        return None
-
-
 def _scale_extent(element: etree._Element, ratio: float) -> None:
-    cx = _int_attribute(element, "cx")
-    cy = _int_attribute(element, "cy")
+    cx = int_attribute(element, "cx")
+    cy = int_attribute(element, "cy")
     if cx is not None and cx > 0:
         element.set("cx", str(max(1, round(cx * ratio))))
     if cy is not None and cy > 0:
@@ -602,8 +555,8 @@ def _clamp_container(container: etree._Element) -> bool:
     if extent is None:
         return False
 
-    cx = _int_attribute(extent, "cx")
-    cy = _int_attribute(extent, "cy")
+    cx = int_attribute(extent, "cx")
+    cy = int_attribute(extent, "cy")
     if cx is None or cx <= MAX_IMAGE_WIDTH_EMU:
         return False
 
@@ -661,7 +614,7 @@ def iter_image_paragraphs(
     for paragraph in _body(package).iter(W_P):
         if not list(paragraph.iter(W_DRAWING)):
             continue
-        if _style_is_cover(_paragraph_style_id(paragraph)):
+        if _style_is_cover(paragraph_style_id(paragraph)):
             continue
         paragraphs.append(paragraph)
     return tuple(paragraphs)
@@ -689,7 +642,7 @@ def _is_empty_layout_paragraph(paragraph: etree._Element) -> bool:
 
     if paragraph.tag != W_P:
         return False
-    if names.is_caption_style(_paragraph_style_id(paragraph)):
+    if names.is_caption_style(paragraph_style_id(paragraph)):
         # Placeholder caption kosong harus diisi, bukan dihapus.
         return False
     if paragraph.find(f".//{W_SECTPR}") is not None:
@@ -820,7 +773,7 @@ def _fill_empty_caption(paragraph: etree._Element, text: str) -> bool:
             _set_text(node, "")
         return True
 
-    _append_text(paragraph, text)
+    make_run(paragraph, text=text)
     return True
 
 
@@ -833,7 +786,7 @@ def _make_caption_paragraph(kind: CaptionKind, text: str) -> etree._Element:
     properties.append(style)
     paragraph.append(properties)
 
-    _append_text(paragraph, text)
+    make_run(paragraph, text=text)
     return paragraph
 
 
@@ -943,37 +896,6 @@ def ensure_caption(
 # ---------------------------------------------------------------------------
 
 
-def _roman_to_int(token: str) -> int | None:
-    total = 0
-    previous = 0
-    for character in reversed(token.upper()):
-        value = ROMAN_VALUES.get(character)
-        if value is None:
-            return None
-        if value < previous:
-            total -= value
-        else:
-            total += value
-            previous = value
-    return total or None
-
-
-def _chapter_number(text: str) -> int | None:
-    match = BAB_RE.match(text)
-    if match is not None:
-        token = match.group("number")
-        if token.isdigit():
-            return int(token)
-        return _roman_to_int(token)
-
-    # Proposal memakai Heading1 bernomor arab, mis. "1. PENDAHULUAN".
-    # Lookahead menolak subbab seperti "1.1 Latar Belakang".
-    match = ARABIC_CHAPTER_RE.match(text)
-    if match is not None:
-        return int(match.group("number"))
-    return None
-
-
 def _anchor_for_caption(
     kind: CaptionKind,
     caption: etree._Element,
@@ -1004,7 +926,7 @@ def iter_captions(package: DocumentPackage) -> tuple[Caption, ...]:
     captions: list[Caption] = []
     for paragraph in _body(package).iter(W_P):
         text = _caption_text(paragraph)
-        kind = _caption_kind(_paragraph_style_id(paragraph), text)
+        kind = _caption_kind(paragraph_style_id(paragraph), text)
         if kind is None or not text.strip():
             continue
         anchor = _anchor_for_caption(kind, paragraph)
@@ -1045,7 +967,7 @@ def set_caption(
 
     nodes = _caption_text_nodes(paragraph)
     if not nodes:
-        _append_text(paragraph, desired)
+        make_run(paragraph, text=desired)
         return
     _set_text(nodes[0], desired)
     for node in nodes[1:]:
@@ -1059,7 +981,7 @@ def _heading_chapter(
     counters: dict[CaptionKind, int],
 ) -> int | None:
     report.heading1_count += 1
-    chapter = _chapter_number(paragraph_text(paragraph))
+    chapter = numbering.chapter_number(paragraph_text(paragraph))
     if chapter is not None:
         report.bab_headings += 1
         if scope == "chapter":
@@ -1126,7 +1048,7 @@ def renumber_captions(
     counters = {CaptionKind.FIGURE: 0, CaptionKind.TABLE: 0}
 
     for paragraph in _body(package).iter(W_P):
-        style_id = _paragraph_style_id(paragraph)
+        style_id = paragraph_style_id(paragraph)
         if names.is_heading_style(style_id) and names.normalize_style_id(style_id) == "heading1":
             chapter = _heading_chapter(paragraph, report, scope, counters)
             if chapter is not None:

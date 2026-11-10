@@ -239,9 +239,6 @@ def sha256_c14n(data: bytes | etree._Element,
 def iter_paragraphs(root: etree._Element,
                     *,
                     include_tables: bool = True) -> Iterator[etree._Element]: ...
-def paragraph_text(paragraph: etree._Element,
-                   *,
-                   include_fields: bool = False) -> str: ...
 def iter_runs(paragraph: etree._Element) -> Iterator[etree._Element]: ...
 def run_text(run: etree._Element) -> str: ...
 
@@ -265,10 +262,10 @@ diberikan dan mengembalikan child yang disisipkan.
 - `parse_xml`: parser aman (`resolve_entities=False`, `no_network=True`),
   tidak menghapus komentar/PI, tidak mengubah whitespace.
 - `serialize_xml`: UTF-8, deklarasi XML, tanpa pretty-print.
-- `paragraph_text`: teks `w:t`; tab menjadi `\t`, line break menjadi `\n`;
-  `w:instrText` tidak disertakan kecuali `include_fields=True`.
 - `iter_paragraphs`: urutan dokumen; `include_tables=False` melewati isi
   `w:tbl`; text box tidak dianggap paragraf body kecuali diminta eksplisit.
+- `paragraph_text` bukan bagian `xml.py`; helper kanonisnya ada di
+  `paragraphs.py` (lihat 16.1).
 - `get_or_add`/`insert_ordered`: menyisipkan child pada urutan skema OOXML
   yang benar (`w:pPr`, `w:rPr`, `w:sectPr`, `w:tblPr`, `w:tcPr`).
 
@@ -434,12 +431,14 @@ nomor halaman tidak valid.
 
 ## 9. Heading
 
-API heading DOCX (iterasi, level, penomoran `BAB I`/`1.1.`/`1.1.1.`) berada di
-`docgen/docx/sections.py` milik WS6. Modul terpisah
-`docgen/markdown/headings.py` menangani penomoran heading Markdown sebelum
-Pandoc (`number_markdown`, `balance_title`, `HeadingNumberer`) dengan error
-`MarkdownHeadingError`, dan tidak menyentuh package DOCX. Signature API DOCX di
-bawah tidak berubah.
+API heading DOCX (iterasi dan penomoran `BAB I`/`1.1.`/`1.1.1.`) berada di
+`docgen/docx/sections.py` milik WS6. Helper level heading
+`heading_level(paragraph)` dan `paragraph_style_id(paragraph)` berada di
+`docgen/docx/paragraphs.py`; `sections.py` memakainya untuk mengenali heading
+batas section. Modul terpisah `docgen/markdown/headings.py` menangani penomoran
+heading Markdown sebelum Pandoc (`number_markdown`, `balance_title`,
+`HeadingNumberer`) dengan error `MarkdownHeadingError`, dan tidak menyentuh
+package DOCX. Signature API DOCX di bawah tidak berubah.
 
 ### 9.1 Signature
 
@@ -821,6 +820,88 @@ bookmark rusak.
 
 ---
 
+## 16. Modul helper kanonis
+
+Helper lintas modul hanya didefinisikan di `paragraphs.py`, `runs.py`,
+`numbering.py`, dan `page.py`. Modul DOCX lain dan stage mengimpor helper dari
+sana; `docgen.docx` juga mengekspor nama publiknya. Tidak boleh ada salinan
+traversal `w:body`, pembuat run, konversi angka Romawi, atau map ukuran halaman
+di modul lain.
+
+### 16.1 `docgen/docx/paragraphs.py`
+
+```python
+class ParagraphError(DocxError): ...
+
+def document_body(package: DocumentPackage) -> etree._Element: ...
+def body_children(body: etree._Element) -> list[etree._Element]: ...
+def paragraph_style_id(paragraph: etree._Element) -> str | None: ...
+def heading_level(paragraph: etree._Element) -> int | None: ...
+def paragraph_text(paragraph: etree._Element) -> str: ...
+def remove_direct_children(parent: etree._Element, tag: str) -> int: ...
+def int_attribute(element: etree._Element, name: str) -> int | None: ...
+```
+
+`document_body` adalah satu-satunya akses `w:body`. Ia melempar
+`ParagraphError` (kode `PARAGRAPH`) bila argumen bukan `DocumentPackage`, part
+`word/document.xml` tidak ada, atau root tidak memiliki `w:body`.
+
+Aturan error domain: modul yang sudah memiliki tipe error domain boleh
+menerjemahkan `ParagraphError` ke tipe itu melalui wrapper tipis, tanpa
+mencari body ulang. Pemetaan yang dipertahankan: `BookmarkError` untuk
+`bookmarks.py` dan Adeu, `CaptionError` dengan kode `CAPTION-NO-BODY` untuk
+`captions.py`, `SectionError` untuk `sections.py`, serta `FieldError` untuk
+`fields.py` dan `stages/lists.py`. Bila tidak ada tipe atau kode domain yang
+diobservasi, pemanggil memakai `document_body` langsung. Definisi kelas error
+domain tidak dipindahkan ke `paragraphs.py`.
+
+### 16.2 `docgen/docx/runs.py`
+
+```python
+def build_run(*, text: str | None = None,
+              rpr: etree._Element | None = None) -> etree._Element: ...
+def make_run(paragraph: etree._Element, *,
+             text: str | None = None,
+             rpr: etree._Element | None = None) -> etree._Element: ...
+def append_text_run(paragraph: etree._Element, text: str, *,
+                    rpr: etree._Element | None = None) -> etree._Element: ...
+def clone_run(run: etree._Element) -> etree._Element: ...
+def copy_rpr(rpr: etree._Element) -> etree._Element: ...
+def strip_bold_from_rpr(rpr: etree._Element) -> int: ...
+```
+
+`build_run` membuat run lepas; `make_run` menambahkannya ke paragraf.
+`append_text_run` menulis `w:rPr` tepat satu kali di awal run bila `rpr`
+diberikan, memecah teks pada setiap karakter tab menjadi `w:tab`, dan menulis
+setiap potongan non-kosong sebagai `w:t` dengan `xml:space="preserve"`.
+Potongan kosong (teks yang diawali atau diakhiri tab) tidak menghasilkan
+`w:t`. Tidak ada helper run lokal di modul lain.
+
+### 16.3 `docgen/docx/numbering.py`
+
+```python
+def roman_to_int(token: str) -> int | None: ...
+def chapter_number(text: str | None) -> int | None: ...
+def to_roman(value: int) -> str: ...
+def format_roman(value: int) -> str: ...
+```
+
+Modul ini murni dan tidak menyentuh package. `chapter_number` menerima `BAB IV`,
+`BAB 4`, atau `4.`; `format_roman` adalah format angka Romawi kapital.
+
+### 16.4 `docgen/docx/page.py`
+
+```python
+PAGE_SIZES: Mapping[str, tuple[int, int]]
+def page_size(name: str, orientation: str = "portrait") -> tuple[int, int]: ...
+```
+
+`PAGE_SIZES` menyimpan ukuran portrait dalam twip; `page_size` menukar lebar
+dan tinggi untuk `landscape`. Nama ukuran yang tidak dikenal menimbulkan
+`KeyError` agar stage dapat menerjemahkannya menjadi error konfigurasi.
+
+---
+
 ## 17. Matriks part yang boleh berubah
 
 | Stage | `mutates` | Catatan |
@@ -885,6 +966,7 @@ Aturan per stage:
 | `PartNotFoundError` | Part tidak ada | 1 |
 | `InvalidPackageError` | Package tidak valid | 1 |
 | `XmlError` | XML tidak valid | 1 |
+| `ParagraphError` | Akses `w:body` gagal | 1 |
 | `StyleError`/`StyleContractError` | Style rusak | 1 |
 | `SectionError` | Section rusak | 1 |
 | `HeadingError` | Heading rusak | 1 |

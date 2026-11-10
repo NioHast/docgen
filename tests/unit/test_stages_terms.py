@@ -12,6 +12,7 @@ from docx.oxml.ns import qn
 
 from docgen import paths
 from docgen.docx import DocumentPackage
+from docgen.docx.paragraphs import paragraph_text
 from docgen.docx.terms import (
     GlossaryError,
     MarkerError,
@@ -27,7 +28,7 @@ from docgen.docx.terms import (
     resolve_style,
     verify_terms,
 )
-from docgen.docx.xml import iter_paragraphs, iter_runs, paragraph_text
+from docgen.docx.xml import iter_paragraphs, iter_runs
 from docgen.pipeline import BuildOptions
 from docgen.stages import terms as terms_stage
 from docgen.stages.terms import TermsStage, resolve_glossary, review_path_for

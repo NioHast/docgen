@@ -15,7 +15,6 @@ terakhir menjadi field ``SEQ`` agar Word dapat memperbarui daftar. Semua field
 daftar ditulis lewat :mod:`docgen.docx.fields`.
 """
 
-import copy
 import re
 import time
 from collections.abc import Sequence
@@ -32,8 +31,6 @@ from ..docx.fields import (
     iter_fields_in_paragraph,
 )
 from ..docx.names import (
-    W_BODY,
-    W_DOCUMENT,
     W_HYPERLINK,
     W_INSTRTEXT,
     W_R,
@@ -43,9 +40,10 @@ from ..docx.names import (
     W_VAL,
 )
 from ..docx.package import DOCUMENT_PART
+from ..docx.paragraphs import ParagraphError, document_body, paragraph_text
+from ..docx.runs import build_run, copy_rpr
 from ..docx.xml import (
     iter_paragraphs,
-    paragraph_text,
     qn,
     sha256_c14n,
 )
@@ -71,13 +69,10 @@ _SDT_ID_BASE = 1180696142
 
 
 def _body(package: DocumentPackage) -> etree._Element:
-    root = package.xml(DOCUMENT_PART)
-    if not isinstance(root.tag, str) or root.tag != W_DOCUMENT:
-        raise FieldError("Root document.xml bukan w:document")
-    body = root.find(W_BODY)
-    if body is None:
-        raise FieldError("w:body tidak ditemukan")
-    return body
+    try:
+        return document_body(package)
+    except ParagraphError as exc:
+        raise FieldError(str(exc)) from exc
 
 
 def _sdt_gallery(sdt: etree._Element) -> str | None:
@@ -204,23 +199,6 @@ def _run_of(element: etree._Element) -> etree._Element:
     return parent
 
 
-def _new_run(text: str, rpr: etree._Element | None) -> etree._Element:
-    run = etree.Element(W_R)
-    if rpr is not None:
-        run.append(copy.deepcopy(rpr))
-    node = etree.SubElement(run, W_T)
-    node.text = text
-    if text != text.strip():
-        node.set(qn("xml:space"), "preserve")
-    return run
-
-
-def _apply_rpr(run: etree._Element, rpr: etree._Element | None) -> None:
-    if rpr is None or run.find(W_RPR) is not None:
-        return
-    run.insert(0, copy.deepcopy(rpr))
-
-
 def _caption_prefix(
     text: str,
     label: str,
@@ -270,11 +248,7 @@ def _ensure_caption_seq(
     before, counter, after = parts
 
     runs = list(paragraph.findall(W_R))
-    template_rpr = None
-    if runs:
-        rpr = runs[0].find(W_RPR)
-        if rpr is not None:
-            template_rpr = copy.deepcopy(rpr)
+    template_rpr = runs[0].find(W_RPR) if runs else None
     for run in runs:
         paragraph.remove(run)
 
@@ -300,10 +274,10 @@ def _ensure_caption_seq(
     begin_run = _run_of(field.begin)
     end_run = _run_of(field.end)
 
-    before_run = _new_run(before, template_rpr)
+    before_run = build_run(text=before, rpr=template_rpr)
     begin_run.addprevious(before_run)
     if after:
-        end_run.addnext(_new_run(after, template_rpr))
+        end_run.addnext(build_run(text=after, rpr=template_rpr))
 
     for run in (
         before_run,
@@ -313,8 +287,8 @@ def _ensure_caption_seq(
         result_run,
         end_run,
     ):
-        if run is not None:
-            _apply_rpr(run, template_rpr)
+        if run is not None and template_rpr is not None and run.find(W_RPR) is None:
+            run.insert(0, copy_rpr(template_rpr))
     return True
 
 
@@ -324,7 +298,7 @@ def _ensure_caption_seq_fields(
     scope: str,
 ) -> int:
     count = 0
-    for paragraph in iter_paragraphs(package.xml(DOCUMENT_PART)):
+    for paragraph in iter_paragraphs(_body(package)):
         if is_caption_paragraph(paragraph, CaptionKind.TABLE):
             if _ensure_caption_seq(
                 package,

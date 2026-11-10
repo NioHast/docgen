@@ -22,6 +22,7 @@ from typing import Any, ClassVar
 
 from ..config import Format, FrontMatterItem, Structure
 from ..document import Document
+from ..docx.page import PAGE_SIZES, page_size
 from ..errors import DocgenError
 from ..markdown.headings import (
     NumberingSpec,
@@ -45,13 +46,6 @@ _PLACEHOLDER_RE = re.compile(r"\{\{\s*(?P<key>[A-Za-z_][A-Za-z0-9_]*)\s*\}\}")
 _WHITESPACE_RE = re.compile(r"\s+")
 
 PAGE_BREAK_XML = '<w:p><w:r><w:br w:type="page"/></w:r></w:p>'
-
-_PAGE_SIZES: Mapping[tuple[str, str], tuple[int, int]] = {
-    ("A4", "portrait"): (11906, 16838),
-    ("A4", "landscape"): (16838, 11906),
-    ("LETTER", "portrait"): (12240, 15840),
-    ("LETTER", "landscape"): (15840, 12240),
-}
 
 
 class FrontMatterError(DocgenError):
@@ -189,16 +183,16 @@ def _section_break(format: Format) -> str:
     """Section break penutup sampul dengan ukuran/margin dari format.yml."""
 
     page = format.page
-    size = str(page.size).upper()
+    raw_size = str(page.size).upper()
+    size = "Letter" if raw_size == "LETTER" else raw_size
     orientation = str(page.orientation).lower()
-    key = (size, orientation)
-    if key not in _PAGE_SIZES:
+    if size not in PAGE_SIZES or orientation not in {"portrait", "landscape"}:
         raise FrontMatterError(
             f"ukuran halaman tidak didukung: {page.size}/{page.orientation}",
             code="FRONT-MATTER-PAGE",
             key="page.size",
         )
-    width, height = _PAGE_SIZES[key]
+    width, height = page_size(size, orientation)
     orientation_attr = ' w:orient="landscape"' if orientation == "landscape" else ""
     margins = page.margins
     return _raw_openxml(

@@ -71,14 +71,24 @@ def _package_rels() -> bytes:
     ).encode()
 
 
-def _write_package(tmp_path: Path, body: str) -> Path:
-    document = (f'<w:document xmlns:w="{W_NS}"><w:body>{body}</w:body></w:document>').encode()
-    path = tmp_path / "paragraphs.docx"
+def _write_parts(
+    tmp_path: Path,
+    *,
+    document: bytes | None,
+    filename: str = "paragraphs.docx",
+) -> Path:
+    path = tmp_path / filename
     with zipfile.ZipFile(path, "w") as archive:
         archive.writestr(CONTENT_TYPES_PART, _content_types())
         archive.writestr(PACKAGE_RELS_PART, _package_rels())
-        archive.writestr(DOCUMENT_PART, document)
+        if document is not None:
+            archive.writestr(DOCUMENT_PART, document)
     return path
+
+
+def _write_package(tmp_path: Path, body: str) -> Path:
+    document = (f'<w:document xmlns:w="{W_NS}"><w:body>{body}</w:body></w:document>').encode()
+    return _write_parts(tmp_path, document=document)
 
 
 # ---------------------------------------------------------------------------
@@ -97,11 +107,32 @@ def test_document_body_from_minimal_package(tmp_path: Path) -> None:
     assert body.tag == qn("w:body")
     assert paragraph_text(body.find(qn("w:p"))) == "Halo"
 
-    root = package.xml(DOCUMENT_PART)
-    assert document_body(root) is body
-
     with pytest.raises(ParagraphError):
-        document_body(etree.Element(qn("w:document")))
+        document_body(etree.Element(qn("w:document")))  # type: ignore[arg-type]
+
+
+def test_document_body_requires_document_part(tmp_path: Path) -> None:
+    package = DocumentPackage.load(
+        _write_parts(tmp_path, document=None, filename="tanpa-document.docx"),
+        validate=False,
+    )
+
+    with pytest.raises(ParagraphError) as caught:
+        document_body(package)
+
+    assert caught.value.code == "PARAGRAPH"
+
+
+def test_document_body_requires_body_element(tmp_path: Path) -> None:
+    document = f'<w:document xmlns:w="{W_NS}"/>'.encode()
+    package = DocumentPackage.load(
+        _write_parts(tmp_path, document=document, filename="tanpa-body.docx")
+    )
+
+    with pytest.raises(ParagraphError) as caught:
+        document_body(package)
+
+    assert caught.value.code == "PARAGRAPH"
 
 
 def test_body_children_skips_comments_and_processing_instructions() -> None:
@@ -142,6 +173,7 @@ def test_heading_level() -> None:
     assert heading_level(_paragraph(style="BodyText")) is None
     assert heading_level(_paragraph(style="NonHeading")) is None
     assert heading_level(_paragraph()) is None
+    assert heading_level(_paragraph(style="ChapterTitle")) is None
 
 
 # ---------------------------------------------------------------------------
@@ -164,7 +196,29 @@ def test_paragraph_text_includes_hyperlink_nested_run_and_tab() -> None:
     )
 
     assert paragraph_text(paragraph) == "A\t\nBlinknested7"
-    assert paragraph_text(paragraph, include_fields=True) == "A\t\nBlinknested PAGE 7"
+
+
+def test_paragraph_text_includes_ptab_and_no_break_hyphen() -> None:
+    paragraph = _paragraph(
+        "<w:r><w:t>A</w:t><w:ptab/><w:t>B</w:t><w:noBreakHyphen/><w:t>C</w:t></w:r>"
+    )
+
+    assert paragraph_text(paragraph) == "A\tB\u2011C"
+
+
+def test_paragraph_text_always_ignores_instr_text() -> None:
+    paragraph = _paragraph(
+        "<w:r><w:t>Nilai: </w:t><w:instrText> PAGE </w:instrText></w:r><w:r><w:t>7</w:t></w:r>"
+    )
+
+    assert paragraph_text(paragraph) == "Nilai: 7"
+    assert "PAGE" not in paragraph_text(paragraph)
+
+
+def test_paragraph_text_skips_nested_paragraph() -> None:
+    paragraph = _paragraph("<w:r><w:t>luar</w:t></w:r><w:p><w:r><w:t>dalam</w:t></w:r></w:p>")
+
+    assert paragraph_text(paragraph) == "luar"
 
 
 # ---------------------------------------------------------------------------

@@ -16,6 +16,7 @@ from docgen.docx.package import (
     REL_TYPE_STYLES,
     DocumentPackage,
 )
+from docgen.docx.paragraphs import paragraph_text
 from docgen.docx.sections import (
     FOOTER_CONTENT_TYPE,
     HEADER_CONTENT_TYPE,
@@ -40,10 +41,10 @@ from docgen.docx.sections import (
     set_section_type,
     set_title_page,
 )
-from docgen.docx.xml import paragraph_text, qn, sha256_c14n
+from docgen.docx.xml import qn, sha256_c14n
 from docgen.errors import StageError
 from docgen.pipeline import StageName
-from docgen.stages.sections import SectionsStage
+from docgen.stages.sections import SectionsError, SectionsStage
 
 ROOT = Path(__file__).resolve().parents[2]
 GOLDEN = ROOT / "tests" / "fixtures" / "golden" / "laporan-baseline.docx"
@@ -261,6 +262,31 @@ def test_iter_sections_golden_baseline() -> None:
         133,
         141,
     ]
+
+
+def test_iter_sections_first_section_without_paragraphs_is_cover(tmp_path: Path) -> None:
+    document = _document("<w:tbl><w:tblPr/><w:tr><w:tc><w:p/></w:tc></w:tr></w:tbl>")
+    package = DocumentPackage.load(_write_package(tmp_path, document))
+
+    sections = iter_sections(package)
+
+    assert len(sections) == 1
+    assert sections[0].kind == "cover"
+
+
+def test_iter_sections_later_section_without_paragraphs_is_front_matter(
+    tmp_path: Path,
+) -> None:
+    document = _document(
+        _break_paragraph(_sect_pr()) + "<w:tbl><w:tblPr/><w:tr><w:tc><w:p/></w:tc></w:tr></w:tbl>"
+    )
+    package = DocumentPackage.load(_write_package(tmp_path, document))
+
+    sections = iter_sections(package)
+
+    assert len(sections) == 2
+    assert sections[0].kind == "front_matter"
+    assert sections[1].kind == "front_matter"
 
 
 def test_golden_page_numbers_lower_roman_then_decimal() -> None:
@@ -486,6 +512,34 @@ def test_sections_stage_requires_package() -> None:
         SectionsStage().run(ctx)
 
 
+def test_sections_stage_landscape_menukar_dimensi(tmp_path: Path) -> None:
+    document = _document(_paragraph("BAB I", style="Heading1"))
+    package = DocumentPackage.load(_write_package(tmp_path, document))
+    ctx = _fake_ctx(package)
+    ctx.format.page.orientation = "landscape"
+
+    SectionsStage().run(ctx)
+
+    pg_sz = iter_sections(package)[0].sect_pr.find(qn("w:pgSz"))
+    assert pg_sz.get(qn("w:w")) == "16838"
+    assert pg_sz.get(qn("w:h")) == "11906"
+    assert pg_sz.get(qn("w:orient")) == "landscape"
+
+
+def test_sections_stage_menolak_ukuran_tidak_dikenal(tmp_path: Path) -> None:
+    document = _document(_paragraph("BAB I", style="Heading1"))
+    package = DocumentPackage.load(_write_package(tmp_path, document))
+    ctx = _fake_ctx(package)
+    ctx.format.page.size = "A5"
+
+    with pytest.raises(StageError) as excinfo:
+        SectionsStage().run(ctx)
+
+    assert excinfo.value.code == "SECTION-STAGE"
+    assert isinstance(excinfo.value.cause, SectionsError)
+    assert "A5" in str(excinfo.value)
+
+
 def test_sections_stage_numbers_plain_headings_before_splitting(
     tmp_path: Path,
 ) -> None:
@@ -640,6 +694,9 @@ def test_apply_heading_numbering_arabic_dotted(tmp_path: Path) -> None:
     assert heading_text(headings[0].paragraph) == "1. PENDAHULUAN"
     assert heading_text(headings[0].paragraph, include_number=False) == "PENDAHULUAN"
     assert headings[0].number == "1."
+    separators = [node for node in headings[0].paragraph.iter(qn("w:t")) if node.text == " "]
+    assert len(separators) == 1
+    assert separators[0].get(qn("xml:space")) == "preserve"
     assert heading_text(headings[1].paragraph).startswith("1.1\t")
     assert heading_text(headings[2].paragraph).startswith("1.1.1.")
 

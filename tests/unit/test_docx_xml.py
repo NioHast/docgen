@@ -214,7 +214,7 @@ def test_paragraph_text_and_run_text() -> None:
     )
 
     assert paragraph_text(paragraph) == "A\t\nBlink7"
-    assert paragraph_text(paragraph, include_fields=True) == "A\t\nBlink PAGE 7"
+    assert "PAGE" not in paragraph_text(paragraph)
 
     runs = list(iter_runs(paragraph))
     assert run_text(runs[0]) == "A\t\nB"

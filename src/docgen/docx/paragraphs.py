@@ -40,7 +40,7 @@ from .names import (
     W_VAL,
     normalize_style_id,
 )
-from .package import DOCUMENT_PART
+from .package import DOCUMENT_PART, DocumentPackage
 
 _HEADING_LEVEL_RE = re.compile(r"^heading([1-9])$")
 
@@ -69,16 +69,21 @@ class ParagraphError(DocxError):
     default_code = "PARAGRAPH"
 
 
-def document_body(package: object) -> etree._Element:
-    """Ambil ``w:body`` dari package DOCX atau elemen root ``w:document``.
+def document_body(package: DocumentPackage) -> etree._Element:
+    """Ambil ``w:body`` dari ``DocumentPackage``.
 
-    ``package`` boleh berupa ``DocumentPackage`` (dibaca lewat ``has_part`` dan
-    ``xml``) atau elemen root yang sudah di-parse. Melempar ``ParagraphError``
-    bila part ``word/document.xml`` atau ``w:body`` tidak ditemukan.
+    Melempar ``ParagraphError`` bila argumen bukan package, part
+    ``word/document.xml`` tidak ditemukan, atau root tidak memiliki ``w:body``.
     """
 
-    root = package if isinstance(package, etree._Element) else _document_root(package)
-    body = root.find(W_BODY)
+    if not isinstance(package, DocumentPackage):
+        raise ParagraphError("document_body membutuhkan DocumentPackage")
+    if not package.has_part(DOCUMENT_PART):
+        raise ParagraphError(
+            f"part {DOCUMENT_PART} tidak ditemukan",
+            path=DOCUMENT_PART,
+        )
+    body = package.xml(DOCUMENT_PART).find(W_BODY)
     if body is None:
         raise ParagraphError(
             f"{DOCUMENT_PART} tidak memiliki elemen w:body",
@@ -120,17 +125,12 @@ def heading_level(paragraph: etree._Element) -> int | None:
     return int(match.group(1)) if match is not None else None
 
 
-def paragraph_text(
-    paragraph: etree._Element,
-    *,
-    include_fields: bool = False,
-) -> str:
+def paragraph_text(paragraph: etree._Element) -> str:
     """Teks paragraf dalam urutan dokumen.
 
     Menyertakan teks di hyperlink dan run bersarang, tab, line break, dan
     ``w:noBreakHyphen``. Teks di gambar, text box, paragraf bersarang, serta
-    teks yang dihapus tidak disertakan. ``w:instrText`` hanya disertakan bila
-    ``include_fields=True``.
+    teks yang dihapus tidak disertakan. ``w:instrText`` selalu diabaikan.
     """
 
     parts: list[str] = []
@@ -148,10 +148,7 @@ def paragraph_text(
                 parts.append("\n")
             elif tag == W_NO_BREAK_HYPHEN:
                 parts.append("\u2011")
-            elif tag == W_INSTRTEXT:
-                if include_fields:
-                    parts.append(child.text or "")
-            elif tag in _TEXT_SKIP_DESCEND:
+            elif tag == W_INSTRTEXT or tag in _TEXT_SKIP_DESCEND:
                 continue
             else:
                 walk(child)
@@ -188,27 +185,6 @@ def int_attribute(element: etree._Element, name: str) -> int | None:
         return int(value)
     except TypeError, ValueError:
         return None
-
-
-def _document_root(package: object) -> etree._Element:
-    has_part = getattr(package, "has_part", None)
-    xml = getattr(package, "xml", None)
-    if not callable(has_part) or not callable(xml):
-        raise ParagraphError("package DOCX tidak memiliki has_part/xml")
-    if not has_part(DOCUMENT_PART):
-        raise ParagraphError(
-            f"part {DOCUMENT_PART} tidak ditemukan",
-            path=DOCUMENT_PART,
-        )
-    try:
-        return xml(DOCUMENT_PART)
-    except DocxError:
-        raise
-    except Exception as exc:  # pragma: no cover - pengaman kontrak
-        raise ParagraphError(
-            f"{DOCUMENT_PART} tidak dapat dibaca: {exc}",
-            path=DOCUMENT_PART,
-        ) from exc
 
 
 __all__ = [

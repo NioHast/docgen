@@ -12,6 +12,7 @@ from docgen.config import Format, load_format
 from docgen.docx import DocumentPackage
 from docgen.docx.styles import (
     StyleError,
+    apply_page_layout,
     build_style_patch,
     ensure_character_style,
     patch_style,
@@ -145,6 +146,59 @@ def test_heading_tnr_12_dan_margin(tmp_path: Path, undip_format: Format) -> None
     assert page_margin.get(f"{W}right") == "1701"
     assert page_margin.get(f"{W}bottom") == "1701"
     assert page_margin.get(f"{W}left") == "2268"
+
+
+def test_apply_page_layout_memakai_map_kanonis_dan_landscape(
+    undip_format: Format,
+) -> None:
+    package = DocumentPackage.load(Path(undip_format.assets.reference_docx))
+
+    apply_page_layout(
+        package,
+        size="Letter",
+        orientation="landscape",
+        margins={"top": 2268, "right": 1701, "bottom": 1701, "left": 2268},
+        header=720,
+        footer=720,
+        gutter=0,
+    )
+
+    page_sizes = package.xml("word/document.xml").findall(f".//{W}pgSz")
+    assert page_sizes
+    assert {element.get(f"{W}w") for element in page_sizes} == {"15840"}
+    assert {element.get(f"{W}h") for element in page_sizes} == {"12240"}
+    assert {element.get(f"{W}orient") for element in page_sizes} == {"landscape"}
+
+
+@pytest.mark.parametrize(
+    ("size", "orientation", "key"),
+    [
+        ("A5", "portrait", "page.size"),
+        ("LETTER", "portrait", "page.size"),
+        ("A4", "diagonal", "page.orientation"),
+    ],
+)
+def test_apply_page_layout_menolak_input_tidak_valid(
+    undip_format: Format,
+    size: str,
+    orientation: str,
+    key: str,
+) -> None:
+    package = DocumentPackage.load(Path(undip_format.assets.reference_docx))
+
+    with pytest.raises(StyleError) as excinfo:
+        apply_page_layout(
+            package,
+            size=size,
+            orientation=orientation,
+            margins={"top": 2268, "right": 1701, "bottom": 1701, "left": 2268},
+            header=720,
+            footer=720,
+            gutter=0,
+        )
+
+    assert excinfo.value.code == "STYLE-PAGE"
+    assert excinfo.value.key == key
 
 
 def test_caption_10pt(tmp_path: Path, undip_format: Format) -> None:

@@ -276,6 +276,24 @@ def test_level_dua_dan_bold(numbering_docx: Path, tmp_path: Path) -> None:
     assert _level_for(result, "4").xpath("./w:suff", namespaces=NS) == []
 
 
+def test_report_skipped_bullet_unresolved_dan_format_counts(tmp_path: Path) -> None:
+    document = Document()
+    bullet = document.add_paragraph("Butir bullet")
+    _set_numbering(bullet, 4)
+    unresolved = document.add_paragraph("Daftar tak dikenal")
+    _set_numbering(unresolved, 99)
+
+    source = tmp_path / "report.docx"
+    document.save(source)
+    _replace_part(source, NUMBERING_PART, _numbering_xml())
+
+    report = numbering.format_numbering(DocumentPackage.load(source))
+
+    assert report.skipped_bullet == 1
+    assert report.unresolved == 1
+    assert report.format_counts == {"tidak diketahui": 1}
+
+
 def test_idempoten_part_identik_dan_stage(numbering_docx: Path, tmp_path: Path) -> None:
     before = {}
     with zipfile.ZipFile(numbering_docx) as archive:

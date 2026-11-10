@@ -18,11 +18,8 @@ from dataclasses import dataclass, field
 from lxml import etree
 
 from ..docx.layout import (
-    BAB_RE,
     PPR_ORDER,
-    chapter_number,
     content_width,
-    document_body,
     document_root,
     has_deleted_ancestor,
     has_field,
@@ -30,8 +27,6 @@ from ..docx.layout import (
     iter_paragraphs,
     new_element,
     normalize_style_id,
-    paragraph_style_id,
-    paragraph_text,
     set_document_root,
 )
 from ..docx.names import (
@@ -41,6 +36,9 @@ from ..docx.names import (
     W_TAB,
     W_VAL,
 )
+from ..docx.numbering import chapter_number
+from ..docx.package import DocumentPackage
+from ..docx.paragraphs import document_body, paragraph_style_id, paragraph_text
 from ..docx.xml import ensure_ppr, get_or_add, qn, sha256_c14n
 from ..errors import DocgenError
 from ..pipeline import BaseStage, StageName, StageResult, canonical_prefix
@@ -362,7 +360,7 @@ def _add_warnings(report: EquationReport) -> None:
 
 
 def format_equations(
-    package: object,
+    package: DocumentPackage,
     *,
     spec: EquationSpec | None = None,
 ) -> EquationReport:
@@ -370,7 +368,7 @@ def format_equations(
 
     spec = spec or EquationSpec()
     root = document_root(package)
-    body = document_body(root)
+    body = document_body(package)
     before_hash = sha256_c14n(root)
 
     report = EquationReport()
@@ -434,7 +432,6 @@ def _spec_from_context(ctx: object) -> EquationSpec:
 
 
 __all__ = [
-    "BAB_RE",
     "DEFAULT_LEFT_INDENT_TWIPS",
     "DEFAULT_RIGHT_TAB_TWIPS",
     "DEFAULT_SPACING_TWIPS",

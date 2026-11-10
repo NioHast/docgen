@@ -27,6 +27,8 @@ from lxml import etree
 
 from . import DocxError
 from .names import W_SECTPR, W
+from .page import PAGE_SIZES
+from .page import page_size as resolve_page_size
 from .xml import PPR_ORDER, RPR_ORDER, SECTPR_ORDER, get_or_add
 
 # ``names.py`` sengaja tidak mengekspor setiap tag yang hanya dipakai styles.
@@ -673,11 +675,7 @@ def apply_page_layout(
     ``landscape`` menukar lebar dan tinggi.
     """
 
-    dimensions = {
-        "A4": (11906, 16838),
-        "Letter": (12240, 15840),
-    }
-    if size not in dimensions:
+    if size not in PAGE_SIZES:
         raise StyleError(
             f"ukuran halaman tidak didukung: {size!r}",
             code="STYLE-PAGE",
@@ -689,9 +687,7 @@ def apply_page_layout(
             code="STYLE-PAGE",
             key="page.orientation",
         )
-    width, height = dimensions[size]
-    if orientation == "landscape":
-        width, height = height, width
+    width, height = resolve_page_size(size, orientation)
 
     root = package.xml("word/document.xml")  # type: ignore[attr-defined]
     sections = [

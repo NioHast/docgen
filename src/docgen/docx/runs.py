@@ -1,10 +1,11 @@
 """Pembuatan, penyalinan, dan pembersihan run WordprocessingML.
 
 Modul ini adalah satu sumber helper run untuk lapisan DOCX:
-:func:`make_run`, :func:`append_text_run`, :func:`clone_run`,
-:func:`copy_rpr`, dan :func:`strip_bold_from_rpr`. Modul DOCX dan stage
-memakai API ini agar struktur ``w:r``/``w:rPr`` konsisten, tanpa bergantung
-pada ``python-docx`` atau traversal lxml milik masing-masing pemanggil.
+:func:`build_run`, :func:`make_run`, :func:`append_text_run`,
+:func:`clone_run`, :func:`copy_rpr`, dan :func:`strip_bold_from_rpr`.
+Modul DOCX dan stage memakai API ini agar struktur ``w:r``/``w:rPr``
+konsisten, tanpa bergantung pada ``python-docx`` atau traversal lxml milik
+masing-masing pemanggil.
 
 Semua fungsi memutasi elemen lxml yang diberikan; tidak ada akses package
 atau berkas di sini.
@@ -14,32 +15,20 @@ import copy
 
 from lxml import etree
 
-from .names import W_R, W_T, W_TAB, W_VAL
-from .xml import qn
+from .names import W_R, W_T, W_TAB
+from .xml import is_on, qn
 
 W_B = qn("w:b")
 W_BCS = qn("w:bCs")
 XML_SPACE = qn("xml:space")
 
-_OFF_VALUES = frozenset({"0", "false", "off", "none", "no"})
 
-
-def _toggle_is_on(element: etree._Element) -> bool:
-    """Nilai toggle OOXML; ``w:val`` yang tidak ada berarti aktif."""
-
-    value = element.get(W_VAL)
-    if value is None:
-        return True
-    return value.strip().casefold() not in _OFF_VALUES
-
-
-def make_run(
-    paragraph: etree._Element,
+def build_run(
     *,
     text: str | None = None,
     rpr: etree._Element | None = None,
 ) -> etree._Element:
-    """Buat ``w:r`` baru sebagai anak terakhir ``paragraph``.
+    """Buat ``w:r`` lepas tanpa parent.
 
     ``rpr`` diperlakukan sebagai templat dan disalin dalam lewat
     :func:`copy_rpr`, sehingga run baru tidak berbagi node dengan sumber.
@@ -47,7 +36,7 @@ def make_run(
     ``xml:space="preserve"`` hanya dipasang saat tepi teks berupa spasi.
     """
 
-    run = etree.SubElement(paragraph, W_R)
+    run = etree.Element(W_R)
     if rpr is not None:
         run.append(copy_rpr(rpr))
     if text is not None:
@@ -58,17 +47,36 @@ def make_run(
     return run
 
 
+def make_run(
+    paragraph: etree._Element,
+    *,
+    text: str | None = None,
+    rpr: etree._Element | None = None,
+) -> etree._Element:
+    """Buat ``w:r`` baru sebagai anak terakhir ``paragraph``.
+
+    Run dibuat lewat :func:`build_run`, lalu ditambahkan sebagai anak
+    terakhir ``paragraph``. ``rpr`` diperlakukan sebagai templat dan disalin
+    dalam, sehingga run baru tidak berbagi node dengan sumber.
+    """
+
+    run = build_run(text=text, rpr=rpr)
+    paragraph.append(run)
+    return run
+
+
 def append_text_run(
     paragraph: etree._Element,
     text: str,
     *,
     rpr: etree._Element | None = None,
 ) -> etree._Element:
-    """Tambahkan run teks ke ``paragraph``; tab dipertahankan sebagai ``w:tab``.
+    """Tambahkan run teks ke ``paragraph``; tab dipecah menjadi ``w:tab``.
 
     ``w:rPr`` ditulis tepat satu kali di awal run bila ``rpr`` diberikan.
-    Setiap potongan teks menjadi ``w:t`` dengan ``xml:space="preserve"``;
-    potongan kosong (mis. teks yang diawali tab) tidak menghasilkan ``w:t``.
+    Teks dipecah pada setiap karakter tab; setiap potongan non-kosong menjadi
+    satu ``w:t`` dengan ``xml:space="preserve"``, sedangkan potongan kosong
+    (mis. teks yang diawali atau diakhiri tab) tidak menghasilkan ``w:t``.
     """
 
     run = make_run(paragraph, rpr=rpr)
@@ -102,15 +110,16 @@ def copy_rpr(rpr: etree._Element) -> etree._Element:
 def strip_bold_from_rpr(rpr: etree._Element) -> int:
     """Hapus ``w:b``/``w:bCs`` aktif langsung dari satu ``w:rPr``.
 
-    Toggle dengan nilai ``0``, ``false``, ``off``, ``none``, atau ``no``
-    dipertahankan karena sudah nonaktif. Kembalikan jumlah elemen yang
-    benar-benar dihapus.
+    Status aktif dibaca lewat :func:`docgen.docx.xml.is_on`, sehingga nilai
+    ``0``, ``false``, ``off``, dan ``no`` dipertahankan sebagai nonaktif,
+    sedangkan ``none`` diperlakukan aktif seperti helper XML kanonis.
+    Kembalikan jumlah elemen yang benar-benar dihapus.
     """
 
     removed = 0
     for tag in (W_B, W_BCS):
         for element in list(rpr.findall(tag)):
-            if not _toggle_is_on(element):
+            if not is_on(element):
                 continue
             rpr.remove(element)
             removed += 1
@@ -119,6 +128,7 @@ def strip_bold_from_rpr(rpr: etree._Element) -> int:
 
 __all__ = [
     "append_text_run",
+    "build_run",
     "clone_run",
     "copy_rpr",
     "make_run",
