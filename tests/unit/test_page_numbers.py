@@ -231,10 +231,19 @@ def test_golden_lower_roman_then_decimal() -> None:
     package = DocumentPackage.load(GOLDEN)
     sections = iter_sections(package)
     assert _pg_num(sections[0]) == (None, None)
-    assert _pg_num(sections[1]) == ("lowerRoman", "1")
-    assert _pg_num(sections[2]) == ("decimal", "1")
-    for section in sections[3:]:
-        assert _pg_num(section) == ("decimal", None)
+
+    front_matter = [
+        section for section in sections if section.kind == "front_matter"
+    ]
+    assert _pg_num(front_matter[0]) == ("lowerRoman", "1")
+    for section in front_matter[1:]:
+        assert _pg_num(section) == ("lowerRoman", None)
+
+    body = [section for section in sections if section.kind == "body"]
+    # Word menghapus fmt default; start=1 tetap menandai awal penomoran Arab.
+    assert _pg_num(body[0]) == (None, "1")
+    for section in body[1:]:
+        assert _pg_num(section) == (None, None)
 
 
 def test_golden_front_matter_footer_and_body_header() -> None:
@@ -246,7 +255,9 @@ def test_golden_front_matter_footer_and_body_header() -> None:
     front_part, _ = header_footer_part(package, front.footer)
     assert _page_fields(package, front_part) == 1
 
-    body = section_header_footer(sections[2])
+    body = section_header_footer(
+        next(section for section in sections if section.kind == "body")
+    )
     assert body.header is not None
     assert body.first_page_header is not None
     assert body.footer is not None

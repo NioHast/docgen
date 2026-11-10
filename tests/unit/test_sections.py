@@ -241,9 +241,13 @@ def _has_page_break(paragraph) -> bool:
 def test_iter_sections_golden_baseline() -> None:
     package = DocumentPackage.load(GOLDEN)
     sections = iter_sections(package)
-    assert len(sections) == 8
+    assert len(sections) == 13
     assert [section.kind for section in sections] == [
         "cover",
+        "front_matter",
+        "front_matter",
+        "front_matter",
+        "front_matter",
         "front_matter",
         "body",
         "body",
@@ -251,18 +255,42 @@ def test_iter_sections_golden_baseline() -> None:
         "body",
         "body",
         "back_matter",
+        "back_matter",
     ]
-    assert [section.start for section in sections] == [0, 22, 37, 81, 140, 191, 221, 238]
+    assert [section.start for section in sections] == [
+        0,
+        13,
+        20,
+        27,
+        32,
+        38,
+        50,
+        67,
+        81,
+        104,
+        125,
+        133,
+        141,
+    ]
 
 
 def test_golden_page_numbers_lower_roman_then_decimal() -> None:
     package = DocumentPackage.load(GOLDEN)
     sections = iter_sections(package)
     assert _pg_num(sections[0]) == (None, None)
-    assert _pg_num(sections[1]) == ("lowerRoman", "1")
-    assert _pg_num(sections[2]) == ("decimal", "1")
-    for section in sections[3:]:
-        assert _pg_num(section) == ("decimal", None)
+
+    front_matter = [
+        section for section in sections if section.kind == "front_matter"
+    ]
+    assert _pg_num(front_matter[0]) == ("lowerRoman", "1")
+    for section in front_matter[1:]:
+        assert _pg_num(section) == ("lowerRoman", None)
+
+    body = [section for section in sections if section.kind == "body"]
+    # Word menghapus fmt default; start=1 tetap menandai awal penomoran Arab.
+    assert _pg_num(body[0]) == (None, "1")
+    for section in body[1:]:
+        assert _pg_num(section) == (None, None)
 
 
 def test_golden_header_footer_per_section() -> None:
@@ -274,7 +302,9 @@ def test_golden_header_footer_per_section() -> None:
     front_refs = section_header_footer(sections[1])
     assert front_refs.header is None
     assert front_refs.footer is not None
-    body_refs = section_header_footer(sections[2])
+    body_refs = section_header_footer(
+        next(section for section in sections if section.kind == "body")
+    )
     assert body_refs.header is not None
     assert body_refs.footer is not None
     assert body_refs.first_page_header is not None
@@ -287,8 +317,8 @@ def test_golden_no_blank_page_between_toc_and_bab_i() -> None:
     body = root.find(qn("w:body"))
     children = [child for child in body if isinstance(child.tag, str)]
     sdts = _sdt_gallery(root)
-    assert len(sdts) == 1
-    toc_index = children.index(sdts[0])
+    assert len(sdts) == 3
+    toc_index = children.index(sdts[-1])
 
     bab_index = next(
         index
@@ -552,10 +582,12 @@ def test_golden_toc_field_count_for_section_boundary() -> None:
     toc_fields = [
         field for field in iter_fields(package) if field.kind is FieldKind.TOC
     ]
-    assert len(toc_fields) == 1
+    assert len(toc_fields) == 3
     # Section body pertama dimulai tepat di Heading1 BAB I.
-    body_section = iter_sections(package)[2]
-    assert body_section.start == 37
+    body_sections = [
+        section for section in iter_sections(package) if section.kind == "body"
+    ]
+    assert body_sections[0].start == 50
 
 
 # ---------------------------------------------------------------------------

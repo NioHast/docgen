@@ -1,9 +1,9 @@
-"""Golden invariant DOCX hasil build lama.
+"""Golden invariant DOCX hasil build ``examples/thesis-single``.
 
-Fixture ``tests/fixtures/golden/laporan-baseline.docx`` adalah salinan
-``Laporan.docx`` baseline commit ``06bda0b`` yang metadata pribadinya sudah
-dibersihkan (``docProps/core.xml``). Tes ini membekukan invariant struktur
-output sebelum refactor, bukan mem-build ulang dokumen.
+Fixture ``tests/fixtures/golden/laporan-baseline.docx`` dibangun dari
+``examples/thesis-single`` pada commit ``4a5b777`` memakai Microsoft Word di
+Windows. Metadata pribadi di ``docProps/core.xml`` sudah dibersihkan. Tes ini
+membekukan invariant struktur output baseline, bukan mem-build ulang dokumen.
 
 Jalankan:
     python -m pytest tests/integration/test_golden_docx.py -v
@@ -11,6 +11,8 @@ Jalankan:
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 import zipfile
 from pathlib import Path
@@ -18,13 +20,17 @@ from pathlib import Path
 import pytest
 from lxml import etree
 
+from docgen.docx.xml import sha256_c14n
+
 pytestmark = pytest.mark.integration
 
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURE = ROOT / "tests" / "fixtures" / "golden" / "laporan-baseline.docx"
+BASELINE_JSON = ROOT / "tests" / "fixtures" / "golden" / "baseline-4a5b777.json"
 
 W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 REL_NS = "http://schemas.openxmlformats.org/package/2006/relationships"
+APP_NS = "http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"
 NS = {"w": W_NS, "r": REL_NS}
 
 W_VAL = f"{{{W_NS}}}val"
@@ -33,22 +39,29 @@ W_STYLE_ID = f"{{{W_NS}}}styleId"
 W_LEADER = f"{{{W_NS}}}leader"
 W_INSTR = f"{{{W_NS}}}instr"
 W_FLD_CHAR_TYPE = f"{{{W_NS}}}fldCharType"
+APP_PAGES = f"{{{APP_NS}}}Pages"
 
 TOC_FIELD_RE = re.compile(r"^\s*TOC\b")
 CAPTION_RE = re.compile(r"^(Tabel|Gambar)\s+\d+\.\d+\b")
 PAGE_RESULT_RE = re.compile(r"^\d+$")
+CAPTION_STYLES = {"TableCaption", "ImageCaption"}
 
 EXPECTED_TABLES = [
-    "Tabel 2.1 Pemetaan Sintaks Markdown dalam Pipeline Laporan Akademik",
-    "Tabel 3.1 Skema Parameter Preset Kampus Deklaratif",
-    "Tabel 4.1 Perbandingan Kinerja Pipeline Laporan Generator, LaTeX, dan Microsoft Word",
+    "Tabel 2.1 Pemetaan lapisan pipeline docgen",
+    "Tabel 4.1 Aspek yang diverifikasi pada contoh tesis",
 ]
-EXPECTED_FIGURES: list[str] = []
+EXPECTED_FIGURES = [
+    "Gambar 3.1 Alur validasi dan build dokumen",
+    "Gambar 4.1 Arsitektur pipeline docgen dari Markdown hingga DOCX",
+]
 
 EXPECTED_TOC_ENTRIES = {
-    "2.6.1": "9",
-    "3.2.3": "13",
+    "BAB I PENDAHULUAN": ("1", True),
+    "2.1.": ("3", False),
 }
+EXPECTED_TOC_FIELDS = 3
+EXPECTED_TOC_GALLERIES = 3
+EXPECTED_CODE_TABLES = 1
 
 
 def _read_parts() -> dict[str, bytes]:
@@ -87,6 +100,20 @@ def _toc_field_count(root: etree._Element) -> int:
     return count
 
 
+def _toc_instructions(root: etree._Element) -> list[str]:
+    instructions = [
+        _normalized(instruction.text or "")
+        for instruction in root.xpath("//w:instrText", namespaces=NS)
+        if instruction.text and TOC_FIELD_RE.match(instruction.text)
+    ]
+    instructions.extend(
+        _normalized(field.get(W_INSTR) or "")
+        for field in root.xpath("//w:fldSimple", namespaces=NS)
+        if field.get(W_INSTR) and TOC_FIELD_RE.match(field.get(W_INSTR) or "")
+    )
+    return instructions
+
+
 def _toc_galleries(root: etree._Element) -> list[etree._Element]:
     return [
         gallery
@@ -100,6 +127,9 @@ def _toc_galleries(root: etree._Element) -> list[etree._Element]:
 def _captions(root: etree._Element) -> dict[str, list[str]]:
     captions: dict[str, list[str]] = {"Tabel": [], "Gambar": []}
     for paragraph in root.xpath("//w:p", namespaces=NS):
+        styles = paragraph.xpath("./w:pPr/w:pStyle/@w:val", namespaces=NS)
+        if not styles or styles[0] not in CAPTION_STYLES:
+            continue
         text = _normalized(_paragraph_text(paragraph))
         if CAPTION_RE.match(text):
             captions[text.split()[0]].append(text)
@@ -147,29 +177,57 @@ def _field_result_values(paragraph: etree._Element) -> list[str]:
     return values
 
 
-def _toc_entry(root: etree._Element, number: str) -> etree._Element:
+def _toc_entry(root: etree._Element, prefix: str) -> etree._Element:
     matches = []
     for paragraph in root.xpath("//w:p", namespaces=NS):
         style = paragraph.xpath("./w:pPr/w:pStyle/@w:val", namespaces=NS)
-        if not style or style[0] not in {"TOC2", "TOC3"}:
+        if not style or style[0] not in {"TOC1", "TOC2", "TOC3"}:
             continue
-        text = _paragraph_text(paragraph)
-        if text.startswith(f"{number}."):
+        if _paragraph_text(paragraph).startswith(prefix):
             matches.append(paragraph)
-    assert len(matches) == 1, f"entri TOC {number} ditemukan {len(matches)} kali"
+    assert len(matches) == 1, f"entri TOC {prefix} ditemukan {len(matches)} kali"
     return matches[0]
 
 
-def test_exactly_one_toc_field() -> None:
+def _style_has_dot_leader(parts: dict[str, bytes], style_id: str) -> bool:
+    styles = _styles_root(parts).xpath(
+        f'//w:style[@w:styleId="{style_id}"]', namespaces=NS
+    )
+    assert len(styles) == 1, f"style {style_id} tidak ada"
+    return any(
+        tab.get(W_LEADER) == "dot" for tab in styles[0].xpath(".//w:tab", namespaces=NS)
+    )
+
+
+def _app_page_count(parts: dict[str, bytes]) -> int:
+    root = etree.fromstring(parts["docProps/app.xml"])
+    pages = root.find(APP_PAGES)
+    assert pages is not None and pages.text is not None
+    return int(pages.text)
+
+
+def test_toc_field_count_and_instructions() -> None:
     root = _document_root(_read_parts())
-    assert _toc_field_count(root) == 1
+    assert _toc_field_count(root) == EXPECTED_TOC_FIELDS
+
+    instructions = _toc_instructions(root)
+    main = [value for value in instructions if value.startswith("TOC \\o")]
+    table_captions = [
+        value for value in instructions if 'TOC \\c "Tabel"' in value
+    ]
+    figure_captions = [
+        value for value in instructions if 'TOC \\c "Gambar"' in value
+    ]
+    assert len(main) == 1
+    assert len(table_captions) == 1
+    assert len(figure_captions) == 1
 
 
-def test_exactly_one_toc_gallery_sdt() -> None:
+def test_toc_gallery_sdt_count() -> None:
     root = _document_root(_read_parts())
     galleries = _toc_galleries(root)
-    assert len(galleries) == 1
-    assert galleries[0].get(W_VAL) == "Table of Contents"
+    assert len(galleries) == EXPECTED_TOC_GALLERIES
+    assert all(gallery.get(W_VAL) == "Table of Contents" for gallery in galleries)
 
 
 def test_captions_match_baseline() -> None:
@@ -178,12 +236,30 @@ def test_captions_match_baseline() -> None:
     assert captions["Gambar"] == EXPECTED_FIGURES
 
 
+def test_fixture_fingerprint_matches_baseline_record() -> None:
+    baseline = json.loads(BASELINE_JSON.read_text(encoding="utf-8"))
+    assert baseline["source"] == "examples/thesis-single/document.md"
+    assert baseline["docx"]["path"] == (
+        FIXTURE.relative_to(ROOT).as_posix()
+    )
+    assert baseline["docx"]["size_bytes"] == FIXTURE.stat().st_size
+    assert baseline["docx"]["sha256"] == hashlib.sha256(
+        FIXTURE.read_bytes()
+    ).hexdigest()
+
+    parts = _read_parts()
+    assert baseline["docx"]["document_xml_sha256_c14n"] == sha256_c14n(
+        parts["word/document.xml"]
+    )
+    assert baseline["docx"]["page_count"] == _app_page_count(parts)
+
+
 def test_code_tables_are_1x1_with_full_borders() -> None:
     root = _document_root(_read_parts())
     code_tables = [
         table for table in root.xpath("//w:tbl", namespaces=NS) if _is_code_table(table)
     ]
-    assert code_tables, "tidak ada tabel kode SourceCode"
+    assert len(code_tables) == EXPECTED_CODE_TABLES
 
     for table in code_tables:
         rows = table.xpath("./w:tr", namespaces=NS)
@@ -195,34 +271,51 @@ def test_code_tables_are_1x1_with_full_borders() -> None:
             assert border not in (None, "nil", "none"), f"border {side} tabel kode hilang"
 
 
-@pytest.mark.parametrize(("number", "page"), EXPECTED_TOC_ENTRIES.items())
+@pytest.mark.parametrize(
+    ("prefix", "page", "dot_leader"),
+    [
+        (prefix, page, dot_leader)
+        for prefix, (page, dot_leader) in EXPECTED_TOC_ENTRIES.items()
+    ],
+)
 def test_key_toc_entries_have_dot_leader_and_page_number(
-    number: str, page: str
+    prefix: str, page: str, dot_leader: bool
 ) -> None:
-    entry = _toc_entry(_document_root(_read_parts()), number)
+    parts = _read_parts()
+    entry = _toc_entry(_document_root(parts), prefix)
+    style_id = entry.xpath("./w:pPr/w:pStyle/@w:val", namespaces=NS)[0]
 
     dot_tabs = [
         tab
         for tab in entry.xpath("./w:pPr/w:tabs/w:tab", namespaces=NS)
         if tab.get(W_LEADER) == "dot"
     ]
-    assert dot_tabs, f"entri TOC {number} tidak punya tab leader titik"
-    assert any(tab.get(W_VAL) == "right" for tab in dot_tabs)
+    if dot_leader:
+        assert dot_tabs or _style_has_dot_leader(parts, style_id), (
+            f"entri TOC {prefix} tidak punya tab leader titik"
+        )
+        if dot_tabs:
+            assert any(tab.get(W_VAL) == "right" for tab in dot_tabs)
+    else:
+        assert not dot_tabs, f"entri TOC {prefix} tidak diharapkan punya dot leader"
+        assert not _style_has_dot_leader(parts, style_id), (
+            f"style {style_id} tidak diharapkan punya dot leader"
+        )
     assert entry.xpath(".//w:r/w:tab", namespaces=NS), (
-        f"entri TOC {number} tidak memakai tab di dalam run"
+        f"entri TOC {prefix} tidak memakai tab di dalam run"
     )
 
     instructions = entry.xpath(".//w:instrText/text()", namespaces=NS)
     assert any("PAGEREF" in instruction for instruction in instructions), (
-        f"entri TOC {number} tidak memakai field PAGEREF"
+        f"entri TOC {prefix} tidak memakai field PAGEREF"
     )
 
     results = _field_result_values(entry)
-    assert len(results) == 1, f"entri TOC {number} punya {len(results)} hasil field"
+    assert len(results) == 1, f"entri TOC {prefix} punya {len(results)} hasil field"
     assert PAGE_RESULT_RE.match(results[0]), (
-        f"hasil PAGEREF entri TOC {number} bukan nomor halaman: {results[0]!r}"
+        f"hasil PAGEREF entri TOC {prefix} bukan nomor halaman: {results[0]!r}"
     )
-    assert results[0] == page, f"halaman TOC {number} berubah: {results[0]} != {page}"
+    assert results[0] == page, f"halaman TOC {prefix} berubah: {results[0]} != {page}"
 
 
 def test_toc_styles_exist() -> None:
@@ -233,6 +326,11 @@ def test_toc_styles_exist() -> None:
     for style_id in ("TOC1", "TOC2", "TOC3"):
         assert style_id in styles, f"style {style_id} tidak ada"
         assert styles[style_id].get(W_TYPE) == "paragraph"
+
+    toc1 = styles["TOC1"]
+    assert any(
+        tab.get(W_LEADER) == "dot" for tab in toc1.xpath(".//w:tab", namespaces=NS)
+    ), "style TOC1 tidak punya tab leader titik"
 
 
 def test_no_unresolved_placeholders() -> None:

@@ -1,19 +1,18 @@
 {
   "schema_version": 1,
-  "source": "Laporan.pdf",
-  "fixture": "tests/fixtures/golden/laporan-baseline.pdf",
-  "note": "PDF baseline is not committed (456 KiB). Recorded from local Word 2021 output; golden PDF test skips when the fixture is absent.",
-  "page_count": 26,
+  "source": "examples/thesis-single/document.md",
+  "page_count": 18,
   "page_size_points": [
     595.5,
     842.25
   ],
   "key_text": [
-    "OTOMATISASI PEMBUATAN DOKUMEN LAPORAN",
-    "AKADEMIK",
-    "MENGGUNAKAN PANDOC, TYPST, DAN MARKDOWN",
+    "ANALISIS PIPELINE DOKUMEN AKADEMIK",
+    "BERBASIS MARKDOWN DAN PANDOC",
     "KATA PENGANTAR",
     "DAFTAR ISI",
+    "DAFTAR TABEL",
+    "DAFTAR GAMBAR",
     "BAB I",
     "PENDAHULUAN",
     "BAB II",
@@ -24,12 +23,30 @@
     "HASIL DAN PEMBAHASAN",
     "BAB V",
     "PENUTUP",
-    "DAFTAR PUSTAKA"
+    "DAFTAR PUSTAKA",
+    "Tabel 2.1",
+    "Gambar 4.1"
   ],
   "toc": [
     {
-      "label": "KATA PENGANTAR",
+      "label": "LEMBAR PENGESAHAN",
       "page": "i"
+    },
+    {
+      "label": "PERNYATAAN",
+      "page": "ii"
+    },
+    {
+      "label": "KATA PENGANTAR",
+      "page": "iii"
+    },
+    {
+      "label": "ABSTRAK",
+      "page": "iv"
+    },
+    {
+      "label": "ABSTRACT",
+      "page": "v"
     },
     {
       "label": "BAB I PENDAHULUAN",
@@ -41,167 +58,95 @@
     },
     {
       "label": "1.2. Rumusan Masalah",
-      "page": "2"
+      "page": "1"
     },
     {
       "label": "1.3. Tujuan",
-      "page": "3"
+      "page": "1"
     },
     {
-      "label": "1.4. Manfaat",
-      "page": "3"
-    },
-    {
-      "label": "1.5. Batasan Masalah",
-      "page": "4"
+      "label": "1.4. Batasan Masalah",
+      "page": "2"
     },
     {
       "label": "BAB II TINJAUAN PUSTAKA",
-      "page": "5"
+      "page": "3"
     },
     {
-      "label": "2.1. Markdown dan Standardisasi Dokumen Teks",
-      "page": "5"
+      "label": "2.1. Markdown dan CommonMark",
+      "page": "3"
     },
     {
-      "label": "2.1.1. Sejarah dan Filosofi Markdown",
-      "page": "5"
+      "label": "2.2. Pandoc sebagai Konverter Dokumen",
+      "page": "3"
     },
     {
-      "label": "2.1.2. Sintaks Penulisan Akademik dalam Markdown",
-      "page": "5"
-    },
-    {
-      "label": "2.2. Sistem Typesetting Modern: Typst",
-      "page": "6"
-    },
-    {
-      "label": "2.2.1. Arsitektur dan Prinsip Kerja Typst",
-      "page": "6"
-    },
-    {
-      "label": "2.3. Pandoc dan Pemrosesan Dokumen Abstrak",
-      "page": "7"
-    },
-    {
-      "label": "2.3.1. Universal Document Converter",
-      "page": "7"
-    },
-    {
-      "label": "2.3.2. Filter Lua dan Ekstensibilitas AST",
-      "page": "8"
-    },
-    {
-      "label": "2.4. Arsitektur Dokumen Office Open XML (DOCX)",
-      "page": "8"
-    },
-    {
-      "label": "2.5. Pemrosesan Citra Digital dengan ImageMagick",
-      "page": "8"
-    },
-    {
-      "label": "2.6. Reproducibility dan Lingkungan Pengembangan",
-      "page": "9"
-    },
-    {
-      "label": "2.6.1. Manajemen Dependensi dengan Python Virtual Environment",
-      "page": "9"
-    },
-    {
-      "label": "2.6.2. Dukungan Lingkungan Build Lintas Platform",
-      "page": "9"
-    },
-    {
-      "label": "2.7. Standar Sitasi Akademik Author-Date",
-      "page": "10"
+      "label": "2.3. Office Open XML",
+      "page": "3"
     },
     {
       "label": "BAB III METODOLOGI",
-      "page": "11"
+      "page": "5"
     },
     {
-      "label": "3.1. Arsitektur Sistem dan Alur Kerja Pipeline",
-      "page": "11"
+      "label": "3.1. Arsitektur Pipeline",
+      "page": "5"
     },
     {
-      "label": "3.2. Perancangan Template Visual Typst (template.typ)",
-      "page": "12"
+      "label": "3.2. Validasi dan Pemeriksaan Awal",
+      "page": "5"
     },
     {
-      "label": "3.2.1. Pengaturan Geometri Halaman dan Margin",
-      "page": "12"
+      "label": "3.3. Penomoran Persamaan",
+      "page": "6"
     },
     {
-      "label": "3.2.2. Penomoran Heading Bertingkat",
-      "page": "12"
-    },
-    {
-      "label": "3.2.3. Algoritma Keseimbangan Judul Sampul",
-      "page": "13"
-    },
-    {
-      "label": "3.3. Perancangan Pipeline Dokumen Microsoft Word (DOCX)",
-      "page": "13"
-    },
-    {
-      "label": "3.3.1. Filter Lua docx.lua",
-      "page": "13"
-    },
-    {
-      "label": "3.3.2. Partisi Tiga Seksi Dokumen finalize-docx.py",
-      "page": "13"
-    },
-    {
-      "label": "3.3.3. Sinkronisasi Nomor Halaman Aktual docx-pagenum.py",
-      "page": "14"
-    },
-    {
-      "label": "3.4. Sistem Preset Kampus Deklaratif",
-      "page": "14"
-    },
-    {
-      "label": "3.5. Metodologi Pengujian dan Verifikasi",
-      "page": "15"
+      "label": "3.4. Pengelolaan Aset",
+      "page": "6"
     },
     {
       "label": "BAB IV HASIL DAN PEMBAHASAN",
-      "page": "16"
+      "page": "7"
     },
     {
-      "label": "4.1. Struktur Berkas dan Implementasi Sistem",
-      "page": "16"
+      "label": "4.1. Struktur Keluaran DOCX",
+      "page": "7"
     },
     {
-      "label": "4.2. Evaluasi Hasil Keluaran Dokumen PDF (Typst Engine)",
-      "page": "16"
+      "label": "4.2. Hasil Pemeriksaan Contoh",
+      "page": "7"
     },
     {
-      "label": "4.3. Evaluasi Hasil Keluaran Dokumen Word (DOCX Multi-Pass)",
-      "page": "17"
+      "label": "4.3. Pembahasan",
+      "page": "8"
     },
     {
-      "label": "4.4. Analisis Komparasi Kinerja dan Efisiensi",
-      "page": "18"
-    },
-    {
-      "label": "4.5. Hasil Verifikasi melalui Pytest dan Build",
-      "page": "19"
+      "label": "4.4. Keterbatasan",
+      "page": "8"
     },
     {
       "label": "BAB V PENUTUP",
-      "page": "20"
+      "page": "9"
     },
     {
       "label": "5.1. Kesimpulan",
-      "page": "20"
+      "page": "9"
     },
     {
       "label": "5.2. Saran",
-      "page": "21"
+      "page": "9"
+    },
+    {
+      "label": "Lampiran",
+      "page": "10"
+    },
+    {
+      "label": "Berkas Contoh",
+      "page": "10"
     },
     {
       "label": "DAFTAR PUSTAKA",
-      "page": "22"
+      "page": "11"
     }
   ]
 }

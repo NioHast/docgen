@@ -207,23 +207,30 @@ def _has_page_break(paragraph) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def test_golden_exactly_one_toc_field() -> None:
+def test_golden_toc_field_count_and_instructions() -> None:
     package = DocumentPackage.load(GOLDEN)
     fields = [
         field for field in iter_fields(package) if field.kind is FieldKind.TOC
     ]
-    assert len(fields) == 1
-    assert field_instruction(fields[0]).startswith("TOC")
+    assert len(fields) == 3
+    instructions = [field_instruction(field) for field in fields]
+    assert sum(value.startswith("TOC \\o") for value in instructions) == 1
+    assert sum('TOC \\c "Tabel"' in value for value in instructions) == 1
+    assert sum('TOC \\c "Gambar"' in value for value in instructions) == 1
 
 
-def test_golden_exactly_one_toc_sdt() -> None:
+def test_golden_toc_sdt_count() -> None:
     package = DocumentPackage.load(GOLDEN)
     root = package.xml(DOCUMENT_PART)
     galleries = _sdt_gallery(root)
-    assert len(galleries) == 1
-    assert galleries[0].find(qn("w:sdtPr")).find(
-        ".//" + qn("w:docPartGallery")
-    ).get(qn("w:val")) == "Table of Contents"
+    assert len(galleries) == 3
+    assert all(
+        gallery.find(qn("w:sdtPr"))
+        .find(".//" + qn("w:docPartGallery"))
+        .get(qn("w:val"))
+        == "Table of Contents"
+        for gallery in galleries
+    )
 
 
 def test_golden_toc_styles_toc1_toc2_toc3() -> None:
@@ -232,18 +239,21 @@ def test_golden_toc_styles_toc1_toc2_toc3() -> None:
     ids = _style_ids(styles)
     assert {"TOCHeading", "TOC1", "TOC2", "TOC3"} <= ids
     for style_id in ("TOC1", "TOC2", "TOC3"):
-        style = next(
+        assert next(
             item
             for item in styles
             if item.get(qn("w:styleId")) == style_id
-        )
-        tabs = style.findall(".//" + qn("w:tab"))
-        assert any(
-            tab.get(qn("w:leader")) == "dot" for tab in tabs
-        )
+        ) is not None
+    toc1 = next(
+        item for item in styles if item.get(qn("w:styleId")) == "TOC1"
+    )
+    assert any(
+        tab.get(qn("w:leader")) == "dot"
+        for tab in toc1.findall(".//" + qn("w:tab"))
+    )
 
 
-def test_golden_toc_entry_3_2_3_page_13() -> None:
+def test_golden_toc_entry_2_1_page_3() -> None:
     package = DocumentPackage.load(GOLDEN)
     root = package.xml(DOCUMENT_PART)
     entry = None
@@ -252,20 +262,20 @@ def test_golden_toc_entry_3_2_3_page_13() -> None:
         if ppr is None:
             continue
         style = ppr.find(qn("w:pStyle"))
-        if style is None or style.get(qn("w:val")) != "TOC3":
+        if style is None or style.get(qn("w:val")) != "TOC2":
             continue
         text = " ".join(paragraph_text(paragraph).split())
-        if text.startswith("3.2.3"):
+        if text.startswith("2.1."):
             entry = paragraph
             break
     assert entry is not None
     text = " ".join(paragraph_text(entry).split())
-    assert text.startswith("3.2.3")
-    assert text.endswith("13")
+    assert text.startswith("2.1.")
+    assert text.endswith("3")
     fields = iter_fields_in_paragraph(entry)
     pageref = [field for field in fields if field.kind is FieldKind.PAGEREF]
     assert pageref
-    assert field_result_text(pageref[0]) == "13"
+    assert field_result_text(pageref[0]) == "3"
 
 
 # ---------------------------------------------------------------------------
