@@ -1,7 +1,5 @@
 """Factory DOCX minimal berbasis python-docx."""
 
-from __future__ import annotations
-
 from pathlib import Path
 
 from docx import Document

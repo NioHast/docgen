@@ -10,11 +10,14 @@ regex aturan. Hasilnya petunjuk, bukan putusan: setiap temuan perlu dibaca
 dalam konteksnya. Jangan dipakai untuk menilai apakah sebuah teks ditulis mesin.
 
 Pemakaian:
-    python tools/dev/check_prose.py naskah.md [skripsi.docx ...]  # periksa berkas (.md, .txt, .docx)
-    python tools/dev/check_prose.py -                             # baca dari stdin
-    python tools/dev/check_prose.py --banding asli.md hasil.md    # angka, sitasi, kutipan yang berubah
-    python tools/dev/check_prose.py --self-test                   # uji mandiri (109 kasus)
-    python tools/dev/check_prose.py --abaikan SG-04,KL-01 naskah.md  # lewati kode tertentu
+    python tools/dev/check_prose.py naskah.md [skripsi.docx ...]
+        # periksa berkas (.md, .txt, .docx)
+    python tools/dev/check_prose.py -  # baca dari stdin
+    python tools/dev/check_prose.py --banding asli.md hasil.md
+        # angka, sitasi, kutipan yang berubah
+    python tools/dev/check_prose.py --self-test  # uji mandiri (109 kasus)
+    python tools/dev/check_prose.py --abaikan SG-04,KL-01 naskah.md
+        # lewati kode tertentu
 
 Pada berkas .docx, teks diambil per paragraf dari word/document.xml dan nomor baris laporan
 adalah nomor paragraf. Paragraf bergaya Heading1/Heading2/Heading3 diberi penanda Markdown
@@ -29,6 +32,7 @@ Penanda istilah {{?…?}} yang belum diputuskan dilaporkan sebagai IS-01; teks t
 
 Kode keluar 1 bila ada temuan K (atau, pada --banding, ada fakta yang berubah), 0 bila tidak.
 """
+
 import re
 import sys
 import tempfile
@@ -41,8 +45,9 @@ from ruamel.yaml import YAML
 
 AKAR = Path(__file__).resolve().parent
 BERKAS_ATURAN = AKAR / "rules.yml"
-I = re.IGNORECASE
-AWAL = r"(?:^|(?<=[.!?])\s+)"  # awal kalimat; berlaku pada teks yang penanda Markdown-nya sudah dibuang
+FLAG_I = re.IGNORECASE
+# Awal kalimat; berlaku pada teks yang penanda Markdown-nya sudah dibuang.
+AWAL = r"(?:^|(?<=[.!?])\s+)"
 
 
 # ---------------------------------------------------------------------------
@@ -67,13 +72,17 @@ def _flag(teks):
 
 
 def _saran_imbuhan_singkatan(c):
-    return ("imbuhan dan singkatan dirangkai tanda hubung: "
-            + re.sub(r"^([a-z]+)(?=[A-Z])|(?<=[A-Z])(?=[a-z]+$)",
-                     lambda m: (m.group(1) + "-") if m.group(1) else "-", c))
+    return "imbuhan dan singkatan dirangkai tanda hubung: " + re.sub(
+        r"^([a-z]+)(?=[A-Z])|(?<=[A-Z])(?=[a-z]+$)",
+        lambda m: (m.group(1) + "-") if m.group(1) else "-",
+        c,
+    )
 
 
 def _saran_titik_singkatan(c):
-    return "singkatan umum: " + ({"s/d": "s.d.", "a/n": "a.n.", "d/a": "d.a.", "u/p": "u.p."}.get(c) or c + ".")
+    return "singkatan umum: " + (
+        {"s/d": "s.d.", "a/n": "a.n.", "d/a": "d.a.", "u/p": "u.p."}.get(c) or c + "."
+    )
 
 
 def _saran_desimal_koma(c):
@@ -81,7 +90,9 @@ def _saran_desimal_koma(c):
 
 
 def _saran_spasi_satuan(c):
-    return "beri spasi antara angka dan lambang satuan: " + re.sub(r"(?<=\d)(?=[^\d.,])", " ", c, count=1)
+    return "beri spasi antara angka dan lambang satuan: " + re.sub(
+        r"(?<=\d)(?=[^\d.,])", " ", c, count=1
+    )
 
 
 SARAN_DINAMIS = {
@@ -99,11 +110,17 @@ def _saran(aturan):
 
 
 # Bentuk lama tetap tersedia untuk pemanggil yang mengimpor POLA/POLA_C.
-POLA = [(a["kode"], a["label"], a["pola"], _flag(a.get("flag", "")), _saran(a), a.get("min", 1))
-        for a in ATURAN if a["jenis"] == "regex"]
+POLA = [
+    (a["kode"], a["label"], a["pola"], _flag(a.get("flag", "")), _saran(a), a.get("min", 1))
+    for a in ATURAN
+    if a["jenis"] == "regex"
+]
 POLA_C = [(i, lab, re.compile(rx, fl | re.M), sar, mn) for i, lab, rx, fl, sar, mn in POLA]
 
-POLA_KB = re.compile(r"\b(" + "|".join(sorted(map(re.escape, KATA_BAKU), key=len, reverse=True)) + r")\b", I)
+POLA_KB = re.compile(
+    r"\b(" + "|".join(sorted(map(re.escape, KATA_BAKU), key=len, reverse=True)) + r")\b",
+    FLAG_I,
+)
 
 PENANDA_JUDUL = {"heading1": "# ", "heading2": "## ", "heading3": "### "}
 
@@ -134,8 +151,9 @@ def baca(nama):
         for p in akar.iter():
             if not (p.tag.endswith(("}p", ":p")) or p.tag == "p"):
                 continue
-            teks = "".join(t.text or "" for t in p.iter()
-                           if t.tag.endswith(("}t", ":t")) or t.tag == "t").replace("\n", " ")
+            teks = "".join(
+                t.text or "" for t in p.iter() if t.tag.endswith(("}t", ":t")) or t.tag == "t"
+            ).replace("\n", " ")
             gaya = re.sub(r"\s+", "", _gaya_paragraf(p)).lower()
             paragraf.append(PENANDA_JUDUL.get(gaya, "") + teks)
         return "\n".join(paragraf)  # paragraf kosong ikut agar nomor baris = nomor paragraf
@@ -149,32 +167,60 @@ def _mask(teks):
     (AI-20). Posisi baris tetap karena setiap karakter selain newline diganti
     spasi.
     """
-    kosong = lambda m: re.sub(r"[^\n]", " ", m.group(0))
-    teks = re.sub(r"<!--\s*periksa:abaikan\s*-->.*?(?:<!--\s*periksa:lanjut\s*-->|\Z)", kosong, teks, flags=re.S)
+
+    def kosong(m):
+        return re.sub(r"[^\n]", " ", m.group(0))
+
+    teks = re.sub(
+        r"<!--\s*periksa:abaikan\s*-->.*?(?:<!--\s*periksa:lanjut\s*-->|\Z)",
+        kosong,
+        teks,
+        flags=re.S,
+    )
     teks = re.sub(r"^[ \t>*+-]*\*\*(?:Sebelum|Waspadai):\*\*.*$", kosong, teks, flags=re.M)
     teks = re.sub(r"^(```|~~~).*?^\1", kosong, teks, flags=re.S | re.M)
     teks = re.sub(r"`[^`\n]*`|~~[^~\n]*~~|https?://\S+|<!--.*?-->", kosong, teks, flags=re.S)
     teks = re.sub(r"^\s*---\n.*?\n---\n", kosong, teks, count=1, flags=re.S)  # frontmatter
-    # ponytail: bagian berakhir di judul Markdown berikutnya; naskah polos tanpa # dilewati sampai akhir berkas
-    teks = re.sub(r"^(?:#+[ \t]*)?(?:daftar pustaka|daftar rujukan|referensi|bibliografi|references|bibliography|abstract)"
-                  r"[ \t]*:?[ \t]*$.*?(?=^#|\Z)", kosong, teks, flags=re.S | re.M | re.I)
+    # ponytail: bagian berakhir di judul Markdown berikutnya; naskah polos
+    # tanpa # dilewati sampai akhir berkas.
+    teks = re.sub(
+        r"^(?:#+[ \t]*)?(?:daftar pustaka|daftar rujukan|referensi|bibliografi|references|"
+        r"bibliography|abstract)"
+        r"[ \t]*:?[ \t]*$.*?(?=^#|\Z)",
+        kosong,
+        teks,
+        flags=re.S | re.M | re.I,
+    )
     return teks
 
 
 def bersihkan(teks):
     """Ganti bagian yang dilewati dengan spasi agar posisi baris tetap."""
-    kosong = lambda m: re.sub(r"[^\n]", " ", m.group(0))
+
+    def kosong(m):
+        return re.sub(r"[^\n]", " ", m.group(0))
+
     teks = _mask(teks)
-    # penanda Markdown di awal baris (judul, kutipan, butir, nomor) diperlakukan sebagai awal kalimat
-    teks = re.sub(r"^[ \t]*(?:#+|>+|[-*+]|\d+[.)])[ \t]+(?:\*\*[^*\n]*\*\*[:.]?[ \t]*)?", kosong, teks, flags=re.M)
+    # Penanda Markdown di awal baris (judul, kutipan, butir, nomor)
+    # diperlakukan sebagai awal kalimat.
+    teks = re.sub(
+        r"^[ \t]*(?:#+|>+|[-*+]|\d+[.)])[ \t]+(?:\*\*[^*\n]*\*\*[:.]?[ \t]*)?",
+        kosong,
+        teks,
+        flags=re.M,
+    )
     return re.sub(r"[*_]", " ", teks)
 
 
 def periksa(teks):
     """Kembalikan daftar (baris, id, label, cuplikan, saran)."""
     t = bersihkan(teks)
-    # awal temuan = karakter tak-kosong pertama; pola AWAL ikut menelan spasi dan baris baru sebelumnya
-    baris = lambda m: t.count("\n", 0, m.start() + len(m.group(0)) - len(m.group(0).lstrip())) + 1
+
+    # Awal temuan adalah karakter tak-kosong pertama; pola AWAL ikut menelan
+    # spasi dan baris baru sebelumnya.
+    def baris(m):
+        return t.count("\n", 0, m.start() + len(m.group(0)) - len(m.group(0).lstrip())) + 1
+
     hasil = []
     for i, lab, rx, sar, mn in POLA_C:
         cocok = list(rx.finditer(t))
@@ -190,11 +236,15 @@ def periksa(teks):
 
 BATAS_BLOK = re.compile(r"\n(?=[ \t]*(?:\n|>[ \t]*\n|[-*+|#]|\d+[.)][ \t]))")
 
-# Akronim yang sering salah ditulis kapital semua (EYD V: nama diri dari suku kata -> huruf awal kapital,
-# bukan nama diri -> huruf kecil). Dicek per token kapital penuh, di luar baris judul berhuruf kapital.
+# Akronim yang sering salah ditulis kapital semua (EYD V: nama diri dari suku
+# kata -> huruf awal kapital, bukan nama diri -> huruf kecil). Dicek per token
+# kapital penuh, di luar baris judul berhuruf kapital.
 POLA_AKRONIM = re.compile(r"\b(" + "|".join(AKRONIM) + r")\b")
-POLA_KEPANJANGAN = re.compile(r"\b[A-Z][a-z]+(?:,?\s+(?:dan\s+|&\s+)?[A-Z][a-z]+)+\s*\(\s*(?:"
-                              + "|".join(BUKAN_NAMA_DIRI) + r")\s*\)")
+POLA_KEPANJANGAN = re.compile(
+    r"\b[A-Z][a-z]+(?:,?\s+(?:dan\s+|&\s+)?[A-Z][a-z]+)+\s*\(\s*(?:"
+    + "|".join(BUKAN_NAMA_DIRI)
+    + r")\s*\)"
+)
 # SG-04: token berhuruf kapital minimal dua dan minimal separuhnya kapital: UMKM, IoT, BUMDes
 POLA_TOKEN = re.compile(r"\b[A-Z][A-Za-z0-9]{1,7}\b")
 ROMAWI = re.compile(r"[IVXLCDM]+")
@@ -203,50 +253,86 @@ ROMAWI = re.compile(r"[IVXLCDM]+")
 def baris_kapital(t, pos):
     """Baris judul berhuruf kapital semua (BAB I PENDAHULUAN) tidak diperiksa untuk singkatan."""
     awal, akhir = t.rfind("\n", 0, pos) + 1, t.find("\n", pos)
-    huruf = [c for c in t[awal:akhir if akhir >= 0 else None] if c.isalpha()]
+    huruf = [c for c in t[awal : akhir if akhir >= 0 else None] if c.isalpha()]
     return len(huruf) > 3 and all(c.isupper() for c in huruf)
 
 
 def singkatan(t):
     """SG-04, SG-05, SG-06. Kembalikan daftar temuan."""
-    baris = lambda pos: t.count("\n", 0, pos) + 1
+
+    def baris(pos):
+        return t.count("\n", 0, pos) + 1
+
     hasil, pertama = [], {}
     for m in POLA_AKRONIM.finditer(t):
         if not baris_kapital(t, m.start()):
-            hasil.append((baris(m.start()), "SG-05", "K", m.group(0), "akronim: " + AKRONIM[m.group(0)]))
+            hasil.append(
+                (baris(m.start()), "SG-05", "K", m.group(0), "akronim: " + AKRONIM[m.group(0)])
+            )
     for m in POLA_KEPANJANGAN.finditer(t):
         kep, sing = m.group(0).split("(")
-        # buang kata awal kalimat yang bukan bagian kepanjangan ("Namun Usaha Mikro, …"): ambil kata isi
-        # sebanyak huruf kapital singkatan (UMKM -> 4, BUMDes -> 4)
+        # Buang kata awal kalimat yang bukan bagian kepanjangan
+        # ("Namun Usaha Mikro, ..."): ambil kata isi sebanyak huruf kapital
+        # singkatan (UMKM -> 4, BUMDes -> 4).
         isi = [k for k in re.finditer(r"[A-Z][a-z]+", kep)]
         n = sum(c.isupper() for c in sing)
         if 2 <= n < len(isi):
-            kep = kep[isi[-n].start():]
+            kep = kep[isi[-n].start() :]
         if len(re.findall(r"[A-Z][a-z]+", kep)) >= 2:
-            hasil.append((baris(m.start()), "SG-06", "G", " ".join((kep + "(" + sing).split()),
-                          "kepanjangan singkatan bukan nama diri ditulis huruf kecil: " + " ".join(kep.lower().split())))
+            hasil.append(
+                (
+                    baris(m.start()),
+                    "SG-06",
+                    "G",
+                    " ".join((kep + "(" + sing).split()),
+                    "kepanjangan singkatan bukan nama diri ditulis huruf kecil: "
+                    + " ".join(kep.lower().split()),
+                )
+            )
     for m in POLA_TOKEN.finditer(t):
         w = m.group(0)
         besar = sum(c.isupper() for c in w)
-        sesudah = t[m.end():m.end() + 2]
-        if (besar < 2 or besar * 2 < sum(c.isalpha() for c in w) or w in SINGKATAN_UMUM or ROMAWI.fullmatch(w)
-                or w in AKRONIM or baris_kapital(t, m.start()) or re.match(r"-\d", sesudah)  # KE-01, COVID-19
-                or (len(w) > 3 and any(c.isdigit() for c in w))  # ESP32, STM32; K3 dan B3 tetap diperiksa
-                or re.search(r"\bCC[\s-]+(?:(?:BY|NC|ND|SA)[\s-]*)*$", t[max(0, m.start() - 20):m.start()])  # CC BY-SA
-                or t[t.rfind("\n", 0, m.start()) + 1:].lstrip().startswith("|")  # baris tabel
-                or re.search(r"\[[^\]]*$", t[max(0, m.start() - 200):m.start()])  # [PERLU DATA: …], [NAMA ALAT]
-                or (w.isupper() and re.match(r"\s+[A-Z]{3,}\b", t[m.end():]))):  # label: TIDAK DITEMUKAN
+        sesudah = t[m.end() : m.end() + 2]
+        if (
+            besar < 2
+            or besar * 2 < sum(c.isalpha() for c in w)
+            or w in SINGKATAN_UMUM
+            or ROMAWI.fullmatch(w)
+            or w in AKRONIM
+            or baris_kapital(t, m.start())
+            or re.match(r"-\d", sesudah)  # KE-01, COVID-19
+            or (
+                len(w) > 3 and any(c.isdigit() for c in w)
+            )  # ESP32, STM32; K3 dan B3 tetap diperiksa
+            or re.search(
+                r"\bCC[\s-]+(?:(?:BY|NC|ND|SA)[\s-]*)*$", t[max(0, m.start() - 20) : m.start()]
+            )  # CC BY-SA
+            or t[t.rfind("\n", 0, m.start()) + 1 :].lstrip().startswith("|")  # baris tabel
+            or re.search(
+                r"\[[^\]]*$", t[max(0, m.start() - 200) : m.start()]
+            )  # [PERLU DATA: …], [NAMA ALAT]
+            or (w.isupper() and re.match(r"\s+[A-Z]{3,}\b", t[m.end() :]))
+        ):  # label: TIDAK DITEMUKAN
             continue
         pertama.setdefault(w, []).append(m.start())
     for w, posisi in pertama.items():
-        def menjelaskan(i):  # "(…, UMKM)" atau "UMKM (kepanjangan)"
-            return bool(re.search(r"\([^()\n]*$", t[max(0, i - 120):i]) and re.match(r"\s*[)\],;]", t[i + len(w):])) \
-                or bool(re.match(r"\s*\((?!\s*\d)", t[i + len(w):]))
+
+        def menjelaskan(i, w=w):  # "(..., UMKM)" atau "UMKM (kepanjangan)"
+            return bool(
+                re.search(r"\([^()\n]*$", t[max(0, i - 120) : i])
+                and re.match(r"\s*[)\],;]", t[i + len(w) :])
+            ) or bool(re.match(r"\s*\((?!\s*\d)", t[i + len(w) :]))
+
         if menjelaskan(posisi[0]):
             continue
-        ket = ("dijelaskan setelah dipakai; pindahkan kepanjangan ke kemunculan pertama"
-               if any(map(menjelaskan, posisi[1:])) else
-               "belum dijelaskan: tulis kepanjangan (SINGKATAN) pada kemunculan pertama, kecuali sudah di bagian sebelumnya")
+        ket = (
+            "dijelaskan setelah dipakai; pindahkan kepanjangan ke kemunculan pertama"
+            if any(map(menjelaskan, posisi[1:]))
+            else (
+                "belum dijelaskan: tulis kepanjangan (SINGKATAN) pada kemunculan pertama, "
+                "kecuali sudah di bagian sebelumnya"
+            )
+        )
         hasil.append((baris(posisi[0]), "SG-04", "G", w, ket))
     return hasil
 
@@ -257,25 +343,42 @@ POLA_ISTILAH = re.compile(_ATURAN_IS01["pola"], _flag(_ATURAN_IS01.get("flag", "
 
 def penanda_istilah(t):
     """IS-01: penanda {{?istilah?}} belum diputuskan. Pemeriksa tidak menebak atau mengubah teks."""
-    baris = lambda pos: t.count("\n", 0, pos) + 1
-    return [(baris(m.start()), "IS-01", "K", " ".join(m.group(0).split()), _ATURAN_IS01["saran"])
-            for m in POLA_ISTILAH.finditer(t)]
+
+    def baris(pos):
+        return t.count("\n", 0, pos) + 1
+
+    return [
+        (baris(m.start()), "IS-01", "K", " ".join(m.group(0).split()), _ATURAN_IS01["saran"])
+        for m in POLA_ISTILAH.finditer(t)
+    ]
 
 
 def kalimat_panjang(teks, t, maks=None):
-    """KL-01 (G): kalimat lebih dari maks kata. Blok dipisah di baris kosong, butir, judul, dan tabel teks asli."""
+    """KL-01 (G): kalimat lebih dari maks kata.
+
+    Blok dipisah di baris kosong, butir, judul, dan tabel teks asli.
+    """
     maks = maks or _PETA["KL-01"].get("maks_kata", 35)
     hasil, awal = [], 0
-    for m in list(BATAS_BLOK.finditer(teks)) + [None]:
+    for m in [*BATAS_BLOK.finditer(teks), None]:
         akhir = m.start() if m else len(t)
         blok = t[awal:akhir]
         if "|" not in teks[awal:akhir]:
-            for k in re.finditer(r"[^.!?]+[.!?]?", blok):  # titik desimal dan singkatan memotong: hanya mengurangi temuan
+            for k in re.finditer(
+                r"[^.!?]+[.!?]?", blok
+            ):  # titik desimal dan singkatan memotong: hanya mengurangi temuan
                 kata = re.findall(r"[^\W\d_]+", k.group(0))
                 if len(kata) > maks:
                     pos = awal + k.start() + len(k.group(0)) - len(k.group(0).lstrip())
-                    hasil.append((t.count("\n", 0, pos) + 1, "KL-01", "G", " ".join(kata[:6]) + " …",
-                                  f"{len(kata)} kata; pecah menjadi dua kalimat atau lebih"))
+                    hasil.append(
+                        (
+                            t.count("\n", 0, pos) + 1,
+                            "KL-01",
+                            "G",
+                            " ".join(kata[:6]) + " …",
+                            f"{len(kata)} kata; pecah menjadi dua kalimat atau lebih",
+                        )
+                    )
         awal = akhir
     return hasil
 
@@ -312,9 +415,11 @@ def label_butir(teks, t):
 
 
 KUTIPAN = re.compile(r'"[^"\n]{3,}"|“[^”]{3,}”')
-SITASI = re.compile(r"\[\d+(?:\s*[-–,]\s*\d+)*\]"  # [3], [3-5], [1, 4]
-                    r"|(?:[A-Z][\w'-]+(?:\s+(?:et al\.|dkk\.)|\s+(?:&|dan)\s+[A-Z][\w'-]+)?\s+)?"
-                    r"\((?=[^()]*\b(?:19|20)\d{2}[a-z]?\b)[^()\n]{1,200}\)")  # (Nama, 2020), Nama (2020)
+SITASI = re.compile(
+    r"\[\d+(?:\s*[-\u2013,]\s*\d+)*\]"  # [3], [3-5], [1, 4]
+    r"|(?:[A-Z][\w'-]+(?:\s+(?:et al\.|dkk\.)|\s+(?:&|dan)\s+[A-Z][\w'-]+)?\s+)?"
+    r"\((?=[^()]*\b(?:19|20)\d{2}[a-z]?\b)[^()\n]{1,200}\)"
+)  # (Nama, 2020), Nama (2020)
 ANGKA = re.compile(r"(?:[<>≤≥]\s*)?(?<![\w.,])\d+(?:[.,]\d+)*(?:\s?%)?")
 
 
@@ -322,25 +427,33 @@ def fakta(teks):
     """Ambil kutipan, sitasi, dan angka (berurutan; yang sudah diambil dibuang) sebagai multiset."""
     hasil = {}
     for jenis, rx in (("KUTIPAN", KUTIPAN), ("SITASI", SITASI), ("ANGKA", ANGKA)):
-        hasil[jenis] = Counter(re.sub(r"\s+", "" if jenis == "ANGKA" else " ", m.group(0)) for m in rx.finditer(teks))
+        hasil[jenis] = Counter(
+            re.sub(r"\s+", "" if jenis == "ANGKA" else " ", m.group(0)) for m in rx.finditer(teks)
+        )
         teks = rx.sub(" ", teks)
     return hasil
 
 
 def banding(asli, hasil):
     """Kembalikan daftar (jenis, keterangan) untuk fakta yang hilang atau bertambah."""
-    # ponytail: dibandingkan sebagai multiset, posisi tidak dicek; angka yang ditulis ulang dengan huruf ikut terlapor hilang
+    # ponytail: dibandingkan sebagai multiset, posisi tidak dicek; angka yang
+    # ditulis ulang dengan huruf ikut terlapor hilang.
     a, h = fakta(asli), fakta(hasil)
     laporan = []
     for jenis in a:
-        hilang, baru = list((a[jenis] - h[jenis]).elements()), list((h[jenis] - a[jenis]).elements())
+        hilang, baru = (
+            list((a[jenis] - h[jenis]).elements()),
+            list((h[jenis] - a[jenis]).elements()),
+        )
         if jenis == "ANGKA":  # 0.5 -> 0,5 adalah koreksi EYD yang sah; laporkan terpisah
             for x in list(hilang):
                 y = x.translate(str.maketrans(".,", ",."))
                 if y in baru:
                     hilang.remove(x)
                     baru.remove(y)
-                    laporan.append(("PEMISAH", f"{x} -> {y} (cek: koreksi desimal atau nilai berubah?)"))
+                    laporan.append(
+                        ("PEMISAH", f"{x} -> {y} (cek: koreksi desimal atau nilai berubah?)")
+                    )
         laporan += [(jenis, f"hilang: {x}") for x in hilang] + [(jenis, f"baru: {x}") for x in baru]
     return laporan
 
@@ -429,10 +542,12 @@ def tes():
         "| 5 km | 2 kg |",
         "**Sebelum:** Dari hasil uji menunjukkan galat turun.",
         "Data diolah oleh Tri Wahyuni dan Dwi Santoso.",
-        "Data diolah.\n\n## Daftar Pustaka\n\nSmith, J. (2020). Multi agent systems for inter vehicle use.",
+        "Data diolah.\n\n## Daftar Pustaka\n\n"
+        "Smith, J. (2020). Multi agent systems for inter vehicle use.",
         "DAFTAR PUSTAKA\nGarcia, L. (2019). Ultra wideband sensing. Respon sistem.",
         "Suhu 25 °C dipakai.",
-        "Karyawan itu di-PHK (pemutusan hubungan kerja). Omzet usaha mikro, kecil, dan menengah (UMKM) dan UMKM-nya naik.",
+        "Karyawan itu di-PHK (pemutusan hubungan kerja). Omzet usaha mikro, kecil, "
+        "dan menengah (UMKM) dan UMKM-nya naik.",
         "Bahan, alat, dll. disiapkan dari 2019 s.d. 2021 (Santoso dkk., 2020).",
         "Usaha mikro, kecil, dan menengah (UMKM) tumbuh. Banyak UMKM kecil.",
         "Data diambil dari Badan Pusat Statistik (BPS). BPS mencatat kenaikan.",
@@ -465,39 +580,90 @@ def tes():
         gagal += 1
         print("GAGAL nomor baris KE-01:", h)
     h = {x[1]: x for x in periksa("Catu daya 3.3V dipakai.")}
-    if h.get("EJ-08", ("",) * 5)[3:] != ("3.3V", "beri spasi antara angka dan lambang satuan: 3.3 V") \
-            or not h.get("EJ-07", ("",) * 5)[4].endswith("3,3V"):
+    if h.get("EJ-08", ("",) * 5)[3:] != (
+        "3.3V",
+        "beri spasi antara angka dan lambang satuan: 3.3 V",
+    ) or not h.get("EJ-07", ("",) * 5)[4].endswith("3,3V"):
         gagal += 1
         print("GAGAL saran dinamis:", h)
-    h = [x for x in periksa("Namun Usaha Mikro, Kecil, dan Menengah (UMKM) sulit.") if x[1] == "SG-06"]
+    h = [
+        x
+        for x in periksa("Namun Usaha Mikro, Kecil, dan Menengah (UMKM) sulit.")
+        if x[1] == "SG-06"
+    ]
     if [x[3] for x in h] != ["Usaha Mikro, Kecil, dan Menengah (UMKM)"]:
         gagal += 1
         print("GAGAL kepanjangan SG-06:", h)
     # berkas .docx: nomor baris = nomor paragraf, dan --banding mendukung .docx
     with tempfile.TemporaryDirectory() as d:
         ns = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"'
+
         def buat(nama, par):
             with zipfile.ZipFile(Path(d) / nama, "w") as z:
-                z.writestr("word/document.xml", f"<w:document {ns}><w:body>"
-                           + "".join(f"<w:p><w:r><w:t>{p}</w:t></w:r></w:p>" for p in par) + "</w:body></w:document>")
-        buat("uji.docx", ["Paragraf pertama bersih.", "Dari hasil pengujian menunjukkan analisa salah."])
-        buat("hasil.docx", ["Paragraf pertama bersih dan galat 1,5%.", "Hasil pengujian menunjukkan analisis benar."])
+                z.writestr(
+                    "word/document.xml",
+                    f"<w:document {ns}><w:body>"
+                    + "".join(f"<w:p><w:r><w:t>{p}</w:t></w:r></w:p>" for p in par)
+                    + "</w:body></w:document>",
+                )
+
+        buat(
+            "uji.docx",
+            ["Paragraf pertama bersih.", "Dari hasil pengujian menunjukkan analisa salah."],
+        )
+        buat(
+            "hasil.docx",
+            [
+                "Paragraf pertama bersih dan galat 1,5%.",
+                "Hasil pengujian menunjukkan analisis benar.",
+            ],
+        )
         h_docx = [(x[0], x[1]) for x in periksa(baca(Path(d) / "uji.docx"))]
-        if h_docx != [(2, "KB-01"), (2, "KE-01")] or banding(baca(Path(d) / "uji.docx"), baca(Path(d) / "hasil.docx")) != [("ANGKA", "baru: 1,5%")]:
+        if h_docx != [(2, "KB-01"), (2, "KE-01")] or banding(
+            baca(Path(d) / "uji.docx"), baca(Path(d) / "hasil.docx")
+        ) != [("ANGKA", "baru: 1,5%")]:
             gagal += 1
             print("GAGAL docx:", h_docx)
     # banding: (asli, hasil, laporan yang diharapkan)
     kasus_banding = [
-        ("Galat turun dari 4,8% menjadi 1,2% (p < 0,01).", "Galat turun dari 4,8% ke 1,2% (p < 0,01).", []),
-        ("Galat turun dari 4,8% menjadi 1,2%.", "Galat turun dari 4,8% menjadi 1,5%.",
-         [("ANGKA", "hilang: 1,2%"), ("ANGKA", "baru: 1,5%")]),
-        ("Nilai p < 0,05.", "Nilai p > 0,05.", [("ANGKA", "hilang: <0,05"), ("ANGKA", "baru: >0,05")]),
-        ("Tegangan 0.5 V.", "Tegangan 0,5 V.", [("PEMISAH", "0.5 -> 0,5 (cek: koreksi desimal atau nilai berubah?)")]),
-        ("Hal ini sesuai (Santoso, 2020) dan [3].", "Temuan ini sesuai dengan [3].", [("SITASI", "hilang: (Santoso, 2020)")]),
-        ("Menurut Santoso (2020), galat kecil.", "Santoso (2021) menemukan galat kecil.",
-         [("SITASI", "hilang: Santoso (2020)"), ("SITASI", "baru: Santoso (2021)")]),
-        ('Informan berkata, "Dana telat, kami berhenti."', 'Informan berkata, "Dana terlambat, kami berhenti."',
-         [("KUTIPAN", 'hilang: "Dana telat, kami berhenti."'), ("KUTIPAN", 'baru: "Dana terlambat, kami berhenti."')]),
+        (
+            "Galat turun dari 4,8% menjadi 1,2% (p < 0,01).",
+            "Galat turun dari 4,8% ke 1,2% (p < 0,01).",
+            [],
+        ),
+        (
+            "Galat turun dari 4,8% menjadi 1,2%.",
+            "Galat turun dari 4,8% menjadi 1,5%.",
+            [("ANGKA", "hilang: 1,2%"), ("ANGKA", "baru: 1,5%")],
+        ),
+        (
+            "Nilai p < 0,05.",
+            "Nilai p > 0,05.",
+            [("ANGKA", "hilang: <0,05"), ("ANGKA", "baru: >0,05")],
+        ),
+        (
+            "Tegangan 0.5 V.",
+            "Tegangan 0,5 V.",
+            [("PEMISAH", "0.5 -> 0,5 (cek: koreksi desimal atau nilai berubah?)")],
+        ),
+        (
+            "Hal ini sesuai (Santoso, 2020) dan [3].",
+            "Temuan ini sesuai dengan [3].",
+            [("SITASI", "hilang: (Santoso, 2020)")],
+        ),
+        (
+            "Menurut Santoso (2020), galat kecil.",
+            "Santoso (2021) menemukan galat kecil.",
+            [("SITASI", "hilang: Santoso (2020)"), ("SITASI", "baru: Santoso (2021)")],
+        ),
+        (
+            'Informan berkata, "Dana telat, kami berhenti."',
+            'Informan berkata, "Dana terlambat, kami berhenti."',
+            [
+                ("KUTIPAN", 'hilang: "Dana telat, kami berhenti."'),
+                ("KUTIPAN", 'baru: "Dana terlambat, kami berhenti."'),
+            ],
+        ),
     ]
     for asli, hasil, harap in kasus_banding:
         if sorted(banding(asli, hasil)) != sorted(harap):
@@ -521,13 +687,19 @@ def main(argv):
         laporan = banding(*(baca(n) for n in argv[1:]))
         for jenis, ket in laporan:
             print(f"[{jenis}] {ket}")
-        print("Angka, sitasi, dan kutipan sama." if not laporan else f"{len(laporan)} perbedaan; periksa satu per satu.")
+        print(
+            "Angka, sitasi, dan kutipan sama."
+            if not laporan
+            else f"{len(laporan)} perbedaan; periksa satu per satu."
+        )
         return 1 if any(j != "PEMISAH" for j, _ in laporan) else 0
     abaikan = set()
     if argv[0] == "--abaikan":
         abaikan, argv = set(argv[1].split(",")), argv[2:]
     ada_k = False
-    for nama in (p for a in argv for p in (sorted(map(str, Path().glob(a))) if "*" in a or "?" in a else [a])):
+    for nama in (
+        p for a in argv for p in (sorted(map(str, Path().glob(a))) if "*" in a or "?" in a else [a])
+    ):
         teks = baca(nama)
         temuan = [x for x in periksa(teks) if x[1] not in abaikan]
         for baris, id_, lab, cuplikan, saran in temuan:
@@ -535,7 +707,10 @@ def main(argv):
             print(f"{nama}:{baris}: [{id_} {lab}] {cuplikan!r}: {saran}")
         if temuan:
             jumlah = Counter(x[2] for x in temuan)
-            print(f"{nama}: {len(temuan)} temuan (" + ", ".join(f"{l} {jumlah[l]}" for l in ("K", "G", "AI") if jumlah[l]) + ")")
+            rincian = ", ".join(
+                f"{label} {jumlah[label]}" for label in ("K", "G", "AI") if jumlah[label]
+            )
+            print(f"{nama}: {len(temuan)} temuan ({rincian})")
     return 1 if ada_k else 0
 
 

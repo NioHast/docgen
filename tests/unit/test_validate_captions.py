@@ -1,7 +1,5 @@
 """Tes unit stage ``validate``: caption tabel dan alt text gambar."""
 
-from __future__ import annotations
-
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -119,12 +117,7 @@ def test_html_code_dan_pre_diabaikan(tmp_path):
     block = write_markdown(
         tmp_path,
         "html_block.md",
-        "# BAB I\n\n<pre>\n"
-        "| A | B |\n"
-        "| --- | --- |\n"
-        "| 1 | 2 |\n"
-        "![](x.png)\n"
-        "</pre>\n",
+        "# BAB I\n\n<pre>\n| A | B |\n| --- | --- |\n| 1 | 2 |\n![](x.png)\n</pre>\n",
     )
 
     assert check_markdown(inline) == []
@@ -135,11 +128,7 @@ def test_beberapa_temuan_dilaporkan_sekaligus(tmp_path):
     path = write_markdown(
         tmp_path,
         "banyak.md",
-        "# BAB I\n\n"
-        "| A | B |\n"
-        "| --- | --- |\n"
-        "| 1 | 2 |\n\n"
-        "![](x.png)\n",
+        "# BAB I\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n\n![](x.png)\n",
     )
 
     issues = check_markdown(path)
@@ -171,9 +160,7 @@ def test_cli_sukses_dan_gagal(tmp_path, capsys):
 def test_direktori_diperiksa_rekursif(tmp_path):
     subdir = tmp_path / "chapters"
     subdir.mkdir()
-    (subdir / "bab1.md").write_text(
-        "# BAB I\n\n![](gambar.png)\n", encoding="utf-8"
-    )
+    (subdir / "bab1.md").write_text("# BAB I\n\n![](gambar.png)\n", encoding="utf-8")
 
     assert len(check_markdown(subdir / "bab1.md")) == 1
     assert expand_paths([tmp_path]) == [subdir / "bab1.md"]

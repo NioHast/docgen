@@ -6,12 +6,11 @@ memastikan caption wajib, memberi nomor ``Gambar bab.n``/``Tabel bab.n``,
 memindahkan caption ke sisi yang benar, dan menormalkan paragraf gambar.
 """
 
-from __future__ import annotations
-
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 
 from lxml import etree
 
@@ -142,7 +141,7 @@ CAPTION_PREFIX_RE = re.compile(
 CAPTION_LABEL_RE = re.compile(r"^\s*(Gambar|Tabel)\b", re.IGNORECASE)
 _LABEL_PREFIX_RE = re.compile(r"^\s*(Gambar|Tabel)\b[ \t]*", re.IGNORECASE)
 BAB_RE = re.compile(
-    r"^\s*BAB\s+(?P<number>[IVXLCDM]+|\d+)(?=\s|[.:;,\-–—]|$)",
+    r"^\s*BAB\s+(?P<number>[IVXLCDM]+|\d+)(?=\s|[.:;,\-\u2013\u2014]|$)",
     re.IGNORECASE,
 )
 ARABIC_CHAPTER_RE = re.compile(r"^\s*(?P<number>\d+)(?!\.\d)[\.\s]+")
@@ -254,7 +253,7 @@ COVER_STYLE_PREFIX = "cover"
 # ---------------------------------------------------------------------------
 
 
-def _body(package: "DocumentPackage") -> etree._Element:
+def _body(package: DocumentPackage) -> etree._Element:
     root = package.xml(DOCUMENT_PART)
     body = root.find(W_BODY)
     if body is None:
@@ -438,11 +437,7 @@ def _caption_kind(
     if normalized == "caption":
         match = CAPTION_LABEL_RE.match(text)
         if match is not None:
-            return (
-                CaptionKind.FIGURE
-                if match.group(1).lower() == "gambar"
-                else CaptionKind.TABLE
-            )
+            return CaptionKind.FIGURE if match.group(1).lower() == "gambar" else CaptionKind.TABLE
     return None
 
 
@@ -534,7 +529,7 @@ def format_caption_paragraph(
     spacing = get_or_add(properties, W_SPACING, PPR_ORDER)
     spacing.set(W_BEFORE, str(font.space_before))
     spacing.set(W_AFTER, str(font.space_after))
-    spacing.set(W_LINE, str(max(1, int(round(font.line_spacing * 240)))))
+    spacing.set(W_LINE, str(max(1, round(font.line_spacing * 240))))
     spacing.set(W_LINE_RULE, "auto")
     for attribute in (
         W_BEFORE_LINES,
@@ -597,9 +592,9 @@ def _scale_extent(element: etree._Element, ratio: float) -> None:
     cx = _int_attribute(element, "cx")
     cy = _int_attribute(element, "cy")
     if cx is not None and cx > 0:
-        element.set("cx", str(max(1, int(round(cx * ratio)))))
+        element.set("cx", str(max(1, round(cx * ratio))))
     if cy is not None and cy > 0:
-        element.set("cy", str(max(1, int(round(cy * ratio)))))
+        element.set("cy", str(max(1, round(cy * ratio))))
 
 
 def _clamp_container(container: etree._Element) -> bool:
@@ -615,19 +610,17 @@ def _clamp_container(container: etree._Element) -> bool:
     ratio = MAX_IMAGE_WIDTH_EMU / cx
     extent.set("cx", str(MAX_IMAGE_WIDTH_EMU))
     if cy is not None and cy > 0:
-        extent.set("cy", str(max(1, int(round(cy * ratio)))))
+        extent.set("cy", str(max(1, round(cy * ratio))))
 
     for picture in container.findall(f".//{PIC_PIC}"):
-        transform_extent = picture.find(
-            f"{PIC_SPPR}/{A_XFRM}/{A_EXT}"
-        )
+        transform_extent = picture.find(f"{PIC_SPPR}/{A_XFRM}/{A_EXT}")
         if transform_extent is not None:
             _scale_extent(transform_extent, ratio)
     return True
 
 
 def format_images(
-    package: "DocumentPackage",
+    package: DocumentPackage,
     *,
     spec: FigureLayoutSpec | None = None,
 ) -> tuple[int, int]:
@@ -660,7 +653,7 @@ def _style_is_cover(style_id: str | None) -> bool:
 
 
 def iter_image_paragraphs(
-    package: "DocumentPackage",
+    package: DocumentPackage,
 ) -> tuple[etree._Element, ...]:
     """Paragraf body bergambar yang wajib memiliki caption (kecuali cover)."""
 
@@ -845,7 +838,7 @@ def _make_caption_paragraph(kind: CaptionKind, text: str) -> etree._Element:
 
 
 def find_caption(
-    package: "DocumentPackage",
+    package: DocumentPackage,
     *,
     kind: CaptionKind,
     anchor: etree._Element,
@@ -907,7 +900,7 @@ def _move_caption(
 
 
 def ensure_caption(
-    package: "DocumentPackage",
+    package: DocumentPackage,
     *,
     kind: CaptionKind,
     anchor: etree._Element,
@@ -997,23 +990,15 @@ def _anchor_for_caption(
         return None
 
     before, _ = _previous_meaningful_sibling(caption)
-    if (
-        before is not None
-        and before.tag == W_P
-        and bool(list(before.iter(W_DRAWING)))
-    ):
+    if before is not None and before.tag == W_P and bool(list(before.iter(W_DRAWING))):
         return before
     after, _ = _next_meaningful_sibling(caption)
-    if (
-        after is not None
-        and after.tag == W_P
-        and bool(list(after.iter(W_DRAWING)))
-    ):
+    if after is not None and after.tag == W_P and bool(list(after.iter(W_DRAWING))):
         return after
     return None
 
 
-def iter_captions(package: "DocumentPackage") -> tuple[Caption, ...]:
+def iter_captions(package: DocumentPackage) -> tuple[Caption, ...]:
     """Iterasi caption body beserta anchor dan nomor yang terbaca."""
 
     captions: list[Caption] = []
@@ -1030,7 +1015,7 @@ def iter_captions(package: "DocumentPackage") -> tuple[Caption, ...]:
 
 
 def set_caption(
-    package: "DocumentPackage",
+    package: DocumentPackage,
     caption: Caption,
     *,
     text: str,
@@ -1072,7 +1057,7 @@ def _heading_chapter(
     report: CaptionReport,
     scope: str,
     counters: dict[CaptionKind, int],
-) -> int:
+) -> int | None:
     report.heading1_count += 1
     chapter = _chapter_number(paragraph_text(paragraph))
     if chapter is not None:
@@ -1106,11 +1091,7 @@ def _number_caption(
         return
 
     counters[kind] += 1
-    number = (
-        f"{current_chapter}.{counters[kind]}"
-        if scope == "chapter"
-        else str(counters[kind])
-    )
+    number = f"{current_chapter}.{counters[kind]}" if scope == "chapter" else str(counters[kind])
     prefix = f"{caption_spec.label}{caption_spec.separator}{number}"
     match_end = _prefix_end(text)
     if _prefix_overlaps_field(match_end, _field_ranges(paragraph)):
@@ -1126,7 +1107,7 @@ def _number_caption(
 
 
 def renumber_captions(
-    package: "DocumentPackage",
+    package: DocumentPackage,
     *,
     scope: str = "chapter",
     spec: CaptionSpecs | None = None,
@@ -1146,10 +1127,7 @@ def renumber_captions(
 
     for paragraph in _body(package).iter(W_P):
         style_id = _paragraph_style_id(paragraph)
-        if (
-            names.is_heading_style(style_id)
-            and names.normalize_style_id(style_id) == "heading1"
-        ):
+        if names.is_heading_style(style_id) and names.normalize_style_id(style_id) == "heading1":
             chapter = _heading_chapter(paragraph, report, scope, counters)
             if chapter is not None:
                 current_chapter = chapter
@@ -1169,6 +1147,9 @@ def renumber_captions(
 
 
 __all__ = [
+    "FIGURE_CAPTION_SPEC",
+    "MAX_IMAGE_WIDTH_EMU",
+    "TABLE_CAPTION_SPEC",
     "Caption",
     "CaptionError",
     "CaptionFontSpec",
@@ -1176,10 +1157,7 @@ __all__ = [
     "CaptionReport",
     "CaptionSpec",
     "CaptionSpecs",
-    "FIGURE_CAPTION_SPEC",
     "FigureLayoutSpec",
-    "MAX_IMAGE_WIDTH_EMU",
-    "TABLE_CAPTION_SPEC",
     "caption_style",
     "ensure_caption",
     "find_caption",

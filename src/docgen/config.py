@@ -5,14 +5,13 @@ dihapus menghasilkan pesan migrasi. Semua nilai dimensi dikonversi ke twip
 dan semua ukuran font dikonversi ke setengah poin di lapisan ini.
 """
 
-from __future__ import annotations
-
 import re
 import zipfile
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any, Iterable, Mapping
+from typing import Any
 from xml.etree import ElementTree
 
 from ruamel.yaml import YAML
@@ -20,8 +19,8 @@ from ruamel.yaml.constructor import DuplicateKeyError
 from ruamel.yaml.error import YAMLError
 from ruamel.yaml.nodes import MappingNode, Node, ScalarNode, SequenceNode
 
-from .errors import ConfigError
 from . import paths as path_mod
+from .errors import ConfigError
 
 # ---------------------------------------------------------------------------
 # YAML
@@ -416,7 +415,7 @@ def _dimension(
     number = float(match.group("value"))
     unit = match.group("unit")
     factor = {"cm": 1440 / 2.54, "mm": 1440 / 25.4, "in": 1440, "pt": 20, "twip": 1}[unit]
-    twips = int(round(number * factor))
+    twips = round(number * factor)
     if positive and twips <= 0:
         raise _err(
             f"'{key}' harus > 0",
@@ -466,7 +465,7 @@ def _font_size(value: Any, *, path: Path, key: str, default: str | None = None) 
             path=path,
             key=key,
         )
-    return int(round(points * 2))
+    return round(points * 2)
 
 
 def _color(value: Any, *, path: Path, key: str, default: str = "000000") -> str:
@@ -514,7 +513,9 @@ def _enum(
     return raw
 
 
-def _text_list(value: Any, *, path: Path, key: str, default: tuple[str, ...] = ()) -> tuple[str, ...]:
+def _text_list(
+    value: Any, *, path: Path, key: str, default: tuple[str, ...] = ()
+) -> tuple[str, ...]:
     raw = value if value is not None else list(default)
     if not isinstance(raw, list):
         raise _err(
@@ -991,9 +992,7 @@ def _parse_body_font(data: Mapping[str, Any], *, path: Path) -> BodyFont:
             key="font.body.space_after",
             default="0pt",
         ),
-        alignment=_alignment(
-            data.get("alignment"), path=path, key="font.body.alignment"
-        ),
+        alignment=_alignment(data.get("alignment"), path=path, key="font.body.alignment"),
         first_line_indent=_dimension(
             data.get("first_line_indent"),
             path=path,
@@ -1071,9 +1070,7 @@ def _parse_heading_style(
             minimum=0.5,
             maximum=3.0,
         ),
-        keep_next=_boolean(
-            data.get("keep_next"), path=path, key=f"{key}.keep_next", default=True
-        ),
+        keep_next=_boolean(data.get("keep_next"), path=path, key=f"{key}.keep_next", default=True),
         keep_lines=_boolean(
             data.get("keep_lines"), path=path, key=f"{key}.keep_lines", default=True
         ),
@@ -1235,9 +1232,7 @@ def _parse_caption_font(
             key=f"{key}.size",
             default=f"{defaults.size_half_points / 2:g}pt",
         ),
-        bold=_boolean(
-            data.get("bold"), path=path, key=f"{key}.bold", default=defaults.bold
-        ),
+        bold=_boolean(data.get("bold"), path=path, key=f"{key}.bold", default=defaults.bold),
         italic=_boolean(
             data.get("italic"), path=path, key=f"{key}.italic", default=defaults.italic
         ),
@@ -1292,9 +1287,7 @@ def _parse_captions(
 
     _check_unknown(data, _CAPTIONS_KEYS, path=path, key="captions")
 
-    figure_raw = _expect_mapping(
-        data.get("figure", {}), path=path, key="captions.figure"
-    )
+    figure_raw = _expect_mapping(data.get("figure", {}), path=path, key="captions.figure")
     _check_unknown(figure_raw, _CAPTION_KEYS, path=path, key="captions.figure")
     figure_font_raw = _expect_mapping(
         figure_raw.get("font", {}), path=path, key="captions.figure.font"
@@ -1307,9 +1300,7 @@ def _parse_captions(
         allow_alignment=False,
     )
 
-    table_raw = _expect_mapping(
-        data.get("table", {}), path=path, key="captions.table"
-    )
+    table_raw = _expect_mapping(data.get("table", {}), path=path, key="captions.table")
     _check_unknown(table_raw, _CAPTION_KEYS, path=path, key="captions.table")
     table_font_raw = _expect_mapping(
         table_raw.get("font", {}), path=path, key="captions.table.font"
@@ -1516,9 +1507,7 @@ def _parse_code(
                 default="1pt",
                 positive=True,
             ),
-            color=_color(
-                border_raw.get("color"), path=path, key="code.border.color"
-            ),
+            color=_color(border_raw.get("color"), path=path, key="code.border.color"),
         ),
         table=CodeTable(
             width_percent=100,
@@ -1545,9 +1534,7 @@ def _parse_bibliography_style(
     path: Path,
 ) -> BibliographyStyle:
     raw = data or {}
-    _check_unknown(
-        raw, _BIBLIOGRAPHY_STYLE_KEYS, path=path, key="bibliography_style"
-    )
+    _check_unknown(raw, _BIBLIOGRAPHY_STYLE_KEYS, path=path, key="bibliography_style")
     font_value = raw.get("font")
     if font_value is not None and not isinstance(font_value, str):
         raise _err(
@@ -1796,7 +1783,9 @@ def load_format(format_id: str, *, root: Path | None = None) -> Format:
     )
     _check_unknown(font_raw, _FONT_KEYS, path=path, key="font")
     body = _parse_body_font(
-        _expect_mapping(_required(font_raw, "body", path=path, key="font"), path=path, key="font.body"),
+        _expect_mapping(
+            _required(font_raw, "body", path=path, key="font"), path=path, key="font.body"
+        ),
         path=path,
     )
     mono = _parse_mono_font(
@@ -2068,8 +2057,7 @@ def _parse_front_matter(
         if source not in _FRONT_MATTER_RULES[item_id]:
             allowed = ", ".join(sorted(_FRONT_MATTER_RULES[item_id]))
             raise _err(
-                f"front matter '{item_id}' tidak mendukung source '{source}'; "
-                f"gunakan {allowed}",
+                f"front matter '{item_id}' tidak mendukung source '{source}'; gunakan {allowed}",
                 code="CFG-CONDITIONAL",
                 path=path,
                 key=f"{key}.source",
@@ -2239,8 +2227,7 @@ def _parse_back_matter(data: Any, *, path: Path) -> tuple[BackMatterItem, ...]:
         if source not in _BACK_MATTER_RULES[item_id]:
             allowed = ", ".join(sorted(_BACK_MATTER_RULES[item_id]))
             raise _err(
-                f"back matter '{item_id}' tidak mendukung source '{source}'; "
-                f"gunakan {allowed}",
+                f"back matter '{item_id}' tidak mendukung source '{source}'; gunakan {allowed}",
                 code="CFG-CONDITIONAL",
                 path=path,
                 key=f"{key}.source",
@@ -2259,9 +2246,7 @@ def _parse_numbering(data: Any, *, path: Path) -> Numbering:
             key="numbering.body",
             choices=("BAB_ROMAN", "ARABIC_DOTTED"),
         ),
-        sub_dot=_boolean(
-            mapping.get("sub_dot"), path=path, key="numbering.sub_dot", default=True
-        ),
+        sub_dot=_boolean(mapping.get("sub_dot"), path=path, key="numbering.sub_dot", default=True),
         subsub_dot=_boolean(
             mapping.get("subsub_dot"),
             path=path,

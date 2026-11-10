@@ -1,7 +1,5 @@
 """Tes unit stage Mermaid: ekstraksi, hash cache, render, dan penggantian."""
 
-from __future__ import annotations
-
 import base64
 import json
 import shutil
@@ -20,12 +18,10 @@ from docgen.stages.mermaid import (
 )
 
 PNG_1X1 = base64.b64decode(
-    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk"
-    "+A8AAQUBAScY42YAAAAASUVORK5CYII="
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
 )
 
 FAKE_MMDC = """\
-from __future__ import annotations
 
 import base64
 import json
@@ -78,17 +74,11 @@ output.write_bytes(PNG)
 
 
 def mermaid_fence(caption: str, code: str, *, newline: str = "\n") -> str:
-    text = (
-        f'```{{.mermaid caption="{caption}"}}\n'
-        f"{code.rstrip()}\n"
-        "```\n"
-    )
+    text = f'```{{.mermaid caption="{caption}"}}\n{code.rstrip()}\n```\n'
     return text.replace("\n", newline)
 
 
-def make_fake_mmdc(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> tuple[Path, Path]:
+def make_fake_mmdc(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, Path]:
     """Buat skrip mmdc palsu yang mencatat setiap pemanggilan."""
 
     log = tmp_path / "mmdc-invocations.log"
@@ -101,11 +91,7 @@ def make_fake_mmdc(
 def read_calls(log: Path) -> list[list[str]]:
     if not log.exists():
         return []
-    return [
-        json.loads(line)
-        for line in log.read_text(encoding="utf-8").splitlines()
-        if line
-    ]
+    return [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines() if line]
 
 
 def assert_option(arguments: list[str], flag: str, value: str) -> None:
@@ -116,9 +102,7 @@ def assert_option(arguments: list[str], flag: str, value: str) -> None:
 def test_extract_blok_mermaid() -> None:
     source = (
         "# BAB I\n"
-        "\n"
-        + mermaid_fence("Diagram pipeline", "flowchart TD\n  A --> B")
-        + "\nSetelah diagram.\n"
+        "\n" + mermaid_fence("Diagram pipeline", "flowchart TD\n  A --> B") + "\nSetelah diagram.\n"
     )
 
     blocks = extract_blocks(source, path="bab1.md")
@@ -135,12 +119,8 @@ def test_extract_blok_mermaid() -> None:
 
 
 def test_extract_mengabaikan_fence_biasa() -> None:
-    source = (
-        "```python\n"
-        "print('```{.mermaid caption=\"palsu\"}')\n"
-        "```\n"
-        "\n"
-        + mermaid_fence("Diagram asli", "graph TD\n  A --> B")
+    source = "```python\nprint('```{.mermaid caption=\"palsu\"}')\n```\n\n" + mermaid_fence(
+        "Diagram asli", "graph TD\n  A --> B"
     )
 
     blocks = extract_blocks(source)
@@ -161,7 +141,7 @@ def test_extract_mengabaikan_fence_biasa() -> None:
 )
 def test_extract_varian_info_string(opener: str) -> None:
     fence = "~~~" if opener.startswith("~~~") else "```"
-    source = f'{opener}\nflowchart TD\n  A --> B\n{fence}\n'
+    source = f"{opener}\nflowchart TD\n  A --> B\n{fence}\n"
 
     blocks = extract_blocks(source)
 
@@ -216,12 +196,8 @@ def test_hash_idempoten_dan_bergantung_isi_dan_opsi() -> None:
     assert len(render_hash(code)) == 12
     assert render_hash(code) != render_hash(code + "\n  B --> C")
     assert render_hash(code) != render_hash(code, RenderOptions(theme="dark"))
-    assert render_hash(code, {"theme": "dark"}) == render_hash(
-        code, RenderOptions(theme="dark")
-    )
-    assert render_hash(code, {"scale": 1}) == render_hash(
-        code, RenderOptions(scale=1.0)
-    )
+    assert render_hash(code, {"theme": "dark"}) == render_hash(code, RenderOptions(theme="dark"))
+    assert render_hash(code, {"scale": 1}) == render_hash(code, RenderOptions(scale=1.0))
 
 
 def test_render_blocks_mengganti_blok_dan_menulis_png(
@@ -265,9 +241,7 @@ def test_render_blocks_cache_tidak_memanggil_mmdc(
     assert len(calls) == 1
 
     # Cache harus dipakai tanpa mencari mmdc sama sekali.
-    second = render_blocks(
-        source, base, mmdc=tmp_path / "tidak-ada-mmdc.exe"
-    )
+    second = render_blocks(source, base, mmdc=tmp_path / "tidak-ada-mmdc.exe")
 
     assert second == first
     assert read_calls(log) == calls
@@ -339,9 +313,7 @@ def test_render_blocks_meneruskan_opsi_dan_mengubah_hash(
     base = tmp_path / "tugas"
     fake_mmdc, log = make_fake_mmdc(tmp_path, monkeypatch)
     source = mermaid_fence("Diagram pipeline", "flowchart TD\n  A --> B")
-    options = RenderOptions(
-        theme="dark", background="white", size=800, scale=2.0
-    )
+    options = RenderOptions(theme="dark", background="white", size=800, scale=2.0)
 
     result = render_blocks(source, base, mmdc=fake_mmdc, options=options)
 
@@ -387,9 +359,7 @@ def test_render_blocks_meneruskan_path_ke_pesan_error(tmp_path: Path) -> None:
     assert "bab1.md:1" in str(error.value)
 
 
-def test_line_ending_crlf_dipertahankan(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_line_ending_crlf_dipertahankan(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     base = tmp_path / "tugas"
     fake_mmdc, _log = make_fake_mmdc(tmp_path, monkeypatch)
     source = (
@@ -414,12 +384,7 @@ def test_tanpa_newline_akhir_tetap_tanpa_newline(
 ) -> None:
     base = tmp_path / "tugas"
     fake_mmdc, _log = make_fake_mmdc(tmp_path, monkeypatch)
-    source = (
-        '```{.mermaid caption="Diagram pipeline"}\n'
-        "flowchart TD\n"
-        "  A --> B\n"
-        "```"
-    )
+    source = '```{.mermaid caption="Diagram pipeline"}\nflowchart TD\n  A --> B\n```'
 
     result = render_blocks(source, base, mmdc=fake_mmdc)
 
@@ -427,9 +392,7 @@ def test_tanpa_newline_akhir_tetap_tanpa_newline(
     assert not result.endswith("\n")
 
 
-def test_indentasi_fence_dipertahankan(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_indentasi_fence_dipertahankan(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     base = tmp_path / "tugas"
     fake_mmdc, _log = make_fake_mmdc(tmp_path, monkeypatch)
     source = '  ```{.mermaid caption="Diagram"}\n  flowchart TD\n    A --> B\n  ```\n'

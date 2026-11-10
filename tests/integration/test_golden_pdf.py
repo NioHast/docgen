@@ -9,8 +9,6 @@ Jalankan di Windows:
     python -m pytest -m windows tests/integration/test_golden_pdf.py -v
 """
 
-from __future__ import annotations
-
 import json
 import os
 import re
@@ -31,9 +29,7 @@ ROOT = Path(__file__).resolve().parents[2]
 BASELINE_JSON = ROOT / "tests" / "fixtures" / "golden" / "pdf-baseline.json"
 EXAMPLE = ROOT / "examples" / "thesis-single"
 
-TOC_LINE_RE = re.compile(
-    r"^(?P<label>.+?)\s*\.{3,}\s*(?P<page>[ivxlcdm]+|\d+)\s*$", re.IGNORECASE
-)
+TOC_LINE_RE = re.compile(r"^(?P<label>.+?)\s*\.{3,}\s*(?P<page>[ivxlcdm]+|\d+)\s*$", re.IGNORECASE)
 PAGE_NUMBER_RE = re.compile(r"^(?:[ivxlcdm]+|\d+)$", re.IGNORECASE)
 
 
@@ -135,9 +131,7 @@ def test_pdf_baseline_record_is_complete(baseline: dict[str, object]) -> None:
     sys.platform != "win32",
     reason="PDF build memerlukan Microsoft Word di Windows",
 )
-def test_pdf_build_matches_baseline(
-    baseline: dict[str, object], tmp_path: Path
-) -> None:
+def test_pdf_build_matches_baseline(baseline: dict[str, object], tmp_path: Path) -> None:
     from pypdf import PdfReader
 
     project = tmp_path / "thesis-single"
@@ -150,9 +144,7 @@ def test_pdf_build_matches_baseline(
     environment = os.environ.copy()
     existing = environment.get("PYTHONPATH")
     source = str(ROOT / "src")
-    environment["PYTHONPATH"] = (
-        source if not existing else source + os.pathsep + existing
-    )
+    environment["PYTHONPATH"] = source if not existing else source + os.pathsep + existing
     completed = subprocess.run(
         [
             sys.executable,

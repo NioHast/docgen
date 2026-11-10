@@ -1,7 +1,5 @@
 """Konfigurasi pytest untuk tes packaging repo-local."""
 
-from __future__ import annotations
-
 import sys
 from pathlib import Path
 

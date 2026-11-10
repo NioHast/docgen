@@ -12,12 +12,12 @@ TOC, nomor halaman, dan header/footer bukan tanggung jawab stage ini. Nomor
 heading juga belum diimplementasikan di WS6b dan dilaporkan sebagai gap.
 """
 
-from __future__ import annotations
-
 import re
 import time
 
-from ..docx.package import DOCUMENT_PART
+from lxml import etree
+
+from ..docx.package import DOCUMENT_PART, DocumentPackage
 from ..docx.sections import (
     HeadingError,
     NumberingSpec,
@@ -54,8 +54,8 @@ class SectionsError(SectionError):
     default_code = "SECTION-STAGE"
 
 
-def _document_hash(package: object) -> str:
-    return sha256_c14n(package.xml(DOCUMENT_PART))  # type: ignore[attr-defined]
+def _document_hash(package: DocumentPackage) -> str:
+    return sha256_c14n(package.xml(DOCUMENT_PART))
 
 
 def _page_size(page: object) -> tuple[int, int]:
@@ -70,27 +70,21 @@ def _page_size(page: object) -> tuple[int, int]:
     return width, height
 
 
-def _style(paragraph: object) -> str | None:
-    ppr = paragraph.find(  # type: ignore[attr-defined]
-        "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}pPr"
-    )
+def _style(paragraph: etree._Element) -> str | None:
+    ppr = paragraph.find("{http://schemas.openxmlformats.org/wordprocessingml/2006/main}pPr")
     if ppr is None:
         return None
-    style = ppr.find(
-        "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}pStyle"
-    )
+    style = ppr.find("{http://schemas.openxmlformats.org/wordprocessingml/2006/main}pStyle")
     if style is None:
         return None
-    return style.get(
-        "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}val"
-    )
+    return style.get("{http://schemas.openxmlformats.org/wordprocessingml/2006/main}val")
 
 
-def _paragraph_text(paragraph: object) -> str:
-    return " ".join(paragraph_text(paragraph).split())  # type: ignore[arg-type]
+def _paragraph_text(paragraph: etree._Element) -> str:
+    return " ".join(paragraph_text(paragraph).split())
 
 
-def _heading_level(paragraph: object) -> int | None:
+def _heading_level(paragraph: etree._Element) -> int | None:
     style = _style(paragraph)
     if style is None:
         return None
@@ -98,10 +92,10 @@ def _heading_level(paragraph: object) -> int | None:
     return int(match.group(1)) if match else None
 
 
-def _body_children(package: object) -> list[object]:
+def _body_children(package: DocumentPackage) -> list[etree._Element]:
     from ..docx.names import W_BODY, W_DOCUMENT
 
-    root = package.xml(DOCUMENT_PART)  # type: ignore[attr-defined]
+    root = package.xml(DOCUMENT_PART)
     if not isinstance(root.tag, str) or root.tag != W_DOCUMENT:
         raise SectionsError("Root document.xml bukan w:document")
     body = root.find(W_BODY)
@@ -110,7 +104,7 @@ def _body_children(package: object) -> list[object]:
     return [child for child in body if isinstance(child.tag, str)]
 
 
-def _first_heading_after_cover(package: object) -> object | None:
+def _first_heading_after_cover(package: DocumentPackage) -> etree._Element | None:
     """Heading1 pertama setelah paragraf bergaya Cover*."""
 
     from ..docx.names import W_P
@@ -134,12 +128,12 @@ def _first_heading_after_cover(package: object) -> object | None:
     return None
 
 
-def _break_headings(package: object) -> list[object]:
+def _break_headings(package: DocumentPackage) -> list[etree._Element]:
     """Heading1 yang wajib menjadi awal section baru."""
 
     from ..docx.names import W_P
 
-    headings: list[object] = []
+    headings: list[etree._Element] = []
     for paragraph in _body_children(package):
         if paragraph.tag != W_P:
             continue
@@ -151,7 +145,7 @@ def _break_headings(package: object) -> list[object]:
     return headings
 
 
-def _apply_page_format(package: object, page: object) -> int:
+def _apply_page_format(package: DocumentPackage, page: object) -> int:
     width, height = _page_size(page)
     margins = getattr(page, "margins", None)
     if margins is None:
@@ -167,10 +161,10 @@ def _apply_page_format(package: object, page: object) -> int:
         )
         set_margins(
             section,
-            top=int(getattr(margins, "top")),
-            right=int(getattr(margins, "right")),
-            bottom=int(getattr(margins, "bottom")),
-            left=int(getattr(margins, "left")),
+            top=int(margins.top),
+            right=int(margins.right),
+            bottom=int(margins.bottom),
+            left=int(margins.left),
             header=int(getattr(page, "header_distance", 0)),
             footer=int(getattr(page, "footer_distance", 0)),
             gutter=int(getattr(page, "gutter", 0)),
@@ -180,7 +174,7 @@ def _apply_page_format(package: object, page: object) -> int:
     return changed
 
 
-def _ensure_breaks(package: object) -> int:
+def _ensure_breaks(package: DocumentPackage) -> int:
     added = 0
     cover_heading = _first_heading_after_cover(package)
     if cover_heading is not None:
@@ -235,8 +229,7 @@ class SectionsStage(BaseStage):
         if package is None:
             raise StageError(
                 self.name.value,
-                "package DOCX belum tersedia; stage sections membutuhkan "
-                "hasil Pandoc.",
+                "package DOCX belum tersedia; stage sections membutuhkan hasil Pandoc.",
                 code="STAGE-PACKAGE",
             )
         before = _document_hash(package)
@@ -248,13 +241,14 @@ class SectionsStage(BaseStage):
                 heading_report = apply_heading_numbering(
                     package,
                     NumberingSpec(
-                        body=str(getattr(numbering, "body")),  # type: ignore[arg-type]
+                        body=str(numbering.body),  # type: ignore[arg-type]
                         sub_dot=bool(getattr(numbering, "sub_dot", True)),
                         subsub_dot=bool(getattr(numbering, "subsub_dot", True)),
                     ),
                 )
             added = _ensure_breaks(package)
-            margin_sections = _apply_page_format(package, ctx.format.page)
+            page = getattr(getattr(ctx, "format", None), "page", None)
+            margin_sections = _apply_page_format(package, page)
             sections_after = len(iter_sections(package))
             for section in iter_sections(package):
                 set_section_type(section, "nextPage")

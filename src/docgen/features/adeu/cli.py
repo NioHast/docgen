@@ -13,8 +13,6 @@ register_reconcile(subparsers)
 dan memetakan ``args.command == "reconcile"`` ke ``command_reconcile``.
 """
 
-from __future__ import annotations
-
 import argparse
 import sys
 from collections.abc import Sequence

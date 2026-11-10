@@ -1,7 +1,5 @@
 """Tes unit penomoran heading Markdown dan ``balance_title``."""
 
-from __future__ import annotations
-
 import pytest
 
 from docgen.docx.headings import (
@@ -56,9 +54,7 @@ def test_numbering_arabic_dotted() -> None:
 
 
 def test_sub_dot_disabled() -> None:
-    numberer = HeadingNumberer(
-        NumberingSpec("BAB_ROMAN", sub_dot=False, subsub_dot=False)
-    )
+    numberer = HeadingNumberer(NumberingSpec("BAB_ROMAN", sub_dot=False, subsub_dot=False))
 
     numberer.number(1, "Bab")
     assert numberer.number(2, "Sub").number == "1.1"
@@ -114,10 +110,7 @@ def test_parse_heading_attributes_and_unnumbered() -> None:
 
 def test_uppercase_heading_menjaga_inline_dan_url() -> None:
     text = "Sub *miring* [tautan](HTTP://EXAMPLE.COM) `kode`"
-    assert (
-        uppercase_markdown(text)
-        == "SUB *MIRING* [TAUTAN](HTTP://EXAMPLE.COM) `kode`"
-    )
+    assert uppercase_markdown(text) == "SUB *MIRING* [TAUTAN](HTTP://EXAMPLE.COM) `kode`"
 
 
 def test_render_heading_romawi_memakai_line_break() -> None:
@@ -136,13 +129,7 @@ def test_render_heading_romawi_memakai_line_break() -> None:
 
 
 def test_number_markdown_h2_h3_dan_arabic() -> None:
-    markdown = (
-        "# Pendahuluan\n\n"
-        "## Latar Belakang\n\n"
-        "### Detail\n\n"
-        "# Pembahasan\n\n"
-        "## Analisis\n"
-    )
+    markdown = "# Pendahuluan\n\n## Latar Belakang\n\n### Detail\n\n# Pembahasan\n\n## Analisis\n"
 
     roman_output = number_markdown(markdown, NumberingSpec("BAB_ROMAN"))
     assert f"# BAB I{LINE_BREAK}PENDAHULUAN\n" in roman_output
@@ -157,12 +144,7 @@ def test_number_markdown_h2_h3_dan_arabic() -> None:
 
 
 def test_number_markdown_unnumbered_dan_atribut() -> None:
-    markdown = (
-        "# Ringkasan {-}\n\n"
-        "## Sub {#sub}\n\n"
-        "# Bab Satu\n\n"
-        "## Anak\n"
-    )
+    markdown = "# Ringkasan {-}\n\n## Sub {#sub}\n\n# Bab Satu\n\n## Anak\n"
     output = number_markdown(markdown, NumberingSpec("BAB_ROMAN"))
 
     assert "# Ringkasan {-}" in output
@@ -172,13 +154,7 @@ def test_number_markdown_unnumbered_dan_atribut() -> None:
 
 
 def test_number_markdown_melewati_fenced_code() -> None:
-    markdown = (
-        "```markdown\n"
-        "# bukan heading\n"
-        "## juga bukan\n"
-        "```\n\n"
-        "# Pendahuluan\n"
-    )
+    markdown = "```markdown\n# bukan heading\n## juga bukan\n```\n\n# Pendahuluan\n"
     output = number_markdown(markdown, NumberingSpec("BAB_ROMAN"))
 
     assert "# bukan heading" in output

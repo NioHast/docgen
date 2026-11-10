@@ -1,7 +1,5 @@
 """Tes unit untuk loader ``format.yml`` dan ``structure.yml``."""
 
-from __future__ import annotations
-
 import re
 import shutil
 from pathlib import Path
@@ -43,8 +41,7 @@ def _minimal_structure(extra: str = "") -> str:
         "  body: ARABIC_DOTTED\n\n"
         "lists:\n"
         "  figures: false\n"
-        "  tables: false\n"
-        + extra
+        "  tables: false\n" + extra
     )
 
 
@@ -104,7 +101,7 @@ def test_all_builtin_structures_load() -> None:
     assert thesis.toc is True
     assert thesis.lists.figures is True
     assert thesis.lists.tables is True
-    assert [item.id for item in thesis.front_matter][0] == "cover"
+    assert next(item.id for item in thesis.front_matter) == "cover"
     assert any(item.id == "appendices" for item in thesis.back_matter)
 
 
@@ -184,9 +181,7 @@ def test_format_assets_reject_cover(tmp_path: Path) -> None:
     format_yml.write_text(
         text.replace(
             "  reference_docx: reference.docx\n",
-            "  reference_docx: reference.docx\n"
-            "  cover:\n"
-            "    show_lecturer: true\n",
+            "  reference_docx: reference.docx\n  cover:\n    show_lecturer: true\n",
         ),
         encoding="utf-8",
         newline="\n",

@@ -4,8 +4,6 @@ Semua operasi ZIP/OPC dan XML untuk pipeline melewati modul ini. Stage tidak
 boleh memakai ``zipfile``, ``python-docx``, atau traversal ``lxml`` sendiri.
 """
 
-from __future__ import annotations
-
 from ..errors import DocgenError
 
 
@@ -53,24 +51,24 @@ class XmlError(DocxError):
 
 # Impor setelah kelas error didefinisikan agar submodule dapat mengimpor balik
 # dari package ini tanpa siklus inisialisasi.
-from .names import *  # noqa: E402,F401,F403
+from .names import *  # noqa: E402, F403
 from .names import __all__ as _names_all  # noqa: E402
 from .package import (  # noqa: E402
     CONTENT_TYPES_PART,
     DOCUMENT_PART,
     MAIN_DOCUMENT_CONTENT_TYPE,
     PACKAGE_RELS_PART,
-    RELATIONSHIPS_CONTENT_TYPE,
-    DocumentPackage,
-    DocxPackage,
-    PartInfo,
-    Relationship,
     REL_TYPE_FOOTER,
     REL_TYPE_HEADER,
     REL_TYPE_HYPERLINK,
     REL_TYPE_IMAGE,
     REL_TYPE_OFFICE_DOCUMENT,
     REL_TYPE_STYLES,
+    RELATIONSHIPS_CONTENT_TYPE,
+    DocumentPackage,
+    DocxPackage,
+    PartInfo,
+    Relationship,
 )
 from .xml import (  # noqa: E402
     PPR_ORDER,
@@ -140,4 +138,5 @@ __all__ = [
     "run_text",
     "serialize_xml",
     "sha256_c14n",
-] + list(_names_all)
+    *_names_all,
+]

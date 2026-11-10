@@ -1,7 +1,5 @@
 """Tes rekonsiliasi edit manual DOCX -> Markdown untuk fitur Adeu."""
 
-from __future__ import annotations
-
 import hashlib
 import json
 from pathlib import Path
@@ -25,26 +23,29 @@ NEW_LANDASAN = (
     "yang telah diperbarui."
 )
 
-BODY = """# PENDAHULUAN
-
-## Latar Belakang
-
-Penulisan laporan akademik merupakan kegiatan fundamental dalam penelitian.
-
-## Rumusan Masalah
-
-Berdasarkan latar belakang di atas, rumusan masalah penelitian ini adalah bagaimana merancang pipeline dokumentasi yang konsisten.
-
-# TINJAUAN PUSTAKA
-
-## Landasan Teori
-
-Landasan teori merupakan fondasi utama dalam penyusunan laporan akademik yang dapat dipertanggungjawabkan.
-
-## Kerangka Pemikiran
-
-Kerangka pemikiran menghubungkan teori dengan kebutuhan implementasi pipeline.
-"""
+BODY = (
+    "# PENDAHULUAN\n"
+    "\n"
+    "## Latar Belakang\n"
+    "\n"
+    "Penulisan laporan akademik merupakan kegiatan fundamental dalam penelitian.\n"
+    "\n"
+    "## Rumusan Masalah\n"
+    "\n"
+    "Berdasarkan latar belakang di atas, rumusan masalah penelitian ini adalah "
+    "bagaimana merancang pipeline dokumentasi yang konsisten.\n"
+    "\n"
+    "# TINJAUAN PUSTAKA\n"
+    "\n"
+    "## Landasan Teori\n"
+    "\n"
+    "Landasan teori merupakan fondasi utama dalam penyusunan laporan akademik "
+    "yang dapat dipertanggungjawabkan.\n"
+    "\n"
+    "## Kerangka Pemikiran\n"
+    "\n"
+    "Kerangka pemikiran menghubungkan teori dengan kebutuhan implementasi pipeline.\n"
+)
 
 
 def load_fixture_manifest() -> dict:
@@ -163,9 +164,7 @@ def write_docx(
 
         if tracked and paragraph_id in tracked:
             before, after = tracked[paragraph_id]
-            add_tracked_paragraph(
-                document, paragraph_id, before, after, xml_id, revision_id
-            )
+            add_tracked_paragraph(document, paragraph_id, before, after, xml_id, revision_id)
             revision_id += 2
         else:
             add_bookmarked_paragraph(document, paragraph_id, text, xml_id)
@@ -246,9 +245,7 @@ def test_default_paths_follow_document(tmp_path: Path) -> None:
     document = make_document(tmp_path)
     write_docx(tmp_path / "Laporan.docx")
     (tmp_path / ".laporan").mkdir()
-    write_manifest(
-        tmp_path / ".laporan" / "manifest.json", load_fixture_manifest()
-    )
+    write_manifest(tmp_path / ".laporan" / "manifest.json", load_fixture_manifest())
 
     code = run_cli(document)
 
@@ -263,9 +260,7 @@ def test_default_docx_prefers_out_directory(tmp_path: Path) -> None:
     (tmp_path / "out").mkdir()
     write_docx(tmp_path / "out" / "Laporan.docx")
     (tmp_path / ".laporan").mkdir()
-    write_manifest(
-        tmp_path / ".laporan" / "manifest.json", load_fixture_manifest()
-    )
+    write_manifest(tmp_path / ".laporan" / "manifest.json", load_fixture_manifest())
 
     code = run_cli(document)
 
@@ -280,9 +275,7 @@ def test_default_docx_falls_back_to_document_directory(tmp_path: Path) -> None:
     (tmp_path / "out").mkdir()
     write_docx(tmp_path / "Laporan.docx")
     (tmp_path / ".laporan").mkdir()
-    write_manifest(
-        tmp_path / ".laporan" / "manifest.json", load_fixture_manifest()
-    )
+    write_manifest(tmp_path / ".laporan" / "manifest.json", load_fixture_manifest())
 
     code = run_cli(document)
 

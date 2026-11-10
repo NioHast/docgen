@@ -4,12 +4,7 @@ Fixture DOCX dibuat dengan python-docx agar tes tidak bergantung pada hasil
 build. Glosarium tes ditulis sebagai TSV sementara.
 """
 
-from __future__ import annotations
-
 from pathlib import Path
-
-from docx import Document
-from docx.enum.style import WD_STYLE_TYPE
 
 from audit_terms import (
     CATEGORY_GLOSSARY_ITALIC,
@@ -22,8 +17,10 @@ from audit_terms import (
     main,
     render_report,
 )
-from docgen.docx.terms import load_glossary
+from docx import Document
+from docx.enum.style import WD_STYLE_TYPE
 
+from docgen.docx.terms import load_glossary
 
 # ---------------------------------------------------------------------------
 # Helper fixture
@@ -73,11 +70,9 @@ def groups_by_key(result) -> dict[str, object]:
 
 
 def test_kategori_dasar_dan_abbreviation(tmp_path: Path) -> None:
-    """training data italic, data tegak, Graphical unknown, CNN diabaikan."""
+    """Training data italic, data tegak, Graphical unknown, CNN diabaikan."""
 
-    glossary_path = write_glossary(
-        tmp_path, [("training data", "yes"), ("data", "no")]
-    )
+    glossary_path = write_glossary(tmp_path, [("training data", "yes"), ("data", "no")])
 
     doc = Document()
     ensure_istilah_style(doc)
@@ -216,7 +211,7 @@ def test_konteks_maksimal_delapan_kata(tmp_path: Path) -> None:
     glossary_path = write_glossary(tmp_path, [])
     before = [f"kata{i}" for i in range(1, 10)]
     after = [f"kata{i}" for i in range(10, 19)]
-    text = " ".join(before + ["Graphical"] + after)
+    text = " ".join([*before, "Graphical", *after])
 
     doc = Document()
     add_paragraph(doc, [(text, None)])
@@ -235,9 +230,7 @@ def test_konteks_maksimal_delapan_kata(tmp_path: Path) -> None:
 def test_laporan_deterministik(tmp_path: Path) -> None:
     """Dua pemanggilan menghasilkan laporan byte-identik."""
 
-    glossary_path = write_glossary(
-        tmp_path, [("training data", "yes"), ("data", "no")]
-    )
+    glossary_path = write_glossary(tmp_path, [("training data", "yes"), ("data", "no")])
     doc = Document()
     add_paragraph(
         doc,
@@ -281,9 +274,7 @@ def test_laporan_deterministik(tmp_path: Path) -> None:
 def test_laporan_memuat_bagian_wajib(tmp_path: Path) -> None:
     """Laporan memuat ringkasan dan kedua tabel tindak lanjut."""
 
-    glossary_path = write_glossary(
-        tmp_path, [("training data", "yes"), ("data", "no")]
-    )
+    glossary_path = write_glossary(tmp_path, [("training data", "yes"), ("data", "no")])
     doc = Document()
     add_paragraph(doc, [("training data dan data. ", None), ("Graphical", None)])
     docx_path = save(doc, tmp_path / "bagian.docx")

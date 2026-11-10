@@ -1,7 +1,5 @@
 """Tes unit stage ``numbering``: format dipertahankan, indent/tab, bold."""
 
-from __future__ import annotations
-
 import zipfile
 from pathlib import Path
 from types import SimpleNamespace
@@ -10,7 +8,6 @@ import pytest
 from docx import Document
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
-from lxml import etree
 
 from docgen.docx import DOCUMENT_PART, DocumentPackage
 from docgen.pipeline import BuildOptions, StageName
@@ -76,11 +73,7 @@ def _abstract_num(
     levels: list[str] = []
     for ilvl in range(9):
         text = " " if fmt == "bullet" else f"%{ilvl + 1}{suffix}"
-        bold = (
-            "<w:rPr><w:b/><w:bCs/></w:rPr>"
-            if level_bold and ilvl == 0
-            else ""
-        )
+        bold = "<w:rPr><w:b/><w:bCs/></w:rPr>" if level_bold and ilvl == 0 else ""
         levels.append(
             f'<w:lvl w:ilvl="{ilvl}">'
             '<w:start w:val="1"/>'
@@ -93,9 +86,7 @@ def _abstract_num(
         )
     return (
         f'<w:abstractNum w:abstractNumId="{abstract_id}">'
-        '<w:multiLevelType w:val="hybridMultilevel"/>'
-        + "".join(levels)
-        + "</w:abstractNum>"
+        '<w:multiLevelType w:val="hybridMultilevel"/>' + "".join(levels) + "</w:abstractNum>"
     )
 
 
@@ -113,7 +104,7 @@ def _numbering_xml() -> bytes:
     return (
         '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
         f'<w:numbering xmlns:w="{W_NS}">{body}</w:numbering>'
-    ).encode("utf-8")
+    ).encode()
 
 
 def _replace_part(path: Path, part: str, data: bytes) -> None:
@@ -168,11 +159,7 @@ def numbering_docx(tmp_path: Path) -> Path:
 def _paragraph_by_text(package: DocumentPackage, marker: str):
     body = package.xml(DOCUMENT_PART).find(qn("w:body"))
     assert body is not None
-    matches = [
-        paragraph
-        for paragraph in body.iter(W_P)
-        if "".join(paragraph.itertext()) == marker
-    ]
+    matches = [paragraph for paragraph in body.iter(W_P) if "".join(paragraph.itertext()) == marker]
     assert len(matches) == 1, f"paragraf {marker!r} tidak tunggal"
     return matches[0]
 
@@ -189,8 +176,7 @@ def _level_for(package: DocumentPackage, num_id: str, ilvl: str = "0"):
     )
     assert abstract_ids, f"numId {num_id} tidak ditemukan"
     levels = root.xpath(
-        f'//w:abstractNum[@w:abstractNumId="{abstract_ids[0]}"]'
-        f'/w:lvl[@w:ilvl="{ilvl}"]',
+        f'//w:abstractNum[@w:abstractNumId="{abstract_ids[0]}"]/w:lvl[@w:ilvl="{ilvl}"]',
         namespaces=NS,
     )
     assert levels
@@ -227,7 +213,6 @@ def _save(package: DocumentPackage, path: Path) -> Path:
 
 def test_format_numbering_dipertahankan(numbering_docx: Path, tmp_path: Path) -> None:
     package = DocumentPackage.load(numbering_docx)
-    before = _numbering_root(package)
     before_formats = {}
     for num_id in ("1", "2", "3"):
         level = _level_for(package, num_id)
@@ -252,9 +237,7 @@ def test_format_numbering_dipertahankan(numbering_docx: Path, tmp_path: Path) ->
         "left": "720",
         "hanging": "720",
     }
-    assert _tabs(_paragraph_by_text(result, TEXTS["decimal"])) == [
-        {"val": "left", "pos": "720"}
-    ]
+    assert _tabs(_paragraph_by_text(result, TEXTS["decimal"])) == [{"val": "left", "pos": "720"}]
     assert _indentation(_paragraph_by_text(result, TEXTS["decimal"] + " dua")) == {
         "left": "720",
         "hanging": "720",
@@ -276,8 +259,7 @@ def test_level_dua_dan_bold(numbering_docx: Path, tmp_path: Path) -> None:
     nested_paragraphs = [
         paragraph
         for paragraph in body.iter(W_P)
-        if paragraph.xpath("./w:pPr/w:numPr/w:ilvl/@w:val", namespaces=NS)
-        == ["1"]
+        if paragraph.xpath("./w:pPr/w:numPr/w:ilvl/@w:val", namespaces=NS) == ["1"]
     ]
     assert nested_paragraphs
     assert _indentation(nested_paragraphs[0]) == {"left": "1440", "hanging": "720"}
@@ -294,9 +276,7 @@ def test_level_dua_dan_bold(numbering_docx: Path, tmp_path: Path) -> None:
     assert _level_for(result, "4").xpath("./w:suff", namespaces=NS) == []
 
 
-def test_idempoten_part_identik_dan_stage(
-    numbering_docx: Path, tmp_path: Path
-) -> None:
+def test_idempoten_part_identik_dan_stage(numbering_docx: Path, tmp_path: Path) -> None:
     before = {}
     with zipfile.ZipFile(numbering_docx) as archive:
         before = {name: archive.read(name) for name in archive.namelist()}
@@ -317,12 +297,12 @@ def test_idempoten_part_identik_dan_stage(
     assert report.numbering_levels_changed == 0
     assert report.bold_removed == 0
     second = _save(second_package, tmp_path / "second.docx")
-    assert DocumentPackage.load(first).part(DOCUMENT_PART) == DocumentPackage.load(
-        second
-    ).part(DOCUMENT_PART)
-    assert DocumentPackage.load(first).part(NUMBERING_PART) == DocumentPackage.load(
-        second
-    ).part(NUMBERING_PART)
+    assert DocumentPackage.load(first).part(DOCUMENT_PART) == DocumentPackage.load(second).part(
+        DOCUMENT_PART
+    )
+    assert DocumentPackage.load(first).part(NUMBERING_PART) == DocumentPackage.load(second).part(
+        NUMBERING_PART
+    )
 
     assert numbering.NumberingStage.order == 100
     assert numbering.NumberingStage.name is StageName.NUMBERING

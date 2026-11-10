@@ -6,8 +6,7 @@ dibaca dan field itu diabaikan. Setiap entri wajib memiliki ``text_sha256``
 yang cocok dengan ``text`` saat dimuat maupun ditulis.
 """
 
-from __future__ import annotations
-
+import contextlib
 import hashlib
 import json
 import os
@@ -206,7 +205,9 @@ def _parse_heading_path(
     if value is None:
         return ()
     if not isinstance(value, list):
-        raise _fail(f"{where}.heading_path harus array string", path=path, key=f"{where}.heading_path")
+        raise _fail(
+            f"{where}.heading_path harus array string", path=path, key=f"{where}.heading_path"
+        )
     result: list[str] = []
     for position, item in enumerate(value):
         if not isinstance(item, str):
@@ -284,9 +285,7 @@ def _parse_paragraph(
             key=f"{where}.kind",
         )
 
-    heading_path = _parse_heading_path(
-        data.get("heading_path", []), path=path, where=where
-    )
+    heading_path = _parse_heading_path(data.get("heading_path", []), path=path, where=where)
 
     text = data.get("text")
     if not isinstance(text, str):
@@ -352,9 +351,7 @@ def _parse_paragraph(
             path=path,
             key=f"{where}.source_file",
         )
-    source_line = _parse_source_line(
-        data.get("source_line"), path=path, where=where
-    )
+    source_line = _parse_source_line(data.get("source_line"), path=path, where=where)
     if (source_file is None) != (source_line is None):
         raise _fail(
             f"{where}.source_file dan source_line harus diisi bersama atau null bersama",
@@ -429,8 +426,7 @@ def manifest_from_dict(
         )
 
     include_source = any(
-        isinstance(item, Mapping)
-        and ("source_file" in item or "source_line" in item)
+        isinstance(item, Mapping) and ("source_file" in item or "source_line" in item)
         for item in raw_paragraphs
     )
     paragraphs.sort(key=lambda paragraph: (paragraph.index, paragraph.id))
@@ -537,10 +533,8 @@ def dump_manifest(manifest: Manifest, path: str | Path) -> Path:
                 handle.write(payload)
             os.replace(temp_name, destination)
         except BaseException:
-            try:
+            with contextlib.suppress(OSError):
                 os.unlink(temp_name)
-            except OSError:
-                pass
             raise
     except OSError as exc:
         raise _fail(

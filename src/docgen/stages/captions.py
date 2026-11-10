@@ -5,8 +5,6 @@ Orkestrasi memakai helper domain ``docgen.docx.captions`` dan
 ``DocumentPackage`` yang diberikan pipeline.
 """
 
-from __future__ import annotations
-
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -71,9 +69,7 @@ def _caption_specs_from_format(
     figure_font = getattr(figure_style, "font", None)
     table_font = getattr(table_style, "font", None)
 
-    figure_alignment = str(
-        getattr(figures, "caption_alignment", "center") or "center"
-    )
+    figure_alignment = str(getattr(figures, "caption_alignment", "center") or "center")
     table_alignment = str(getattr(table_font, "alignment", "left") or "left")
 
     figure = CaptionSpec(
@@ -92,12 +88,8 @@ def _caption_specs_from_format(
     )
 
     layout = FigureLayoutSpec(
-        caption_alignment=str(
-            getattr(figures, "caption_alignment", "center") or "center"
-        ),
-        image_alignment=str(
-            getattr(figures, "image_alignment", "center") or "center"
-        ),
+        caption_alignment=str(getattr(figures, "caption_alignment", "center") or "center"),
+        image_alignment=str(getattr(figures, "image_alignment", "center") or "center"),
         numbering=str(getattr(figures, "numbering", "chapter") or "chapter"),
         space_before=int(getattr(figures, "space_before", 0)),
         space_after=int(getattr(figures, "space_after", 0)),
@@ -107,10 +99,7 @@ def _caption_specs_from_format(
 
 
 def _missing_table(index: int) -> str:
-    return (
-        f"Tabel #{index}: tidak memiliki caption; tambahkan ': Judul tabel' "
-        "pada Markdown."
-    )
+    return f"Tabel #{index}: tidak memiliki caption; tambahkan ': Judul tabel' pada Markdown."
 
 
 def _missing_image(index: int) -> str:
@@ -121,7 +110,7 @@ def _missing_image(index: int) -> str:
 
 
 def _ensure_table_captions(
-    package: "DocumentPackage",
+    package: DocumentPackage,
     report: CaptionReport,
     code_spec: CodeSpec | None = None,
 ) -> None:
@@ -161,7 +150,7 @@ def _ensure_table_captions(
 
 
 def _ensure_image_captions(
-    package: "DocumentPackage",
+    package: DocumentPackage,
     report: CaptionReport,
 ) -> None:
     index = 0
@@ -196,7 +185,7 @@ def _ensure_image_captions(
 
 
 def _ensure_captions(
-    package: "DocumentPackage",
+    package: DocumentPackage,
     report: CaptionReport,
     code_spec: CodeSpec | None = None,
 ) -> None:
@@ -219,9 +208,7 @@ def _add_warnings(report: CaptionReport, scope: str) -> None:
     if scope == "chapter":
         if report.bab_headings == 0:
             if report.heading1_count == 0:
-                report.warnings.append(
-                    "Tidak ada paragraf Heading1; penomoran caption dilewati."
-                )
+                report.warnings.append("Tidak ada paragraf Heading1; penomoran caption dilewati.")
             else:
                 report.warnings.append(
                     "Tidak ada Heading1 berformat 'BAB <romawi/arab>' atau "
@@ -251,7 +238,7 @@ def _missing_message(report: CaptionReport) -> str:
 
 
 def apply_captions(
-    package: "DocumentPackage",
+    package: DocumentPackage,
     *,
     scope: str = "chapter",
     caption_specs: CaptionSpecs | None = None,
@@ -270,9 +257,7 @@ def apply_captions(
     report = CaptionReport()
 
     report.tables = format_tables(package, code_spec=code_spec)
-    report.image_paragraphs, report.images_clamped = format_images(
-        package, spec=layout
-    )
+    report.image_paragraphs, report.images_clamped = format_images(package, spec=layout)
 
     _ensure_captions(package, report, code_spec)
     _merge_renumber(
@@ -295,18 +280,17 @@ def apply_captions(
     return report
 
 
-def _document_path(ctx: object) -> object:
+def _document_path(ctx: object) -> Path | None:
     document = getattr(ctx, "document", None)
-    return getattr(document, "path", None)
+    path = getattr(document, "path", None)
+    return Path(path) if path is not None else None
 
 
 def _apply_from_context(
-    package: "DocumentPackage",
+    package: DocumentPackage,
     ctx: object,
 ) -> CaptionReport:
-    caption_specs, figure_spec = _caption_specs_from_format(
-        getattr(ctx, "format", None)
-    )
+    caption_specs, figure_spec = _caption_specs_from_format(getattr(ctx, "format", None))
     code_spec = code_spec_from_format(getattr(ctx, "format", None))
     try:
         return apply_captions(

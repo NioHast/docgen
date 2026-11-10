@@ -4,8 +4,6 @@ Semua eksekusi memakai runner palsu. Tidak ada COM, PowerShell, atau Word
 nyata yang dijalankan.
 """
 
-from __future__ import annotations
-
 import logging
 import subprocess
 from pathlib import Path
@@ -291,7 +289,7 @@ def test_adapter_script_hilang_melempar_word_error(
         runner=lambda *_: 0,
     )
 
-    with pytest.raises(WordError, match="word.ps1 tidak ditemukan"):
+    with pytest.raises(WordError, match=r"word\.ps1 tidak ditemukan"):
         adapter.update_fields(docx)
 
 

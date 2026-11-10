@@ -5,11 +5,10 @@ Semua aturan bentuk penulis, NIM, abstrak, dan kata kunci berada di sini agar
 dengan struktur.
 """
 
-from __future__ import annotations
-
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Mapping
+from typing import Any
 
 from .errors import MetadataError
 
@@ -201,19 +200,19 @@ def _normalize_author_entry(entry: Any, *, index: int, source: object) -> Author
             key=f"author[{index}]",
             source=source,
         )
-    name = _text(
+    author_name = _text(
         entry.get("name"),
         key=f"author[{index}].name",
         source=source,
         required=True,
     )
-    assert name is not None
+    assert author_name is not None
     nim = _text(
         entry.get("nim"),
         key=f"author[{index}].nim",
         source=source,
     )
-    return Author(name=name, nim=nim)
+    return Author(name=author_name, nim=nim)
 
 
 def normalize_author(
@@ -344,17 +343,11 @@ def normalize_metadata(front_matter: Mapping[str, Any], *, source: object) -> Me
             source=source,
         )
 
-    abstract_id = _multiline(
-        front_matter.get("abstract_id"), key="abstract_id", source=source
-    )
-    abstract_en = _multiline(
-        front_matter.get("abstract_en"), key="abstract_en", source=source
-    )
+    abstract_id = _multiline(front_matter.get("abstract_id"), key="abstract_id", source=source)
+    abstract_en = _multiline(front_matter.get("abstract_en"), key="abstract_en", source=source)
     preface = _multiline(front_matter.get("preface"), key="preface", source=source)
 
-    keywords = normalize_keywords(
-        front_matter.get("keywords"), key="keywords", source=source
-    )
+    keywords = normalize_keywords(front_matter.get("keywords"), key="keywords", source=source)
     keywords_en = normalize_keywords(
         front_matter.get("keywords_en"), key="keywords_en", source=source
     )

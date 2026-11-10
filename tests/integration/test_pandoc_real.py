@@ -6,8 +6,6 @@ pipeline, sehingga kontrak "Markdown materialized + derived reference" ikut
 diuji tanpa menjalankan stage post-Pandoc.
 """
 
-from __future__ import annotations
-
 import logging
 import shutil
 import zipfile

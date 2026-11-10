@@ -13,13 +13,12 @@ Output berupa Markdown yang siap dikonsumsi Pandoc. TOC dan daftar
 gambar/tabel **tidak** ditulis di sini; keduanya milik stage post-Pandoc.
 """
 
-from __future__ import annotations
-
 import re
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, ClassVar, Mapping
+from typing import Any, ClassVar
 
 from ..config import Format, FrontMatterItem, Structure
 from ..document import Document
@@ -68,12 +67,10 @@ class _FrontMatterValues:
     mapping: Mapping[str, str]
 
     @classmethod
-    def from_document(cls, document: Document) -> "_FrontMatterValues":
+    def from_document(cls, document: Document) -> _FrontMatterValues:
         metadata = document.metadata
         authors = ", ".join(metadata.author_names)
-        nims = ", ".join(
-            author.nim for author in metadata.authors if author.nim is not None
-        )
+        nims = ", ".join(author.nim for author in metadata.authors if author.nim is not None)
         return cls(
             mapping={
                 "title": metadata.title,
@@ -120,8 +117,7 @@ def spacer(twips: int) -> str:
     if twips <= 0:
         return ""
     return _raw_openxml(
-        f'<w:p><w:pPr><w:spacing w:before="{int(twips)}" w:after="0"/>'
-        "</w:pPr></w:p>"
+        f'<w:p><w:pPr><w:spacing w:before="{int(twips)}" w:after="0"/></w:pPr></w:p>'
     )
 
 
@@ -231,11 +227,7 @@ def _render_cover(
     title = _one_line(metadata.title)
     if title:
         upper_title = title.upper()
-        title_lines = (
-            balance_title(upper_title)
-            if structure.cover.title_split
-            else (upper_title,)
-        )
+        title_lines = balance_title(upper_title) if structure.cover.title_split else (upper_title,)
         blocks.append(_div("CoverTitle", "  \n".join(title_lines)))
 
     if metadata.subtitle:
@@ -273,9 +265,7 @@ def _render_cover(
         blocks.append(spacer(640))
         for value in (metadata.faculty, metadata.institution, metadata.year):
             if value:
-                blocks.append(
-                    _div("CoverInstitution", _one_line(value).upper())
-                )
+                blocks.append(_div("CoverInstitution", _one_line(value).upper()))
 
     blocks.append(_section_break(format))
     return "\n\n".join(block for block in blocks if block)
@@ -379,9 +369,7 @@ def _render_abstract(
     if metadata.title:
         title = _one_line(metadata.title).upper()
         blocks.append(_div("CoverLine", f"*{title}*" if english else title))
-    blocks.append(
-        _emphasize_paragraphs(text) if english else text.strip()
-    )
+    blocks.append(_emphasize_paragraphs(text) if english else text.strip())
     if keywords:
         joined = ", ".join(keywords)
         blocks.append(f"**{keyword_label}** *{joined}*")
@@ -457,10 +445,7 @@ def _mark_appendix_unnumbered(markdown: str) -> str:
         else:
             attributes = "{-}"
         ending = line[len(content) :]
-        return (
-            f"{parsed.indent}{'#' * parsed.level} {parsed.text} "
-            f"{attributes}{ending}"
-        )
+        return f"{parsed.indent}{'#' * parsed.level} {parsed.text} {attributes}{ending}"
 
     lines: list[str] = []
     in_appendix = False
@@ -535,7 +520,7 @@ def _markdown_source(ctx: Any, *, own_path: Path) -> str:
     if artifacts is not None:
         try:
             keys = tuple(artifacts.keys())
-        except (AttributeError, TypeError):
+        except AttributeError, TypeError:
             keys = ()
         # ``mermaid.markdown`` adalah output stage mermaid; ``markdown`` adalah
         # output stage ini sendiri (atau kompatibilitas pemanggil lama).

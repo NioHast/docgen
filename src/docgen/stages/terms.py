@@ -4,8 +4,6 @@ Stage hanya aktif bila ``ctx.options.terms`` bernilai true. Tanpa flag tersebut
 tidak ada auto-italic, tidak ada gate, dan tidak ada review file.
 """
 
-from __future__ import annotations
-
 import time
 from pathlib import Path
 
@@ -61,11 +59,9 @@ def resolve_glossary(
 
     document_dir = Path(document_path).resolve().parent
     package_path = _package_glossary()
-    explicit_glossary: Glossary | None = (
-        override if isinstance(override, Glossary) else None
-    )
+    explicit_glossary: Glossary | None = override if isinstance(override, Glossary) else None
     candidates: list[Path] = []
-    if override is not None and explicit_glossary is None:
+    if isinstance(override, str | Path):
         candidates.append(Path(override))
     user_path = document_dir / "istilah.tsv"
     if user_path.exists():
@@ -92,9 +88,7 @@ def resolve_glossary(
         glossary = load_glossary(package_path)
     if explicit_glossary is not None:
         glossary = (
-            explicit_glossary
-            if glossary is None
-            else merge_glossaries(glossary, explicit_glossary)
+            explicit_glossary if glossary is None else merge_glossaries(glossary, explicit_glossary)
         )
     for candidate in unique_candidates:
         loaded = load_glossary(candidate)

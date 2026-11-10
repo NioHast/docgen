@@ -6,8 +6,6 @@ bergantung pada hasil build pipeline. Jalankan:
     python tests/fixtures/paragraph_ids/make_fixture.py
 """
 
-from __future__ import annotations
-
 from pathlib import Path
 
 from docx import Document
@@ -120,9 +118,7 @@ def build_fixture(path: Path) -> Path:
     table.cell(1, 0).text = "Sel A2"
     table.cell(1, 1).text = "Sel B2"
 
-    document.add_paragraph(
-        "Paragraf dengan nomor gambar: ", style=styles["Body Text"]
-    )
+    document.add_paragraph("Paragraf dengan nomor gambar: ", style=styles["Body Text"])
     seq_paragraph = document.paragraphs[-1]
     add_complex_field(seq_paragraph, " SEQ Gambar \\* ARABIC ", "1")
 

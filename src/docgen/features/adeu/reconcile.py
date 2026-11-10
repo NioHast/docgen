@@ -9,24 +9,23 @@ berkas yang ditulis adalah laporan Markdown. Exit code mengikuti kontrak stage:
 - ``1`` error input.
 """
 
-from __future__ import annotations
-
 import argparse
+import contextlib
 import os
 import re
 import sys
 import tempfile
 import unicodedata
+from collections.abc import Sequence
 from dataclasses import dataclass
 from difflib import SequenceMatcher
 from pathlib import Path
-from typing import Sequence
 
 from lxml import etree
 
+from ...document import parse_document
 from ...docx import DOCUMENT_PART, DocxError
 from ...docx.names import (
-    W,
     W_BODY,
     W_BOOKMARK_END,
     W_BOOKMARK_START,
@@ -47,9 +46,9 @@ from ...docx.names import (
     W_T,
     W_TAB,
     W_TXBXCONTENT,
+    W,
 )
 from ...docx.package import DocumentPackage
-from ...document import parse_document
 from ...errors import DocgenError, ReconcileError
 from ...markdown.blocks import (
     MarkdownBlock,
@@ -389,9 +388,7 @@ def find_source(
             candidate_text = normalize_heading(block.text)
         else:
             candidate_text = normalize_for_match(block.text)
-        ratio = SequenceMatcher(
-            None, target, candidate_text, autojunk=False
-        ).ratio()
+        ratio = SequenceMatcher(None, target, candidate_text, autojunk=False).ratio()
         scored.append((ratio, block))
 
     best_ratio, best_block = max(scored, key=lambda item: (item[0], -item[1].index))
@@ -401,7 +398,7 @@ def find_source(
     try:
         relative = best_block.path.resolve().relative_to(source_root.resolve())
         display_path = relative.as_posix()
-    except (OSError, ValueError):
+    except OSError, ValueError:
         display_path = best_block.path.as_posix()
 
     return SourceMatch(
@@ -546,17 +543,9 @@ def build_report(
             changed_paragraphs.append((paragraph, paragraph.text, current))
 
     protected_changes = [item for item in changed_paragraphs if item[0].protected]
-    missing_paragraphs = [
-        paragraph for paragraph in paragraphs if paragraph.id not in docx_ids
-    ]
-    protected_missing = [
-        paragraph for paragraph in missing_paragraphs if paragraph.protected
-    ]
-    new_ids = [
-        bookmark_id
-        for bookmark_id in snapshot.order
-        if bookmark_id not in manifest_by_id
-    ]
+    missing_paragraphs = [paragraph for paragraph in paragraphs if paragraph.id not in docx_ids]
+    protected_missing = [paragraph for paragraph in missing_paragraphs if paragraph.protected]
+    new_ids = [bookmark_id for bookmark_id in snapshot.order if bookmark_id not in manifest_by_id]
 
     sections: list[list[str]] = []
 
@@ -567,9 +556,7 @@ def build_report(
         sections.append(_change_section(paragraph, before, after, source))
 
     for bookmark_id in new_ids:
-        sections.append(
-            _new_bookmark_section(bookmark_id, snapshot.bookmarks[bookmark_id])
-        )
+        sections.append(_new_bookmark_section(bookmark_id, snapshot.bookmarks[bookmark_id]))
 
     for text in snapshot.unbookmarked:
         sections.append(_new_unbookmarked_section(text))
@@ -631,10 +618,8 @@ def write_report(path: str | Path, report: str) -> Path:
                 handle.write(payload)
             os.replace(temp_name, destination)
         except BaseException:
-            try:
+            with contextlib.suppress(OSError):
                 os.unlink(temp_name)
-            except OSError:
-                pass
             raise
     except OSError as exc:
         raise ReconcileError(
@@ -677,14 +662,10 @@ def run(
     document_file = raw.path
     report_name = _report_name(raw.front_matter)
     docx = (
-        Path(docx_path)
-        if docx_path is not None
-        else _default_docx_path(document_file, report_name)
+        Path(docx_path) if docx_path is not None else _default_docx_path(document_file, report_name)
     )
     manifest_file = (
-        Path(manifest_path)
-        if manifest_path is not None
-        else default_manifest_path(document_file)
+        Path(manifest_path) if manifest_path is not None else default_manifest_path(document_file)
     )
     out = (
         Path(out_path)

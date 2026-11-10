@@ -10,12 +10,10 @@ Nomor bab berasal dari Heading1 atau ``ChapterTitle`` berformat
 setiap paragraf persamaan, termasuk persamaan ber-field yang dilewati.
 """
 
-from __future__ import annotations
-
 import re
 import time
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Sequence
 
 from lxml import etree
 
@@ -39,8 +37,8 @@ from ..docx.layout import (
 from ..docx.names import (
     W_R,
     W_RPR,
-    W_TAB,
     W_T,
+    W_TAB,
     W_VAL,
 )
 from ..docx.xml import ensure_ppr, get_or_add, qn, sha256_c14n
@@ -96,9 +94,7 @@ class EquationSpec:
         if self.fallback_right_tab_twips <= 0:
             raise EquationError("fallback tab stop harus positif")
         if self.justification not in {"left", "right", "center", "both", "justify"}:
-            raise EquationError(
-                f"justification persamaan tidak dikenal: {self.justification!r}"
-            )
+            raise EquationError(f"justification persamaan tidak dikenal: {self.justification!r}")
 
 
 @dataclass
@@ -413,9 +409,7 @@ class EquationsStage(BaseStage):
         started = time.monotonic()
         package = getattr(ctx, "package", None)
         if package is None:
-            raise EquationError(
-                "stage equations membutuhkan DocumentPackage dari stage pandoc"
-            )
+            raise EquationError("stage equations membutuhkan DocumentPackage dari stage pandoc")
 
         try:
             before = sha256_c14n(document_root(package))
@@ -463,15 +457,15 @@ __all__ = [
     "DEFAULT_RIGHT_TAB_TWIPS",
     "DEFAULT_SPACING_TWIPS",
     "EQUATION_NUMBER_RE",
-    "EquationError",
-    "EquationReport",
-    "EquationSpec",
-    "EquationsStage",
-    "EquationStage",
-    "FormatEquationsReport",
     "HEADING1_STYLES",
     "M_O_MATH",
     "M_O_MATH_PARA",
+    "EquationError",
+    "EquationReport",
+    "EquationSpec",
+    "EquationStage",
+    "EquationsStage",
+    "FormatEquationsReport",
     "display_equation",
     "format_equation_paragraph",
     "format_equations",

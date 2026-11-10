@@ -1,7 +1,5 @@
 """Tes unit stage ``pandoc``: command builder, metadata, dan fake Pandoc."""
 
-from __future__ import annotations
-
 import json
 import logging
 import os
@@ -185,9 +183,7 @@ def test_build_command_resource_path_memakai_separator_platform(
         resource_paths=(tmp_path / "a", tmp_path / "b"),
     )
     resource = next(item for item in command if item.startswith("--resource-path="))
-    assert resource == (
-        f"--resource-path={tmp_path / 'a'}{os.pathsep}{tmp_path / 'b'}"
-    )
+    assert resource == (f"--resource-path={tmp_path / 'a'}{os.pathsep}{tmp_path / 'b'}")
 
 
 def test_build_command_citeproc_opsional(tmp_path: Path) -> None:
@@ -246,9 +242,7 @@ def test_resolve_bibliography_dari_dokumen_dan_format(
 ) -> None:
     project = _project(tmp_path)
     document = _document(project)
-    assert resolve_bibliography(document, format_spec) == (
-        project / "references.bib"
-    ).resolve()
+    assert resolve_bibliography(document, format_spec) == (project / "references.bib").resolve()
 
     # Dokumen tidak menyebut bibliography; fallback memakai nilai format yang
     # dicari relatif terhadap direktori format.
@@ -263,9 +257,10 @@ def test_resolve_bibliography_dari_dokumen_dan_format(
         path=format_dir / "format.yml",
         citation=SimpleNamespace(bibliography="references.bib", csl=Path("x.csl")),
     )
-    assert resolve_bibliography(other_document, other_format) == (
-        format_dir / "references.bib"
-    ).resolve()
+    assert (
+        resolve_bibliography(other_document, other_format)
+        == (format_dir / "references.bib").resolve()
+    )
 
     # Tanpa bibliography eksplisit dan tanpa aset format, dokumen tetap boleh
     # dibangun tanpa sitasi.
@@ -307,7 +302,7 @@ def test_stage_menjalankan_fake_pandoc_dan_menghasilkan_docx(
     with zipfile.ZipFile(output) as archive:
         assert "word/document.xml" in archive.namelist()
     assert isinstance(ctx.package, DocumentPackage)
-    assert "pandoc_docx" in ctx.artifacts.keys()
+    assert "pandoc_docx" in ctx.artifacts.keys()  # noqa: SIM118 - fake artifacts bukan Mapping
     assert result.artifacts[0] == output
 
     args = json.loads(record.read_text(encoding="utf-8"))
@@ -315,20 +310,13 @@ def test_stage_menjalankan_fake_pandoc_dan_menghasilkan_docx(
     assert "--top-level-division=chapter" in args
     assert "--metadata=toc=false" in args
     assert f"--reference-doc={reference}" in args
-    assert (
-        f"--bibliography={(tmp_path / 'project' / 'references.bib').resolve()}"
-        in args
-    )
+    assert f"--bibliography={(tmp_path / 'project' / 'references.bib').resolve()}" in args
     assert f"--csl={format_spec.citation.csl}" in args
-    assert (
-        f"--metadata-file={ctx.workspace.path('pandoc-metadata.yml')}" in args
-    )
+    assert f"--metadata-file={ctx.workspace.path('pandoc-metadata.yml')}" in args
     command_output = Path(args[args.index("-o") + 1])
     assert command_output.parent == ctx.workspace.root
     assert command_output.name.endswith(".docx")
-    resource = next(
-        item for item in args if item.startswith("--resource-path=")
-    )
+    resource = next(item for item in args if item.startswith("--resource-path="))
     assert str((tmp_path / "project").resolve()) in resource
     assert not any("--lua-filter" in item for item in args)
     assert not any("docx.lua" in item for item in args)

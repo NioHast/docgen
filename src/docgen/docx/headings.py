@@ -17,8 +17,6 @@ Lua lama:
   mengubah counter.
 """
 
-from __future__ import annotations
-
 import math
 import re
 from dataclasses import dataclass
@@ -47,9 +45,7 @@ __all__ = [
 NumberingBody = Literal["BAB_ROMAN", "ARABIC_DOTTED"]
 _SUPPORTED_BODY = frozenset({"BAB_ROMAN", "ARABIC_DOTTED"})
 
-_HEADING_RE = re.compile(
-    r"^(?P<indent> {0,3})(?P<hashes>#{1,6})(?P<space>[ \t]+)(?P<body>.*)$"
-)
+_HEADING_RE = re.compile(r"^(?P<indent> {0,3})(?P<hashes>#{1,6})(?P<space>[ \t]+)(?P<body>.*)$")
 _CLOSING_HASHES_RE = re.compile(r"[ \t]+#+[ \t]*$")
 _ATTRIBUTE_RE = re.compile(r"(?P<space>[ \t]+)(?P<attributes>\{[^{}]*\})[ \t]*$")
 _FENCE_RE = re.compile(r"^ {0,3}(?P<fence>`{3,}|~{3,})")
@@ -224,9 +220,9 @@ def _protect_inline(text: str) -> tuple[str, list[str]]:
     text = _CODE_SPAN_RE.sub(lambda match: store(match.group(0)), text)
     text = _HTML_TAG_RE.sub(lambda match: store(match.group(0)), text)
     text = _LINK_RE.sub(
-        lambda match: match.group("open")
-        + match.group("label").upper()
-        + store(match.group("close")),
+        lambda match: (
+            match.group("open") + match.group("label").upper() + store(match.group("close"))
+        ),
         text,
     )
     return text, protected
@@ -306,10 +302,7 @@ def render_heading(heading: Heading, spec: NumberingSpec | None = None) -> str:
         return heading.text
     if heading.level == 1:
         if spec.body == "BAB_ROMAN":
-            return (
-                f"{heading.number}{LINE_BREAK}"
-                f"{uppercase_markdown(heading.text)}"
-            )
+            return f"{heading.number}{LINE_BREAK}{uppercase_markdown(heading.text)}"
         return f"{heading.number} {uppercase_markdown(heading.text)}"
     if heading.level == 2:
         return f"{heading.number}{TAB}{heading.text}"
@@ -332,9 +325,7 @@ def _fence_opening(line: str) -> tuple[str, int] | None:
 
 
 def _fence_closing(line: str, character: str, length: int) -> bool:
-    pattern = re.compile(
-        rf"^ {{0,3}}{re.escape(character)}{{{length},}}[ \t]*$"
-    )
+    pattern = re.compile(rf"^ {{0,3}}{re.escape(character)}{{{length},}}[ \t]*$")
     return pattern.match(line) is not None
 
 
@@ -385,9 +376,7 @@ def number_markdown_headings(
             output.append(line)
             continue
         attributes = f" {parsed.attributes}" if parsed.attributes else ""
-        output.append(
-            f"{parsed.indent}{'#' * parsed.level} {rendered}{attributes}{ending}"
-        )
+        output.append(f"{parsed.indent}{'#' * parsed.level} {rendered}{attributes}{ending}")
 
     return "".join(output)
 
@@ -433,7 +422,7 @@ def _best_partition(words: list[str], line_count: int) -> tuple[str, ...] | None
 
         if remaining == 1:
             line = " ".join(words[start:])
-            lines = current + (line,)
+            lines = (*current, line)
             width = max(widest, len(line))
             orphan_count = orphans + (1 if _count_words(line) <= 1 else 0)
             cost = width + 100 * orphan_count
@@ -448,7 +437,7 @@ def _best_partition(words: list[str], line_count: int) -> tuple[str, ...] | None
             recurse(
                 end + 1,
                 remaining - 1,
-                current + (line,),
+                (*current, line),
                 max(widest, len(line)),
                 orphans + (1 if _count_words(line) <= 1 else 0),
             )

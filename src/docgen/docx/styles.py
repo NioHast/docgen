@@ -18,8 +18,6 @@ API publik mengikuti ``docs/dev/contracts/docx-api.md``:
     Memeriksa nilai style yang diharapkan.
 """
 
-from __future__ import annotations
-
 import copy
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
@@ -28,7 +26,7 @@ from typing import Literal, NamedTuple
 from lxml import etree
 
 from . import DocxError
-from .names import W, W_SECTPR
+from .names import W_SECTPR, W
 from .xml import PPR_ORDER, RPR_ORDER, SECTPR_ORDER, get_or_add
 
 # ``names.py`` sengaja tidak mengekspor setiap tag yang hanya dipakai styles.
@@ -145,11 +143,7 @@ def _styles_root(package: object) -> etree._Element:
 
 
 def _style_elements(root: etree._Element) -> list[etree._Element]:
-    return [
-        child
-        for child in root
-        if isinstance(child.tag, str) and child.tag == W_STYLE
-    ]
+    return [child for child in root if isinstance(child.tag, str) and child.tag == W_STYLE]
 
 
 def read_style_ids(package: object) -> frozenset[str]:
@@ -262,10 +256,7 @@ def _set_attributes(element: etree._Element, attrs: Mapping[str, object]) -> Non
         if value is None:
             element.attrib.pop(name, None)
             continue
-        if isinstance(value, bool):
-            text = "1" if value else "0"
-        else:
-            text = str(value)
+        text = ("1" if value else "0") if isinstance(value, bool) else str(value)
         element.set(name, text)
 
 
@@ -375,8 +366,7 @@ def _ensure_spec_style(package: object, spec: StyleSpec) -> bool:
     style = _find_style(root, spec.style_id)
     if spec.based_on is not None and _find_style(root, spec.based_on) is None:
         raise StyleError(
-            f"style '{spec.style_id}' memakai basedOn '{spec.based_on}' "
-            "yang tidak ada",
+            f"style '{spec.style_id}' memakai basedOn '{spec.based_on}' yang tidak ada",
             code="STYLE-BASEDON",
             key=spec.style_id,
         )
@@ -401,8 +391,7 @@ def _ensure_spec_style(package: object, spec: StyleSpec) -> bool:
         declared_type = style.get(W_TYPE)
         if declared_type and declared_type != spec.style_type:
             raise StyleError(
-                f"style '{spec.style_id}' bertipe {declared_type!r}, "
-                f"bukan {spec.style_type!r}",
+                f"style '{spec.style_id}' bertipe {declared_type!r}, bukan {spec.style_type!r}",
                 code="STYLE-TYPE",
                 key=spec.style_id,
             )
@@ -454,9 +443,7 @@ def _parse_rpr_fragment(rpr_xml: str) -> etree._Element:
 
     from .xml import parse_xml
 
-    source = (
-        f'<w:rPr xmlns:w="{W_NS}">{rpr_xml}</w:rPr>'
-    )
+    source = f'<w:rPr xmlns:w="{W_NS}">{rpr_xml}</w:rPr>'
     try:
         root = parse_xml(source)
     except DocxError as exc:
@@ -594,8 +581,7 @@ def _verify_updates(
             wanted = _expected_text(expected)
             if val != wanted:
                 raise StyleContractError(
-                    f"style '{style_id}': {label}.{tag} bernilai {val!r}, "
-                    f"seharusnya {wanted!r}",
+                    f"style '{style_id}': {label}.{tag} bernilai {val!r}, seharusnya {wanted!r}",
                     code="STYLE-CONTRACT",
                     key=style_id,
                 )
@@ -619,8 +605,7 @@ def verify_style_contract(
         declared_type = style.get(W_TYPE)
         if declared_type is not None and declared_type != spec.style_type:
             raise StyleContractError(
-                f"style '{style_id}' bertipe {declared_type!r}, "
-                f"seharusnya {spec.style_type!r}",
+                f"style '{style_id}' bertipe {declared_type!r}, seharusnya {spec.style_type!r}",
                 code="STYLE-CONTRACT",
                 key=style_id,
             )
@@ -629,8 +614,7 @@ def verify_style_contract(
             actual = name.get(_qname("val")) if name is not None else None
             if actual != spec.name:
                 raise StyleContractError(
-                    f"style '{style_id}' bernama {actual!r}, "
-                    f"seharusnya {spec.name!r}",
+                    f"style '{style_id}' bernama {actual!r}, seharusnya {spec.name!r}",
                     code="STYLE-CONTRACT",
                     key=style_id,
                 )
@@ -639,8 +623,7 @@ def verify_style_contract(
             actual = based.get(_qname("val")) if based is not None else None
             if actual != spec.based_on:
                 raise StyleContractError(
-                    f"style '{style_id}' basedOn {actual!r}, "
-                    f"seharusnya {spec.based_on!r}",
+                    f"style '{style_id}' basedOn {actual!r}, seharusnya {spec.based_on!r}",
                     code="STYLE-CONTRACT",
                     key=style_id,
                 )
@@ -785,9 +768,7 @@ def _toggle_patch(
     updates: list[tuple[str, dict[str, object]]] = []
     for field_name, tag in (("keep_next", "keepNext"), ("keep_lines", "keepLines")):
         if field_name in spec:
-            updates.append(
-                (tag, {"val": None} if spec[field_name] else {"val": "0"})
-            )
+            updates.append((tag, {"val": None} if spec[field_name] else {"val": "0"}))
     for field_name, tag in (("bold", "b"), ("italic", "i")):
         if field_name in spec:
             toggle = {"val": None} if spec[field_name] else {"val": "0"}
@@ -846,9 +827,7 @@ def build_style_patch(spec: Mapping[str, object]) -> StylePatch:
 
     if "font_family" in spec:
         family = spec["font_family"]
-        rpr.append(
-            ("rFonts", {"ascii": family, "hAnsi": family, "cs": family})
-        )
+        rpr.append(("rFonts", {"ascii": family, "hAnsi": family, "cs": family}))
 
     if "color" in spec:
         rpr.append(("color", {"val": spec["color"]}))

@@ -1,11 +1,10 @@
 """Tes unit stage ``front_matter`` dan perilaku cover/docx.lua yang diport."""
 
-from __future__ import annotations
-
 import re
+from collections.abc import Mapping
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Mapping
+from typing import Any
 
 import pytest
 
@@ -22,9 +21,7 @@ from docgen.stages.front_matter import (
     spacer,
 )
 
-_TITLE = (
-    "Optimasi Pipeline Pemrosesan Dokumen Markdown untuk Laporan Tugas Akhir"
-)
+_TITLE = "Optimasi Pipeline Pemrosesan Dokumen Markdown untuk Laporan Tugas Akhir"
 _BODY = (
     "# Pendahuluan\n\n"
     "Teks pendahuluan.\n\n"
@@ -160,8 +157,7 @@ def test_cover_title_split_menggunakan_dua_baris() -> None:
 
     # Paritas dengan docx.lua/balance_title untuk judul yang sama.
     assert title_block == (
-        "OPTIMASI PIPELINE PEMROSESAN DOKUMEN  \n"
-        "MARKDOWN UNTUK LAPORAN TUGAS AKHIR"
+        "OPTIMASI PIPELINE PEMROSESAN DOKUMEN  \nMARKDOWN UNTUK LAPORAN TUGAS AKHIR"
     )
 
 

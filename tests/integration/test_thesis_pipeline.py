@@ -5,8 +5,6 @@ direktori sementara. Stage nyata (Mermaid, Pandoc, Word bila tersedia)
 dijalankan, lalu invariant DOCX/PDF kontrak WS15 diperiksa.
 """
 
-from __future__ import annotations
-
 import re
 import shutil
 import subprocess
@@ -110,16 +108,11 @@ def _instructions(root: etree._Element) -> list[str]:
 
 
 def _sdt_instruction(sdt: etree._Element) -> str:
-    return "".join(
-        node.text or ""
-        for node in sdt.iter(f"{{{W_NS}}}instrText")
-    )
+    return "".join(node.text or "" for node in sdt.iter(f"{{{W_NS}}}instrText"))
 
 
 def _sdt_text(sdt: etree._Element) -> str:
-    return _normalized(
-        " ".join(node.text or "" for node in sdt.iter(f"{{{W_NS}}}t"))
-    )
+    return _normalized(" ".join(node.text or "" for node in sdt.iter(f"{{{W_NS}}}t")))
 
 
 def _caption_texts(root: etree._Element) -> list[str]:
@@ -242,12 +235,9 @@ def test_build_thesis_example_lewat_pipeline_python(
     # decimal karena itu default, tetapi start=1 dan tidak ada lowerRoman.
     page_formats = _section_page_number_formats(root)
     assert page_formats
-    roman_index = next(
-        index for index, (fmt, _) in enumerate(page_formats) if fmt == "lowerRoman"
-    )
+    roman_index = next(index for index, (fmt, _) in enumerate(page_formats) if fmt == "lowerRoman")
     assert any(
-        start == "1" and fmt != "lowerRoman"
-        for fmt, start in page_formats[roman_index + 1 :]
+        start == "1" and fmt != "lowerRoman" for fmt, start in page_formats[roman_index + 1 :]
     )
 
     # Manifest dan source scan tidak kosong.
@@ -274,9 +264,7 @@ def test_build_thesis_example_lewat_pipeline_python(
         assert any("DAFTAR ISI" in page for page in pdf_pages)
         toc_index = next(index for index, page in enumerate(pdf_pages) if "DAFTAR ISI" in page)
         bab_index = next(
-            index
-            for index, page in enumerate(pdf_pages)
-            if index > toc_index and "BAB I" in page
+            index for index, page in enumerate(pdf_pages) if index > toc_index and "BAB I" in page
         )
         # Tidak ada halaman kosong di antara daftar isi dan BAB I.
         for page in pdf_pages[toc_index + 1 : bab_index]:

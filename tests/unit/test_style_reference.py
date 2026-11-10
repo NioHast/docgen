@@ -1,7 +1,5 @@
 """Tes unit stage ``style_reference`` dan helper ``docx/styles.py``."""
 
-from __future__ import annotations
-
 import hashlib
 import zipfile
 from pathlib import Path
@@ -11,6 +9,7 @@ from xml.etree import ElementTree
 import pytest
 
 from docgen.config import Format, load_format
+from docgen.docx import DocumentPackage
 from docgen.docx.styles import (
     StyleError,
     build_style_patch,
@@ -18,7 +17,6 @@ from docgen.docx.styles import (
     patch_style,
     verify_style_contract,
 )
-from docgen.docx import DocumentPackage
 from docgen.pipeline import ArtifactStore, Workspace
 from docgen.stages.style_reference import (
     StyleReferenceStage,
@@ -35,10 +33,7 @@ def read_xml(docx_path: Path, member: str) -> ElementTree.Element:
 
 
 def style_ids(styles_root: ElementTree.Element) -> list[str]:
-    return [
-        style.get(f"{W}styleId", "")
-        for style in styles_root.findall(f"{W}style")
-    ]
+    return [style.get(f"{W}styleId", "") for style in styles_root.findall(f"{W}style")]
 
 
 def get_style(styles_root: ElementTree.Element, style_id: str) -> ElementTree.Element:
@@ -305,12 +300,15 @@ def test_docx_styles_patch_dan_verify(
         package,
         "IstilahBaru",
         "Istilah Baru",
-        rpr_xml='<w:i/>',
+        rpr_xml="<w:i/>",
     )
     assert added is True
-    assert ensure_character_style(
-        package,
-        "IstilahBaru",
-        "Istilah Baru",
-        rpr_xml='<w:i/>',
-    ) is False
+    assert (
+        ensure_character_style(
+            package,
+            "IstilahBaru",
+            "Istilah Baru",
+            rpr_xml="<w:i/>",
+        )
+        is False
+    )

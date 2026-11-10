@@ -13,8 +13,6 @@ Tidak ada I/O ZIP di modul ini. Semua mutasi part dilakukan lewat
 ``DocumentPackage`` agar aturan satu load/satu save tetap berlaku.
 """
 
-from __future__ import annotations
-
 import copy
 import re
 from collections.abc import Iterable, Iterator
@@ -65,12 +63,12 @@ W_BCS = qn("w:bCs")
 
 __all__ = [
     "BAB_RE",
+    "PPR_ORDER",
+    "RPR_ORDER",
     "BodyUnit",
     "LayoutError",
     "LayoutReport",
     "LayoutSpec",
-    "PPR_ORDER",
-    "RPR_ORDER",
     "chapter_number",
     "content_width",
     "document_body",
@@ -87,9 +85,9 @@ __all__ = [
     "insert_ordered",
     "is_bold_run",
     "is_chapter_heading",
+    "is_deleted",
     "is_exempt",
     "is_exempt_style",
-    "is_deleted",
     "is_field_run",
     "is_on",
     "iter_body_units",
@@ -109,8 +107,8 @@ __all__ = [
     "read_part",
     "roman_to_int",
     "set_document_root",
-    "strip_bold_from_run",
     "strip_bold_from_rpr",
+    "strip_bold_from_run",
     "strip_paragraph_bold",
     "write_document",
     "write_part",
@@ -158,11 +156,11 @@ class LayoutSpec:
     @property
     def effective_line_spacing_twips(self) -> int:
         if self.line_spacing is not None:
-            return int(round(float(self.line_spacing) * 240))
-        return int(self.line_spacing_twips)
+            return round(float(self.line_spacing) * 240)
+        return self.line_spacing_twips
 
     @classmethod
-    def from_format(cls, format_obj: object) -> "LayoutSpec":
+    def from_format(cls, format_obj: object) -> LayoutSpec:
         """Bangun spec dari ``Format`` (``format.font.body``) secara defensif."""
 
         font = getattr(format_obj, "font", None)
@@ -216,13 +214,9 @@ class LayoutReport:
 # Konstanta gaya dan field
 # ---------------------------------------------------------------------------
 
-CODE_STYLES = frozenset(
-    {"sourcecode", "verbatimchar", "htmlcode", "htmlpreformatted"}
-)
+CODE_STYLES = frozenset({"sourcecode", "verbatimchar", "htmlcode", "htmlpreformatted"})
 CAPTION_STYLES = frozenset({"caption", "imagecaption", "tablecaption"})
-FIGURE_STYLES = frozenset(
-    {"figure", "captionedfigure", "figurecaption"}
-)
+FIGURE_STYLES = frozenset({"figure", "captionedfigure", "figurecaption"})
 CUSTOM_HEADING_STYLES = frozenset({"chaptertitle"})
 CHAPTER_HEADING_STYLES = frozenset({"heading1", "chaptertitle"})
 TOC_STYLE_RE = re.compile(r"^toc[1-9]$|^tocheading$")
@@ -235,7 +229,7 @@ EXEMPT_FIELDS = frozenset({"TOC", "PAGEREF", "SEQ"})
 FIELD_NAME_RE = re.compile(r"\s*([A-Za-z]+)")
 
 BAB_RE = re.compile(
-    r"^\s*BAB\s+(?P<number>[IVXLCDM]+|\d+)(?=\s|[.:;,\-–—]|$)",
+    r"^\s*BAB\s+(?P<number>[IVXLCDM]+|\d+)(?=\s|[.:;,\-\u2013\u2014]|$)",
     re.IGNORECASE,
 )
 ROMAN_VALUES = {
@@ -340,10 +334,7 @@ def field_name(instruction: str) -> str | None:
 def has_field(paragraph: etree._Element) -> bool:
     """True bila paragraf memuat field kompleks atau sederhana."""
 
-    for element in paragraph.iter():
-        if element.tag in (W_FLDCHAR, W_INSTRTEXT, W_FLDSIMPLE):
-            return True
-    return False
+    return any(element.tag in (W_FLDCHAR, W_INSTRTEXT, W_FLDSIMPLE) for element in paragraph.iter())
 
 
 def has_exempt_field(
@@ -353,7 +344,9 @@ def has_exempt_field(
     """True bila paragraf memuat field yang membuat layout dikecualikan."""
 
     names = {name.upper() for name in exempt}
-    return any(field_name(instruction) in names for instruction in iter_field_instructions(paragraph))
+    return any(
+        field_name(instruction) in names for instruction in iter_field_instructions(paragraph)
+    )
 
 
 def _ancestor(element: etree._Element, tag: str) -> bool:
@@ -502,9 +495,7 @@ def strip_paragraph_bold(
     """
 
     removed = 0
-    field_elements = (
-        tuple(iter_field_runs(paragraph)) if preserve_fields else ()
-    )
+    field_elements = tuple(iter_field_runs(paragraph)) if preserve_fields else ()
     field_runs = {id(run) for run in field_elements}
     for run in iter_paragraph_runs(paragraph):
         if has_deleted_ancestor(run):
@@ -566,10 +557,7 @@ def is_chapter_heading(value: str | etree._Element | None) -> bool:
     Menerima style ID maupun elemen paragraf agar helper aman dipakai stage.
     """
 
-    if isinstance(value, etree._Element):
-        style_id = paragraph_style_id(value)
-    else:
-        style_id = value
+    style_id = paragraph_style_id(value) if isinstance(value, etree._Element) else value
     return normalize_style_id(style_id) in CHAPTER_HEADING_STYLES
 
 
@@ -643,8 +631,7 @@ def iter_body_units(body: etree._Element) -> Iterator[BodyUnit]:
             inner = [
                 grandchild
                 for grandchild in child
-                if isinstance(grandchild.tag, str)
-                and grandchild.tag in BODY_BLOCK_TAGS
+                if isinstance(grandchild.tag, str) and grandchild.tag in BODY_BLOCK_TAGS
             ]
             if inner:
                 for element in inner:
@@ -892,7 +879,7 @@ def _int_attribute(element: etree._Element, name: str) -> int | None:
         return None
     try:
         return int(value)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None
 
 

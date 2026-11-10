@@ -11,8 +11,6 @@ Section pada OOXML diakhiri oleh ``w:sectPr``. Section terakhir memakai
 langsung ``w:body`` agar stabil untuk pembacaan dan penyisipan.
 """
 
-from __future__ import annotations
-
 import copy
 import posixpath
 import re
@@ -24,7 +22,6 @@ from lxml import etree
 from ..errors import DocgenError
 from .names import (
     R_ID,
-    W,
     W_BODY,
     W_BR,
     W_CR,
@@ -35,6 +32,7 @@ from .names import (
     W_SECTPR,
     W_T,
     W_TAB,
+    W,
     local_name,
 )
 from .package import (
@@ -50,7 +48,6 @@ from .xml import (
     iter_paragraphs,
     iter_runs,
     paragraph_text,
-    qn,
     run_text,
     serialize_xml,
     sha256_c14n,
@@ -58,18 +55,12 @@ from .xml import (
 
 SectionKind = Literal["cover", "front_matter", "body", "back_matter"]
 SectionType = Literal["nextPage", "continuous", "evenPage", "oddPage"]
-PageNumberFormat = Literal[
-    "decimal", "lowerRoman", "upperRoman", "lowerLetter", "upperLetter"
-]
+PageNumberFormat = Literal["decimal", "lowerRoman", "upperRoman", "lowerLetter", "upperLetter"]
 HeaderFooterKind = Literal["header", "footer"]
 HeaderFooterReferenceType = Literal["default", "first", "even"]
 
-HEADER_CONTENT_TYPE = (
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"
-)
-FOOTER_CONTENT_TYPE = (
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"
-)
+HEADER_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"
+FOOTER_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"
 
 _PAGE_NUMBER_FORMATS = frozenset(
     {"decimal", "lowerRoman", "upperRoman", "lowerLetter", "upperLetter"}
@@ -208,18 +199,12 @@ def _section_kind(
     back_start: int | None,
 ) -> SectionKind:
     paragraphs = [
-        child
-        for child in children[start:end]
-        if isinstance(child.tag, str) and child.tag == W_P
+        child for child in children[start:end] if isinstance(child.tag, str) and child.tag == W_P
     ]
     styles = {
-        style
-        for paragraph in paragraphs
-        if (style := _paragraph_style(paragraph)) is not None
+        style for paragraph in paragraphs if (style := _paragraph_style(paragraph)) is not None
     }
-    has_cover_style = any(
-        style.casefold().startswith("cover") for style in styles
-    )
+    has_cover_style = any(style.casefold().startswith("cover") for style in styles)
     if index == 0 and has_cover_style:
         return "cover"
     if body_start is not None and start >= body_start:
@@ -293,8 +278,7 @@ def section_at(package: object, paragraph_index: int) -> Section:
     children = _body_children(_body(package))
     if paragraph_index >= len(children):
         raise SectionError(
-            f"Indeks paragraf {paragraph_index} di luar batas body "
-            f"({len(children)} child)"
+            f"Indeks paragraf {paragraph_index} di luar batas body ({len(children)} child)"
         )
     for section in iter_sections(package):
         if section.start <= paragraph_index < section.end:
@@ -433,9 +417,7 @@ def _section_is_empty(
     break_child = children[break_index]
     # Paragraf pemutus itu sendiri kosong; paragraf berisi page break adalah
     # konten yang sah dan tidak boleh dihapus.
-    if break_child.tag == W_P and _has_visible_content(break_child):
-        return False
-    return True
+    return not (break_child.tag == W_P and _has_visible_content(break_child))
 
 
 def remove_empty_sections(package: object) -> int:
@@ -551,9 +533,7 @@ def section_header_footer(section: Section) -> HeaderFooterRefs:
             continue
         prefix = "header" if name == "headerReference" else "footer"
         key = f"first_{prefix}" if ref_type == "first" else prefix
-        if ref_type == "default":
-            values[key] = rel_id
-        elif ref_type == "first":
+        if ref_type == "default" or ref_type == "first":
             values[key] = rel_id
     return HeaderFooterRefs(
         header=values["header"],
@@ -579,9 +559,7 @@ def set_header_footer_reference(
     if kind not in ("header", "footer"):
         raise SectionError(f"Jenis header/footer tidak dikenal: {kind!r}")
     if reference_type not in _HEADER_FOOTER_TYPES:
-        raise SectionError(
-            f"Tipe reference header/footer tidak dikenal: {reference_type!r}"
-        )
+        raise SectionError(f"Tipe reference header/footer tidak dikenal: {reference_type!r}")
     if rel_id is not None and not isinstance(rel_id, str):
         raise SectionError("Relationship ID header/footer harus string")
 
@@ -601,8 +579,7 @@ def set_header_footer_reference(
         header_positions = [
             index
             for index, child in enumerate(sect_pr)
-            if isinstance(child.tag, str)
-            and local_name(child.tag) == "headerReference"
+            if isinstance(child.tag, str) and local_name(child.tag) == "headerReference"
         ]
         insert_at = (header_positions[-1] + 1) if header_positions else 0
         sect_pr.insert(insert_at, reference)
@@ -631,9 +608,7 @@ def _next_relationship_id(package: object) -> str:
     relationships = package.relationships(DOCUMENT_PART)  # type: ignore[attr-defined]
     used = {rel.rel_id for rel in relationships}
     numbers = [
-        int(match.group(1))
-        for rel_id in used
-        if (match := re.fullmatch(r"rId(\d+)", rel_id))
+        int(match.group(1)) for rel_id in used if (match := re.fullmatch(r"rId(\d+)", rel_id))
     ]
     number = max(numbers, default=0) + 1
     while f"rId{number}" in used:
@@ -644,11 +619,7 @@ def _next_relationship_id(package: object) -> str:
 def _next_part_name(package: object, kind: HeaderFooterKind) -> str:
     names = package.part_names()  # type: ignore[attr-defined]
     pattern = re.compile(rf"word/{kind}(\d+)\.xml$")
-    numbers = [
-        int(match.group(1))
-        for name in names
-        if (match := pattern.fullmatch(name))
-    ]
+    numbers = [int(match.group(1)) for name in names if (match := pattern.fullmatch(name))]
     number = max(numbers, default=0) + 1
     while f"word/{kind}{number}.xml" in names:
         number += 1
@@ -676,9 +647,7 @@ def create_header_footer_part(
         root = None
     expected = W + ("hdr" if kind == "header" else "ftr")
     if root is not None and root.tag != expected:
-        raise HeaderFooterError(
-            f"Root part {kind} harus {expected}, bukan {root.tag}"
-        )
+        raise HeaderFooterError(f"Root part {kind} harus {expected}, bukan {root.tag}")
     part_name = _next_part_name(package, kind)
     content_type = HEADER_CONTENT_TYPE if kind == "header" else FOOTER_CONTENT_TYPE
     package.set_part(part_name, payload, content_type=content_type)  # type: ignore[attr-defined]
@@ -705,24 +674,17 @@ def header_footer_part(
             continue
         if relationship.rel_type not in (REL_TYPE_HEADER, REL_TYPE_FOOTER):
             raise HeaderFooterError(
-                f"Relationship {rel_id} bukan header/footer: "
-                f"{relationship.rel_type}"
+                f"Relationship {rel_id} bukan header/footer: {relationship.rel_type}"
             )
         target = relationship.target
         if target.startswith("/"):
             part_name = target.lstrip("/")
         else:
-            part_name = posixpath.normpath(
-                posixpath.join(posixpath.dirname(DOCUMENT_PART), target)
-            )
+            part_name = posixpath.normpath(posixpath.join(posixpath.dirname(DOCUMENT_PART), target))
         if not package.has_part(part_name):  # type: ignore[attr-defined]
-            raise HeaderFooterError(
-                f"Part header/footer tidak ditemukan: {part_name}"
-            )
+            raise HeaderFooterError(f"Part header/footer tidak ditemukan: {part_name}")
         return part_name, package.xml(part_name)  # type: ignore[attr-defined]
-    raise HeaderFooterError(
-        f"Relationship header/footer tidak ditemukan: {rel_id}"
-    )
+    raise HeaderFooterError(f"Relationship header/footer tidak ditemukan: {rel_id}")
 
 
 def set_part_xml(package: object, part_name: str, root: etree._Element) -> None:
@@ -1013,8 +975,7 @@ def _strip_prefix_from_runs(
                 remaining -= 1
         has_content = bool(run_text(clone)) or any(
             isinstance(child.tag, str)
-            and child.tag
-            in (W_TAB, W_BR, W_CR, W + "drawing", W + "pict", W + "object")
+            and child.tag in (W_TAB, W_BR, W_CR, W + "drawing", W + "pict", W + "object")
             for child in clone
         )
         if has_content:
@@ -1128,8 +1089,7 @@ def _strip_leading_separators(
             if not run_text(clone) and clone.find(".//" + W_TAB) is None:
                 has_visual = any(
                     isinstance(child.tag, str)
-                    and child.tag
-                    in (W_TAB, W_BR, W_CR, W + "drawing", W + "pict", W + "object")
+                    and child.tag in (W_TAB, W_BR, W_CR, W + "drawing", W + "pict", W + "object")
                     for child in clone
                 )
                 if not has_visual:
@@ -1226,10 +1186,7 @@ def apply_heading_numbering(
             chapter += 1
             sub = 0
             subsub = 0
-            if spec.body == "BAB_ROMAN":
-                number = f"BAB {_as_roman(chapter)}"
-            else:
-                number = f"{chapter}."
+            number = f"BAB {_as_roman(chapter)}" if spec.body == "BAB_ROMAN" else f"{chapter}."
             prefix = _numbered_runs(
                 paragraph,
                 number,
@@ -1307,10 +1264,10 @@ __all__ = [
     "apply_heading_numbering",
     "clear_header_footer_references",
     "create_header_footer_part",
+    "header_footer_part",
     "heading_bookmark_name",
     "heading_level",
     "heading_text",
-    "header_footer_part",
     "is_unnumbered",
     "iter_headings",
     "iter_sections",

@@ -9,15 +9,13 @@ Part yang dimutasi: ``word/document.xml`` dan, bila ada perubahan,
 ``word/numbering.xml``. Part lain tidak disentuh.
 """
 
-from __future__ import annotations
-
 import time
 from dataclasses import dataclass, field
+
 from lxml import etree
 
 from ..docx.layout import (
     PPR_ORDER,
-    document_body,
     document_root,
     has_deleted_ancestor,
     is_field_run,
@@ -30,6 +28,7 @@ from ..docx.names import (
     W_RPR,
     W_VAL,
 )
+from ..docx.package import DocumentPackage
 from ..docx.xml import ensure_ppr, get_or_add, iter_paragraphs, qn, sha256_c14n
 from ..errors import DocgenError
 from ..pipeline import BaseStage, StageName, StageResult, canonical_prefix
@@ -153,7 +152,7 @@ def _int_attribute(
         return default
     try:
         return int(value)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return default
 
 
@@ -343,7 +342,7 @@ def _normalize_level(
 
 
 def format_numbering(
-    package: object,
+    package: DocumentPackage,
     *,
     spec: NumberingSpec | None = None,
 ) -> NumberingReport:
@@ -351,19 +350,14 @@ def format_numbering(
 
     spec = spec or NumberingSpec()
     root = document_root(package)
-    body = document_body(root)
     numbering_root: etree._Element | None = None
     if getattr(package, "has_part", None) and package.has_part(NUMBERING_PART):
         numbering_root = package.xml(NUMBERING_PART)
 
     doc_before = sha256_c14n(root)
-    numbering_before = (
-        sha256_c14n(numbering_root) if numbering_root is not None else None
-    )
+    numbering_before = sha256_c14n(numbering_root) if numbering_root is not None else None
 
-    numbering_index = (
-        _build_numbering_index(numbering_root) if numbering_root is not None else {}
-    )
+    numbering_index = _build_numbering_index(numbering_root) if numbering_root is not None else {}
 
     report = NumberingReport()
     document_changed = False
@@ -377,7 +371,7 @@ def format_numbering(
         if reference is None:
             continue
 
-        num_id, ilvl = reference
+        _num_id, ilvl = reference
         level = numbering_index.get(reference)
 
         if level is None:
@@ -429,9 +423,7 @@ def format_numbering(
 
     document_changed = document_changed or sha256_c14n(root) != doc_before
     if numbering_root is not None:
-        numbering_changed = (
-            numbering_changed or sha256_c14n(numbering_root) != numbering_before
-        )
+        numbering_changed = numbering_changed or sha256_c14n(numbering_root) != numbering_before
 
     if document_changed:
         set_document_root(package, root)
@@ -457,27 +449,18 @@ class NumberingStage(BaseStage):
         started = time.monotonic()
         package = getattr(ctx, "package", None)
         if package is None:
-            raise NumberingError(
-                "stage numbering membutuhkan DocumentPackage dari stage pandoc"
-            )
+            raise NumberingError("stage numbering membutuhkan DocumentPackage dari stage pandoc")
 
         try:
             before_document = sha256_c14n(document_root(package))
             has_numbering = bool(
-                getattr(package, "has_part", None)
-                and package.has_part(NUMBERING_PART)
+                getattr(package, "has_part", None) and package.has_part(NUMBERING_PART)
             )
-            before_numbering = (
-                sha256_c14n(package.xml(NUMBERING_PART))
-                if has_numbering
-                else None
-            )
+            before_numbering = sha256_c14n(package.xml(NUMBERING_PART)) if has_numbering else None
             report = format_numbering(package, spec=NumberingSpec())
             changed = sha256_c14n(document_root(package)) != before_document
             if not changed and before_numbering is not None:
-                changed = (
-                    sha256_c14n(package.xml(NUMBERING_PART)) != before_numbering
-                )
+                changed = sha256_c14n(package.xml(NUMBERING_PART)) != before_numbering
         except NumberingError:
             raise
         except Exception as exc:  # pragma: no cover - pengaman kontrak
@@ -509,12 +492,12 @@ __all__ = [
     "LVL_ORDER",
     "MAX_LEVEL",
     "NUMBERING_PART",
+    "ORDERED_FORMATS",
+    "PPR_ORDER",
     "NumberingError",
     "NumberingReport",
     "NumberingSpec",
     "NumberingStage",
-    "ORDERED_FORMATS",
-    "PPR_ORDER",
     "format_numbering",
     "normalize_numbering",
 ]

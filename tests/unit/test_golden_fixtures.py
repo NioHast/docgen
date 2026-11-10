@@ -5,8 +5,6 @@ baseline, dan catatan JSON tidak boleh menunjuk field ``fixture`` yang membuat
 tes bergantung pada berkas PDF yang tidak di-commit.
 """
 
-from __future__ import annotations
-
 import json
 import zipfile
 from pathlib import Path

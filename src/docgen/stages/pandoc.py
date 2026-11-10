@@ -14,8 +14,6 @@ Pandoc ditulis ke workspace agar pipeline dapat memuatnya sebagai satu
 ``DocumentPackage`` tanpa intermediate DOCX di direktori output.
 """
 
-from __future__ import annotations
-
 import hashlib
 import json
 import os
@@ -23,13 +21,13 @@ import shutil
 import subprocess
 import sys
 import time
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Mapping, Sequence
 
 from ..docx import DocumentPackage
 from ..errors import DocgenError, ExternalToolError, StageError, ToolMissingError
-from ..pipeline import BaseStage, StageName, StageResult, canonical_prefix
+from ..pipeline import BaseStage, StageContext, StageName, StageResult, canonical_prefix
 
 __all__ = [
     "DEFAULT_TIMEOUT",
@@ -173,12 +171,15 @@ def write_metadata_file(path: str | Path, metadata: Mapping[str, object]) -> Pat
 
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
-    text = json.dumps(
-        dict(metadata),
-        ensure_ascii=False,
-        indent=2,
-        sort_keys=True,
-    ) + "\n"
+    text = (
+        json.dumps(
+            dict(metadata),
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n"
+    )
     previous = target.read_text(encoding="utf-8") if target.is_file() else None
     if previous != text:
         target.write_text(text, encoding="utf-8", newline="\n")
@@ -196,7 +197,7 @@ def _artifact_path(ctx: object, key: str) -> Path | None:
         return None
     try:
         keys = tuple(artifacts.keys())
-    except (AttributeError, TypeError):
+    except AttributeError, TypeError:
         return None
     if key not in keys:
         return None
@@ -239,16 +240,14 @@ def _reference_path(ctx: object) -> Path:
         reference = _artifact_path(ctx, "reference_docx")
     if reference is None:
         raise PandocError(
-            "reference.docx derived belum tersedia; jalankan stage "
-            "style_reference sebelum pandoc.",
+            "reference.docx derived belum tersedia; jalankan stage style_reference sebelum pandoc.",
             code="PANDOC-REFERENCE",
             key="reference_docx",
         )
     path = Path(reference)
     if not path.is_file():
         raise PandocError(
-            "reference.docx derived tidak ditemukan di disk; jalankan ulang "
-            "stage style_reference.",
+            "reference.docx derived tidak ditemukan di disk; jalankan ulang stage style_reference.",
             code="PANDOC-REFERENCE",
             path=path,
             key="reference_docx",
@@ -382,9 +381,7 @@ def _pandoc_executable(ctx: object) -> str:
         else:
             # Adapter pipeline boleh menyediakan path executable lewat atribut
             # ``executable``/``path``.
-            raw = getattr(injected, "executable", None) or getattr(
-                injected, "path", None
-            )
+            raw = getattr(injected, "executable", None) or getattr(injected, "path", None)
             executable = find_pandoc(raw) if raw is not None else None
         if executable is None:
             raise ToolMissingError(
@@ -550,7 +547,7 @@ class PandocStage(BaseStage):
     mutates = frozenset({"package"})
     idempotent = True
 
-    def run(self, ctx: object) -> StageResult:
+    def run(self, ctx: StageContext) -> StageResult:
         started = time.monotonic()
         try:
             markdown = _markdown_path(ctx)
@@ -618,7 +615,7 @@ class PandocStage(BaseStage):
             # Satu load package target dilakukan di sini agar stage postprocess
             # menerima objek yang sama. Pipeline wajib memakai ctx.package ini,
             # bukan memanggil load ulang.
-            setattr(ctx, "package", package)
+            ctx.package = package
 
             artifacts = getattr(ctx, "artifacts", None)
             if artifacts is not None and hasattr(artifacts, "put"):
@@ -652,9 +649,7 @@ class PandocStage(BaseStage):
         except DocgenError:
             raise
         except Exception as exc:  # pragma: no cover - pengaman kontrak
-            document_path = getattr(
-                getattr(ctx, "document", None), "path", None
-            )
+            document_path = getattr(getattr(ctx, "document", None), "path", None)
             raise StageError(
                 self.name.value,
                 f"konversi Pandoc gagal: {exc}",

@@ -21,8 +21,6 @@ Setiap diagram di-hash dari isi Mermaid dan opsi render. Berkas PNG yang sudah
 ada dipakai ulang tanpa memanggil ``mmdc`` lagi.
 """
 
-from __future__ import annotations
-
 import hashlib
 import json
 import re
@@ -31,9 +29,9 @@ import subprocess
 import sys
 import tempfile
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Mapping
 
 from ..errors import DocgenError, StageError, ToolMissingError
 from ..pipeline import BaseStage, StageName, StageResult
@@ -48,9 +46,7 @@ MMDC_INSTALL_HINT = (
     "path mmdc secara eksplisit."
 )
 
-_FENCE_OPEN_RE = re.compile(
-    r"^(?P<indent>[ \t]*)(?P<fence>`{3,}|~{3,})(?P<info>.*)$"
-)
+_FENCE_OPEN_RE = re.compile(r"^(?P<indent>[ \t]*)(?P<fence>`{3,}|~{3,})(?P<info>.*)$")
 _LANGUAGE_RE = re.compile(r"^\.?mermaid(?=$|[\s{])", re.IGNORECASE)
 _CAPTION_RE = re.compile(
     r"""(?<![\w-])caption\s*=\s*(?:"(?P<double>(?:\\.|[^"\\])*)"|'(?P<single>(?:\\.|[^'\\])*)')""",
@@ -205,9 +201,7 @@ def _caption_from_attributes(attributes: str) -> str | None:
 
 
 def _closing_fence_re(fence_character: str, minimum: int) -> re.Pattern[str]:
-    return re.compile(
-        rf"^[ \t]*{re.escape(fence_character)}{{{minimum},}}[ \t]*$"
-    )
+    return re.compile(rf"^[ \t]*{re.escape(fence_character)}{{{minimum},}}[ \t]*$")
 
 
 def extract_blocks(
@@ -262,9 +256,7 @@ def extract_blocks(
         if attributes is not None:
             code = "\n".join(content)
             if not code.strip():
-                raise MermaidError(
-                    f"{_location(path, line)}isi diagram Mermaid kosong."
-                )
+                raise MermaidError(f"{_location(path, line)}isi diagram Mermaid kosong.")
 
             caption = _caption_from_attributes(attributes)
             if not caption:
@@ -314,8 +306,12 @@ def _options_payload(
         if value is None:
             continue
         if key == "size":
+            if not isinstance(value, str | int | float):
+                raise TypeError(f"opsi mermaid 'size' harus angka, bukan {type(value).__name__}")
             value = int(value)
         elif key == "scale":
+            if not isinstance(value, str | int | float):
+                raise TypeError(f"opsi mermaid 'scale' harus angka, bukan {type(value).__name__}")
             value = float(value)
         payload[str(key)] = value
     return payload
@@ -438,9 +434,19 @@ def _mmdc_command(executable: str) -> list[str]:
 def _as_render_options(
     options: RenderOptions | Mapping[str, object] | None,
 ) -> RenderOptions:
-    if isinstance(options, Mapping):
-        return RenderOptions(**dict(options))
-    return options or RenderOptions()
+    if options is None or isinstance(options, RenderOptions):
+        return options or RenderOptions()
+    payload = _options_payload(options)
+    theme = payload.get("theme")
+    background = payload.get("background")
+    size = payload.get("size")
+    scale = payload.get("scale")
+    return RenderOptions(
+        theme=theme if isinstance(theme, str) else None,
+        background=background if isinstance(background, str) else None,
+        size=size if isinstance(size, int) else None,
+        scale=scale if isinstance(scale, float) else None,
+    )
 
 
 def _render_mermaid(
@@ -467,9 +473,7 @@ def _render_mermaid(
     try:
         target.parent.mkdir(parents=True, exist_ok=True)
     except OSError as exc:
-        raise MermaidError(
-            f"Gagal menyiapkan folder gambar {target.parent}: {exc}"
-        ) from exc
+        raise MermaidError(f"Gagal menyiapkan folder gambar {target.parent}: {exc}") from exc
 
     try:
         with tempfile.TemporaryDirectory(prefix="docgen-mermaid-") as temp_dir:
@@ -495,8 +499,7 @@ def _render_mermaid(
                 )
             except subprocess.TimeoutExpired as exc:
                 raise MermaidError(
-                    f"mmdc melebihi batas waktu {timeout} detik untuk "
-                    f"{target.name}."
+                    f"mmdc melebihi batas waktu {timeout} detik untuk {target.name}."
                 ) from exc
             except OSError as exc:
                 raise MermaidError(f"Gagal menjalankan mmdc: {exc}") from exc
@@ -507,9 +510,7 @@ def _render_mermaid(
                 f"{_render_error_detail(completed)}"
             )
         if not target.is_file() or target.stat().st_size == 0:
-            raise MermaidError(
-                f"mmdc tidak menghasilkan PNG untuk {target.name}."
-            )
+            raise MermaidError(f"mmdc tidak menghasilkan PNG untuk {target.name}.")
     except BaseException:
         target.unlink(missing_ok=True)
         raise
@@ -595,9 +596,7 @@ class MermaidStage(BaseStage):
 
         workspace = getattr(ctx, "workspace", None)
         if workspace is None or not callable(getattr(workspace, "ensure", None)):
-            raise MermaidError(
-                "stage mermaid membutuhkan workspace untuk menyimpan gambar."
-            )
+            raise MermaidError("stage mermaid membutuhkan workspace untuk menyimpan gambar.")
         workspace.ensure()
 
         try:
@@ -624,7 +623,7 @@ class MermaidStage(BaseStage):
             output.write_text(markdown, encoding="utf-8", newline="\n")
 
         artifacts = getattr(ctx, "artifacts", None)
-        if artifacts is not None and "mermaid.markdown" not in artifacts.keys():
+        if artifacts is not None and "mermaid.markdown" not in artifacts.keys():  # noqa: SIM118 - Artifacts bukan Mapping
             artifacts.put("mermaid.markdown", output)
 
         return StageResult(

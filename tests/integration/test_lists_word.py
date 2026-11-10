@@ -5,8 +5,6 @@ field dengan Microsoft Word lewat ``resources/word.ps1``, lalu memeriksa cache
 field di DOCX dan teks PDF. Mock bukan bukti; tes dilewati di luar Windows.
 """
 
-from __future__ import annotations
-
 import shutil
 import subprocess
 import sys
@@ -56,9 +54,7 @@ def _word_available() -> bool:
     return False
 
 
-pytestmark.append(
-    pytest.mark.skipif(not _word_available(), reason="Microsoft Word tidak tersedia")
-)
+pytestmark.append(pytest.mark.skipif(not _word_available(), reason="Microsoft Word tidak tersedia"))
 
 
 def _ctx(package: DocumentPackage) -> SimpleNamespace:
@@ -120,8 +116,7 @@ def _run_word(docx: Path, *, pdf: Path | None = None) -> None:
 
 def _all_text(package: DocumentPackage) -> list[str]:
     return [
-        paragraph_text(paragraph)
-        for paragraph in iter_paragraphs(package.xml("word/document.xml"))
+        paragraph_text(paragraph) for paragraph in iter_paragraphs(package.xml("word/document.xml"))
     ]
 
 

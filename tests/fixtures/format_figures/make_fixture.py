@@ -7,8 +7,6 @@ tes tidak bergantung pada hasil build pipeline. Tes memanggil fungsi
     python tests/fixtures/format_figures/make_fixture.py
 """
 
-from __future__ import annotations
-
 import struct
 import zlib
 from io import BytesIO
@@ -21,6 +19,8 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Cm, Pt
+
+DEFAULT_SPACE = Pt(6)
 
 TBL_PR_ORDER = tuple(
     qn(tag)
@@ -143,12 +143,7 @@ def _png_bytes(width: int = 200, height: int = 100) -> bytes:
 
     def chunk(kind: bytes, data: bytes) -> bytes:
         checksum = zlib.crc32(kind + data) & 0xFFFFFFFF
-        return (
-            struct.pack(">I", len(data))
-            + kind
-            + data
-            + struct.pack(">I", checksum)
-        )
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", checksum)
 
     header = struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)
     row = bytes((215, 225, 235)) * width
@@ -166,8 +161,8 @@ def _add_image(
     width,
     height,
     align=WD_ALIGN_PARAGRAPH.JUSTIFY,
-    before=Pt(6),
-    after=Pt(6),
+    before=DEFAULT_SPACE,
+    after=DEFAULT_SPACE,
     alt: str | None = None,
 ):
     paragraph = document.add_paragraph()
@@ -255,7 +250,7 @@ def _fill_table(table, values) -> None:
 
 def _set_column_widths(table, widths) -> None:
     table.autofit = False
-    for column, width in zip(table.columns, widths):
+    for column, width in zip(table.columns, widths, strict=True):
         column.width = width
 
 

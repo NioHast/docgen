@@ -11,8 +11,6 @@ terbatas pada blok yang relevan untuk pencocokan paragraf: heading, paragraf,
 list, blockquote, tabel, dan blok kode berpagar.
 """
 
-from __future__ import annotations
-
 import re
 import unicodedata
 from dataclasses import dataclass, field
@@ -45,11 +43,11 @@ _EM_UNDERSCORE_RE = re.compile(r"(?<!\w)_(\S(?:.*?\S)?)_(?!\w)")
 _HTML_TAG_RE = re.compile(r"<[^>]+>")
 _ESCAPE_RE = re.compile(r"\\([\\`*_{}\[\]()#+\-.!|>~])")
 _HEADING_NUMBER_RE = re.compile(
-    r"(?i)^(?:bab|bagian|chapter)\s+[ivxlcdm0-9]+\b[\s.:\-–—]*"
+    r"(?i)^(?:bab|bagian|chapter)\s+[ivxlcdm0-9]+\b[\s.:\-\u2013\u2014]*"
 )
 _DOTTED_NUMBER_RE = re.compile(r"^(?:\d+(?:\.\d+)+|\d+)[.)]?\s+")
 _ROMAN_NUMBER_RE = re.compile(r"(?i)^[ivxlcdm]+\.\s+")
-_HEADING_TRIM = " \t.:;,–—-"
+_HEADING_TRIM = " \t.:;,\u2013\u2014-"
 _TABLE_SEPARATOR_CELL_RE = re.compile(r":?-{3,}:?")
 
 
@@ -123,9 +121,7 @@ def normalize_path(path: tuple[str, ...] | list[str]) -> tuple[str, ...]:
     """Normalisasi seluruh komponen ``heading_path`` dan buang yang kosong."""
 
     return tuple(
-        normalized
-        for normalized in (normalize_heading(item) for item in path)
-        if normalized
+        normalized for normalized in (normalize_heading(item) for item in path) if normalized
     )
 
 
@@ -470,16 +466,16 @@ def iter_candidate_texts(block: MarkdownBlock) -> tuple[str, ...]:
 
 
 __all__ = [
-    "FOOTNOTE_DEFINITION_RE",
     "FENCE_RE",
+    "FOOTNOTE_DEFINITION_RE",
     "HEADING_RE",
     "HORIZONTAL_RULE_RE",
     "LINK_DEFINITION_RE",
     "LIST_RE",
-    "MarkdownBlock",
-    "MarkdownError",
     "QUOTE_RE",
     "TABLE_RE",
+    "MarkdownBlock",
+    "MarkdownError",
     "clean_text",
     "is_table_separator",
     "iter_candidate_texts",

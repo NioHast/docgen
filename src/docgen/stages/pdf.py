@@ -5,8 +5,6 @@ Aturan ``--allow-missing-word`` diterapkan di sini: target ``both`` boleh
 melewati PDF, sedangkan target ``pdf`` selalu gagal bila Word tidak ada.
 """
 
-from __future__ import annotations
-
 import time
 
 from ..errors import PdfError, ToolMissingError, WordError
@@ -51,9 +49,7 @@ class PdfStage(BaseStage):
 
         if not adapter.available():
             target = getattr(getattr(ctx, "options", None), "target", "both")
-            allow = bool(
-                getattr(getattr(ctx, "options", None), "allow_missing_word", False)
-            )
+            allow = bool(getattr(getattr(ctx, "options", None), "allow_missing_word", False))
             if target == "both" and allow:
                 return StageResult(
                     stage=self.name.value,
@@ -79,7 +75,7 @@ class PdfStage(BaseStage):
         docx = _docx_path(ctx)
         try:
             result = adapter.export_pdf(docx, pdf)
-        except (PdfError, ToolMissingError):
+        except PdfError, ToolMissingError:
             raise
         except Exception as exc:  # pragma: no cover - pengaman kontrak
             raise PdfError(

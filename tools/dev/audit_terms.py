@@ -1,4 +1,4 @@
-"""Audit italic istilah asing pada dokumen DOCX.
+r"""Audit italic istilah asing pada dokumen DOCX.
 
 Alat ini membaca DOCX hasil build, mengelompokkan kata/frasa Latin, lalu
 menulis laporan Markdown untuk ditinjau agent. Alat tidak mengubah DOCX,
@@ -15,9 +15,8 @@ Kode keluar:
     1  kesalahan input (DOCX/glosarium tidak valid)
 """
 
-from __future__ import annotations
-
 import argparse
+import itertools
 import re
 import sys
 from dataclasses import dataclass, field
@@ -73,7 +72,7 @@ CATEGORY_LABEL = {
     CATEGORY_MIXED_CASE_NAME: "perlu keputusan (nama)",
 }
 
-TOKEN_RE = re.compile(r"[A-Za-z][A-Za-z0-9'’\-]*")
+TOKEN_RE = re.compile(r"[A-Za-z][A-Za-z0-9'\u2019\-]*")
 NON_PROSE_RE = re.compile(r"(?:https?://|www\.)\S+|\S+@\S+", re.IGNORECASE)
 CONTEXT_WORD_RE = re.compile(r"\S+")
 
@@ -82,120 +81,944 @@ CONTEXT_WORD_RE = re.compile(r"\S+")
 # yang ada di glosarium selalu diproses lebih dulu, jadi "data", "sistem", dan
 # "metode" tetap diklasifikasikan lewat glosarium.
 INDONESIAN_NOISE = set(
-    """
-    ada adalah adanya adapun agak agar akan akankah akhir akhirnya aku amat
-    antara antaranya apa apabila apakah apalagi apatah atau ataupun
-    bagaimana bagaimanakah bagaimanapun bagi bagian bahkan bahwa bahwasanya
-    baik bakal banyak beberapa begitu belum benar berapa berada berarti
-    berikut bersama betul biasa biasanya bila bilakah bisa boleh buat bukan
-    bukankah bukanlah bukannya cara cukup cuma dahulu dalam dan dapat dari
-    daripada datang demi dengan di dia dialah diantaranya dilakukan digunakan
-    hal hampir hanya harus hingga ia ini itu jadi jika jikalau juga justru
-    kala kalau kalaulah kalaupun kali kan kapan kapankah kapanpun karena
-    karenanya kata keadaan kecil kemudian kenapa kepada ketika khususnya kini
-    kita kok lagi lagian lah lain lainnya lalu lama langsung lebih maka
-    makanya makin malah malahan mampu mana manakala masih masing mau maupun
-    melainkan melalui membuat memastikan membutuhkan memiliki memungkinkan
-    mengenai mengapa menjadi menurut merupakan menyatakan mereka meski
-    meskipun minta misal misalnya nah namun nanti nyaris oleh pada padahal
-    paling pantas para pasti pernah perlu pula pun rasa rupanya saat saja
-    saling sama sambil sampai sana sangat sebab sebagai sebagaimana
-    sebagainya sebaliknya sebanyak sebelum sebelumnya sebenarnya seberapa
-    sebuah secara sedang sedangkan sedikit segala segera seharusnya sehingga
-    sejak sejenak sekali sekalian sekalipun sekarang sekitar sela selagi
-    selain selaku selalu selama selanjutnya seluruh semacam semakin semoga
-    semua semula sendiri seorang sepanjang seperti serta sesaat sesama
-    sesudah setelah setempat setengah seterusnya setiap setidaknya sewaktu
-    siapa sini suatu sudah supaya tadi tak tanpa tampaknya tapi telah tentang
-    terhadap termasuk tersebut tertentu tetapi tiap tidak toh walaupun walau
-    yaitu yakin yang untuk sesuai berbasis data
-    akademik akurasi algoritma analisis angka aplikasi arsitektur bagian
-    bentuk berkas budaya contoh dampak dasar deskripsi digital dokumen
-    evaluasi faktor fitur font format formal fungsi gambar global halaman
-    hasil ilmiah implementasi informasi instalasi integrasi internasional
-    jumlah judul karakter karya kata kebutuhan kegiatan keamanan kemampuan
-    kerja kesimpulan khusus kualitas kuantitas kunci lampiran latar lembar
-    letak lokal mahasiswa manual margin masalah metode model nasional nilai
-    nomor objek otomatis panduan paragraf pembahasan pendahuluan pengantar
-    penelitian pengguna pengujian penulisan penulis perangkat perintah persen
-    presets proses proyek pustaka referensi responden sampel sampul sistem
-    skor standar struktur tabel tahap tampilan teks template tingkat tujuan
-    uji ukuran umum utama variabel versi visual waktu warna
-    """.split()
+    [
+        "ada",
+        "adalah",
+        "adanya",
+        "adapun",
+        "agak",
+        "agar",
+        "akan",
+        "akankah",
+        "akhir",
+        "akhirnya",
+        "aku",
+        "amat",
+        "antara",
+        "antaranya",
+        "apa",
+        "apabila",
+        "apakah",
+        "apalagi",
+        "apatah",
+        "atau",
+        "ataupun",
+        "bagaimana",
+        "bagaimanakah",
+        "bagaimanapun",
+        "bagi",
+        "bagian",
+        "bahkan",
+        "bahwa",
+        "bahwasanya",
+        "baik",
+        "bakal",
+        "banyak",
+        "beberapa",
+        "begitu",
+        "belum",
+        "benar",
+        "berapa",
+        "berada",
+        "berarti",
+        "berikut",
+        "bersama",
+        "betul",
+        "biasa",
+        "biasanya",
+        "bila",
+        "bilakah",
+        "bisa",
+        "boleh",
+        "buat",
+        "bukan",
+        "bukankah",
+        "bukanlah",
+        "bukannya",
+        "cara",
+        "cukup",
+        "cuma",
+        "dahulu",
+        "dalam",
+        "dan",
+        "dapat",
+        "dari",
+        "daripada",
+        "datang",
+        "demi",
+        "dengan",
+        "di",
+        "dia",
+        "dialah",
+        "diantaranya",
+        "dilakukan",
+        "digunakan",
+        "hal",
+        "hampir",
+        "hanya",
+        "harus",
+        "hingga",
+        "ia",
+        "ini",
+        "itu",
+        "jadi",
+        "jika",
+        "jikalau",
+        "juga",
+        "justru",
+        "kala",
+        "kalau",
+        "kalaulah",
+        "kalaupun",
+        "kali",
+        "kan",
+        "kapan",
+        "kapankah",
+        "kapanpun",
+        "karena",
+        "karenanya",
+        "kata",
+        "keadaan",
+        "kecil",
+        "kemudian",
+        "kenapa",
+        "kepada",
+        "ketika",
+        "khususnya",
+        "kini",
+        "kita",
+        "kok",
+        "lagi",
+        "lagian",
+        "lah",
+        "lain",
+        "lainnya",
+        "lalu",
+        "lama",
+        "langsung",
+        "lebih",
+        "maka",
+        "makanya",
+        "makin",
+        "malah",
+        "malahan",
+        "mampu",
+        "mana",
+        "manakala",
+        "masih",
+        "masing",
+        "mau",
+        "maupun",
+        "melainkan",
+        "melalui",
+        "membuat",
+        "memastikan",
+        "membutuhkan",
+        "memiliki",
+        "memungkinkan",
+        "mengenai",
+        "mengapa",
+        "menjadi",
+        "menurut",
+        "merupakan",
+        "menyatakan",
+        "mereka",
+        "meski",
+        "meskipun",
+        "minta",
+        "misal",
+        "misalnya",
+        "nah",
+        "namun",
+        "nanti",
+        "nyaris",
+        "oleh",
+        "pada",
+        "padahal",
+        "paling",
+        "pantas",
+        "para",
+        "pasti",
+        "pernah",
+        "perlu",
+        "pula",
+        "pun",
+        "rasa",
+        "rupanya",
+        "saat",
+        "saja",
+        "saling",
+        "sama",
+        "sambil",
+        "sampai",
+        "sana",
+        "sangat",
+        "sebab",
+        "sebagai",
+        "sebagaimana",
+        "sebagainya",
+        "sebaliknya",
+        "sebanyak",
+        "sebelum",
+        "sebelumnya",
+        "sebenarnya",
+        "seberapa",
+        "sebuah",
+        "secara",
+        "sedang",
+        "sedangkan",
+        "sedikit",
+        "segala",
+        "segera",
+        "seharusnya",
+        "sehingga",
+        "sejak",
+        "sejenak",
+        "sekali",
+        "sekalian",
+        "sekalipun",
+        "sekarang",
+        "sekitar",
+        "sela",
+        "selagi",
+        "selain",
+        "selaku",
+        "selalu",
+        "selama",
+        "selanjutnya",
+        "seluruh",
+        "semacam",
+        "semakin",
+        "semoga",
+        "semua",
+        "semula",
+        "sendiri",
+        "seorang",
+        "sepanjang",
+        "seperti",
+        "serta",
+        "sesaat",
+        "sesama",
+        "sesudah",
+        "setelah",
+        "setempat",
+        "setengah",
+        "seterusnya",
+        "setiap",
+        "setidaknya",
+        "sewaktu",
+        "siapa",
+        "sini",
+        "suatu",
+        "sudah",
+        "supaya",
+        "tadi",
+        "tak",
+        "tanpa",
+        "tampaknya",
+        "tapi",
+        "telah",
+        "tentang",
+        "terhadap",
+        "termasuk",
+        "tersebut",
+        "tertentu",
+        "tetapi",
+        "tiap",
+        "tidak",
+        "toh",
+        "walaupun",
+        "walau",
+        "yaitu",
+        "yakin",
+        "yang",
+        "untuk",
+        "sesuai",
+        "berbasis",
+        "data",
+        "akademik",
+        "akurasi",
+        "algoritma",
+        "analisis",
+        "angka",
+        "aplikasi",
+        "arsitektur",
+        "bagian",
+        "bentuk",
+        "berkas",
+        "budaya",
+        "contoh",
+        "dampak",
+        "dasar",
+        "deskripsi",
+        "digital",
+        "dokumen",
+        "evaluasi",
+        "faktor",
+        "fitur",
+        "font",
+        "format",
+        "formal",
+        "fungsi",
+        "gambar",
+        "global",
+        "halaman",
+        "hasil",
+        "ilmiah",
+        "implementasi",
+        "informasi",
+        "instalasi",
+        "integrasi",
+        "internasional",
+        "jumlah",
+        "judul",
+        "karakter",
+        "karya",
+        "kata",
+        "kebutuhan",
+        "kegiatan",
+        "keamanan",
+        "kemampuan",
+        "kerja",
+        "kesimpulan",
+        "khusus",
+        "kualitas",
+        "kuantitas",
+        "kunci",
+        "lampiran",
+        "latar",
+        "lembar",
+        "letak",
+        "lokal",
+        "mahasiswa",
+        "manual",
+        "margin",
+        "masalah",
+        "metode",
+        "model",
+        "nasional",
+        "nilai",
+        "nomor",
+        "objek",
+        "otomatis",
+        "panduan",
+        "paragraf",
+        "pembahasan",
+        "pendahuluan",
+        "pengantar",
+        "penelitian",
+        "pengguna",
+        "pengujian",
+        "penulisan",
+        "penulis",
+        "perangkat",
+        "perintah",
+        "persen",
+        "presets",
+        "proses",
+        "proyek",
+        "pustaka",
+        "referensi",
+        "responden",
+        "sampel",
+        "sampul",
+        "sistem",
+        "skor",
+        "standar",
+        "struktur",
+        "tabel",
+        "tahap",
+        "tampilan",
+        "teks",
+        "template",
+        "tingkat",
+        "tujuan",
+        "uji",
+        "ukuran",
+        "umum",
+        "utama",
+        "variabel",
+        "versi",
+        "visual",
+        "waktu",
+        "warna",
+    ]
 )
 
 # Kata isi Indonesia yang umum di laporan akademik. Daftar ini tetap bukan
 # kamus lengkap; istilah asing yang belum diputuskan harus tetap muncul.
 INDONESIAN_NOISE |= set(
-    """
-    aktif aktivitas akademisi akar alat algoritme anggota aplikasi arab
-    arsitektur asumsi atribut badan bahan baris batasan beban belajar
-    belakang bentuk berbagai berat berlaku biaya bidang bobot budaya bulan
-    buku cabang cepat contoh daftar dampak dasar data definisi depan desa
-    detik diagram
-    digital dokumen dokumentasi dosen dunia dukungan efektif efisien faktor
-    fakultas fiksi fitur font formal format fungsi gambar gaya gelar grafik
-    halaman hari harga hasil huruf indonesia indikator informasi infrastruktur
-    aktual kampus konten
-    instalasi integrasi internasional isi jam jaringan jumlah judul jurusan
-    karakter karya kasus kategori kebutuhan kegiatan kedua keamanan kecil
-    kemampuan kerja kesimpulan khusus kinerja klaster kode kolom komponen
-    konsep konstanta kontribusi korelasi kota kualitas kuantitas kunci kurang
-    kursi lampiran lama lapisan laptop latar lebar lembar level lingkungan
-    lintasan lokal lokasi lunak mahasiswa malam manfaat manual margin masalah
-    mata meja memori menit metode model modul mudah negara nilai nomor objek
-    objektif orang otomatis pagi paket panduan panjang paragraf pasangan
-    peluang pembaca penelitian pengguna pengujian peneliti penulisan penulis
-    perangkat perintah persen peserta proses prosesor produktif program
-    properti prosiding pustaka referensi relatif responden risiko romawi
-    ruang rumus salah sampel sampul sandi saran sektor semester senarai
-    simpul sintaks sistem siang skor skrip soal sore spasi standar struktur
-    studi subjek subjektif sulit tabel tahap tahun taksi tampilan tata
-    tautan teks tepat teori tinggi tingkat tujuan uji ukuran umum unduhan
-    unggahan utama variabel versi visual visi waktu warna
-    abstrak acara agenda alumni antarmuka argumen aturan bab basis bersih
-    berhasil biografi butir citra daun depan dua elemen entri frasa galat
-    ganda gedung geometri glosarium gradien graf hambatan hidup himpunan
-    hipotesis indeks istilah jalur jadwal jurnal kabupaten kalimat kamus
-    kasih kelas kendala keras ketiga keempat kelima ketua kontribusi
-    kurikulum kuliah laboratorium laporan lanjutan lokakarya masa
-    membangun mendatang mesin moderasi moderator motto nama narasumber
-    neuron panitia pembimbing penguji ponsel poin pohon prakata prasarana
-    pertama profil ringan riwayat sarana sekretaris seksi seminar silabus
-    sisi situs surat susunan tantangan telepon tempat teorema terima
-    tesis tiga tipe tugas ucapan uang
-    anova angket bahasa bisnis derajat dinamis ekonomi empiris etika
-    eksperimen filsafat fisika generik gizi hukum inferensial informatika
-    instrumen informan kausal kimia konsisten korelasional kovarians
-    kredibel kuasi manajemen matematika matriks maksimal maksimum metodologis
-    minimal minimum modus olahraga optimal pariwisata persentase praktis
-    profesional rasio relevan rerata residu residual rata-rata sastra
-    seni sensus signifikan sistematis skala spesifik statis survei taraf
-    teoretis valid varians vektor wawancara
-    dibahas dibangun dibuka dibuat dianggap diakses dianalisis dipasang
-    dihapus dihitung dilihat diproses dirancang disebut diukur diunduh
-    diuji ditutup diperoleh dilatih membaca membuat mendapat melatih
-    menerima mengirim mengambil memilih mendengar menulis
-    """.split()
+    [
+        "aktif",
+        "aktivitas",
+        "akademisi",
+        "akar",
+        "alat",
+        "algoritme",
+        "anggota",
+        "aplikasi",
+        "arab",
+        "arsitektur",
+        "asumsi",
+        "atribut",
+        "badan",
+        "bahan",
+        "baris",
+        "batasan",
+        "beban",
+        "belajar",
+        "belakang",
+        "bentuk",
+        "berbagai",
+        "berat",
+        "berlaku",
+        "biaya",
+        "bidang",
+        "bobot",
+        "budaya",
+        "bulan",
+        "buku",
+        "cabang",
+        "cepat",
+        "contoh",
+        "daftar",
+        "dampak",
+        "dasar",
+        "data",
+        "definisi",
+        "depan",
+        "desa",
+        "detik",
+        "diagram",
+        "digital",
+        "dokumen",
+        "dokumentasi",
+        "dosen",
+        "dunia",
+        "dukungan",
+        "efektif",
+        "efisien",
+        "faktor",
+        "fakultas",
+        "fiksi",
+        "fitur",
+        "font",
+        "formal",
+        "format",
+        "fungsi",
+        "gambar",
+        "gaya",
+        "gelar",
+        "grafik",
+        "halaman",
+        "hari",
+        "harga",
+        "hasil",
+        "huruf",
+        "indonesia",
+        "indikator",
+        "informasi",
+        "infrastruktur",
+        "aktual",
+        "kampus",
+        "konten",
+        "instalasi",
+        "integrasi",
+        "internasional",
+        "isi",
+        "jam",
+        "jaringan",
+        "jumlah",
+        "judul",
+        "jurusan",
+        "karakter",
+        "karya",
+        "kasus",
+        "kategori",
+        "kebutuhan",
+        "kegiatan",
+        "kedua",
+        "keamanan",
+        "kecil",
+        "kemampuan",
+        "kerja",
+        "kesimpulan",
+        "khusus",
+        "kinerja",
+        "klaster",
+        "kode",
+        "kolom",
+        "komponen",
+        "konsep",
+        "konstanta",
+        "kontribusi",
+        "korelasi",
+        "kota",
+        "kualitas",
+        "kuantitas",
+        "kunci",
+        "kurang",
+        "kursi",
+        "lampiran",
+        "lama",
+        "lapisan",
+        "laptop",
+        "latar",
+        "lebar",
+        "lembar",
+        "level",
+        "lingkungan",
+        "lintasan",
+        "lokal",
+        "lokasi",
+        "lunak",
+        "mahasiswa",
+        "malam",
+        "manfaat",
+        "manual",
+        "margin",
+        "masalah",
+        "mata",
+        "meja",
+        "memori",
+        "menit",
+        "metode",
+        "model",
+        "modul",
+        "mudah",
+        "negara",
+        "nilai",
+        "nomor",
+        "objek",
+        "objektif",
+        "orang",
+        "otomatis",
+        "pagi",
+        "paket",
+        "panduan",
+        "panjang",
+        "paragraf",
+        "pasangan",
+        "peluang",
+        "pembaca",
+        "penelitian",
+        "pengguna",
+        "pengujian",
+        "peneliti",
+        "penulisan",
+        "penulis",
+        "perangkat",
+        "perintah",
+        "persen",
+        "peserta",
+        "proses",
+        "prosesor",
+        "produktif",
+        "program",
+        "properti",
+        "prosiding",
+        "pustaka",
+        "referensi",
+        "relatif",
+        "responden",
+        "risiko",
+        "romawi",
+        "ruang",
+        "rumus",
+        "salah",
+        "sampel",
+        "sampul",
+        "sandi",
+        "saran",
+        "sektor",
+        "semester",
+        "senarai",
+        "simpul",
+        "sintaks",
+        "sistem",
+        "siang",
+        "skor",
+        "skrip",
+        "soal",
+        "sore",
+        "spasi",
+        "standar",
+        "struktur",
+        "studi",
+        "subjek",
+        "subjektif",
+        "sulit",
+        "tabel",
+        "tahap",
+        "tahun",
+        "taksi",
+        "tampilan",
+        "tata",
+        "tautan",
+        "teks",
+        "tepat",
+        "teori",
+        "tinggi",
+        "tingkat",
+        "tujuan",
+        "uji",
+        "ukuran",
+        "umum",
+        "unduhan",
+        "unggahan",
+        "utama",
+        "variabel",
+        "versi",
+        "visual",
+        "visi",
+        "waktu",
+        "warna",
+        "abstrak",
+        "acara",
+        "agenda",
+        "alumni",
+        "antarmuka",
+        "argumen",
+        "aturan",
+        "bab",
+        "basis",
+        "bersih",
+        "berhasil",
+        "biografi",
+        "butir",
+        "citra",
+        "daun",
+        "depan",
+        "dua",
+        "elemen",
+        "entri",
+        "frasa",
+        "galat",
+        "ganda",
+        "gedung",
+        "geometri",
+        "glosarium",
+        "gradien",
+        "graf",
+        "hambatan",
+        "hidup",
+        "himpunan",
+        "hipotesis",
+        "indeks",
+        "istilah",
+        "jalur",
+        "jadwal",
+        "jurnal",
+        "kabupaten",
+        "kalimat",
+        "kamus",
+        "kasih",
+        "kelas",
+        "kendala",
+        "keras",
+        "ketiga",
+        "keempat",
+        "kelima",
+        "ketua",
+        "kontribusi",
+        "kurikulum",
+        "kuliah",
+        "laboratorium",
+        "laporan",
+        "lanjutan",
+        "lokakarya",
+        "masa",
+        "membangun",
+        "mendatang",
+        "mesin",
+        "moderasi",
+        "moderator",
+        "motto",
+        "nama",
+        "narasumber",
+        "neuron",
+        "panitia",
+        "pembimbing",
+        "penguji",
+        "ponsel",
+        "poin",
+        "pohon",
+        "prakata",
+        "prasarana",
+        "pertama",
+        "profil",
+        "ringan",
+        "riwayat",
+        "sarana",
+        "sekretaris",
+        "seksi",
+        "seminar",
+        "silabus",
+        "sisi",
+        "situs",
+        "surat",
+        "susunan",
+        "tantangan",
+        "telepon",
+        "tempat",
+        "teorema",
+        "terima",
+        "tesis",
+        "tiga",
+        "tipe",
+        "tugas",
+        "ucapan",
+        "uang",
+        "anova",
+        "angket",
+        "bahasa",
+        "bisnis",
+        "derajat",
+        "dinamis",
+        "ekonomi",
+        "empiris",
+        "etika",
+        "eksperimen",
+        "filsafat",
+        "fisika",
+        "generik",
+        "gizi",
+        "hukum",
+        "inferensial",
+        "informatika",
+        "instrumen",
+        "informan",
+        "kausal",
+        "kimia",
+        "konsisten",
+        "korelasional",
+        "kovarians",
+        "kredibel",
+        "kuasi",
+        "manajemen",
+        "matematika",
+        "matriks",
+        "maksimal",
+        "maksimum",
+        "metodologis",
+        "minimal",
+        "minimum",
+        "modus",
+        "olahraga",
+        "optimal",
+        "pariwisata",
+        "persentase",
+        "praktis",
+        "profesional",
+        "rasio",
+        "relevan",
+        "rerata",
+        "residu",
+        "residual",
+        "rata-rata",
+        "sastra",
+        "seni",
+        "sensus",
+        "signifikan",
+        "sistematis",
+        "skala",
+        "spesifik",
+        "statis",
+        "survei",
+        "taraf",
+        "teoretis",
+        "valid",
+        "varians",
+        "vektor",
+        "wawancara",
+        "dibahas",
+        "dibangun",
+        "dibuka",
+        "dibuat",
+        "dianggap",
+        "diakses",
+        "dianalisis",
+        "dipasang",
+        "dihapus",
+        "dihitung",
+        "dilihat",
+        "diproses",
+        "dirancang",
+        "disebut",
+        "diukur",
+        "diunduh",
+        "diuji",
+        "ditutup",
+        "diperoleh",
+        "dilatih",
+        "membaca",
+        "membuat",
+        "mendapat",
+        "melatih",
+        "menerima",
+        "mengirim",
+        "mengambil",
+        "memilih",
+        "mendengar",
+        "menulis",
+    ]
 )
 
 # Kata fungsi Inggris yang lazim muncul di sitasi/abstract dan bukan istilah
 # yang perlu diputuskan.
 ENGLISH_STOPWORDS = set(
-    """
-    the and for with from this that these those there here of in on at to by
-    without within into onto over under about after before between during
-    through across against among around is are was were be been being am do
-    does did done have has had having i you he she it we they me him her us
-    them my your his its our their not no nor so as such very too also just
-    only own same any all both each few more most other some can could will
-    would shall should may might must when where which who whom whose what how
-    why whether while because although though since until unless however
-    therefore thus hence moreover furthermore nevertheless otherwise instead
-    whereas either neither yet still already again ever never always often
-    sometimes usually generally specifically particularly especially including
-    etc via per url api http https www
-    """.split()
+    [
+        "the",
+        "and",
+        "for",
+        "with",
+        "from",
+        "this",
+        "that",
+        "these",
+        "those",
+        "there",
+        "here",
+        "of",
+        "in",
+        "on",
+        "at",
+        "to",
+        "by",
+        "without",
+        "within",
+        "into",
+        "onto",
+        "over",
+        "under",
+        "about",
+        "after",
+        "before",
+        "between",
+        "during",
+        "through",
+        "across",
+        "against",
+        "among",
+        "around",
+        "is",
+        "are",
+        "was",
+        "were",
+        "be",
+        "been",
+        "being",
+        "am",
+        "do",
+        "does",
+        "did",
+        "done",
+        "have",
+        "has",
+        "had",
+        "having",
+        "i",
+        "you",
+        "he",
+        "she",
+        "it",
+        "we",
+        "they",
+        "me",
+        "him",
+        "her",
+        "us",
+        "them",
+        "my",
+        "your",
+        "his",
+        "its",
+        "our",
+        "their",
+        "not",
+        "no",
+        "nor",
+        "so",
+        "as",
+        "such",
+        "very",
+        "too",
+        "also",
+        "just",
+        "only",
+        "own",
+        "same",
+        "any",
+        "all",
+        "both",
+        "each",
+        "few",
+        "more",
+        "most",
+        "other",
+        "some",
+        "can",
+        "could",
+        "will",
+        "would",
+        "shall",
+        "should",
+        "may",
+        "might",
+        "must",
+        "when",
+        "where",
+        "which",
+        "who",
+        "whom",
+        "whose",
+        "what",
+        "how",
+        "why",
+        "whether",
+        "while",
+        "because",
+        "although",
+        "though",
+        "since",
+        "until",
+        "unless",
+        "however",
+        "therefore",
+        "thus",
+        "hence",
+        "moreover",
+        "furthermore",
+        "nevertheless",
+        "otherwise",
+        "instead",
+        "whereas",
+        "either",
+        "neither",
+        "yet",
+        "still",
+        "already",
+        "again",
+        "ever",
+        "never",
+        "always",
+        "often",
+        "sometimes",
+        "usually",
+        "generally",
+        "specifically",
+        "particularly",
+        "especially",
+        "including",
+        "etc",
+        "via",
+        "per",
+        "url",
+        "api",
+        "http",
+        "https",
+        "www",
+    ]
 )
 
 INDONESIAN_PREFIXES = (
@@ -281,7 +1104,7 @@ def is_mixed_case_name(token: str) -> bool:
         return False
     return any(
         previous.islower() and current.isupper()
-        for previous, current in zip(letters, letters[1:])
+        for previous, current in itertools.pairwise(letters)
     )
 
 
@@ -291,19 +1114,13 @@ def looks_indonesian(token: str) -> bool:
     lower = token.casefold()
     if lower in INDONESIAN_NOISE:
         return True
-    if len(lower) >= 4 and lower.endswith(
-        ("nya", "lah", "kah", "pun", "ku", "mu")
-    ):
+    if len(lower) >= 4 and lower.endswith(("nya", "lah", "kah", "pun", "ku", "mu")):
         return True
     if len(lower) >= 4 and lower.endswith("kan"):
         return True
     # Akhiran -an dengan awalan Indonesia: dilakukan, penggunaan, penelitian.
     # Minimal 7 huruf agar "median"/"mean"/"human"/"organ" tidak ikut hilang.
-    if (
-        len(lower) >= 7
-        and lower.endswith("an")
-        and lower.startswith(INDONESIAN_PREFIXES)
-    ):
+    if len(lower) >= 7 and lower.endswith("an") and lower.startswith(INDONESIAN_PREFIXES):
         return True
     # Akhiran nominal/verba Indonesia yang jarang bertabrakan dengan istilah
     # teknis Inggris. Batas panjang menjaga kata pendek seperti "taxi" tetap
@@ -316,9 +1133,7 @@ def looks_indonesian(token: str) -> bool:
         return True
     # Verba berawalan me-/di- berakhiran -i atau -ai: memakai, dipakai,
     # mengatasi, menghadapi. Batas 6 huruf menghindari "media"/"dime".
-    if len(lower) >= 6 and lower.startswith(("me", "di")) and lower.endswith("i"):
-        return True
-    return False
+    return len(lower) >= 6 and lower.startswith(("me", "di")) and lower.endswith("i")
 
 
 def is_english_stopword(token: str) -> bool:
@@ -326,12 +1141,7 @@ def is_english_stopword(token: str) -> bool:
 
 
 def normalize_key(text: str) -> str:
-    return (
-        text.casefold()
-        .replace("’", "'")
-        .replace("–", "-")
-        .replace("—", "-")
-    )
+    return text.casefold().replace("\u2019", "'").replace("\u2013", "-").replace("\u2014", "-")
 
 
 # ---------------------------------------------------------------------------
@@ -422,18 +1232,11 @@ def _ranges(text: str, pattern: re.Pattern[str]) -> list[tuple[int, int]]:
     return [(match.start(), match.end()) for match in pattern.finditer(text)]
 
 
-def _overlaps_any(
-    start: int, end: int, ranges: list[tuple[int, int]]
-) -> bool:
-    return any(
-        start < range_end and range_start < end
-        for range_start, range_end in ranges
-    )
+def _overlaps_any(start: int, end: int, ranges: list[tuple[int, int]]) -> bool:
+    return any(start < range_end and range_start < end for range_start, range_end in ranges)
 
 
-def collect_occurrences(
-    docx_path: Path, glossary: Glossary
-) -> AuditResult:
+def collect_occurrences(docx_path: Path, glossary: Glossary) -> AuditResult:
     """Baca DOCX dan kumpulkan semua kemunculan yang relevan."""
 
     docx_path = Path(docx_path)
@@ -445,9 +1248,7 @@ def collect_occurrences(
     abbreviation_terms: set[str] = set()
     noise_count = 0
 
-    for paragraph_no, (paragraph, relations) in enumerate(
-        iter_audit_paragraphs(package), start=1
-    ):
+    for paragraph_no, (paragraph, relations) in enumerate(iter_audit_paragraphs(package), start=1):
         model = build_paragraph_model(paragraph, relations)
         text = model.text
         if not text.strip():
@@ -475,7 +1276,7 @@ def collect_occurrences(
             span = text[start:end]
             flags = [
                 resolver.effective(char.run, paragraph)  # type: ignore[union-attr]
-                for char, character in zip(chars, span)
+                for char, character in zip(chars, span, strict=True)
                 if char is not None and character.isalpha()
             ]
             if not flags:
@@ -488,17 +1289,9 @@ def collect_occurrences(
             all_italic = all(flags)
 
             if match.entry.italic:
-                category = (
-                    CATEGORY_GLOSSARY_ITALIC
-                    if all_italic
-                    else CATEGORY_ITALIC_MISSING
-                )
+                category = CATEGORY_GLOSSARY_ITALIC if all_italic else CATEGORY_ITALIC_MISSING
             else:
-                category = (
-                    CATEGORY_PLAIN_BUT_ITALIC
-                    if any_italic
-                    else CATEGORY_GLOSSARY_PLAIN
-                )
+                category = CATEGORY_PLAIN_BUT_ITALIC if any_italic else CATEGORY_GLOSSARY_PLAIN
 
             display = text[start:end]
             occurrences.append(
@@ -518,7 +1311,7 @@ def collect_occurrences(
         # 2. Kata Latin lain yang belum tercakup glosarium.
         for match in TOKEN_RE.finditer(text):
             start, end = match.start(), match.end()
-            while end > start and text[end - 1] in {"'", "’", "-"}:
+            while end > start and text[end - 1] in {"'", "\u2019", "-"}:
                 end -= 1
             token = text[start:end]
 
@@ -550,7 +1343,7 @@ def collect_occurrences(
 
             letter_flags = [
                 resolver.effective(char.run, paragraph)  # type: ignore[union-attr]
-                for char, character in zip(chars, token)
+                for char, character in zip(chars, token, strict=True)
                 if char is not None and character.isalpha()
             ]
             occurrences.append(
@@ -643,9 +1436,7 @@ def _plural_occurrences(count: int) -> str:
     return f"{count} kemunculan"
 
 
-def render_report(
-    result: AuditResult, docx_path: Path, glossary_path: Path
-) -> str:
+def render_report(result: AuditResult, docx_path: Path, glossary_path: Path) -> str:
     """Hasilkan laporan Markdown deterministik (tanpa timestamp)."""
 
     docx_path = Path(docx_path)
@@ -665,18 +1456,13 @@ def render_report(
         groups = [group for group in result.groups if group.category == category]
         occurrences = sum(group.count for group in groups)
         label = CATEGORY_LABEL[category]
-        lines.append(
-            f"| `{category}` ({label}) | {len(groups)} | {occurrences} |"
-        )
+        lines.append(f"| `{category}` ({label}) | {len(groups)} | {occurrences} |")
     lines.append(
         f"| `{CATEGORY_ABBREVIATION}` (diabaikan) | "
         f"{len(result.abbreviation_terms)} | {result.abbreviation_count} |"
     )
     lines.append("")
-    lines.append(
-        "Kata Indonesia/Inggris umum yang dilewati: "
-        f"{result.noise_count} kemunculan."
-    )
+    lines.append(f"Kata Indonesia/Inggris umum yang dilewati: {result.noise_count} kemunculan.")
     lines.append("")
 
     fix_groups = result.needs_fix
@@ -713,9 +1499,7 @@ def render_report(
         lines.append("| Kata/frasa | Jumlah | 3 contoh konteks |")
         lines.append("|---|---:|---|")
         for group in decision_groups:
-            lines.append(
-                f"| {_word_cell(group)} | {group.count} | {_contexts(group, 3)} |"
-            )
+            lines.append(f"| {_word_cell(group)} | {group.count} | {_contexts(group, 3)} |")
     lines.append("")
 
     lines.append("## OK")
@@ -771,9 +1555,7 @@ def render_report(
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description=(
-            "Audit italic istilah asing pada DOCX dan tulis laporan Markdown."
-        )
+        description=("Audit italic istilah asing pada DOCX dan tulis laporan Markdown.")
     )
     parser.add_argument(
         "--docx",
@@ -826,6 +1608,6 @@ if __name__ == "__main__":
     try:
         sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
         sys.stderr.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
-    except (AttributeError, OSError):
+    except AttributeError, OSError:
         pass
     raise SystemExit(main())

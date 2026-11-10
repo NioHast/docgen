@@ -5,12 +5,10 @@ tidak pernah menulis ke ``assets.reference_docx``; derived reference selalu
 ditulis ke workspace/cache. Semua mutasi XML memakai ``docgen.docx``.
 """
 
-from __future__ import annotations
-
 import hashlib
 import time
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Mapping
 
 from ..config import Format
 from ..docx import DocumentPackage
@@ -71,7 +69,7 @@ def _alignment(value: str) -> str:
 
 
 def _line_twips(multiplier: float) -> int:
-    return int(round(multiplier * 240))
+    return round(multiplier * 240)
 
 
 def _spacing(
@@ -222,9 +220,7 @@ def _caption_spec(
             "i": font.italic,
             "iCs": font.italic,
         },
-        name={"ImageCaption": "Image Caption", "TableCaption": "Table Caption"}[
-            style_id
-        ],
+        name={"ImageCaption": "Image Caption", "TableCaption": "Table Caption"}[style_id],
     )
 
 
@@ -346,11 +342,7 @@ def _cover_spec(style_id: str) -> StyleSpec:
                 "after": 0,
             }
         },
-        rpr=(
-            {"b": True, "bCs": True}
-            if bold
-            else {"b": False, "bCs": False}
-        ),
+        rpr=({"b": True, "bCs": True} if bold else {"b": False, "bCs": False}),
         name=style_id,
     )
 
@@ -437,8 +429,7 @@ def build_reference_docx(
     try:
         if source_path.resolve() == output_path.resolve():
             raise StyleError(
-                "reference.docx sumber tidak boleh ditimpa; "
-                "tulis derived reference ke cache/temp",
+                "reference.docx sumber tidak boleh ditimpa; tulis derived reference ke cache/temp",
                 code="STYLE-SOURCE-OVERWRITE",
                 path=source_path,
             )
@@ -540,9 +531,7 @@ def main(argv: list[str] | None = None) -> int:
 
     from ..config import load_format
 
-    parser = argparse.ArgumentParser(
-        description="Hasilkan derived reference.docx dari format.yml."
-    )
+    parser = argparse.ArgumentParser(description="Hasilkan derived reference.docx dari format.yml.")
     parser.add_argument("--format", required=True, help="ID format")
     parser.add_argument("--out", required=True, help="path derived reference")
     parser.add_argument(
@@ -553,9 +542,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     format_spec = load_format(args.format)
     source = (
-        Path(args.source)
-        if args.source is not None
-        else Path(format_spec.assets.reference_docx)
+        Path(args.source) if args.source is not None else Path(format_spec.assets.reference_docx)
     )
     build_reference_docx(source, Path(args.out), format_spec)
     return 0

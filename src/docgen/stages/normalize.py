@@ -6,8 +6,6 @@ Urutan pipeline wajib menjaga stage ini sebelum ``equations`` dan
 ``blank_lines``.
 """
 
-from __future__ import annotations
-
 import time
 
 from ..docx.layout import (
@@ -41,9 +39,7 @@ class NormalizeStage(BaseStage):
         started = time.monotonic()
         package = getattr(ctx, "package", None)
         if package is None:
-            raise NormalizeError(
-                "stage normalize membutuhkan DocumentPackage dari stage pandoc"
-            )
+            raise NormalizeError("stage normalize membutuhkan DocumentPackage dari stage pandoc")
 
         try:
             before = sha256_c14n(document_root(package))

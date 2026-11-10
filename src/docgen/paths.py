@@ -5,8 +5,6 @@ fallback ke akar repositori atau direktori kerja: bila data paket hilang,
 ``docgen`` harus gagal dengan error yang jelas.
 """
 
-from __future__ import annotations
-
 import re
 from pathlib import Path, PurePosixPath
 

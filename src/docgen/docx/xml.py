@@ -4,8 +4,6 @@ Semua parsing dan serialisasi XML untuk package melewati modul ini. Fungsi
 container memutasi elemen yang diberikan; fungsi teks dan canonical murni.
 """
 
-from __future__ import annotations
-
 import copy
 import hashlib
 from collections.abc import Iterator, Sequence
@@ -18,7 +16,6 @@ from .names import (
     A_NS,
     NSMAP,
     R_NS,
-    W,
     W_BR,
     W_CR,
     W_DEL,
@@ -26,12 +23,15 @@ from .names import (
     W_DRAWING,
     W_FLDCHAR,
     W_INSTRTEXT,
+    W_LAST_RENDERED_PAGE_BREAK,
     W_MOVEFROM,
     W_NO_BREAK_HYPHEN,
+    W_NS,
     W_OBJECT,
     W_P,
     W_PICT,
     W_PPR,
+    W_PROOFERR,
     W_PTAB,
     W_R,
     W_RPR,
@@ -42,10 +42,8 @@ from .names import (
     W_TC,
     W_TCPR,
     W_TXBXCONTENT,
-    W_PROOFERR,
-    W_LAST_RENDERED_PAGE_BREAK,
-    W_NS,
     WP_NS,
+    W,
     local_name,
 )
 
@@ -307,9 +305,7 @@ def serialize_xml(
 
     if not xml_declaration:
         return body
-    return (
-        b'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' + body
-    )
+    return b'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' + body
 
 
 def _remove_with_tail(element: etree._Element) -> None:
@@ -521,9 +517,7 @@ def _ensure_first_child(
 def ensure_ppr(paragraph: etree._Element) -> etree._Element:
     """Pastikan ``w:pPr`` ada dan menjadi child pertama paragraf."""
 
-    return _ensure_first_child(
-        paragraph, W_PPR, expected_parent=W_P, label="Paragraf"
-    )
+    return _ensure_first_child(paragraph, W_PPR, expected_parent=W_P, label="Paragraf")
 
 
 def ensure_rpr(run: etree._Element) -> etree._Element:
@@ -535,17 +529,13 @@ def ensure_rpr(run: etree._Element) -> etree._Element:
 def ensure_tblpr(table: etree._Element) -> etree._Element:
     """Pastikan ``w:tblPr`` ada dan menjadi child pertama tabel."""
 
-    return _ensure_first_child(
-        table, W_TBLPR, expected_parent=W_TBL, label="Tabel"
-    )
+    return _ensure_first_child(table, W_TBLPR, expected_parent=W_TBL, label="Tabel")
 
 
 def ensure_tcpr(cell: etree._Element) -> etree._Element:
     """Pastikan ``w:tcPr`` ada dan menjadi child pertama sel."""
 
-    return _ensure_first_child(
-        cell, W_TCPR, expected_parent=W_TC, label="Sel tabel"
-    )
+    return _ensure_first_child(cell, W_TCPR, expected_parent=W_TC, label="Sel tabel")
 
 
 def _order_index(order: Sequence[str]) -> dict[str, int]:
@@ -608,14 +598,14 @@ def is_on(element: etree._Element | None) -> bool:
 __all__ = [
     "A_NS",
     "PPR_ORDER",
-    "Profile",
     "RPR_ORDER",
     "R_NS",
     "SECTPR_ORDER",
     "TBLPR_ORDER",
     "TCPR_ORDER",
-    "W_NS",
     "WP_NS",
+    "W_NS",
+    "Profile",
     "canonicalize_xml",
     "ensure_ppr",
     "ensure_rpr",

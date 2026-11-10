@@ -4,8 +4,6 @@ Modul ini hanya berisi konstanta dan fungsi murni. Tidak ada parsing,
 serialisasi, atau mutasi package di sini.
 """
 
-from __future__ import annotations
-
 import re
 
 # Namespace inti WordprocessingML dan DrawingML.
@@ -147,19 +145,13 @@ STYLE_ISTILAH_ASING = "IstilahAsing"
 STYLE_ISTILAH_REVIEW = "IstilahReview"
 
 HEADING_STYLES = tuple(f"{STYLE_HEADING_PREFIX}{level}" for level in range(1, 10))
-CAPTION_STYLES = frozenset(
-    {STYLE_CAPTION, STYLE_TABLE_CAPTION, STYLE_IMAGE_CAPTION}
-)
+CAPTION_STYLES = frozenset({STYLE_CAPTION, STYLE_TABLE_CAPTION, STYLE_IMAGE_CAPTION})
 CODE_STYLES = frozenset(
     {STYLE_SOURCE_CODE, STYLE_VERBATIM_CHAR, STYLE_HTML_CODE, STYLE_HTML_PREFORMATTED}
 )
 
-_CAPTION_NORMALIZED = frozenset(
-    {"caption", "tablecaption", "imagecaption"}
-)
-_CODE_NORMALIZED = frozenset(
-    {"sourcecode", "verbatimchar", "htmlcode", "htmlpreformatted"}
-)
+_CAPTION_NORMALIZED = frozenset({"caption", "tablecaption", "imagecaption"})
+_CODE_NORMALIZED = frozenset({"sourcecode", "verbatimchar", "htmlcode", "htmlpreformatted"})
 
 _HEADING_RE = re.compile(r"heading[1-9]")
 _HTML_CODE_RE = re.compile(r"htmlcode\d*")
@@ -176,7 +168,7 @@ def local_name(tag: str) -> str:
     return tag.rsplit(":", 1)[-1]
 
 
-def normalize_style_id(value: str) -> str:
+def normalize_style_id(value: str | None) -> str:
     """Normalisasi style ID: tanpa kapitalisasi, spasi, ``_``, dan ``-``."""
 
     if value is None:
@@ -215,10 +207,7 @@ def is_code_style(style_id: str | None) -> bool:
     if style_id is None:
         return False
     normalized = normalize_style_id(style_id)
-    return (
-        normalized in _CODE_NORMALIZED
-        or _HTML_CODE_RE.fullmatch(normalized) is not None
-    )
+    return normalized in _CODE_NORMALIZED or _HTML_CODE_RE.fullmatch(normalized) is not None
 
 
 def is_cover_style(style_id: str | None) -> bool:
@@ -230,7 +219,6 @@ def is_cover_style(style_id: str | None) -> bool:
 
 
 __all__ = [
-    "A",
     "A14_NS",
     "A_BLIP",
     "A_NS",
@@ -241,11 +229,9 @@ __all__ = [
     "CT_OVERRIDE",
     "CT_TYPES",
     "HEADING_STYLES",
-    "M",
-    "M_NS",
     "MC_NS",
+    "M_NS",
     "NSMAP",
-    "O",
     "O_NS",
     "PIC",
     "PIC_BLIP_FILL",
@@ -255,7 +241,6 @@ __all__ = [
     "PR",
     "PR_RELATIONSHIP",
     "PR_RELATIONSHIPS",
-    "R",
     "R_EMBED",
     "R_ID",
     "R_NS",
@@ -273,12 +258,16 @@ __all__ = [
     "STYLE_TABLE_CAPTION",
     "STYLE_TOC_HEADING",
     "STYLE_VERBATIM_CHAR",
-    "V",
     "V_NS",
-    "W",
     "W10_NS",
     "W14",
     "W14_NS",
+    "WP",
+    "WP14_NS",
+    "WPS_NS",
+    "WP_ANCHOR",
+    "WP_INLINE",
+    "WP_NS",
     "W_BODY",
     "W_BOOKMARK_END",
     "W_BOOKMARK_START",
@@ -298,8 +287,8 @@ __all__ = [
     "W_INSTR",
     "W_INSTRTEXT",
     "W_LAST_RENDERED_PAGE_BREAK",
-    "W_MOVE_TO",
     "W_MOVEFROM",
+    "W_MOVE_TO",
     "W_NAME",
     "W_NO_BREAK_HYPHEN",
     "W_NS",
@@ -307,9 +296,9 @@ __all__ = [
     "W_P",
     "W_PICT",
     "W_PPR",
+    "W_PROOFERR",
     "W_PSTYLE",
     "W_PTAB",
-    "W_PROOFERR",
     "W_R",
     "W_RPR",
     "W_RSTYLE",
@@ -326,14 +315,14 @@ __all__ = [
     "W_TXBXCONTENT",
     "W_TYPE",
     "W_VAL",
-    "WP",
-    "WP14_NS",
-    "WP_ANCHOR",
-    "WP_INLINE",
-    "WP_NS",
-    "WPS_NS",
     "XML",
     "XML_NS",
+    "A",
+    "M",
+    "O",
+    "R",
+    "V",
+    "W",
     "is_caption_style",
     "is_code_style",
     "is_cover_style",

@@ -32,7 +32,7 @@ berubah. Jangan menambahkan build DOCX (Word) ke tes unit.
 
 ## Aturan kode
 
-- Python 3.15, type hint modern, dan `from __future__ import annotations`.
+- Python 3.15 dan type hint modern.
 - Satu tanggung jawab per modul. Stage tidak memuat logika package.
 - Stage hanya memutasi part yang dideklarasikan.
 - Jangan memanggil `DocumentPackage.load` atau `save` dari stage.

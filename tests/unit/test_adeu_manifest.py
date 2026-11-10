@@ -1,7 +1,5 @@
 """Tes schema, model, dan determinisme manifest Adeu."""
 
-from __future__ import annotations
-
 import json
 from pathlib import Path
 
@@ -72,8 +70,10 @@ def test_default_manifest_path_is_next_to_document() -> None:
     assert default_manifest_path("proyek/document.md") == (
         Path("proyek") / DEFAULT_MANIFEST_DIR / DEFAULT_MANIFEST_NAME
     )
-    assert default_manifest_path(Path("proyek") / "document.md").as_posix().endswith(
-        ".laporan/manifest.json"
+    assert (
+        default_manifest_path(Path("proyek") / "document.md")
+        .as_posix()
+        .endswith(".laporan/manifest.json")
     )
 
 

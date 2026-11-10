@@ -4,8 +4,6 @@ Modul ini hanya menyediakan API fitur. Hook ke pipeline (setelah ``lists``,
 sebelum ``save``) dimiliki oleh pemilik ``pipeline.py``.
 """
 
-from __future__ import annotations
-
 from .manifest import (
     DEFAULT_MANIFEST_DIR,
     DEFAULT_MANIFEST_NAME,
@@ -44,16 +42,16 @@ from .reconcile import (
 )
 
 __all__ = [
-    "AdeuOptions",
     "DEFAULT_MANIFEST_DIR",
     "DEFAULT_MANIFEST_NAME",
-    "DocxSnapshot",
     "KIND_VALUES",
     "MANIFEST_VERSION",
+    "PARAGRAPH_ID_RE",
+    "AdeuOptions",
+    "DocxSnapshot",
     "Manifest",
     "ManifestParagraph",
     "MarkdownBlock",
-    "PARAGRAPH_ID_RE",
     "ParagraphIdError",
     "ReconcileResult",
     "SourceMatch",

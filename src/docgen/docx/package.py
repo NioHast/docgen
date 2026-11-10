@@ -4,8 +4,6 @@
 memori dan hanya pipeline yang memanggil ``load()``/``save()``.
 """
 
-from __future__ import annotations
-
 import copy
 import posixpath
 import re
@@ -32,9 +30,9 @@ from .names import (
     CT_DEFAULT,
     CT_OVERRIDE,
     CT_TYPES,
+    PKG_REL_NS,
     PR_RELATIONSHIP,
     PR_RELATIONSHIPS,
-    PKG_REL_NS,
     W_DOCUMENT,
 )
 from .xml import parse_xml, serialize_xml, sha256_c14n
@@ -43,34 +41,19 @@ CONTENT_TYPES_PART = "[Content_Types].xml"
 PACKAGE_RELS_PART = "_rels/.rels"
 DOCUMENT_PART = "word/document.xml"
 
-RELATIONSHIPS_CONTENT_TYPE = (
-    "application/vnd.openxmlformats-package.relationships+xml"
-)
+RELATIONSHIPS_CONTENT_TYPE = "application/vnd.openxmlformats-package.relationships+xml"
 MAIN_DOCUMENT_CONTENT_TYPE = (
-    "application/vnd.openxmlformats-officedocument."
-    "wordprocessingml.document.main+xml"
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"
 )
 
 REL_TYPE_OFFICE_DOCUMENT = (
-    "http://schemas.openxmlformats.org/officeDocument/2006/"
-    "relationships/officeDocument"
+    "http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"
 )
-REL_TYPE_STYLES = (
-    "http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles"
-)
-REL_TYPE_HEADER = (
-    "http://schemas.openxmlformats.org/officeDocument/2006/relationships/header"
-)
-REL_TYPE_FOOTER = (
-    "http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer"
-)
-REL_TYPE_IMAGE = (
-    "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
-)
-REL_TYPE_HYPERLINK = (
-    "http://schemas.openxmlformats.org/officeDocument/2006/"
-    "relationships/hyperlink"
-)
+REL_TYPE_STYLES = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles"
+REL_TYPE_HEADER = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/header"
+REL_TYPE_FOOTER = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer"
+REL_TYPE_IMAGE = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
+REL_TYPE_HYPERLINK = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink"
 
 _DEFAULT_COMPRESSION = zipfile.ZIP_DEFLATED
 _DRIVE_RE = re.compile(r"^[A-Za-z]:")
@@ -118,7 +101,7 @@ class DocumentPackage:
         path: str | Path,
         *,
         validate: bool = True,
-    ) -> "DocumentPackage":
+    ) -> DocumentPackage:
         """Muat DOCX; file sumber tidak diubah."""
 
         package = cls(read_zip(path))
@@ -161,9 +144,9 @@ class DocumentPackage:
             self._entries[entry.name] = entry
         self._dirty.clear()
         for name in self._xml:
-            entry = self._entries.get(name)
-            if entry is not None:
-                self._original_hash[name] = sha256_c14n(entry.data)
+            stored = self._entries.get(name)
+            if stored is not None:
+                self._original_hash[name] = sha256_c14n(stored.data)
 
     # ------------------------------------------------------------------
     # Part
@@ -247,9 +230,7 @@ class DocumentPackage:
             self._remove_content_type_override(own_rels)
 
     def part_names(self) -> tuple[str, ...]:
-        return tuple(
-            name for name in self._entries if not name.endswith("/")
-        )
+        return tuple(name for name in self._entries if not name.endswith("/"))
 
     def part_info(self, name: str) -> PartInfo:
         payload = self.part(name)
@@ -268,13 +249,9 @@ class DocumentPackage:
 
         _validate_part_name(part)
         if part == CONTENT_TYPES_PART:
-            raise PackageError(
-                f"{CONTENT_TYPES_PART} tidak memiliki content type"
-            )
+            raise PackageError(f"{CONTENT_TYPES_PART} tidak memiliki content type")
         if not isinstance(content_type, str) or not content_type.strip():
-            raise PackageError(
-                f"Content type kosong untuk part: {part}"
-            )
+            raise PackageError(f"Content type kosong untuk part: {part}")
         root = self._content_types_root()
         override = self._find_override(root, part)
         if override is not None:
@@ -311,24 +288,16 @@ class DocumentPackage:
         if not rel.rel_id:
             raise PackageError("Relationship Id tidak boleh kosong")
         if not rel.rel_type:
-            raise PackageError(
-                f"Relationship Type kosong untuk {rel.rel_id}"
-            )
+            raise PackageError(f"Relationship Type kosong untuk {rel.rel_id}")
         if not rel.target:
-            raise PackageError(
-                f"Relationship Target kosong untuk {rel.rel_id}"
-            )
+            raise PackageError(f"Relationship Target kosong untuk {rel.rel_id}")
         if rel.target_mode is not None and rel.target_mode != "External":
-            raise PackageError(
-                f"TargetMode tidak dikenal: {rel.target_mode!r}"
-            )
+            raise PackageError(f"TargetMode tidak dikenal: {rel.target_mode!r}")
 
         rels_name = self._rels_name(source)
         source_part = self._source_part_for(source)
         if source_part and not self.has_part(source_part):
-            raise PartNotFoundError(
-                f"Source relationship tidak ditemukan: {source_part}"
-            )
+            raise PartNotFoundError(f"Source relationship tidak ditemukan: {source_part}")
 
         if not self.has_part(rels_name):
             root = etree.Element(
@@ -344,9 +313,7 @@ class DocumentPackage:
             root = self.xml(rels_name)
 
         if root.tag != PR_RELATIONSHIPS:
-            raise InvalidPackageError(
-                f"Root rels tidak valid: {rels_name}"
-            )
+            raise InvalidPackageError(f"Root rels tidak valid: {rels_name}")
 
         for child in root:
             if (
@@ -354,16 +321,12 @@ class DocumentPackage:
                 and child.tag == PR_RELATIONSHIP
                 and child.get("Id") == rel.rel_id
             ):
-                raise PartExistsError(
-                    f"Relationship Id sudah ada di {rels_name}: {rel.rel_id}"
-                )
+                raise PartExistsError(f"Relationship Id sudah ada di {rels_name}: {rel.rel_id}")
 
         if rel.target_mode != "External":
             target = self._resolve_target(source_part, rel.target)
             if not self.has_part(target):
-                raise PartNotFoundError(
-                    f"Target relationship tidak ditemukan: {target}"
-                )
+                raise PartNotFoundError(f"Target relationship tidak ditemukan: {target}")
 
         child = etree.SubElement(root, PR_RELATIONSHIP)
         child.set("Id", rel.rel_id)
@@ -378,14 +341,10 @@ class DocumentPackage:
 
         rels_name = self._rels_name(source)
         if not self.has_part(rels_name):
-            raise PartNotFoundError(
-                f"Part rels tidak ditemukan: {rels_name}"
-            )
+            raise PartNotFoundError(f"Part rels tidak ditemukan: {rels_name}")
         root = self.xml(rels_name)
         if root.tag != PR_RELATIONSHIPS:
-            raise InvalidPackageError(
-                f"Root rels tidak valid: {rels_name}"
-            )
+            raise InvalidPackageError(f"Root rels tidak valid: {rels_name}")
         for child in root:
             if (
                 isinstance(child.tag, str)
@@ -395,9 +354,7 @@ class DocumentPackage:
                 root.remove(child)
                 self.set_xml(rels_name, root)
                 return
-        raise PartNotFoundError(
-            f"Relationship tidak ditemukan di {rels_name}: {rel_id}"
-        )
+        raise PartNotFoundError(f"Relationship tidak ditemukan di {rels_name}: {rel_id}")
 
     # ------------------------------------------------------------------
     # Validasi OPC
@@ -424,28 +381,20 @@ class DocumentPackage:
             DOCUMENT_PART,
         ):
             if not self.has_part(required):
-                raise InvalidPackageError(
-                    f"Part wajib hilang: {required}"
-                )
+                raise InvalidPackageError(f"Part wajib hilang: {required}")
 
         try:
             content_types = self._content_types_root()
             defaults, overrides = self._content_type_maps(content_types)
         except XmlError as exc:
-            raise InvalidPackageError(
-                f"{CONTENT_TYPES_PART} tidak valid: {exc}"
-            ) from exc
+            raise InvalidPackageError(f"{CONTENT_TYPES_PART} tidak valid: {exc}") from exc
         except PackageError as exc:
             raise InvalidPackageError(str(exc)) from exc
 
-        part_names_by_case = {
-            name.casefold(): name for name in self.part_names()
-        }
+        part_names_by_case = {name.casefold(): name for name in self.part_names()}
         for key in overrides:
             if key not in part_names_by_case:
-                raise InvalidPackageError(
-                    f"Override content type untuk part yang hilang: {key}"
-                )
+                raise InvalidPackageError(f"Override content type untuk part yang hilang: {key}")
 
         for name in self.part_names():
             if name == CONTENT_TYPES_PART:
@@ -455,9 +404,7 @@ class DocumentPackage:
                 extension = _part_extension(name)
                 content_type = defaults.get(extension) if extension else None
             if not content_type:
-                raise InvalidPackageError(
-                    f"Content type tidak ditemukan untuk part: {name}"
-                )
+                raise InvalidPackageError(f"Content type tidak ditemukan untuk part: {name}")
 
         for name in self.part_names():
             if not (name.endswith(".xml") or name.endswith(".rels")):
@@ -465,20 +412,14 @@ class DocumentPackage:
             try:
                 parse_xml(self.part(name))
             except XmlError as exc:
-                raise InvalidPackageError(
-                    f"Part XML tidak valid: {name}: {exc}"
-                ) from exc
+                raise InvalidPackageError(f"Part XML tidak valid: {name}: {exc}") from exc
 
         try:
             document = parse_xml(self.part(DOCUMENT_PART))
         except XmlError as exc:
-            raise InvalidPackageError(
-                f"{DOCUMENT_PART} tidak valid: {exc}"
-            ) from exc
+            raise InvalidPackageError(f"{DOCUMENT_PART} tidak valid: {exc}") from exc
         if document.tag != W_DOCUMENT:
-            raise InvalidPackageError(
-                f"Root {DOCUMENT_PART} bukan w:document"
-            )
+            raise InvalidPackageError(f"Root {DOCUMENT_PART} bukan w:document")
 
         for rels_name in self.part_names():
             if not rels_name.endswith(".rels"):
@@ -486,37 +427,27 @@ class DocumentPackage:
             try:
                 relationships = self._read_relationships(rels_name)
             except XmlError as exc:
-                raise InvalidPackageError(
-                    f"Part rels tidak valid: {rels_name}: {exc}"
-                ) from exc
+                raise InvalidPackageError(f"Part rels tidak valid: {rels_name}: {exc}") from exc
             source = self._source_for_rels(rels_name)
             if source and not self.has_part(source):
-                raise InvalidPackageError(
-                    f"Rels yatim tanpa source part: {rels_name}"
-                )
+                raise InvalidPackageError(f"Rels yatim tanpa source part: {rels_name}")
             seen_ids: set[str] = set()
             for rel in relationships:
                 if rel.rel_id in seen_ids:
                     raise InvalidPackageError(
-                        f"Relationship Id duplikat di {rels_name}: "
-                        f"{rel.rel_id}"
+                        f"Relationship Id duplikat di {rels_name}: {rel.rel_id}"
                     )
                 seen_ids.add(rel.rel_id)
-                if (
-                    rel.target_mode is not None
-                    and rel.target_mode != "External"
-                ):
+                if rel.target_mode is not None and rel.target_mode != "External":
                     raise InvalidPackageError(
-                        f"TargetMode tidak dikenal di {rels_name}: "
-                        f"{rel.target_mode!r}"
+                        f"TargetMode tidak dikenal di {rels_name}: {rel.target_mode!r}"
                     )
                 if rel.target_mode == "External":
                     continue
                 target = self._resolve_target(source, rel.target)
                 if not self.has_part(target):
                     raise InvalidPackageError(
-                        f"Target relationship tidak ditemukan: "
-                        f"{rels_name} -> {target}"
+                        f"Target relationship tidak ditemukan: {rels_name} -> {target}"
                     )
 
     # ------------------------------------------------------------------
@@ -551,14 +482,10 @@ class DocumentPackage:
 
     def _content_types_root(self) -> etree._Element:
         if not self.has_part(CONTENT_TYPES_PART):
-            raise InvalidPackageError(
-                f"Part wajib hilang: {CONTENT_TYPES_PART}"
-            )
+            raise InvalidPackageError(f"Part wajib hilang: {CONTENT_TYPES_PART}")
         root = self.xml(CONTENT_TYPES_PART)
         if root.tag != CT_TYPES:
-            raise InvalidPackageError(
-                f"Root {CONTENT_TYPES_PART} bukan Types"
-            )
+            raise InvalidPackageError(f"Root {CONTENT_TYPES_PART} bukan Types")
         return root
 
     def _content_type_maps(
@@ -574,33 +501,23 @@ class DocumentPackage:
                 extension = (child.get("Extension") or "").casefold()
                 content_type = child.get("ContentType") or ""
                 if not extension or not content_type:
-                    raise InvalidPackageError(
-                        "Default content type tidak lengkap"
-                    )
+                    raise InvalidPackageError("Default content type tidak lengkap")
                 if extension in defaults:
-                    raise InvalidPackageError(
-                        f"Default content type duplikat: {extension}"
-                    )
+                    raise InvalidPackageError(f"Default content type duplikat: {extension}")
                 defaults[extension] = content_type
             elif child.tag == CT_OVERRIDE:
                 part_name = child.get("PartName") or ""
                 content_type = child.get("ContentType") or ""
                 if not part_name.startswith("/") or not content_type:
-                    raise InvalidPackageError(
-                        f"Override content type tidak lengkap: {part_name!r}"
-                    )
+                    raise InvalidPackageError(f"Override content type tidak lengkap: {part_name!r}")
                 part = part_name[1:]
                 _validate_part_name(part)
                 key = part.casefold()
                 if key in overrides:
-                    raise InvalidPackageError(
-                        f"Override content type duplikat: {part}"
-                    )
+                    raise InvalidPackageError(f"Override content type duplikat: {part}")
                 overrides[key] = content_type
             else:
-                raise InvalidPackageError(
-                    f"Elemen content types tidak dikenal: {child.tag}"
-                )
+                raise InvalidPackageError(f"Elemen content types tidak dikenal: {child.tag}")
         return defaults, overrides
 
     def _content_type(self, name: str) -> str | None:
@@ -643,29 +560,21 @@ class DocumentPackage:
     ) -> tuple[Relationship, ...]:
         root = self.xml(rels_name)
         if root.tag != PR_RELATIONSHIPS:
-            raise InvalidPackageError(
-                f"Root rels tidak valid: {rels_name}"
-            )
+            raise InvalidPackageError(f"Root rels tidak valid: {rels_name}")
         result: list[Relationship] = []
         seen: set[str] = set()
         for child in root:
             if not isinstance(child.tag, str):
                 continue
             if child.tag != PR_RELATIONSHIP:
-                raise InvalidPackageError(
-                    f"Elemen rels tidak dikenal di {rels_name}: {child.tag}"
-                )
+                raise InvalidPackageError(f"Elemen rels tidak dikenal di {rels_name}: {child.tag}")
             rel_id = child.get("Id") or ""
             rel_type = child.get("Type") or ""
             target = child.get("Target")
             if not rel_id or not rel_type or not target:
-                raise InvalidPackageError(
-                    f"Relationship tidak lengkap di {rels_name}"
-                )
+                raise InvalidPackageError(f"Relationship tidak lengkap di {rels_name}")
             if rel_id in seen:
-                raise InvalidPackageError(
-                    f"Relationship Id duplikat di {rels_name}: {rel_id}"
-                )
+                raise InvalidPackageError(f"Relationship Id duplikat di {rels_name}: {rel_id}")
             seen.add(rel_id)
             result.append(
                 Relationship(
@@ -679,9 +588,7 @@ class DocumentPackage:
 
     def _remove_relationships_to(self, part: str) -> None:
         target = part.casefold()
-        for rels_name in [
-            name for name in self.part_names() if name.endswith(".rels")
-        ]:
+        for rels_name in [name for name in self.part_names() if name.endswith(".rels")]:
             if not self.has_part(rels_name):
                 continue
             source = self._source_for_rels(rels_name)
@@ -690,10 +597,7 @@ class DocumentPackage:
                 continue
             changed = False
             for child in list(root):
-                if (
-                    not isinstance(child.tag, str)
-                    or child.tag != PR_RELATIONSHIP
-                ):
+                if not isinstance(child.tag, str) or child.tag != PR_RELATIONSHIP:
                     continue
                 if child.get("TargetMode") == "External":
                     continue
@@ -714,9 +618,7 @@ class DocumentPackage:
         if source in ("", PACKAGE_RELS_PART):
             return PACKAGE_RELS_PART
         if source.endswith(".rels") and (
-            source == PACKAGE_RELS_PART
-            or "/_rels/" in source
-            or source.startswith("_rels/")
+            source == PACKAGE_RELS_PART or "/_rels/" in source or source.startswith("_rels/")
         ):
             return source
         directory, filename = posixpath.split(source)
@@ -728,9 +630,7 @@ class DocumentPackage:
         if source in ("", PACKAGE_RELS_PART):
             return ""
         if source.endswith(".rels") and (
-            source == PACKAGE_RELS_PART
-            or "/_rels/" in source
-            or source.startswith("_rels/")
+            source == PACKAGE_RELS_PART or "/_rels/" in source or source.startswith("_rels/")
         ):
             return self._source_for_rels(source)
         return source
@@ -740,47 +640,29 @@ class DocumentPackage:
             return ""
         directory, filename = posixpath.split(rels_name)
         if posixpath.basename(directory) != "_rels":
-            raise InvalidPackageError(
-                f"Path rels tidak valid: {rels_name}"
-            )
+            raise InvalidPackageError(f"Path rels tidak valid: {rels_name}")
         if not filename.endswith(".rels") or filename == ".rels":
-            raise InvalidPackageError(
-                f"Nama rels tidak valid: {rels_name}"
-            )
+            raise InvalidPackageError(f"Nama rels tidak valid: {rels_name}")
         source_name = filename[:-5]
         parent = posixpath.dirname(directory)
-        return (
-            posixpath.join(parent, source_name)
-            if parent
-            else source_name
-        )
+        return posixpath.join(parent, source_name) if parent else source_name
 
     def _resolve_target(self, source: str, target: str) -> str:
         if not isinstance(target, str) or not target:
             raise InvalidPackageError("Target relationship kosong")
         if "\\" in target:
-            raise InvalidPackageError(
-                f"Target relationship memakai backslash: {target}"
-            )
+            raise InvalidPackageError(f"Target relationship memakai backslash: {target}")
         raw = target.split("#", 1)[0].split("?", 1)[0]
         raw = urllib.parse.unquote(raw)
         if not raw:
-            raise InvalidPackageError(
-                f"Target relationship kosong setelah fragment: {target}"
-            )
+            raise InvalidPackageError(f"Target relationship kosong setelah fragment: {target}")
         if raw.startswith("/"):
             resolved = posixpath.normpath(raw[1:])
         else:
             base = posixpath.dirname(source) if source else ""
             resolved = posixpath.normpath(posixpath.join(base, raw))
-        if (
-            resolved in ("", ".", "..")
-            or resolved.startswith("../")
-            or resolved.startswith("/")
-        ):
-            raise InvalidPackageError(
-                f"Target relationship keluar package: {target}"
-            )
+        if resolved in ("", ".", "..") or resolved.startswith("../") or resolved.startswith("/"):
+            raise InvalidPackageError(f"Target relationship keluar package: {target}")
         _validate_part_name(resolved)
         return resolved
 
@@ -806,17 +688,11 @@ def _validate_part_name(
     candidate = name
     if name.endswith("/"):
         if not allow_directory:
-            raise PackageError(
-                f"Nama part tidak boleh berakhir dengan '/': {name}"
-            )
+            raise PackageError(f"Nama part tidak boleh berakhir dengan '/': {name}")
         candidate = name[:-1]
     if not candidate:
         raise PackageError(f"Nama part tidak valid: {name!r}")
-    if (
-        candidate.startswith("/")
-        or "\\" in candidate
-        or _DRIVE_RE.match(candidate)
-    ):
+    if candidate.startswith("/") or "\\" in candidate or _DRIVE_RE.match(candidate):
         raise PackageError(f"Nama part absolut tidak valid: {name}")
     segments = candidate.split("/")
     if any(segment in ("", ".", "..") for segment in segments):
@@ -828,16 +704,8 @@ def _validate_part_name(
 __all__ = [
     "CONTENT_TYPES_PART",
     "DOCUMENT_PART",
-    "DocxError",
-    "DocumentPackage",
-    "DocxPackage",
-    "InvalidPackageError",
     "MAIN_DOCUMENT_CONTENT_TYPE",
-    "PackageError",
-    "PartExistsError",
-    "PartNotFoundError",
     "PACKAGE_RELS_PART",
-    "PartInfo",
     "RELATIONSHIPS_CONTENT_TYPE",
     "REL_TYPE_FOOTER",
     "REL_TYPE_HEADER",
@@ -845,6 +713,14 @@ __all__ = [
     "REL_TYPE_IMAGE",
     "REL_TYPE_OFFICE_DOCUMENT",
     "REL_TYPE_STYLES",
+    "DocumentPackage",
+    "DocxError",
+    "DocxPackage",
+    "InvalidPackageError",
+    "PackageError",
+    "PartExistsError",
+    "PartInfo",
+    "PartNotFoundError",
     "Relationship",
     "SaveError",
     "XmlError",

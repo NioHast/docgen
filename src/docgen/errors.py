@@ -5,8 +5,6 @@ Semua error yang dapat ditampilkan ke pengguna wajib berupa subclass
 ``StageError`` agar CLI tetap menghasilkan exit code yang stabil.
 """
 
-from __future__ import annotations
-
 from pathlib import Path
 
 

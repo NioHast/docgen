@@ -5,15 +5,13 @@ stage dimiliki ``docgen.pipeline``. Modul ini mendaftarkan kelas stage kanonik
 dalam satu tempat agar ``Pipeline`` tidak perlu mengetahui detail impor.
 """
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover - hanya anotasi
     from ..pipeline import BaseStage
 
 
-def default_stages() -> tuple[type["BaseStage"], ...]:
+def default_stages() -> tuple[type[BaseStage], ...]:
     """Kembalikan kelas stage sesuai urutan kanonik ``StageName``."""
 
     from .blank_lines import BlankLinesStage

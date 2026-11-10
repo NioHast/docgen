@@ -1,4 +1,4 @@
-"""Stage ``lists``: daftar tabel/gambar native dan field ``SEQ`` caption.
+r"""Stage ``lists``: daftar tabel/gambar native dan field ``SEQ`` caption.
 
 Spike WS11 (Microsoft Word 16.0, Windows) menunjukkan:
 
@@ -15,12 +15,11 @@ terakhir menjadi field ``SEQ`` agar Word dapat memperbarui daftar. Semua field
 daftar ditulis lewat :mod:`docgen.docx.fields`.
 """
 
-from __future__ import annotations
-
 import copy
 import re
 import time
-from typing import TYPE_CHECKING, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from lxml import etree
 
@@ -71,7 +70,7 @@ _LIST_INSTRUCTION_RE = re.compile(r"\\c\b")
 _SDT_ID_BASE = 1180696142
 
 
-def _body(package: "DocumentPackage") -> etree._Element:
+def _body(package: DocumentPackage) -> etree._Element:
     root = package.xml(DOCUMENT_PART)
     if not isinstance(root.tag, str) or root.tag != W_DOCUMENT:
         raise FieldError("Root document.xml bukan w:document")
@@ -92,11 +91,7 @@ def _sdt_gallery(sdt: etree._Element) -> str | None:
 
 
 def _sdt_instruction(sdt: etree._Element) -> str:
-    return "".join(
-        node.text or ""
-        for node in sdt.iter(W_INSTRTEXT)
-        if isinstance(node.tag, str)
-    )
+    return "".join(node.text or "" for node in sdt.iter(W_INSTRTEXT) if isinstance(node.tag, str))
 
 
 def _is_list_sdt(sdt: etree._Element) -> bool:
@@ -107,9 +102,7 @@ def _body_toc_sdts(body: etree._Element) -> tuple[etree._Element, ...]:
     return tuple(
         child
         for child in body
-        if isinstance(child.tag, str)
-        and child.tag == W_SDT
-        and _sdt_gallery(child) == TOC_GALLERY
+        if isinstance(child.tag, str) and child.tag == W_SDT and _sdt_gallery(child) == TOC_GALLERY
     )
 
 
@@ -256,7 +249,7 @@ def _caption_prefix(
 
 
 def _ensure_caption_seq(
-    package: "DocumentPackage",
+    package: DocumentPackage,
     paragraph: etree._Element,
     *,
     label: str,
@@ -292,9 +285,7 @@ def _ensure_caption_seq(
     for node in paragraph.findall(".//" + W_INSTRTEXT):
         node.text = instruction + " "
 
-    separate_run = (
-        _run_of(field.separate) if field.separate is not None else None
-    )
+    separate_run = _run_of(field.separate) if field.separate is not None else None
     result_run = separate_run.getnext() if separate_run is not None else None
     if result_run is not None:
         result_text = result_run.find(W_T)
@@ -328,7 +319,7 @@ def _ensure_caption_seq(
 
 
 def _ensure_caption_seq_fields(
-    package: "DocumentPackage",
+    package: DocumentPackage,
     labels: dict[str, str],
     scope: str,
 ) -> int:
@@ -343,19 +334,18 @@ def _ensure_caption_seq_fields(
             ):
                 count += 1
             continue
-        if is_caption_paragraph(paragraph, CaptionKind.FIGURE):
-            if _ensure_caption_seq(
-                package,
-                paragraph,
-                label=labels["figure"],
-                scope=scope,
-            ):
-                count += 1
+        if is_caption_paragraph(paragraph, CaptionKind.FIGURE) and _ensure_caption_seq(
+            package,
+            paragraph,
+            label=labels["figure"],
+            scope=scope,
+        ):
+            count += 1
     return count
 
 
 def _insert_list_fields(
-    package: "DocumentPackage",
+    package: DocumentPackage,
     requests: Sequence[tuple[str, str]],
     labels: dict[str, str],
 ) -> int:
@@ -422,8 +412,7 @@ class ListsStage(BaseStage):
                 changed=False,
                 duration_ms=int((time.monotonic() - started) * 1000),
                 warnings=(
-                    "Tidak ada daftar tabel/gambar di structure.front_matter "
-                    "atau build dry-run.",
+                    "Tidak ada daftar tabel/gambar di structure.front_matter atau build dry-run.",
                 ),
             )
         requests = _list_requests(getattr(ctx, "structure", None))
@@ -463,7 +452,7 @@ class ListsStage(BaseStage):
 __all__ = [
     "CAPTION_LABEL_DEFAULTS",
     "LIST_TITLES",
-    "ListsStage",
     "TOC_GALLERY",
+    "ListsStage",
     "_list_requests",
 ]

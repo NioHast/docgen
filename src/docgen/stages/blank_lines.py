@@ -15,48 +15,43 @@ memutus urutan blok dan paragraf yang dihapus tidak dihitung sebagai isi.
 Paragraf kosong yang sudah ada tidak diduplikasi; stage idempoten.
 """
 
-from __future__ import annotations
-
 import re
 import time
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Sequence
 
 from lxml import etree
 
 from ..docx.layout import (
+    COVER_PREFIX,
     TOC_STYLE_RE,
     BodyUnit,
     document_body,
     document_root,
+    field_name,
     heading_level,
     iter_body_units,
     iter_field_instructions,
-    field_name,
     new_element,
+    normalize_style_id,
     paragraph_style_id,
     paragraph_text,
     set_document_root,
-    COVER_PREFIX,
-    normalize_style_id,
 )
 from ..docx.names import (
-    W_BODY,
     W_BR,
     W_CR,
     W_DEL,
     W_DRAWING,
-    W_INS,
-    W_MOVEFROM,
     W_FLDCHAR,
     W_FLDSIMPLE,
+    W_INS,
     W_INSTRTEXT,
+    W_MOVEFROM,
     W_OBJECT,
     W_P,
     W_PICT,
     W_PPR,
-    W_PSTYLE,
-    W_RPR,
     W_SDT,
     W_SECTPR,
     W_TAB,
@@ -186,8 +181,7 @@ class _Block:
 
 def _has_toc_field(paragraph: etree._Element) -> bool:
     return any(
-        field_name(instruction) == "TOC"
-        for instruction in iter_field_instructions(paragraph)
+        field_name(instruction) == "TOC" for instruction in iter_field_instructions(paragraph)
     )
 
 
@@ -223,16 +217,12 @@ def _only_deleted_content(paragraph: etree._Element) -> bool:
     if paragraph_text(paragraph).strip():
         return False
     return (
-        paragraph.find(f".//{W_DEL}") is not None
-        or paragraph.find(f".//{W_MOVEFROM}") is not None
+        paragraph.find(f".//{W_DEL}") is not None or paragraph.find(f".//{W_MOVEFROM}") is not None
     )
 
 
 def _has_image(paragraph: etree._Element) -> bool:
-    return any(
-        paragraph.find(f".//{tag}") is not None
-        for tag in (W_DRAWING, W_PICT, W_OBJECT)
-    )
+    return any(paragraph.find(f".//{tag}") is not None for tag in (W_DRAWING, W_PICT, W_OBJECT))
 
 
 def _is_equation_paragraph(paragraph: etree._Element) -> bool:
@@ -338,9 +328,7 @@ def _build_blocks(units: Sequence[BodyUnit], kinds: Sequence[str]) -> list[_Bloc
 
         if kind == CAPTION_TABLE:
             if index + 1 < total and kinds[index + 1] == TABLE:
-                blocks.append(
-                    _Block(TABLE, index, index + 1, units[index].element)
-                )
+                blocks.append(_Block(TABLE, index, index + 1, units[index].element))
                 index += 2
                 continue
             blocks.append(_Block(CONTENT, index, index, units[index].element))
@@ -499,19 +487,13 @@ def insert_blank_lines(
             continue
 
         actual = (
-            sum(
-                1
-                for index in range(previous.end + 1, current.start)
-                if kinds[index] == EMPTY
-            )
+            sum(1 for index in range(previous.end + 1, current.start) if kinds[index] == EMPTY)
             if previous is not None
             else 0
         )
         needed = wanted - actual
         if needed > 0:
-            insertions.append(
-                (current.element, needed, _gap_reason(previous, current))
-            )
+            insertions.append((current.element, needed, _gap_reason(previous, current)))
         previous = current
 
     for element, count, reason in insertions:
@@ -559,9 +541,7 @@ class BlankLinesStage(BaseStage):
         started = time.monotonic()
         package = getattr(ctx, "package", None)
         if package is None:
-            raise BlankLineError(
-                "stage blank_lines membutuhkan DocumentPackage dari stage pandoc"
-            )
+            raise BlankLineError("stage blank_lines membutuhkan DocumentPackage dari stage pandoc")
 
         try:
             before = sha256_c14n(document_root(package))
@@ -597,14 +577,14 @@ BlankLineStage = BlankLinesStage
 
 
 __all__ = [
-    "BlankLineError",
-    "BlankLineReport",
-    "BlankLineSpec",
-    "BlankLinesStage",
-    "BlankLineStage",
     "EMPTY_FONT",
     "EMPTY_HALF_POINTS",
     "EMPTY_LINE_TWIPS",
+    "BlankLineError",
+    "BlankLineReport",
+    "BlankLineSpec",
+    "BlankLineStage",
+    "BlankLinesStage",
     "blank_lines",
     "classify",
     "insert_blank_lines",

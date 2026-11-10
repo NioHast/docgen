@@ -5,8 +5,6 @@ lewat ``uv run --project <repo>`` dari luar repo, ``check`` menerima dokumen
 minimal, dan kedua perintah tidak mengubah ``git status`` repo.
 """
 
-from __future__ import annotations
-
 import shutil
 import subprocess
 from collections.abc import Iterator
@@ -52,9 +50,7 @@ _BIBLIOGRAPHY = """@book{contoh2026,
 def _uv() -> str:
     executable = shutil.which("uv")
     if executable is None:
-        pytest.fail(
-            "uv tidak ditemukan di PATH; tes packaging repo-local membutuhkan uv"
-        )
+        pytest.fail("uv tidak ditemukan di PATH; tes packaging repo-local membutuhkan uv")
     return executable
 
 
@@ -127,11 +123,7 @@ def _git_status_unchanged() -> Iterator[None]:
     after = _git_status()
     added = sorted(set(after) - set(before))
     removed = sorted(set(before) - set(after))
-    assert after == before, (
-        "git status repo berubah\n"
-        f"baris baru: {added}\n"
-        f"baris hilang: {removed}"
-    )
+    assert after == before, f"git status repo berubah\nbaris baru: {added}\nbaris hilang: {removed}"
 
 
 def test_version_dari_luar_repo(tmp_path: Path) -> None:

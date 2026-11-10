@@ -1,7 +1,5 @@
 """Antarmuka baris perintah ``docgen``."""
 
-from __future__ import annotations
-
 import argparse
 import os
 import platform
@@ -132,7 +130,7 @@ def _find_tool(name: str) -> str | None:
     if sys.platform == "win32":
         candidates: list[Path] = []
         local = os.environ.get("LOCALAPPDATA")
-        program_files = os.environ.get("ProgramFiles")
+        program_files = os.environ.get("PROGRAMFILES")
         if name == "pandoc":
             if local:
                 candidates.append(Path(local) / "Pandoc" / "pandoc.exe")
@@ -164,7 +162,7 @@ def _tool_version(command: str | None) -> str | None:
             timeout=15,
             check=False,
         )
-    except (OSError, subprocess.SubprocessError):
+    except OSError, subprocess.SubprocessError:
         return None
     output = (completed.stdout or completed.stderr or "").strip().splitlines()
     return output[0] if output else None

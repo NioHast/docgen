@@ -8,10 +8,9 @@ Tabel kode tidak pernah dianggap tabel data: ``is_code_table`` dipakai stage
 caption untuk melewati tabel 1x1 yang seluruh paragrafnya bergaya kode.
 """
 
-from __future__ import annotations
-
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 
 from lxml import etree
 
@@ -22,8 +21,8 @@ from .xml import (
     TBLPR_ORDER,
     TCPR_ORDER,
     ensure_rpr,
-    ensure_tcpr,
     ensure_tblpr,
+    ensure_tcpr,
     get_or_add,
     insert_ordered,
     paragraph_text,
@@ -274,13 +273,13 @@ class _Line:
 # ---------------------------------------------------------------------------
 
 
-def document_root(package: "DocumentPackage") -> etree._Element:
+def document_root(package: DocumentPackage) -> etree._Element:
     """Kembalikan root ``word/document.xml`` yang hidup."""
 
     return package.xml(DOCUMENT_PART)
 
 
-def document_body(package: "DocumentPackage") -> etree._Element:
+def document_body(package: DocumentPackage) -> etree._Element:
     """Kembalikan elemen ``w:body`` atau melempar ``TableError``."""
 
     body = document_root(package).find(W_BODY)
@@ -351,10 +350,7 @@ def _is_code_table(
     paragraphs = cells[0].findall(W_P)
     if not paragraphs:
         return False
-    return all(
-        is_code_paragraph(paragraph, detect_styles)
-        for paragraph in paragraphs
-    )
+    return all(is_code_paragraph(paragraph, detect_styles) for paragraph in paragraphs)
 
 
 def is_code_table(
@@ -447,9 +443,7 @@ def _set_header_cell_bottom_border(
     cell_properties = ensure_tcpr(cell)
     _remove_direct_children(cell_properties, W_TC_BORDERS)
     borders = get_or_add(cell_properties, W_TC_BORDERS, TCPR_ORDER)
-    borders.append(
-        _new_border("w:bottom", "single", size, color=color, space=0)
-    )
+    borders.append(_new_border("w:bottom", "single", size, color=color, space=0))
 
 
 def _clear_run_bold(run: etree._Element) -> None:
@@ -532,18 +526,10 @@ def _has_caption(table: etree._Element) -> bool:
     if _table_caption_text(table):
         return True
     previous = _previous_meaningful(table)
-    if (
-        previous is not None
-        and previous.tag == W_P
-        and _is_table_caption_paragraph(previous)
-    ):
+    if previous is not None and previous.tag == W_P and _is_table_caption_paragraph(previous):
         return True
     following = _next_meaningful(table)
-    return (
-        following is not None
-        and following.tag == W_P
-        and _is_table_caption_paragraph(following)
-    )
+    return following is not None and following.tag == W_P and _is_table_caption_paragraph(following)
 
 
 # ---------------------------------------------------------------------------
@@ -598,9 +584,7 @@ def _normalize_table(table: etree._Element, spec: TableSpec) -> bool:
     rows = table.findall(W_TR)
     header_indexes = _header_row_indexes(rows)
     header_bottom_index = (
-        header_indexes[-1]
-        if header_indexes and header_indexes[-1] < len(rows) - 1
-        else None
+        header_indexes[-1] if header_indexes and header_indexes[-1] < len(rows) - 1 else None
     )
     _normalize_table_rows(rows, header_bottom_index, spec)
 
@@ -613,7 +597,7 @@ def _normalize_table(table: etree._Element, spec: TableSpec) -> bool:
 
 
 def normalize_table(
-    package: "DocumentPackage",
+    package: DocumentPackage,
     table: etree._Element,
     spec: TableSpec,
 ) -> None:
@@ -652,7 +636,7 @@ def set_table_width(table: etree._Element, percent: int) -> None:
     if width is None:
         width = _new_element("w:tblW")
         insert_ordered(ensure_tblpr(table), width, TBLPR_ORDER)
-    width.set(W_W, str(int(round(percent * 50))))
+    width.set(W_W, str(round(percent * 50)))
     width.set(W_TYPE, "pct")
 
 
@@ -663,7 +647,7 @@ def set_table_width(table: etree._Element, percent: int) -> None:
 
 def _code_border_spec(spec: CodeSpec) -> BorderSpec:
     sides: list[tuple[str, str, int | None]] = []
-    for tag, value, size in CODE_TABLE_BORDERS:
+    for tag, value, _size in CODE_TABLE_BORDERS:
         if value == "nil":
             sides.append((tag, "nil", None))
         else:
@@ -707,7 +691,7 @@ def _format_code_table(table: etree._Element, spec: CodeSpec) -> bool:
 
 
 def format_code_table(
-    package: "DocumentPackage",
+    package: DocumentPackage,
     table: etree._Element,
     spec: CodeSpec | None = None,
 ) -> bool:
@@ -717,7 +701,7 @@ def format_code_table(
 
 
 def normalize_code_tables(
-    package: "DocumentPackage",
+    package: DocumentPackage,
     *,
     spec: CodeSpec | None = None,
 ) -> int:
@@ -727,9 +711,8 @@ def normalize_code_tables(
     normalized = 0
     body = document_body(package)
     for table in body.iter(W_TBL):
-        if _is_code_table(table, code_spec.detect_styles):
-            if _format_code_table(table, code_spec):
-                normalized += 1
+        if _is_code_table(table, code_spec.detect_styles) and _format_code_table(table, code_spec):
+            normalized += 1
     return normalized
 
 
@@ -868,7 +851,7 @@ def _make_code_paragraph(
     spacing = _new_element("w:spacing")
     spacing.set(W_BEFORE, str(spec.space_before))
     spacing.set(W_AFTER, str(spec.space_after))
-    spacing.set(W_LINE, str(max(1, int(round(spec.line_spacing * 240)))))
+    spacing.set(W_LINE, str(max(1, round(spec.line_spacing * 240))))
     spacing.set(W_LINE_RULE, "auto")
     properties.append(spacing)
 
@@ -955,7 +938,7 @@ def _build_code_cell(
 
 
 def make_code_table(
-    package: "DocumentPackage",
+    package: DocumentPackage,
     paragraphs: Sequence[etree._Element],
     spec: CodeSpec | None = None,
 ) -> etree._Element:
@@ -1009,7 +992,7 @@ def _format_table(
 
 
 def format_tables(
-    package: "DocumentPackage",
+    package: DocumentPackage,
     *,
     spec: TableSpec | None = None,
     code_spec: CodeSpec | None = None,
@@ -1024,7 +1007,7 @@ def format_tables(
 
 
 def iter_tables(
-    package: "DocumentPackage",
+    package: DocumentPackage,
     *,
     detect_styles: Sequence[str] | None = None,
 ) -> tuple[TableInfo, ...]:
@@ -1058,15 +1041,15 @@ def collect_unsafe_children(paragraph: etree._Element) -> bool:
 
 
 __all__ = [
-    "BorderSpec",
+    "CELL_MARGIN_TAGS",
     "CODE_BORDER_SPEC",
     "CODE_TABLE_BORDERS",
-    "CELL_MARGIN_TAGS",
-    "CodeSpec",
     "DEFAULT_CODE_STYLES",
     "NEUTRAL_BODY_TAGS",
     "SCIENTIFIC_BORDER_SPEC",
     "SCIENTIFIC_TABLE_BORDERS",
+    "BorderSpec",
+    "CodeSpec",
     "TableError",
     "TableInfo",
     "TableSpec",

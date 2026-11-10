@@ -5,8 +5,6 @@ agar output tidak mengotori repo. PDF hanya diwajibkan bila Microsoft Word
 tersedia.
 """
 
-from __future__ import annotations
-
 import os
 import re
 import shutil
@@ -43,9 +41,7 @@ def _run_cli(*arguments: str, cwd: Path | None = None) -> subprocess.CompletedPr
     environment = os.environ.copy()
     existing = environment.get("PYTHONPATH")
     source = str(ROOT / "src")
-    environment["PYTHONPATH"] = (
-        source if not existing else source + os.pathsep + existing
-    )
+    environment["PYTHONPATH"] = source if not existing else source + os.pathsep + existing
     return subprocess.run(
         [sys.executable, "-m", "docgen", *arguments],
         cwd=str(cwd or ROOT),
@@ -91,9 +87,7 @@ def _headings(root: etree._Element) -> list[str]:
     for paragraph in root.xpath("//w:p", namespaces=NS):
         styles = paragraph.xpath("./w:pPr/w:pStyle/@w:val", namespaces=NS)
         if styles and styles[0] == "Heading1":
-            text = " ".join(
-                "".join(paragraph.xpath(".//w:t/text()", namespaces=NS)).split()
-            )
+            text = " ".join("".join(paragraph.xpath(".//w:t/text()", namespaces=NS)).split())
             values.append(text)
     return values
 
@@ -110,8 +104,7 @@ def _style_root(path: Path) -> etree._Element:
 def _toc3_has_dot_leader(path: Path) -> bool:
     root = _style_root(path)
     styles = {
-        style.get(f"{{{W_NS}}}styleId"): style
-        for style in root.xpath("//w:style", namespaces=NS)
+        style.get(f"{{{W_NS}}}styleId"): style for style in root.xpath("//w:style", namespaces=NS)
     }
     current = styles.get("TOC3")
     seen: set[str] = set()
@@ -144,7 +137,9 @@ def _toc_entry_with_prefix(
 
 
 @pytest.fixture(scope="module")
-def built_example(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, subprocess.CompletedProcess[str]]:
+def built_example(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> tuple[Path, subprocess.CompletedProcess[str]]:
     if PANDOC is None or MMDC is None:
         pytest.skip("Pandoc dan mmdc diperlukan untuk membangun contoh thesis")
     project = _copy_example(tmp_path_factory.mktemp("thesis-e2e"))
@@ -178,9 +173,7 @@ def test_build_thesis_menghasilkan_docx_pdf_dan_manifest(
     instructions = _instructions(root)
     assert len([value for value in instructions if TOC_MAIN_RE.match(value)]) == 1
     labels = {
-        match.group("label")
-        for value in instructions
-        if (match := TOC_CAPTION_RE.match(value))
+        match.group("label") for value in instructions if (match := TOC_CAPTION_RE.match(value))
     }
     assert labels == {"Tabel", "Gambar"}
 
@@ -247,9 +240,7 @@ def test_fixture_thesis_dua_tabel_gambar_dan_toc_level_tiga(
     # Entri TOC level tiga: nomor 3.2.3, PAGEREF, dan halaman numerik.
     entry = _toc_entry_with_prefix(root, "TOC3", "3.2.3")
     assert entry is not None
-    instructions = "".join(
-        node.text or "" for node in entry.iter(f"{{{W_NS}}}instrText")
-    )
+    instructions = "".join(node.text or "" for node in entry.iter(f"{{{W_NS}}}instrText"))
     assert "PAGEREF" in instructions
     assert re.search(r"\d+$", " ".join(_paragraph_text(entry).split()))
     assert _toc3_has_dot_leader(docx)

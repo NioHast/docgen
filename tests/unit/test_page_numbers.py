@@ -1,7 +1,5 @@
 """Tes unit nomor halaman Romawi/Arab dan stage ``page_numbers``."""
 
-from __future__ import annotations
-
 import html
 import zipfile
 from pathlib import Path
@@ -24,11 +22,12 @@ from docgen.docx.package import (
     DocumentPackage,
 )
 from docgen.docx.sections import (
+    header_footer_part,
     iter_sections,
     section_header_footer,
-    header_footer_part,
 )
-from docgen.docx.xml import paragraph_text, qn
+from docgen.docx.xml import qn
+from docgen.errors import StageError
 from docgen.pipeline import StageName
 from docgen.stages.page_numbers import PageNumbersStage
 
@@ -44,9 +43,7 @@ RELS_CONTENT_TYPE = "application/vnd.openxmlformats-package.relationships+xml"
 DOCUMENT_CONTENT_TYPE = (
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"
 )
-STYLES_CONTENT_TYPE = (
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"
-)
+STYLES_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"
 SETTINGS_CONTENT_TYPE = (
     "application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"
 )
@@ -58,7 +55,7 @@ STYLES_XML = (
     '<w:style w:type="paragraph" w:styleId="Heading1">'
     '<w:name w:val="heading 1"/></w:style>'
     "</w:styles>"
-).encode("utf-8")
+).encode()
 
 SETTINGS_XML = (
     f'<w:settings xmlns:w="{W_NS}">'
@@ -66,7 +63,7 @@ SETTINGS_XML = (
     '<w:compat><w:compatSetting w:name="compatibilityMode" '
     'w:uri="http://schemas.microsoft.com/office/word" w:val="15"/>'
     "</w:compat></w:settings>"
-).encode("utf-8")
+).encode()
 
 
 # ---------------------------------------------------------------------------
@@ -77,10 +74,7 @@ SETTINGS_XML = (
 def _content_types(*, settings: bool = False) -> bytes:
     extra = ""
     if settings:
-        extra = (
-            '<Override PartName="/word/settings.xml" '
-            f'ContentType="{SETTINGS_CONTENT_TYPE}"/>'
-        )
+        extra = f'<Override PartName="/word/settings.xml" ContentType="{SETTINGS_CONTENT_TYPE}"/>'
     return (
         f'<Types xmlns="{CT_NS}">'
         f'<Default Extension="rels" ContentType="{RELS_CONTENT_TYPE}"/>'
@@ -90,7 +84,7 @@ def _content_types(*, settings: bool = False) -> bytes:
         '<Override PartName="/word/styles.xml" '
         f'ContentType="{STYLES_CONTENT_TYPE}"/>'
         f"{extra}</Types>"
-    ).encode("utf-8")
+    ).encode()
 
 
 def _package_rels() -> bytes:
@@ -99,7 +93,7 @@ def _package_rels() -> bytes:
         f'<Relationship Id="rId1" Type="{REL_TYPE_OFFICE_DOCUMENT}" '
         f'Target="{DOCUMENT_PART}"/>'
         "</Relationships>"
-    ).encode("utf-8")
+    ).encode()
 
 
 def _document_rels() -> bytes:
@@ -108,15 +102,11 @@ def _document_rels() -> bytes:
         f'<Relationship Id="rId2" Type="{REL_TYPE_STYLES}" '
         'Target="styles.xml"/>'
         "</Relationships>"
-    ).encode("utf-8")
+    ).encode()
 
 
 def _paragraph(text: str = "", *, style: str | None = None) -> str:
-    ppr = (
-        f'<w:pPr><w:pStyle w:val="{html.escape(style)}"/></w:pPr>'
-        if style
-        else ""
-    )
+    ppr = f'<w:pPr><w:pStyle w:val="{html.escape(style)}"/></w:pPr>' if style else ""
     runs = f"<w:r><w:t>{html.escape(text)}</w:t></w:r>" if text else ""
     return f"<w:p>{ppr}{runs}</w:p>"
 
@@ -133,7 +123,7 @@ def _document(body: str) -> bytes:
     return (
         f'<w:document xmlns:w="{W_NS}" xmlns:r="{R_NS}">'
         f"<w:body>{body}<w:sectPr/></w:body></w:document>"
-    ).encode("utf-8")
+    ).encode()
 
 
 def _write_package(
@@ -193,9 +183,7 @@ def _pg_num(section) -> tuple[str | None, str | None]:
 
 def _page_fields(package: DocumentPackage, part_name: str) -> int:
     return sum(
-        1
-        for field in iter_fields_in_part(package, part_name)
-        if field.kind is FieldKind.PAGE
+        1 for field in iter_fields_in_part(package, part_name) if field.kind is FieldKind.PAGE
     )
 
 
@@ -232,9 +220,7 @@ def test_golden_lower_roman_then_decimal() -> None:
     sections = iter_sections(package)
     assert _pg_num(sections[0]) == (None, None)
 
-    front_matter = [
-        section for section in sections if section.kind == "front_matter"
-    ]
+    front_matter = [section for section in sections if section.kind == "front_matter"]
     assert _pg_num(front_matter[0]) == ("lowerRoman", "1")
     for section in front_matter[1:]:
         assert _pg_num(section) == ("lowerRoman", None)
@@ -255,9 +241,7 @@ def test_golden_front_matter_footer_and_body_header() -> None:
     front_part, _ = header_footer_part(package, front.footer)
     assert _page_fields(package, front_part) == 1
 
-    body = section_header_footer(
-        next(section for section in sections if section.kind == "body")
-    )
+    body = section_header_footer(next(section for section in sections if section.kind == "body"))
     assert body.header is not None
     assert body.first_page_header is not None
     assert body.footer is not None
@@ -333,9 +317,7 @@ def test_page_numbers_stage_body_has_first_page_variants(tmp_path: Path) -> None
     assert body.sect_pr.find(qn("w:titlePg")) is not None
 
     default_header, _ = header_footer_part(package, refs.header)
-    first_header, first_header_root = header_footer_part(
-        package, refs.first_page_header
-    )
+    first_header, first_header_root = header_footer_part(package, refs.first_page_header)
     default_footer, _ = header_footer_part(package, refs.footer)
     first_footer, _ = header_footer_part(package, refs.first_page_footer)
     assert _page_fields(package, default_header) == 1
@@ -351,16 +333,8 @@ def test_page_numbers_stage_part_content_types_and_relationships(
     package = DocumentPackage.load(_document_with_sections(tmp_path))
     PageNumbersStage().run(_fake_ctx(package))
     relations = package.relationships(DOCUMENT_PART)
-    header_rels = [
-        rel
-        for rel in relations
-        if rel.rel_type.endswith("/header")
-    ]
-    footer_rels = [
-        rel
-        for rel in relations
-        if rel.rel_type.endswith("/footer")
-    ]
+    header_rels = [rel for rel in relations if rel.rel_type.endswith("/header")]
+    footer_rels = [rel for rel in relations if rel.rel_type.endswith("/footer")]
     assert header_rels
     assert footer_rels
     for rel in header_rels + footer_rels:
@@ -380,7 +354,7 @@ def test_page_numbers_stage_does_not_create_blank_page(tmp_path: Path) -> None:
     root = package.xml(DOCUMENT_PART)
     body = root.find(qn("w:body"))
     paragraphs = [child for child in body if child.tag == qn("w:p")]
-    for index, paragraph in enumerate(paragraphs):
+    for paragraph in paragraphs:
         if not _has_page_break(paragraph):
             continue
         ppr = paragraph.find(qn("w:pPr"))
@@ -406,7 +380,7 @@ def test_strip_update_fields_only_removes_update_fields(tmp_path: Path) -> None:
 
 def test_page_numbers_stage_requires_package() -> None:
     ctx = _fake_ctx(None)  # type: ignore[arg-type]
-    with pytest.raises(Exception):
+    with pytest.raises(StageError):
         PageNumbersStage().run(ctx)
 
 

@@ -5,8 +5,6 @@ Folder input adalah data, bukan sumber kode. Pipeline tidak boleh memuat
 dokumen pengguna.
 """
 
-from __future__ import annotations
-
 import ast
 from collections.abc import Iterator
 from pathlib import Path
@@ -34,9 +32,7 @@ def _docstring_nodes(tree: ast.AST) -> set[int]:
 
     nodes: set[int] = set()
     for node in ast.walk(tree):
-        if not isinstance(
-            node, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
-        ):
+        if not isinstance(node, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
             continue
         body = node.body
         if (

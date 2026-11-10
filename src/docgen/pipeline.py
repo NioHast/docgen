@@ -4,17 +4,16 @@ Satu ``Pipeline`` menjalankan seluruh stage kanonik, satu ``DocumentPackage``
 dimuat oleh stage ``pandoc`` dan disimpan tepat satu kali sebelum ``office``.
 """
 
-from __future__ import annotations
-
 import logging
 import os
 import shutil
 import sys
 from abc import ABC, abstractmethod
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from enum import StrEnum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 from .config import Format, Structure
 from .document import Document, Project, load_project
@@ -280,11 +279,9 @@ def validate_stage_order(stages: Sequence[StageSpec] = CANONICAL_STAGES) -> None
                 f"stage '{spec.name}' tidak boleh mendeklarasikan idempotent=False"
             )
         if tuple(spec.requires) != CANONICAL_ORDER[:index]:
-            raise StageOrderError(
-                f"requires stage '{spec.name}' bukan prefix urutan kanonik"
-            )
+            raise StageOrderError(f"requires stage '{spec.name}' bukan prefix urutan kanonik")
 
-    index = {name: position for position, name in enumerate(CANONICAL_ORDER)}
+    positions = {name: position for position, name in enumerate(CANONICAL_ORDER)}
     guards = (
         (StageName.STYLE_REFERENCE, StageName.FRONT_MATTER),
         (StageName.FRONT_MATTER, StageName.PANDOC),
@@ -299,10 +296,8 @@ def validate_stage_order(stages: Sequence[StageSpec] = CANONICAL_STAGES) -> None
         (StageName.OFFICE, StageName.PDF),
     )
     for before, after in guards:
-        if index[before] >= index[after]:
-            raise StageOrderError(
-                f"urutan guard gagal: '{before}' harus sebelum '{after}'"
-            )
+        if positions[before] >= positions[after]:
+            raise StageOrderError(f"urutan guard gagal: '{before}' harus sebelum '{after}'")
 
 
 # ---------------------------------------------------------------------------
@@ -317,11 +312,11 @@ class BaseStage(ABC):
     mutates: ClassVar[frozenset[str]] = frozenset()
     idempotent: ClassVar[bool] = True
 
-    def enabled(self, ctx: "StageContext") -> bool:
+    def enabled(self, ctx: StageContext) -> bool:
         return True
 
     @abstractmethod
-    def run(self, ctx: "StageContext") -> "StageResult":
+    def run(self, ctx: StageContext) -> StageResult:
         raise NotImplementedError
 
 
@@ -495,13 +490,13 @@ class StageContext:
     output_dir: Path
     workspace: Workspace
 
-    package: "DocumentPackage | None"
+    package: DocumentPackage | None
     artifacts: ArtifactStore
     logger: logging.LoggerAdapter
     report: BuildReport
 
     reference_docx: Path | None
-    glossary: "Glossary | Path | None"
+    glossary: Glossary | Path | None
     word: Any | None
     pandoc: Any | None
 
@@ -536,15 +531,15 @@ def _find_word() -> str | None:
     # Adapter Word milik WS8 juga menghormati DOCGEN_WINWORD; pakai deteksi
     # yang sama agar keputusan target PDF dan stage office konsisten.
     try:
-        from .stages.office import find_word_executable  # noqa: PLC0415
+        from .stages.office import find_word_executable
 
         found = find_word_executable()
         if found:
             return found
-    except Exception:  # pragma: no cover - pengaman siklus impor
+    except Exception:  # noqa: BLE001 - pengaman siklus impor
         pass
     try:
-        import winreg  # type: ignore[import-not-found]
+        import winreg
     except ImportError:
         winreg = None  # type: ignore[assignment]
     if winreg is not None:
@@ -569,7 +564,7 @@ def _find_word() -> str | None:
     return None
 
 
-def _resolve_target(options: BuildOptions) -> tuple[str, list[str]]:
+def _resolve_target(options: BuildOptions) -> tuple[Literal["docx", "pdf", "both"], list[str]]:
     """Terapkan aturan target Windows/Debian dari kontrak CLI."""
 
     warnings: list[str] = []
@@ -628,7 +623,7 @@ def _output_directory(document_path: Path) -> Path:
 
 
 def _default_stage_classes() -> tuple[type[BaseStage], ...]:
-    from .stages import default_stages  # noqa: PLC0415 - hindari siklus impor
+    from .stages import default_stages
 
     return default_stages()
 
@@ -653,36 +648,27 @@ def _specs_for_classes(
 
     specs: list[StageSpec] = []
     for spec in CANONICAL_STAGES:
-        stage = by_name.get(spec.name)
-        if stage is None:
+        registered = by_name.get(spec.name)
+        if registered is None:
             raise StageOrderError(f"stage '{spec.name}' tidak terdaftar")
-        if stage.order != spec.order:
+        if registered.order != spec.order:
             raise StageOrderError(
-                f"stage '{spec.name}' memakai order {stage.order}, "
-                f"harus {spec.order}"
+                f"stage '{spec.name}' memakai order {registered.order}, harus {spec.order}"
             )
-        if tuple(getattr(stage, "requires", ())) != spec.requires:
-            raise StageOrderError(
-                f"requires stage '{spec.name}' bukan prefix urutan kanonik"
-            )
-        if frozenset(getattr(stage, "mutates", frozenset())) - _KNOWN_PARTS:
+        if tuple(getattr(registered, "requires", ())) != spec.requires:
+            raise StageOrderError(f"requires stage '{spec.name}' bukan prefix urutan kanonik")
+        if frozenset(getattr(registered, "mutates", frozenset())) - _KNOWN_PARTS:
             unknown = ", ".join(
-                sorted(frozenset(getattr(stage, "mutates", frozenset())) - _KNOWN_PARTS)
+                sorted(frozenset(getattr(registered, "mutates", frozenset())) - _KNOWN_PARTS)
             )
-            raise StageOrderError(
-                f"stage '{spec.name}' memutasi part tidak dikenal: {unknown}"
-            )
-        if bool(getattr(stage, "idempotent", True)) != spec.idempotent:
-            raise StageOrderError(
-                f"stage '{spec.name}' salah mendeklarasikan idempotent"
-            )
+            raise StageOrderError(f"stage '{spec.name}' memutasi part tidak dikenal: {unknown}")
+        if bool(getattr(registered, "idempotent", True)) != spec.idempotent:
+            raise StageOrderError(f"stage '{spec.name}' salah mendeklarasikan idempotent")
         specs.append(spec)
 
     extra = sorted(set(by_name) - {spec.name for spec in CANONICAL_STAGES})
     if extra:
-        raise StageOrderError(
-            "stage tidak dikenal: " + ", ".join(str(name) for name in extra)
-        )
+        raise StageOrderError("stage tidak dikenal: " + ", ".join(str(name) for name in extra))
     return tuple(specs)
 
 
@@ -692,7 +678,7 @@ def _specs_for_classes(
 
 
 def _adeu_options(options: BuildOptions) -> Any:
-    from .features.adeu.paragraph_ids import AdeuOptions  # noqa: PLC0415
+    from .features.adeu.paragraph_ids import AdeuOptions
 
     if not options.adeu:
         return AdeuOptions(bookmarks=False, manifest=False, source_scan=False)
@@ -711,12 +697,12 @@ def _bookmark_names(docx_path: Path) -> tuple[str, ...]:
     verifikasi pasca-Word tidak boleh menambah load/save tersebut.
     """
 
-    import zipfile  # noqa: PLC0415
+    import zipfile
 
-    from lxml import etree  # noqa: PLC0415
+    from lxml import etree
 
-    from .docx.bookmarks import PARAGRAPH_ID_RE  # noqa: PLC0415
-    from .docx.names import W_BOOKMARK_START, W_NAME  # noqa: PLC0415
+    from .docx.bookmarks import PARAGRAPH_ID_RE
+    from .docx.names import W_BOOKMARK_START, W_NAME
 
     try:
         with zipfile.ZipFile(docx_path) as archive:
@@ -750,7 +736,7 @@ def _bookmark_names(docx_path: Path) -> tuple[str, ...]:
 def _verify_bookmarks(docx_path: Path, expected: tuple[str, ...]) -> None:
     """Pastikan Microsoft Word mempertahankan seluruh bookmark ``pNNNN``."""
 
-    from .docx.bookmarks import BookmarkError  # noqa: PLC0415
+    from .docx.bookmarks import BookmarkError
 
     actual = _bookmark_names(docx_path)
     if actual == expected:
@@ -765,8 +751,7 @@ def _verify_bookmarks(docx_path: Path, expected: tuple[str, ...]) -> None:
     if not detail:
         detail.append("urutan bookmark berubah")
     raise BookmarkError(
-        "bookmark pNNNN tidak dipertahankan setelah stage office: "
-        + "; ".join(detail),
+        "bookmark pNNNN tidak dipertahankan setelah stage office: " + "; ".join(detail),
         path=docx_path,
         code="OFFICE-BOOKMARK",
     )
@@ -779,9 +764,7 @@ def _verify_bookmarks(docx_path: Path, expected: tuple[str, ...]) -> None:
 
 class Pipeline:
     def __init__(self, stages: Sequence[type[BaseStage]] | None = None) -> None:
-        stage_classes = (
-            _default_stage_classes() if stages is None else tuple(stages)
-        )
+        stage_classes = _default_stage_classes() if stages is None else tuple(stages)
         self.specs: tuple[StageSpec, ...] = _specs_for_classes(stage_classes)
         validate_stage_order(self.specs)
         self.stages: tuple[BaseStage, ...] = tuple(stage() for stage in stage_classes)
@@ -834,7 +817,7 @@ class Pipeline:
         ctx: StageContext,
     ) -> None:
         for stage in stages:
-            spec = self._spec_by_name[stage.name]  # type: ignore[index]
+            spec = self._spec_by_name[stage.name]
             if not stage.enabled(ctx):
                 result = StageResult(
                     stage=spec.name.value,
@@ -869,9 +852,7 @@ class Pipeline:
     def run(self, document_path: str | Path, options: BuildOptions) -> BuildResult:
         project = load_project(document_path)
         target, target_warnings = _resolve_target(options)
-        run_options = (
-            options if target == options.target else replace(options, target=target)
-        )
+        run_options = options if target == options.target else replace(options, target=target)
         warnings = list(project.warnings) + list(target_warnings)
 
         output_dir = _output_directory(project.document.path)
@@ -906,7 +887,7 @@ class Pipeline:
                 docx_path = output_dir / f"{report_name}.docx"
             docx_path.parent.mkdir(parents=True, exist_ok=True)
 
-            from .features.adeu.paragraph_ids import (  # noqa: PLC0415
+            from .features.adeu.paragraph_ids import (
                 prepare_manifest,
                 write_prepared_manifest,
             )
@@ -916,13 +897,11 @@ class Pipeline:
                 ctx.package,
                 docx_name=docx_path.name,
                 options=adeu_options,
-                source_dir=(
-                    ctx.document.path.parent if adeu_options.source_scan else None
-                ),
+                source_dir=(ctx.document.path.parent if adeu_options.source_scan else None),
             )
             expected_bookmarks: tuple[str, ...] = ()
             if adeu_options.bookmarks:
-                from .docx.bookmarks import iter_bookmarks  # noqa: PLC0415
+                from .docx.bookmarks import iter_bookmarks
 
                 expected_bookmarks = tuple(
                     bookmark.name for bookmark in iter_bookmarks(ctx.package)
@@ -944,16 +923,8 @@ class Pipeline:
                 _verify_bookmarks(docx_path, expected_bookmarks)
 
             pdf_path = output_dir / f"{report_name}.pdf"
-            result_docx = (
-                docx_path
-                if target in {"docx", "both"} and docx_path.is_file()
-                else None
-            )
-            result_pdf = (
-                pdf_path
-                if target in {"pdf", "both"} and pdf_path.is_file()
-                else None
-            )
+            result_docx = docx_path if target in {"docx", "both"} and docx_path.is_file() else None
+            result_pdf = pdf_path if target in {"pdf", "both"} and pdf_path.is_file() else None
 
             return BuildResult(
                 document=project.document.path,

@@ -13,14 +13,13 @@ Modul ini tidak membuka package DOCX dan tidak menulis berkas. Error
 dilempar sebagai :class:`docgen.errors.ValidationError` dengan exit code 1.
 """
 
-from __future__ import annotations
-
+import argparse
 import re
 import sys
 import time
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Sequence
 
 from ..errors import DocgenError, StageError, ValidationError
 from ..pipeline import BaseStage, StageName, StageResult
@@ -87,9 +86,7 @@ def _mask_html_block(
         lower = lines[current].lower()
         end = lower.find(closing)
         if end != -1:
-            lines[current] = " " * (end + len(closing)) + lines[current][
-                end + len(closing) :
-            ]
+            lines[current] = " " * (end + len(closing)) + lines[current][end + len(closing) :]
             return current
         lines[current] = ""
         current += 1
@@ -110,8 +107,7 @@ def _masked_lines(text: str) -> list[str]:
             if (
                 stripped
                 and stripped[0] == fence_character
-                and len(stripped) - len(stripped.lstrip(fence_character))
-                >= fence_length
+                and len(stripped) - len(stripped.lstrip(fence_character)) >= fence_length
                 and not stripped.lstrip(fence_character).strip()
             ):
                 in_fence = False
@@ -150,10 +146,7 @@ def _is_delimiter_row(line: str) -> bool:
     if "|" not in line:
         return False
     cells = _split_row(line)
-    return all(
-        DELIMITER_CELL_RE.fullmatch(cell.replace(" ", "")) is not None
-        for cell in cells
-    )
+    return all(DELIMITER_CELL_RE.fullmatch(cell.replace(" ", "")) is not None for cell in cells)
 
 
 def _is_table_start(masked: Sequence[str], index: int) -> bool:
@@ -355,8 +348,8 @@ class ValidateStage(BaseStage):
 
     name = StageName.VALIDATE
     order = 10
-    requires: tuple[StageName, ...] = ()
-    mutates: frozenset[str] = frozenset()
+    requires = ()
+    mutates = frozenset()
     idempotent = True
 
     def run(self, ctx: object) -> StageResult:
@@ -386,9 +379,7 @@ class ValidateStage(BaseStage):
         )
 
 
-def _build_parser() -> object:
-    import argparse
-
+def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
             "Validasi caption tabel (: Judul tabel) dan alt text gambar pada "

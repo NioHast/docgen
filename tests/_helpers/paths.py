@@ -1,7 +1,5 @@
 """Helper path yang tidak bergantung pada current working directory."""
 
-from __future__ import annotations
-
 from pathlib import Path
 
 

@@ -10,21 +10,19 @@ Hanya ``word/document.xml`` yang dimutasi. Stage tidak memanggil
 ``load``/``save`` package; pipeline yang melakukannya.
 """
 
-from __future__ import annotations
-
 import time
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Sequence
+from pathlib import Path
+from typing import TYPE_CHECKING
 
 from lxml import etree
 
-from ..errors import DocgenError, StageError
-from ..pipeline import BaseStage, StageName, StageResult, canonical_prefix
 from ..docx import names
 from ..docx.package import DOCUMENT_PART
 from ..docx.tables import (
-    CodeSpec,
     NEUTRAL_BODY_TAGS,
+    CodeSpec,
     TableError,
     collect_unsafe_children,
     document_body,
@@ -33,6 +31,8 @@ from ..docx.tables import (
     normalize_code_tables,
 )
 from ..docx.xml import sha256_c14n
+from ..errors import DocgenError, StageError
+from ..pipeline import BaseStage, StageName, StageResult, canonical_prefix
 
 if TYPE_CHECKING:  # pragma: no cover - hanya anotasi
     from ..docx.package import DocumentPackage
@@ -101,7 +101,7 @@ def _paragraph_line_count(paragraphs: Sequence[etree._Element]) -> int:
 
 
 def _apply_code_blocks(
-    package: "DocumentPackage",
+    package: DocumentPackage,
     body: etree._Element,
     report: CodeReport,
     spec: CodeSpec,
@@ -120,7 +120,7 @@ def _apply_code_blocks(
 
 
 def apply_code(
-    package: "DocumentPackage",
+    package: DocumentPackage,
     *,
     spec: CodeSpec | None = None,
 ) -> CodeReport:
@@ -150,7 +150,7 @@ def apply_code(
     return report
 
 
-def _get(value: object, name: str, default: object) -> object:
+def _get[T](value: object, name: str, default: T) -> T:
     return getattr(value, name, default)
 
 
@@ -166,16 +166,14 @@ def code_spec_from_format(format_value: object | None) -> CodeSpec:
     table = _get(code, "table", None)
 
     border_width = int(_get(border, "width", 20) or 20)
-    border_size = max(1, int(round(border_width * 8 / 20)))
+    border_size = max(1, round(border_width * 8 / 20))
     detect_styles = tuple(_get(code, "detect_styles", CodeSpec.detect_styles) or ())
 
     return CodeSpec(
         style_id=str(_get(code, "style", CodeSpec.style_id)),
         detect_styles=detect_styles or CodeSpec.detect_styles,
         font_family=str(_get(font, "family", CodeSpec.font_family)),
-        font_size_half_points=int(
-            _get(font, "size_half_points", CodeSpec.font_size_half_points)
-        ),
+        font_size_half_points=int(_get(font, "size_half_points", CodeSpec.font_size_half_points)),
         color=str(_get(font, "color", CodeSpec.color)),
         alignment=str(_get(code, "alignment", CodeSpec.alignment)),
         line_spacing=float(_get(code, "line_spacing", CodeSpec.line_spacing)),
@@ -189,9 +187,10 @@ def code_spec_from_format(format_value: object | None) -> CodeSpec:
     )
 
 
-def _document_path(ctx: object) -> object:
+def _document_path(ctx: object) -> Path | None:
     document = getattr(ctx, "document", None)
-    return getattr(document, "path", None)
+    path = getattr(document, "path", None)
+    return Path(path) if path is not None else None
 
 
 class CodeStage(BaseStage):

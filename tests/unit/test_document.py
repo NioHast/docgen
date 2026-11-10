@@ -1,7 +1,5 @@
 """Tes unit parser front matter dan validasi ``document.md``."""
 
-from __future__ import annotations
-
 from pathlib import Path
 
 import pytest
@@ -114,7 +112,7 @@ def test_author_list_and_keywords_scalar(tmp_path: Path) -> None:
         "abstract_id: |\n"
         "  Abstrak baris pertama.\n"
         "  Baris kedua.\n"
-        "keywords: \"machine learning\"\n"
+        'keywords: "machine learning"\n'
     )
     project = load_project(_write_document(tmp_path, front_matter))
 
@@ -165,7 +163,7 @@ def test_author_unknown_key_rejected(tmp_path: Path) -> None:
         'title: "Laporan Uji"\n'
         "author:\n"
         '  name: "Nama Mahasiswa"\n'
-        "  gelar: \"S.Kom.\"\n"
+        '  gelar: "S.Kom."\n'
         "structure: assignment\n"
         "format: undip-msi\n"
         "bibliography: references.bib\n"

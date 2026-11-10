@@ -233,6 +233,20 @@ pengecualian, dan `Diabaikan` berarti aturan tidak dijalankan.
 | `D202` | Diabaikan | Baris kosong setelah docstring tidak dipakai secara konsisten. | `"""Ringkasan."""` boleh diikuti langsung kode | [D202](https://docs.astral.sh/ruff/rules/blank-line-after-function/) |
 | `D401` | Diabaikan | Imperative mood Inggris tidak sesuai docstring bahasa Indonesia. | `"""Mengembalikan hasil."""` tidak perlu diubah menjadi `Return ...` | [D401](https://docs.astral.sh/ruff/rules/non-imperative-mood/) |
 
+### Pengecualian per file
+
+Pengecualian hanya dipakai bila nama atau bentuk yang sah secara domain memang
+bertabrakan dengan aturan lint. Setiap entri wajib punya alasan.
+
+| File | Rule | Alasan |
+| --- | --- | --- |
+| `src/docgen/docx/names.py` | `E741` | `O` adalah prefix namespace OOXML resmi pada tabel Clark notation. Mengganti nama konstanta akan memutus tabel namespace publik. |
+
+`BLE001` di `pipeline.py`, `docx/terms.py`, dan `stages/toc.py` memakai
+`# noqa` inline, bukan ignore per file, karena ketiganya adalah boundary
+opsional: guard siklus impor, package tanpa rels, dan package tanpa section.
+Setiap `# noqa` menyebut alasan pada baris yang sama.
+
 Ruff 0.17.4 memberi peringatan bahwa
 [D203](https://docs.astral.sh/ruff/rules/incorrect-blank-line-before-class/)
 bertentangan dengan [D211](https://docs.astral.sh/ruff/rules/blank-line-before-class/)

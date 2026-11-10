@@ -1,7 +1,5 @@
 """Tes unit stage ``captions/figures`` dengan fixture DOCX."""
 
-from __future__ import annotations
-
 import importlib.util
 import zipfile
 from pathlib import Path
@@ -32,9 +30,7 @@ BUILDER_PATH = FIXTURES / "make_fixture.py"
 
 
 def _load_builder():
-    spec = importlib.util.spec_from_file_location(
-        "format_figures_make_fixture", BUILDER_PATH
-    )
+    spec = importlib.util.spec_from_file_location("format_figures_make_fixture", BUILDER_PATH)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -55,9 +51,7 @@ def docs(tmp_path_factory):
         field=_builder.build_field_caption_fixture(root / "caption_field.docx"),
         pandoc=_builder.build_pandoc_caption_fixture(root / "caption_pandoc.docx"),
         missing=_builder.build_missing_caption_fixture(root / "tanpa_caption.docx"),
-        below_table=_builder.build_below_table_caption_fixture(
-            root / "caption_di_bawah.docx"
-        ),
+        below_table=_builder.build_below_table_caption_fixture(root / "caption_di_bawah.docx"),
         cover_image=_builder.build_cover_image_fixture(root / "gambar_cover.docx"),
     )
 
@@ -65,9 +59,7 @@ def docs(tmp_path_factory):
 def caption_texts(path: Path, style_id: str) -> list[str]:
     document = Document(path)
     return [
-        paragraph.text
-        for paragraph in document.paragraphs
-        if paragraph.style.style_id == style_id
+        paragraph.text for paragraph in document.paragraphs if paragraph.style.style_id == style_id
     ]
 
 
@@ -153,17 +145,13 @@ def test_prefix_lama_dihapus_dan_idempoten(docs, tmp_path):
         "Gambar 2.1 Arsitektur sistem",
     ]
     assert second_report.changed is False
-    assert sha256_c14n(
-        DocumentPackage.load(first_path).part(DOCUMENT_PART)
-    ) == sha256_c14n(
+    assert sha256_c14n(DocumentPackage.load(first_path).part(DOCUMENT_PART)) == sha256_c14n(
         DocumentPackage.load(second_path).part(DOCUMENT_PART)
     )
 
     document = Document(first_path)
     formatted = next(
-        paragraph
-        for paragraph in document.paragraphs
-        if paragraph.text == "Gambar 1.2 Foto hasil"
+        paragraph for paragraph in document.paragraphs if paragraph.text == "Gambar 1.2 Foto hasil"
     )
     assert formatted.runs[-1].italic is False
 
@@ -215,9 +203,7 @@ def test_caption_dari_tblcaption_paragraf_pandoc_dan_alt(docs, tmp_path):
 
     document = Document(output)
     table_captions = [
-        paragraph
-        for paragraph in document.paragraphs
-        if paragraph.style.style_id == "TableCaption"
+        paragraph for paragraph in document.paragraphs if paragraph.style.style_id == "TableCaption"
     ]
     image_paragraphs = [
         paragraph
@@ -225,19 +211,13 @@ def test_caption_dari_tblcaption_paragraf_pandoc_dan_alt(docs, tmp_path):
         if paragraph._p.findall(".//" + qn("w:drawing"))
     ]
     image_captions = [
-        paragraph
-        for paragraph in document.paragraphs
-        if paragraph.style.style_id == "ImageCaption"
+        paragraph for paragraph in document.paragraphs if paragraph.style.style_id == "ImageCaption"
     ]
 
-    for caption, table in zip(table_captions, document.tables):
-        assert body_index(document, caption._p) + 1 == body_index(
-            document, table._tbl
-        )
-    for image, caption in zip(image_paragraphs, image_captions):
-        assert body_index(document, caption._p) == body_index(
-            document, image._p
-        ) + 1
+    for caption, table in zip(table_captions, document.tables, strict=True):
+        assert body_index(document, caption._p) + 1 == body_index(document, table._tbl)
+    for image, caption in zip(image_paragraphs, image_captions, strict=True):
+        assert body_index(document, caption._p) == body_index(document, image._p) + 1
 
     assert_caption_style(
         table_captions[0],
@@ -260,14 +240,10 @@ def test_caption_tabel_di_bawah_dipindah_ke_atas(docs, tmp_path):
     assert caption_texts(output, "TableCaption") == ["Tabel 1.1 Data responden"]
     document = Document(output)
     caption = next(
-        paragraph
-        for paragraph in document.paragraphs
-        if paragraph.style.style_id == "TableCaption"
+        paragraph for paragraph in document.paragraphs if paragraph.style.style_id == "TableCaption"
     )
     table = document.tables[0]
-    assert body_index(document, caption._p) + 1 == body_index(
-        document, table._tbl
-    )
+    assert body_index(document, caption._p) + 1 == body_index(document, table._tbl)
 
 
 def test_tabel_gambar_tanpa_caption_menggagalkan_stage(docs):
@@ -318,9 +294,7 @@ def test_caption_dengan_prefix_field_dilewati(docs, tmp_path):
 
     document = Document(output)
     captions = [
-        paragraph
-        for paragraph in document.paragraphs
-        if paragraph.style.style_id == "ImageCaption"
+        paragraph for paragraph in document.paragraphs if paragraph.style.style_id == "ImageCaption"
     ]
     assert len(captions) == 2
     assert captions[0]._p.find(".//" + qn("w:fldSimple")) is not None
@@ -413,9 +387,7 @@ def test_tabel_gaya_ilmiah(docs, tmp_path):
 
         header_row = table._tbl.findall(qn("w:tr"))[0]
         for cell in header_row.findall(qn("w:tc")):
-            border = cell.find(
-                f"{qn('w:tcPr')}/{qn('w:tcBorders')}/{qn('w:bottom')}"
-            )
+            border = cell.find(f"{qn('w:tcPr')}/{qn('w:tcBorders')}/{qn('w:bottom')}")
             assert border is not None
             assert border.get(qn("w:val")) == "single"
             assert border.get(qn("w:sz")) == "4"
@@ -430,9 +402,7 @@ def test_tabel_gaya_ilmiah(docs, tmp_path):
 
 def test_code_table_tidak_diberi_caption(tmp_path):
     document = Document()
-    code_style = document.styles.add_style(
-        "Source Code", WD_STYLE_TYPE.PARAGRAPH
-    )
+    code_style = document.styles.add_style("Source Code", WD_STYLE_TYPE.PARAGRAPH)
     for text in ("def main():", "    return 1"):
         paragraph = document.add_paragraph(style=code_style)
         paragraph.add_run(text)
@@ -455,9 +425,7 @@ def test_code_table_tidak_diberi_caption(tmp_path):
     assert len(table.rows) == 1
     assert len(table.columns) == 1
     assert not [
-        paragraph
-        for paragraph in result.paragraphs
-        if paragraph.style.style_id == "TableCaption"
+        paragraph for paragraph in result.paragraphs if paragraph.style.style_id == "TableCaption"
     ]
 
 
@@ -492,19 +460,14 @@ def test_ensure_caption_membuat_dari_alt_text(tmp_path):
     document.add_paragraph("BAB I PENDAHULUAN", style=heading)
 
     # Gambar tanpa caption tetapi dengan alt text.
-    from io import BytesIO
     import struct
     import zlib
+    from io import BytesIO
 
     def png_bytes(width=20, height=10):
         def chunk(kind, data):
             checksum = zlib.crc32(kind + data) & 0xFFFFFFFF
-            return (
-                struct.pack(">I", len(data))
-                + kind
-                + data
-                + struct.pack(">I", checksum)
-            )
+            return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", checksum)
 
         header = struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)
         row = bytes((200, 200, 200)) * width
@@ -538,24 +501,20 @@ def test_ensure_caption_membuat_dari_alt_text(tmp_path):
     assert caption.text == "Diagram API"
     assert caption_style(CaptionKind.FIGURE) == "ImageCaption"
     assert image_paragraph.getnext() is caption.paragraph
-    assert caption.paragraph.find(f"{qn('w:pPr')}/{qn('w:pStyle')}").get(
-        qn("w:val")
-    ) == "ImageCaption"
+    assert (
+        caption.paragraph.find(f"{qn('w:pPr')}/{qn('w:pStyle')}").get(qn("w:val")) == "ImageCaption"
+    )
 
 
 def test_part_non_target_byte_identik(docs, tmp_path):
     package = DocumentPackage.load(docs.main)
-    original = {
-        name: package.part(name)
-        for name in package.part_names()
-        if name != DOCUMENT_PART
-    }
+    original = {name: package.part(name) for name in package.part_names() if name != DOCUMENT_PART}
 
     apply_captions(package)
     output = tmp_path / "out.docx"
     package.save(output)
 
-    with zipfile.ZipFile(docs.main) as source, zipfile.ZipFile(output) as result:
+    with zipfile.ZipFile(docs.main) as _source, zipfile.ZipFile(output) as result:
         for name, payload in original.items():
             assert result.read(name) == payload
 

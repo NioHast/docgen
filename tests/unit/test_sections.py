@@ -1,7 +1,5 @@
 """Tes unit section DOCX dan stage ``sections``."""
 
-from __future__ import annotations
-
 import html
 import zipfile
 from pathlib import Path
@@ -43,6 +41,7 @@ from docgen.docx.sections import (
     set_title_page,
 )
 from docgen.docx.xml import paragraph_text, qn, sha256_c14n
+from docgen.errors import StageError
 from docgen.pipeline import StageName
 from docgen.stages.sections import SectionsStage
 
@@ -58,9 +57,7 @@ RELS_CONTENT_TYPE = "application/vnd.openxmlformats-package.relationships+xml"
 DOCUMENT_CONTENT_TYPE = (
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"
 )
-STYLES_CONTENT_TYPE = (
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"
-)
+STYLES_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"
 
 STYLES_XML = (
     f'<w:styles xmlns:w="{W_NS}">'
@@ -69,7 +66,7 @@ STYLES_XML = (
     '<w:style w:type="paragraph" w:styleId="Heading1">'
     '<w:name w:val="heading 1"/></w:style>'
     "</w:styles>"
-).encode("utf-8")
+).encode()
 
 
 # ---------------------------------------------------------------------------
@@ -87,7 +84,7 @@ def _content_types(extra: str = "") -> bytes:
         '<Override PartName="/word/styles.xml" '
         f'ContentType="{STYLES_CONTENT_TYPE}"/>'
         f"{extra}</Types>"
-    ).encode("utf-8")
+    ).encode()
 
 
 def _package_rels() -> bytes:
@@ -96,7 +93,7 @@ def _package_rels() -> bytes:
         f'<Relationship Id="rId1" Type="{REL_TYPE_OFFICE_DOCUMENT}" '
         f'Target="{DOCUMENT_PART}"/>'
         "</Relationships>"
-    ).encode("utf-8")
+    ).encode()
 
 
 def _document_rels() -> bytes:
@@ -105,7 +102,7 @@ def _document_rels() -> bytes:
         f'<Relationship Id="rId2" Type="{REL_TYPE_STYLES}" '
         'Target="styles.xml"/>'
         "</Relationships>"
-    ).encode("utf-8")
+    ).encode()
 
 
 def _paragraph(
@@ -139,9 +136,8 @@ def _break_paragraph(sect_pr: str) -> str:
 def _document(body: str, *, final_sect: str | None = None) -> bytes:
     sect = final_sect if final_sect is not None else _sect_pr()
     return (
-        f'<w:document xmlns:w="{W_NS}" xmlns:r="{R_NS}">'
-        f"<w:body>{body}{sect}</w:body></w:document>"
-    ).encode("utf-8")
+        f'<w:document xmlns:w="{W_NS}" xmlns:r="{R_NS}"><w:body>{body}{sect}</w:body></w:document>'
+    ).encode()
 
 
 def _write_package(
@@ -173,11 +169,7 @@ def _fake_ctx(
     *,
     numbering: object | None = None,
 ) -> SimpleNamespace:
-    structure = (
-        SimpleNamespace(numbering=numbering)
-        if numbering is not None
-        else SimpleNamespace()
-    )
+    structure = SimpleNamespace(numbering=numbering) if numbering is not None else SimpleNamespace()
     return SimpleNamespace(
         package=package,
         document=SimpleNamespace(),
@@ -215,11 +207,8 @@ def _sdt_gallery(root) -> list:
         for node in root.iter(qn("w:sdt"))
         if (
             node.find(qn("w:sdtPr")) is not None
-            and node.find(qn("w:sdtPr"))
-            .find(".//" + qn("w:docPartGallery")) is not None
-            and node.find(qn("w:sdtPr"))
-            .find(".//" + qn("w:docPartGallery"))
-            .get(qn("w:val"))
+            and node.find(qn("w:sdtPr")).find(".//" + qn("w:docPartGallery")) is not None
+            and node.find(qn("w:sdtPr")).find(".//" + qn("w:docPartGallery")).get(qn("w:val"))
             == "Table of Contents"
         )
     ]
@@ -279,9 +268,7 @@ def test_golden_page_numbers_lower_roman_then_decimal() -> None:
     sections = iter_sections(package)
     assert _pg_num(sections[0]) == (None, None)
 
-    front_matter = [
-        section for section in sections if section.kind == "front_matter"
-    ]
+    front_matter = [section for section in sections if section.kind == "front_matter"]
     assert _pg_num(front_matter[0]) == ("lowerRoman", "1")
     for section in front_matter[1:]:
         assert _pg_num(section) == ("lowerRoman", None)
@@ -327,8 +314,7 @@ def test_golden_no_blank_page_between_toc_and_bab_i() -> None:
         and paragraph_text(child).strip().startswith("BAB I")
         and child.find(qn("w:pPr")) is not None
         and child.find(qn("w:pPr")).find(qn("w:pStyle")) is not None
-        and child.find(qn("w:pPr")).find(qn("w:pStyle")).get(qn("w:val"))
-        == "Heading1"
+        and child.find(qn("w:pPr")).find(qn("w:pStyle")).get(qn("w:val")) == "Heading1"
     )
     assert bab_index > toc_index
     between = children[toc_index + 1 : bab_index]
@@ -366,11 +352,7 @@ def test_section_mutators_set_children_in_schema_order(tmp_path: Path) -> None:
     set_title_page(section, True)
     set_section_type(section, "nextPage")
 
-    tags = [
-        child.tag.split("}")[-1]
-        for child in section.sect_pr
-        if isinstance(child.tag, str)
-    ]
+    tags = [child.tag.split("}")[-1] for child in section.sect_pr if isinstance(child.tag, str)]
     assert tags == [
         "type",
         "pgSz",
@@ -390,8 +372,7 @@ def test_section_mutators_set_children_in_schema_order(tmp_path: Path) -> None:
 
 def test_add_section_break_idempotent(tmp_path: Path) -> None:
     document = _document(
-        _paragraph("Sampul", style="CoverTitle")
-        + _paragraph("BAB I", style="Heading1")
+        _paragraph("Sampul", style="CoverTitle") + _paragraph("BAB I", style="Heading1")
     )
     package = DocumentPackage.load(_write_package(tmp_path, document))
     root = package.xml(DOCUMENT_PART)
@@ -399,8 +380,7 @@ def test_add_section_break_idempotent(tmp_path: Path) -> None:
     heading = next(
         child
         for child in body
-        if child.tag == qn("w:p")
-        and paragraph_text(child).strip() == "BAB I"
+        if child.tag == qn("w:p") and paragraph_text(child).strip() == "BAB I"
     )
 
     first = add_section_break(package, before=heading, kind="nextPage")
@@ -449,9 +429,7 @@ def test_create_header_footer_part_sets_part_relationship_and_content_type(
 
     assert package.has_part("word/header1.xml")
     assert package.part_info("word/header1.xml").content_type == HEADER_CONTENT_TYPE
-    assert any(
-        rel.rel_id == rel_id for rel in package.relationships(DOCUMENT_PART)
-    )
+    assert any(rel.rel_id == rel_id for rel in package.relationships(DOCUMENT_PART))
     assert section_header_footer(section).header == rel_id
 
     clear_header_footer_references(section)
@@ -504,7 +482,7 @@ def test_sections_stage_splits_cover_front_matter_and_chapters(
 
 def test_sections_stage_requires_package() -> None:
     ctx = _fake_ctx(None)  # type: ignore[arg-type]
-    with pytest.raises(Exception):
+    with pytest.raises(StageError):
         SectionsStage().run(ctx)
 
 
@@ -567,11 +545,7 @@ def test_sections_stage_arabic_dotted_body_starts_at_chapter(
     ]
     headings = [heading for heading in iter_headings(package)]
     assert heading_text(headings[1].paragraph) == "1. PENDAHULUAN"
-    body_start = next(
-        index
-        for index, section in enumerate(sections)
-        if section.kind == "body"
-    )
+    body_start = next(index for index, section in enumerate(sections) if section.kind == "body")
     assert sections[body_start].start == headings[1].paragraph.getparent().index(
         headings[1].paragraph
     )
@@ -579,14 +553,10 @@ def test_sections_stage_arabic_dotted_body_starts_at_chapter(
 
 def test_golden_toc_field_count_for_section_boundary() -> None:
     package = DocumentPackage.load(GOLDEN)
-    toc_fields = [
-        field for field in iter_fields(package) if field.kind is FieldKind.TOC
-    ]
+    toc_fields = [field for field in iter_fields(package) if field.kind is FieldKind.TOC]
     assert len(toc_fields) == 3
     # Section body pertama dimulai tepat di Heading1 BAB I.
-    body_sections = [
-        section for section in iter_sections(package) if section.kind == "body"
-    ]
+    body_sections = [section for section in iter_sections(package) if section.kind == "body"]
     assert body_sections[0].start == 50
 
 
@@ -596,7 +566,7 @@ def test_golden_toc_field_count_for_section_boundary() -> None:
 
 
 def _heading_runs(*runs: tuple[str, str]) -> str:
-    """runs berisi pasangan (format, teks), format ``b``/``i``/``plain``."""
+    """Runs berisi pasangan (format, teks), format ``b``/``i``/``plain``."""
 
     output = ""
     for fmt, text in runs:
@@ -684,8 +654,7 @@ def test_apply_heading_numbering_arabic_dotted(tmp_path: Path) -> None:
 
 def test_apply_heading_numbering_h2_before_h1_is_not_zero(tmp_path: Path) -> None:
     document = _document(
-        _paragraph("Awal", style="Heading2")
-        + _paragraph("Pendahuluan", style="Heading1")
+        _paragraph("Awal", style="Heading2") + _paragraph("Pendahuluan", style="Heading1")
     )
     package = DocumentPackage.load(_write_package(tmp_path, document))
 
@@ -752,8 +721,7 @@ def test_apply_heading_numbering_h2_under_unnumbered_h1(tmp_path: Path) -> None:
 
 def test_heading_bookmark_name_is_stable(tmp_path: Path) -> None:
     document = _document(
-        _paragraph("Pendahuluan", style="Heading1")
-        + _paragraph("Latar Belakang", style="Heading2")
+        _paragraph("Pendahuluan", style="Heading1") + _paragraph("Latar Belakang", style="Heading2")
     )
     package = DocumentPackage.load(_write_package(tmp_path, document))
     apply_heading_numbering(package, NumberingSpec(body="BAB_ROMAN"))

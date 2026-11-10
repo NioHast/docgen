@@ -1,7 +1,5 @@
 """Tes unit stage/layout WS5: normalize, field bold, tab stop, blank lines."""
 
-from __future__ import annotations
-
 import zipfile
 from pathlib import Path
 from types import SimpleNamespace
@@ -12,7 +10,6 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Pt, Twips
-from lxml import etree
 
 from docgen.docx import DOCUMENT_PART, DocumentPackage
 from docgen.docx.layout import (
@@ -290,26 +287,20 @@ def _paragraphs(package: DocumentPackage):
 
 def _paragraph_by_text(package: DocumentPackage, marker: str):
     matches = [
-        paragraph
-        for paragraph in _paragraphs(package)
-        if marker in paragraph_text(paragraph)
+        paragraph for paragraph in _paragraphs(package) if marker in paragraph_text(paragraph)
     ]
     assert len(matches) == 1, f"paragraf {marker!r} tidak tunggal"
     return matches[0]
 
 
 def _run_by_text(paragraph, marker: str):
-    matches = [
-        run for run in paragraph.iter(W_R) if marker in "".join(run.itertext())
-    ]
+    matches = [run for run in paragraph.iter(W_R) if marker in "".join(run.itertext())]
     assert len(matches) == 1, f"run {marker!r} tidak tunggal"
     return matches[0]
 
 
 def _run_exact(paragraph, text: str):
-    matches = [
-        run for run in paragraph.iter(W_R) if "".join(run.itertext()) == text
-    ]
+    matches = [run for run in paragraph.iter(W_R) if "".join(run.itertext()) == text]
     assert len(matches) == 1, f"run {text!r} tidak tunggal"
     return matches[0]
 
@@ -361,9 +352,7 @@ def test_normalize_spacing_bold_tab_dan_pengecualian(layout_docx: Path, tmp_path
     # Tab stop kustom dipertahankan.
     tabs = ppr.find(W_TABS)
     assert tabs is not None
-    assert [(tab.get(W_VAL), tab.get(W_POS)) for tab in tabs.findall(W_TAB)] == [
-        ("left", "1234")
-    ]
+    assert [(tab.get(W_VAL), tab.get(W_POS)) for tab in tabs.findall(W_TAB)] == [("left", "1234")]
 
     # Perataan kanan dipertahankan.
     right = _paragraph_by_text(result, RIGHT_TEXT)
@@ -400,9 +389,7 @@ def test_normalize_spacing_bold_tab_dan_pengecualian(layout_docx: Path, tmp_path
     assert page.find(f"{W_PPR}/{W_SPACING}").get(W_LINE) == "360"
 
 
-def test_normalize_idempoten_dan_part_non_target_identik(
-    layout_docx: Path, tmp_path: Path
-) -> None:
+def test_normalize_idempoten_dan_part_non_target_identik(layout_docx: Path, tmp_path: Path) -> None:
     before = _part_hashes(layout_docx)
     package = DocumentPackage.load(layout_docx)
     normalize_layout(package)
@@ -544,9 +531,7 @@ def test_blank_lines_tracked_changes_dan_heading4(tracked_docx: Path) -> None:
     # Tabel ber-caption: kosong sebelum caption dan setelah tabel.
     caption = _child_index(children, TABLE_CAPTION)
     assert _is_blank(children[caption - 1])
-    table_index = next(
-        index for index, child in enumerate(children) if child.tag == W_TBL
-    )
+    table_index = next(index for index, child in enumerate(children) if child.tag == W_TBL)
     assert _is_blank(children[table_index + 1])
 
     # Persamaan display: kosong sebelum dan sesudah (ada isi setelahnya).
@@ -563,9 +548,7 @@ def test_blank_lines_tracked_changes_dan_heading4(tracked_docx: Path) -> None:
     assert report.after_object >= 2
 
 
-def test_blank_lines_idempoten_dan_part_identik(
-    tracked_docx: Path, tmp_path: Path
-) -> None:
+def test_blank_lines_idempoten_dan_part_identik(tracked_docx: Path, tmp_path: Path) -> None:
     before = _part_hashes(tracked_docx)
     package = DocumentPackage.load(tracked_docx)
     blank_lines.insert_blank_lines(package)
@@ -579,9 +562,9 @@ def test_blank_lines_idempoten_dan_part_identik(
     report = blank_lines.insert_blank_lines(second_package)
     assert report.inserted == 0
     second = _save(second_package, tmp_path / "second.docx")
-    assert DocumentPackage.load(first).part(DOCUMENT_PART) == DocumentPackage.load(
-        second
-    ).part(DOCUMENT_PART)
+    assert DocumentPackage.load(first).part(DOCUMENT_PART) == DocumentPackage.load(second).part(
+        DOCUMENT_PART
+    )
 
 
 def test_urutan_stage_normalize_equations_numbering_blank_lines() -> None:

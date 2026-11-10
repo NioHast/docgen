@@ -1,7 +1,5 @@
 """Tes unit ``docx/terms.py`` dan stage ``stages/terms.py``."""
 
-from __future__ import annotations
-
 import dataclasses
 from pathlib import Path
 from types import SimpleNamespace
@@ -207,9 +205,7 @@ def test_match_terms_frasa_terpanjang_dan_batas_kata(tmp_path: Path) -> None:
 
 def test_merge_glossary_override_menang_per_frasa(tmp_path: Path) -> None:
     base = load_glossary(write_glossary(tmp_path, [("data", "no")], filename="base.tsv"))
-    override = load_glossary(
-        write_glossary(tmp_path, [("data", "yes")], filename="override.tsv")
-    )
+    override = load_glossary(write_glossary(tmp_path, [("data", "yes")], filename="override.tsv"))
 
     merged = merge_glossaries(base, override)
 
@@ -265,8 +261,7 @@ def test_marker_menjadi_review_dan_teks_utuh(tmp_path: Path) -> None:
     report = apply_terms(package, glossary, review_path=review)
 
     text = "\n".join(
-        paragraph_text(paragraph)
-        for paragraph in iter_paragraphs(package.xml("word/document.xml"))
+        paragraph_text(paragraph) for paragraph in iter_paragraphs(package.xml("word/document.xml"))
     )
     assert "{{?" not in text
     assert "?}}" not in text
@@ -289,9 +284,7 @@ def test_verify_gagal_untuk_teks_biasa(tmp_path: Path) -> None:
 
 def test_verify_gagal_untuk_penanda_tersisa(tmp_path: Path) -> None:
     glossary = load_glossary(write_glossary(tmp_path, []))
-    package = DocumentPackage.load(
-        make_docx(tmp_path, ["Bagian {{?belum diputuskan?}}."])
-    )
+    package = DocumentPackage.load(make_docx(tmp_path, ["Bagian {{?belum diputuskan?}}."]))
 
     report = verify_terms(package, glossary)
 
@@ -339,8 +332,7 @@ def test_external_hyperlink_dan_field_tidak_disentuh(tmp_path: Path) -> None:
     assert style_spans(package, "IstilahAsing") == []
     assert verify_terms(package, glossary).violations == ()
     texts = [
-        paragraph_text(paragraph)
-        for paragraph in iter_paragraphs(package.xml("word/document.xml"))
+        paragraph_text(paragraph) for paragraph in iter_paragraphs(package.xml("word/document.xml"))
     ]
     assert texts == ["Awal training data akhir", "Awal training data akhir"]
 

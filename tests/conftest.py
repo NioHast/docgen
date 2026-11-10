@@ -1,7 +1,5 @@
 """Konfigurasi pytest: buat modul di tools/dev/ dapat diimpor."""
 
-from __future__ import annotations
-
 import sys
 from pathlib import Path
 

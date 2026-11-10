@@ -5,8 +5,6 @@ memastikan keluaran memakai ``(Nama, 2020)``/``Nama dan Nama, 2020``,
 ``dkk.`` untuk tiga penulis, serta daftar pustaka alfabetis tanpa nomor.
 """
 
-from __future__ import annotations
-
 import os
 import re
 import shutil
@@ -119,9 +117,7 @@ def test_citation_style_author_date_alfabetis(tmp_path: Path) -> None:
     # Daftar pustaka alfabetis dan tanpa label nomor.
     assert "DAFTAR PUSTAKA" in output, output
     bibliography_text = output.split("DAFTAR PUSTAKA", 1)[1]
-    positions = [
-        bibliography_text.index(name) for name in ("Alpha", "Citra", "Solo")
-    ]
+    positions = [bibliography_text.index(name) for name in ("Alpha", "Citra", "Solo")]
     assert positions == sorted(positions), bibliography_text
     assert not re.search(r"(?m)^\s*\[\d+\]", bibliography_text), bibliography_text
 

@@ -1,7 +1,5 @@
 """Tes unit stage ``pdf``: aturan target, mock Word, dan output atomic."""
 
-from __future__ import annotations
-
 import logging
 from pathlib import Path
 from types import SimpleNamespace

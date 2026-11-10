@@ -5,8 +5,6 @@ halaman pada stage ``office``. Tidak ada cache nomor halaman statis dan tidak
 ada TOC ganda: field lama diganti.
 """
 
-from __future__ import annotations
-
 import time
 
 from lxml import etree
@@ -29,6 +27,8 @@ STYLES_PART = "word/styles.xml"
 TOC_TITLE = "DAFTAR ISI"
 
 TOC_STYLE_IDS = ("TOCHeading", "TOC1", "TOC2", "TOC3")
+
+_W_NS_DECL = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"'
 
 
 class TocError(FieldError):
@@ -55,7 +55,7 @@ def tab_position(package: object, *, fallback: tuple[int, int, int, int] | None 
 
     try:
         sections = iter_sections(package)
-    except Exception:
+    except Exception:  # noqa: BLE001 - package tanpa section adalah boundary opsional
         sections = ()
     if sections:
         sect_pr = sections[0].sect_pr
@@ -77,12 +77,9 @@ def tab_position(package: object, *, fallback: tuple[int, int, int, int] | None 
 
 
 def _style_fragment(style_id: str, tab_pos: int) -> etree._Element:
-    tnr = (
-        '<w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" '
-        'w:cs="Times New Roman"/>'
-    )
+    tnr = '<w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:cs="Times New Roman"/>'
     definitions = {
-        "TOCHeading": f"""<w:style xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" w:type="paragraph" w:styleId="TOCHeading">
+        "TOCHeading": f"""<w:style {_W_NS_DECL} w:type="paragraph" w:styleId="TOCHeading">
   <w:name w:val="TOC Heading"/>
   <w:basedOn w:val="Normal"/>
   <w:next w:val="Normal"/>
@@ -103,7 +100,7 @@ def _style_fragment(style_id: str, tab_pos: int) -> etree._Element:
     <w:bCs/>
   </w:rPr>
 </w:style>""",
-        "TOC1": f"""<w:style xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" w:type="paragraph" w:styleId="TOC1">
+        "TOC1": f"""<w:style {_W_NS_DECL} w:type="paragraph" w:styleId="TOC1">
   <w:name w:val="toc 1"/>
   <w:basedOn w:val="Normal"/>
   <w:next w:val="Normal"/>
@@ -125,7 +122,7 @@ def _style_fragment(style_id: str, tab_pos: int) -> etree._Element:
     <w:bCs w:val="0"/>
   </w:rPr>
 </w:style>""",
-        "TOC2": f"""<w:style xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" w:type="paragraph" w:styleId="TOC2">
+        "TOC2": f"""<w:style {_W_NS_DECL} w:type="paragraph" w:styleId="TOC2">
   <w:name w:val="toc 2"/>
   <w:basedOn w:val="TOC1"/>
   <w:next w:val="Normal"/>
@@ -148,7 +145,7 @@ def _style_fragment(style_id: str, tab_pos: int) -> etree._Element:
     <w:bCs w:val="0"/>
   </w:rPr>
 </w:style>""",
-        "TOC3": f"""<w:style xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" w:type="paragraph" w:styleId="TOC3">
+        "TOC3": f"""<w:style {_W_NS_DECL} w:type="paragraph" w:styleId="TOC3">
   <w:name w:val="toc 3"/>
   <w:basedOn w:val="TOC2"/>
   <w:next w:val="Normal"/>
@@ -298,8 +295,7 @@ class TocStage(BaseStage):
                 code=exc.code,
             ) from exc
         changed = (
-            _document_hash(package) != before_document
-            or _styles_hash(package) != before_styles
+            _document_hash(package) != before_document or _styles_hash(package) != before_styles
         )
         return StageResult(
             stage=self.name.value,

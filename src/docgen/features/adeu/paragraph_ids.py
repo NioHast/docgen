@@ -6,8 +6,6 @@ Modul ini adalah port ``tools/add_paragraph_ids.py`` ke atas API
 pencocokan sumber, dan manifest deterministik.
 """
 
-from __future__ import annotations
-
 import argparse
 import re
 import sys
@@ -189,10 +187,7 @@ def _scan_fields(
 
 
 def _has_sectpr(paragraph: etree._Element) -> bool:
-    return (
-        paragraph.find(f"{W_PPR}/{W_SECTPR}") is not None
-        or paragraph.find(W_SECTPR) is not None
-    )
+    return paragraph.find(f"{W_PPR}/{W_SECTPR}") is not None or paragraph.find(W_SECTPR) is not None
 
 
 def _protected_reason(
@@ -246,9 +241,7 @@ def analyze_manifest(
 
     paragraphs = _body_paragraphs(package)
     expected_names = tuple(f"p{index + 1:04d}" for index in range(len(paragraphs)))
-    actual_names = tuple(
-        bookmark.name for bookmark in bookmark_mod.iter_bookmarks(package)
-    )
+    actual_names = tuple(bookmark.name for bookmark in bookmark_mod.iter_bookmarks(package))
     if actual_names != expected_names:
         raise bookmark_mod.BookmarkError(
             "manifest hanya boleh disusun setelah bookmark pNNNN lengkap; "
@@ -297,6 +290,7 @@ def analyze_manifest(
         include_source=include_source,
     )
     if include_source:
+        assert source_dir is not None
         manifest = _attach_sources(manifest, Path(source_dir))
     return manifest
 
@@ -315,10 +309,7 @@ def _attach_sources(manifest: Manifest, source_dir: Path) -> Manifest:
             relative_path = block.path.relative_to(source_dir)
         except ValueError:
             relative_path = block.path
-        if any(
-            _is_generated_source_dir(part)
-            for part in relative_path.parts[:-1]
-        ):
+        if any(_is_generated_source_dir(part) for part in relative_path.parts[:-1]):
             # Artefak workspace (front_matter.md/mermaid.md), output, dan
             # laporan review bukan sumber konten dan tidak boleh membuat
             # kandidat duplikat.
@@ -414,9 +405,7 @@ def write_prepared_manifest(
     if manifest is None:
         return None
     destination = (
-        Path(manifest_path)
-        if manifest_path is not None
-        else default_manifest_path(document_path)
+        Path(manifest_path) if manifest_path is not None else default_manifest_path(document_path)
     )
     return dump_manifest(manifest, destination)
 
@@ -445,9 +434,7 @@ def add_paragraph_ids(
     package.save(output_path)
     if prepared is not None and resolved.manifest:
         destination = (
-            Path(manifest_path)
-            if manifest_path is not None
-            else default_manifest_path(output_path)
+            Path(manifest_path) if manifest_path is not None else default_manifest_path(output_path)
         )
         dump_manifest(prepared, destination)
     return prepared
@@ -491,8 +478,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="docgen-adeu-add",
         description=(
-            "Injeksi bookmark pNNNN ke setiap paragraf body DOCX dan tulis "
-            "manifest JSON Adeu."
+            "Injeksi bookmark pNNNN ke setiap paragraf body DOCX dan tulis manifest JSON Adeu."
         ),
     )
     parser.add_argument("docx", type=Path, help="file DOCX input")
@@ -554,9 +540,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     else:
         print(_summary(manifest))
         destination = (
-            args.manifest
-            if args.manifest is not None
-            else default_manifest_path(args.out_docx)
+            args.manifest if args.manifest is not None else default_manifest_path(args.out_docx)
         )
         print(f"Manifest: {destination}")
     print(f"DOCX: {args.out_docx}")

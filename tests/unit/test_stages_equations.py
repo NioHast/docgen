@@ -1,7 +1,5 @@
 """Tes unit stage ``equations``: nomor per bab, ChapterTitle, OMML aman."""
 
-from __future__ import annotations
-
 import zipfile
 from pathlib import Path
 from types import SimpleNamespace
@@ -172,25 +170,16 @@ def _equation_paragraphs(package: DocumentPackage):
     return [
         paragraph
         for paragraph in _paragraphs(package)
-        if paragraph.find(M_O_MATH_PARA) is not None
-        or paragraph.find(M_O_MATH) is not None
+        if paragraph.find(M_O_MATH_PARA) is not None or paragraph.find(M_O_MATH) is not None
     ]
 
 
 def _direct_run_text(paragraph) -> str:
-    return "".join(
-        (text.text or "")
-        for run in paragraph.findall(W_R)
-        for text in run.findall(W_T)
-    )
+    return "".join((text.text or "") for run in paragraph.findall(W_R) for text in run.findall(W_T))
 
 
 def _number_runs(paragraph):
-    return [
-        run
-        for run in paragraph.findall(W_R)
-        if equations.run_number_text(run) is not None
-    ]
+    return [run for run in paragraph.findall(W_R) if equations.run_number_text(run) is not None]
 
 
 def _canonical(element) -> bytes:
@@ -207,9 +196,7 @@ def _save(package: DocumentPackage, path: Path) -> Path:
 # ---------------------------------------------------------------------------
 
 
-def test_nomor_per_bab_chapter_title_dan_romawi(
-    equations_docx: Path, tmp_path: Path
-) -> None:
+def test_nomor_per_bab_chapter_title_dan_romawi(equations_docx: Path, tmp_path: Path) -> None:
     package = DocumentPackage.load(equations_docx)
     report = equations.format_equations(package)
     output = _save(package, tmp_path / "out.docx")
@@ -287,7 +274,6 @@ def test_tab_stop_dan_indentasi(equations_docx: Path, tmp_path: Path) -> None:
 
 def test_field_dan_bookmark_tetap_aman(equations_docx: Path, tmp_path: Path) -> None:
     package = DocumentPackage.load(equations_docx)
-    before = package.xml(DOCUMENT_PART)
     field_paragraph = _equation_paragraphs(package)[1]
     assert field_paragraph.find(f"{W_PPR}/{W_TABS}") is None
     before_field = _canonical(field_paragraph)
@@ -354,9 +340,7 @@ def test_direct_omath_dengan_nomor_lama_tetap_diformat(
     assert candidate.find(f"{W_PPR}/{W_IND}").get(W_LEFT) == "1440"
 
 
-def test_idempoten_part_identik_dan_stage(
-    equations_docx: Path, tmp_path: Path
-) -> None:
+def test_idempoten_part_identik_dan_stage(equations_docx: Path, tmp_path: Path) -> None:
     before = {}
     with zipfile.ZipFile(equations_docx) as archive:
         before = {name: archive.read(name) for name in archive.namelist()}
@@ -374,9 +358,9 @@ def test_idempoten_part_identik_dan_stage(
     second_package = DocumentPackage.load(first)
     equations.format_equations(second_package)
     second = _save(second_package, tmp_path / "second.docx")
-    assert DocumentPackage.load(first).part(DOCUMENT_PART) == DocumentPackage.load(
-        second
-    ).part(DOCUMENT_PART)
+    assert DocumentPackage.load(first).part(DOCUMENT_PART) == DocumentPackage.load(second).part(
+        DOCUMENT_PART
+    )
 
     assert equations.EquationsStage.order == 90
     assert equations.EquationsStage.name is StageName.EQUATIONS

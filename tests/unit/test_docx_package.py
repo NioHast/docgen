@@ -1,7 +1,5 @@
 """Tes unit package DOCX/OPC."""
 
-from __future__ import annotations
-
 import warnings
 import zipfile
 from collections.abc import Sequence
@@ -15,17 +13,17 @@ from docgen.docx import (
     DOCUMENT_PART,
     MAIN_DOCUMENT_CONTENT_TYPE,
     PACKAGE_RELS_PART,
-    DocxError,
-    DocxPackage,
-    DocumentPackage,
-    InvalidPackageError,
-    PackageError,
-    PartExistsError,
-    PartNotFoundError,
     REL_TYPE_HYPERLINK,
     REL_TYPE_IMAGE,
     REL_TYPE_OFFICE_DOCUMENT,
     REL_TYPE_STYLES,
+    DocumentPackage,
+    DocxError,
+    DocxPackage,
+    InvalidPackageError,
+    PackageError,
+    PartExistsError,
+    PartNotFoundError,
     Relationship,
     SaveError,
     paragraph_text,
@@ -39,22 +37,13 @@ CT_NS = "http://schemas.openxmlformats.org/package/2006/content-types"
 PR_NS = "http://schemas.openxmlformats.org/package/2006/relationships"
 
 DOCUMENT_CONTENT_TYPE = (
-    "application/vnd.openxmlformats-officedocument."
-    "wordprocessingml.document.main+xml"
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"
 )
-STYLES_CONTENT_TYPE = (
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"
-)
-RELS_CONTENT_TYPE = (
-    "application/vnd.openxmlformats-package.relationships+xml"
-)
+STYLES_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"
+RELS_CONTENT_TYPE = "application/vnd.openxmlformats-package.relationships+xml"
 
 GOLDEN = (
-    Path(__file__).resolve().parents[2]
-    / "tests"
-    / "fixtures"
-    / "golden"
-    / "laporan-baseline.docx"
+    Path(__file__).resolve().parents[2] / "tests" / "fixtures" / "golden" / "laporan-baseline.docx"
 )
 
 DOCUMENT_XML = (
@@ -63,14 +52,14 @@ DOCUMENT_XML = (
     '<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr>'
     "<w:r><w:t>Hello</w:t></w:r></w:p>"
     "</w:body></w:document>"
-).encode("utf-8")
+).encode()
 
 STYLES_XML = (
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
     f'<w:styles xmlns:w="{W_NS}">'
     '<w:style w:type="paragraph" w:styleId="Heading1">'
     '<w:name w:val="heading 1"/></w:style></w:styles>'
-).encode("utf-8")
+).encode()
 
 
 def _content_types(*, include_bin: bool = True, extra: str = "") -> bytes:
@@ -79,10 +68,7 @@ def _content_types(*, include_bin: bool = True, extra: str = "") -> bytes:
         '<Default Extension="xml" ContentType="application/xml"/>'
     )
     if include_bin:
-        defaults += (
-            '<Default Extension="bin" '
-            'ContentType="application/octet-stream"/>'
-        )
+        defaults += '<Default Extension="bin" ContentType="application/octet-stream"/>'
     overrides = (
         f'<Override PartName="/{DOCUMENT_PART}" '
         f'ContentType="{DOCUMENT_CONTENT_TYPE}"/>'
@@ -92,7 +78,7 @@ def _content_types(*, include_bin: bool = True, extra: str = "") -> bytes:
     return (
         '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
         f'<Types xmlns="{CT_NS}">{defaults}{overrides}{extra}</Types>'
-    ).encode("utf-8")
+    ).encode()
 
 
 def _package_rels() -> bytes:
@@ -102,7 +88,7 @@ def _package_rels() -> bytes:
         f'<Relationship Id="rId1" Type="{REL_TYPE_OFFICE_DOCUMENT}" '
         f'Target="{DOCUMENT_PART}"/>'
         "</Relationships>"
-    ).encode("utf-8")
+    ).encode()
 
 
 def _document_rels(target: str = "styles.xml") -> bytes:
@@ -112,7 +98,7 @@ def _document_rels(target: str = "styles.xml") -> bytes:
         f'<Relationship Id="rId2" Type="{REL_TYPE_STYLES}" '
         f'Target="{target}"/>'
         "</Relationships>"
-    ).encode("utf-8")
+    ).encode()
 
 
 def _write_entries(
@@ -122,9 +108,7 @@ def _write_entries(
     with zipfile.ZipFile(path, "w") as archive:
         for name, data, deflated, comment in entries:
             info = zipfile.ZipInfo(name, date_time=(2020, 1, 2, 3, 4, 6))
-            info.compress_type = (
-                zipfile.ZIP_DEFLATED if deflated else zipfile.ZIP_STORED
-            )
+            info.compress_type = zipfile.ZIP_DEFLATED if deflated else zipfile.ZIP_STORED
             info.external_attr = 0o644 << 16
             info.create_system = 3
             info.comment = comment
@@ -225,10 +209,7 @@ def test_load_save_golden_fixture_preserves_all_parts(tmp_path: Path) -> None:
     assert len(package.part_names()) == len(
         [entry for entry in before if not str(entry[0]).endswith("/")]
     )
-    assert (
-        package.part_info(DOCUMENT_PART).content_type
-        == MAIN_DOCUMENT_CONTENT_TYPE
-    )
+    assert package.part_info(DOCUMENT_PART).content_type == MAIN_DOCUMENT_CONTENT_TYPE
 
 
 def test_mutating_document_keeps_other_parts_byte_identical(
@@ -255,9 +236,7 @@ def test_mutating_document_keeps_other_parts_byte_identical(
     assert after[2][2:] == before[2][2:]
 
     reloaded = DocumentPackage.load(destination)
-    paragraph = list(
-        reloaded.xml(DOCUMENT_PART).iter(f"{{{W_NS}}}p")
-    )[0]
+    paragraph = next(iter(reloaded.xml(DOCUMENT_PART).iter(f"{{{W_NS}}}p")))
     assert paragraph_text(paragraph) == "Changed"
 
 
@@ -285,9 +264,7 @@ def test_set_xml_roundtrip(tmp_path: Path) -> None:
     destination = tmp_path / "out.docx"
     package.save(destination)
     reloaded = DocumentPackage.load(destination)
-    paragraph = list(
-        reloaded.xml(DOCUMENT_PART).iter(f"{{{W_NS}}}p")
-    )[0]
+    paragraph = next(iter(reloaded.xml(DOCUMENT_PART).iter(f"{{{W_NS}}}p")))
     assert paragraph_text(paragraph) == "Via set_xml"
 
 
@@ -338,27 +315,17 @@ def test_content_type_for_new_part_roundtrip(tmp_path: Path) -> None:
         b"\x89PNG\r\n\x1a\npayload",
         content_type="image/png",
     )
-    assert (
-        package.part_info("word/media/image2.png").content_type
-        == "image/png"
-    )
-    assert b'PartName="/word/media/image2.png"' in package.part(
-        CONTENT_TYPES_PART
-    )
+    assert package.part_info("word/media/image2.png").content_type == "image/png"
+    assert b'PartName="/word/media/image2.png"' in package.part(CONTENT_TYPES_PART)
 
     package.ensure_content_type("word/media/image2.png", "image/png")
-    assert package.part(CONTENT_TYPES_PART).count(
-        b'PartName="/word/media/image2.png"'
-    ) == 1
+    assert package.part(CONTENT_TYPES_PART).count(b'PartName="/word/media/image2.png"') == 1
 
     destination = tmp_path / "out.docx"
     package.save(destination)
     reloaded = DocumentPackage.load(destination)
     assert reloaded.has_part("word/media/image2.png")
-    assert (
-        reloaded.part_info("word/media/image2.png").content_type
-        == "image/png"
-    )
+    assert reloaded.part_info("word/media/image2.png").content_type == "image/png"
 
 
 def test_relationship_roundtrip_removal_and_duplicate(tmp_path: Path) -> None:
@@ -367,8 +334,7 @@ def test_relationship_roundtrip_removal_and_duplicate(tmp_path: Path) -> None:
 
     root_relationships = package.relationships("")
     assert any(
-        relationship.rel_type == REL_TYPE_OFFICE_DOCUMENT
-        and relationship.target == DOCUMENT_PART
+        relationship.rel_type == REL_TYPE_OFFICE_DOCUMENT and relationship.target == DOCUMENT_PART
         for relationship in root_relationships
     )
     styles_relationship = next(
@@ -390,8 +356,7 @@ def test_relationship_roundtrip_removal_and_duplicate(tmp_path: Path) -> None:
     )
     package.add_relationship(DOCUMENT_PART, image_relationship)
     assert any(
-        relationship.rel_id == "rId99"
-        for relationship in package.relationships(DOCUMENT_PART)
+        relationship.rel_id == "rId99" for relationship in package.relationships(DOCUMENT_PART)
     )
 
     with pytest.raises(PartExistsError):
@@ -414,23 +379,19 @@ def test_relationship_roundtrip_removal_and_duplicate(tmp_path: Path) -> None:
     package.save(destination)
     reloaded = DocumentPackage.load(destination)
     loaded_relationships = {
-        relationship.rel_id: relationship
-        for relationship in reloaded.relationships(DOCUMENT_PART)
+        relationship.rel_id: relationship for relationship in reloaded.relationships(DOCUMENT_PART)
     }
     assert loaded_relationships["rId99"].target == "media/image2.png"
     assert loaded_relationships["rId101"].target_mode == "External"
 
     reloaded.remove_relationship(DOCUMENT_PART, "rId99")
     assert "rId99" not in {
-        relationship.rel_id
-        for relationship in reloaded.relationships(DOCUMENT_PART)
+        relationship.rel_id for relationship in reloaded.relationships(DOCUMENT_PART)
     }
 
     reloaded.remove_part("word/media/image2.png")
     assert not reloaded.has_part("word/media/image2.png")
-    assert b'PartName="/word/media/image2.png"' not in reloaded.part(
-        CONTENT_TYPES_PART
-    )
+    assert b'PartName="/word/media/image2.png"' not in reloaded.part(CONTENT_TYPES_PART)
     reloaded.save(destination)
     DocumentPackage.load(destination)
 
@@ -451,12 +412,9 @@ def test_remove_part_removes_incoming_relationship(tmp_path: Path) -> None:
     package.remove_part("word/media/image3.png")
 
     assert not any(
-        relationship.rel_id == "rId102"
-        for relationship in package.relationships(DOCUMENT_PART)
+        relationship.rel_id == "rId102" for relationship in package.relationships(DOCUMENT_PART)
     )
-    assert b'PartName="/word/media/image3.png"' not in package.part(
-        CONTENT_TYPES_PART
-    )
+    assert b'PartName="/word/media/image3.png"' not in package.part(CONTENT_TYPES_PART)
 
     destination = tmp_path / "out.docx"
     package.save(destination)

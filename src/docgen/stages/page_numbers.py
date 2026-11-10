@@ -6,8 +6,6 @@ native. Tidak ada probe tersembunyi untuk ``docx-pagenum``; Word/LibreOffice
 yang mengisi nilai field saat dokumen dibuka.
 """
 
-from __future__ import annotations
-
 import time
 
 from lxml import etree
@@ -248,9 +246,7 @@ def _configure_body(
     )
 
     clear_header_footer_references(section)
-    set_header_footer_reference(
-        section, kind="header", reference_type="default", rel_id=header_id
-    )
+    set_header_footer_reference(section, kind="header", reference_type="default", rel_id=header_id)
     set_header_footer_reference(
         section,
         kind="header",
@@ -336,8 +332,7 @@ class PageNumbersStage(BaseStage):
         if package is None:
             raise StageError(
                 self.name.value,
-                "package DOCX belum tersedia; stage page_numbers membutuhkan "
-                "hasil Pandoc.",
+                "package DOCX belum tersedia; stage page_numbers membutuhkan hasil Pandoc.",
                 code="STAGE-PACKAGE",
             )
 
@@ -356,16 +351,14 @@ class PageNumbersStage(BaseStage):
                         _configure_front_matter(
                             package,
                             section,
-                            start=start,  # type: ignore[arg-type]
+                            start=start,
                         )
                         or changed
                     )
                     front_seen += 1
                 else:
                     start = 1 if body_seen == 0 else None
-                    changed = (
-                        _configure_body(package, section, start=start) or changed
-                    )
+                    changed = _configure_body(package, section, start=start) or changed
                     body_seen += 1
             if remove_unused_header_footer_parts(package):
                 changed = True

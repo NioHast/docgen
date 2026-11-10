@@ -1,7 +1,5 @@
 """Tes unit stage ``lists``: field daftar, field ``SEQ`` caption, idempotensi."""
 
-from __future__ import annotations
-
 import html
 import zipfile
 from pathlib import Path
@@ -36,9 +34,7 @@ RELS_CONTENT_TYPE = "application/vnd.openxmlformats-package.relationships+xml"
 DOCUMENT_CONTENT_TYPE = (
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"
 )
-STYLES_CONTENT_TYPE = (
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"
-)
+STYLES_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"
 
 STYLES_XML = (
     f'<w:styles xmlns:w="{W_NS}">'
@@ -53,7 +49,7 @@ STYLES_XML = (
     '<w:style w:type="paragraph" w:styleId="TOCHeading">'
     '<w:name w:val="TOC Heading"/><w:basedOn w:val="Normal"/></w:style>'
     "</w:styles>"
-).encode("utf-8")
+).encode()
 
 
 def _content_types() -> bytes:
@@ -66,7 +62,7 @@ def _content_types() -> bytes:
         '<Override PartName="/word/styles.xml" '
         f'ContentType="{STYLES_CONTENT_TYPE}"/>'
         "</Types>"
-    ).encode("utf-8")
+    ).encode()
 
 
 def _package_rels() -> bytes:
@@ -75,7 +71,7 @@ def _package_rels() -> bytes:
         f'<Relationship Id="rId1" Type="{REL_TYPE_OFFICE_DOCUMENT}" '
         f'Target="{DOCUMENT_PART}"/>'
         "</Relationships>"
-    ).encode("utf-8")
+    ).encode()
 
 
 def _document_rels() -> bytes:
@@ -84,15 +80,11 @@ def _document_rels() -> bytes:
         f'<Relationship Id="rId2" Type="{REL_TYPE_STYLES}" '
         'Target="styles.xml"/>'
         "</Relationships>"
-    ).encode("utf-8")
+    ).encode()
 
 
 def _paragraph(text: str = "", *, style: str | None = None) -> str:
-    ppr = (
-        f'<w:pPr><w:pStyle w:val="{html.escape(style)}"/></w:pPr>'
-        if style
-        else ""
-    )
+    ppr = f'<w:pPr><w:pStyle w:val="{html.escape(style)}"/></w:pPr>' if style else ""
     runs = f"<w:r><w:t>{html.escape(text)}</w:t></w:r>" if text else ""
     return f"<w:p>{ppr}{runs}</w:p>"
 
@@ -101,7 +93,7 @@ def _document(body: str) -> bytes:
     return (
         f'<w:document xmlns:w="{W_NS}" xmlns:r="{R_NS}">'
         f"<w:body>{body}<w:sectPr/></w:body></w:document>"
-    ).encode("utf-8")
+    ).encode()
 
 
 def _write_package(tmp_path: Path, body: str, *, name: str = "lists.docx") -> Path:
@@ -160,16 +152,12 @@ def _body(package: DocumentPackage):
 
 def _toc_sdts(package: DocumentPackage):
     return [
-        child
-        for child in _body(package)
-        if isinstance(child.tag, str) and child.tag == qn("w:sdt")
+        child for child in _body(package) if isinstance(child.tag, str) and child.tag == qn("w:sdt")
     ]
 
 
 def _sdt_title(sdt) -> str:
-    return " ".join(
-        "".join(paragraph_text(item) for item in sdt.iter(qn("w:p"))).split()
-    )
+    return " ".join("".join(paragraph_text(item) for item in sdt.iter(qn("w:p"))).split())
 
 
 def _caption(package: DocumentPackage, text: str):
@@ -235,14 +223,10 @@ def test_caption_seq_fields_are_hybrid_chapter(tmp_path: Path) -> None:
     table = _caption(package, "Tabel 2.1 Judul Tabel Satu")
     figure = _caption(package, "Gambar 2.1 Diagram Alur")
     table_fields = [
-        field
-        for field in iter_fields_in_paragraph(table)
-        if field.kind is FieldKind.SEQ
+        field for field in iter_fields_in_paragraph(table) if field.kind is FieldKind.SEQ
     ]
     figure_fields = [
-        field
-        for field in iter_fields_in_paragraph(figure)
-        if field.kind is FieldKind.SEQ
+        field for field in iter_fields_in_paragraph(figure) if field.kind is FieldKind.SEQ
     ]
     assert len(table_fields) == 1
     assert len(figure_fields) == 1
@@ -264,11 +248,7 @@ def test_document_scope_uses_plain_seq_arabic(tmp_path: Path) -> None:
         _ctx(package, front_matter=("cover", "toc", "list_of_tables"), numbering="document")
     )
     table = _caption(package, "Tabel 5 Judul Tabel Satu")
-    fields = [
-        field
-        for field in iter_fields_in_paragraph(table)
-        if field.kind is FieldKind.SEQ
-    ]
+    fields = [field for field in iter_fields_in_paragraph(table) if field.kind is FieldKind.SEQ]
     assert len(fields) == 1
     assert field_instruction(fields[0]) == "SEQ Tabel \\* ARABIC"
     assert paragraph_text(table) == "Tabel 5 Judul Tabel Satu"

@@ -5,8 +5,6 @@ Tes ini menjalankan stage nyata (Pandoc, mmdc, dan Word bila tersedia) untuk
 di-ignore Git, sama seperti perintah ``docgen build``.
 """
 
-from __future__ import annotations
-
 import shutil
 import subprocess
 import zipfile

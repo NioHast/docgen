@@ -15,17 +15,17 @@ API publik:
     Ekspor DOCX final ke PDF memakai Word, dengan output atomic.
 """
 
-from __future__ import annotations
-
+import contextlib
 import os
 import shutil
 import subprocess
 import sys
 import time
 import uuid
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Sequence
+from typing import Protocol
 
 from ..errors import ExternalToolError, PdfError, ToolMissingError, WordError
 from ..pipeline import BaseStage, StageName, StageResult, canonical_prefix
@@ -73,14 +73,8 @@ def find_powershell() -> str | None:
         if executable:
             return executable
     if os.name == "nt":
-        system_root = os.environ.get("SystemRoot", r"C:\Windows")
-        fallback = (
-            Path(system_root)
-            / "System32"
-            / "WindowsPowerShell"
-            / "v1.0"
-            / "powershell.exe"
-        )
+        system_root = os.environ.get("SYSTEMROOT", r"C:\Windows")
+        fallback = Path(system_root) / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
         if fallback.is_file():
             return str(fallback)
     return None
@@ -90,7 +84,7 @@ def _find_word_in_registry() -> str | None:
     if not is_windows():
         return None
     try:
-        import winreg  # type: ignore[import-not-found]
+        import winreg
     except ImportError:  # pragma: no cover - hanya Windows
         return None
 
@@ -154,11 +148,7 @@ def word_script_path() -> Path | None:
 def word_available() -> bool:
     """True bila platform, PowerShell, dan Word desktop tersedia."""
 
-    return (
-        is_windows()
-        and find_powershell() is not None
-        and find_word_executable() is not None
-    )
+    return is_windows() and find_powershell() is not None and find_word_executable() is not None
 
 
 # ---------------------------------------------------------------------------
@@ -239,21 +229,17 @@ def _terminate_process_tree(process: subprocess.Popen[str]) -> None:
     """Hentikan PowerShell beserta proses Word yang menjadi anaknya."""
 
     if os.name == "nt":
-        try:
+        with contextlib.suppress(OSError):  # pragma: no cover - taskkill praktis selalu ada
             subprocess.run(
                 ["taskkill", "/PID", str(process.pid), "/T", "/F"],
                 check=False,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
-        except OSError:  # pragma: no cover - taskkill praktis selalu ada
-            pass
     else:
         process.kill()
-    try:
+    with contextlib.suppress(subprocess.TimeoutExpired):  # pragma: no cover - jalur darurat
         process.wait(timeout=10)
-    except subprocess.TimeoutExpired:  # pragma: no cover - jalur darurat
-        pass
 
 
 def _run_process(command: Sequence[str], timeout: int) -> WordProcessResult:
@@ -268,9 +254,7 @@ def _run_process(command: Sequence[str], timeout: int) -> WordProcessResult:
         errors="replace",
     )
     try:
-        stdout, stderr = process.communicate(
-            timeout=timeout if timeout > 0 else None
-        )
+        stdout, stderr = process.communicate(timeout=timeout if timeout > 0 else None)
     except subprocess.TimeoutExpired:
         _terminate_process_tree(process)
         raise
@@ -283,9 +267,7 @@ def _run_process(command: Sequence[str], timeout: int) -> WordProcessResult:
 
 def _result_detail(result: WordProcessResult) -> str:
     text = "\n".join(
-        part.strip()
-        for part in (result.stderr, result.stdout)
-        if part and part.strip()
+        part.strip() for part in (result.stderr, result.stdout) if part and part.strip()
     )
     if not text:
         return ""
@@ -382,11 +364,7 @@ class WordAdapter:
         return self._script or word_script_path()
 
     def available(self) -> bool:
-        return (
-            is_windows()
-            and self._powershell_exe() is not None
-            and self._word_exe() is not None
-        )
+        return is_windows() and self._powershell_exe() is not None and self._word_exe() is not None
 
     def _resolve(
         self,
@@ -397,8 +375,7 @@ class WordAdapter:
         if not is_windows():
             raise ToolMissingError(
                 "Microsoft Word",
-                "Microsoft Word hanya tersedia di Windows; "
-                "gunakan --target docx di platform ini.",
+                "Microsoft Word hanya tersedia di Windows; gunakan --target docx di platform ini.",
                 path=path,
             )
         powershell = self._powershell_exe()
@@ -411,15 +388,13 @@ class WordAdapter:
         if self._word_exe() is None:
             raise ToolMissingError(
                 "Microsoft Word",
-                "Microsoft Word desktop tidak ditemukan; pasang Word atau "
-                "gunakan --target docx.",
+                "Microsoft Word desktop tidak ditemukan; pasang Word atau gunakan --target docx.",
                 path=path,
             )
         script = self._script_path()
         if script is None or not script.is_file():
             raise error_type(
-                "Resource word.ps1 tidak ditemukan; instalasi docgen tidak "
-                "lengkap.",
+                "Resource word.ps1 tidak ditemukan; instalasi docgen tidak lengkap.",
                 code="WORD-RESOURCE",
                 path=path,
             )
@@ -551,10 +526,8 @@ def _resolve_docx_input(
     error_type: type[ExternalToolError],
 ) -> Path:
     path = Path(docx_path).expanduser()
-    try:
+    with contextlib.suppress(OSError):
         path = path.resolve()
-    except OSError:
-        pass
     if not path.is_file():
         raise error_type(
             "berkas DOCX tidak ditemukan.",
@@ -572,10 +545,8 @@ def _resolve_docx_input(
 
 def _resolve_pdf_output(pdf_path: str | Path, docx: Path) -> Path:
     path = Path(pdf_path).expanduser()
-    try:
+    with contextlib.suppress(OSError):
         path = path.resolve()
-    except OSError:
-        pass
     if path.suffix.lower() != ".pdf":
         raise PdfError(
             "path tujuan harus berekstensi .pdf.",
@@ -626,7 +597,28 @@ def export_pdf(
 # ---------------------------------------------------------------------------
 
 
-def _word_adapter(ctx: object, *, action: str) -> object:
+class WordAdapterProtocol(Protocol):
+    """Kontrak adapter Word yang dapat disuntikkan lewat ``ctx.word``."""
+
+    def available(self) -> bool: ...
+
+    def update_fields(
+        self,
+        docx_path: str | Path,
+        *,
+        timeout: int | None = None,
+    ) -> Path: ...
+
+    def export_pdf(
+        self,
+        docx_path: str | Path,
+        pdf_path: str | Path,
+        *,
+        timeout: int | None = None,
+    ) -> Path: ...
+
+
+def _word_adapter(ctx: object, *, action: str) -> WordAdapterProtocol:
     """Pakai ``ctx.word`` bila disuntikkan pipeline, selain itu adapter baru."""
 
     candidate = getattr(ctx, "word", None)
@@ -641,7 +633,7 @@ def _word_adapter(ctx: object, *, action: str) -> object:
 
 def _docx_path(ctx: object) -> Path:
     artifacts = getattr(ctx, "artifacts", None)
-    if artifacts is not None and "docx" in artifacts.keys():
+    if artifacts is not None and "docx" in artifacts.keys():  # noqa: SIM118 - Artifacts bukan Mapping
         path = artifacts.require("docx")
         if path.is_file():
             return path
@@ -721,9 +713,7 @@ class OfficeStage(BaseStage):
 
         if not adapter.available():
             target = getattr(getattr(ctx, "options", None), "target", "both")
-            allow = bool(
-                getattr(getattr(ctx, "options", None), "allow_missing_word", False)
-            )
+            allow = bool(getattr(getattr(ctx, "options", None), "allow_missing_word", False))
             if target == "docx" or (target == "both" and allow):
                 return _skipped(
                     stage=self.name,
@@ -744,7 +734,7 @@ class OfficeStage(BaseStage):
         docx = _docx_path(ctx)
         try:
             result = adapter.update_fields(docx)
-        except (WordError, ToolMissingError):
+        except WordError, ToolMissingError:
             raise
         except Exception as exc:  # pragma: no cover - pengaman kontrak
             raise WordError(

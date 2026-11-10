@@ -1,7 +1,5 @@
 """Tes injeksi bookmark dan manifest Adeu."""
 
-from __future__ import annotations
-
 import hashlib
 import json
 import re
@@ -25,23 +23,14 @@ from docgen.features.adeu.paragraph_ids import (
     write_prepared_manifest,
 )
 
-FIXTURE = (
-    Path(__file__).resolve().parents[1]
-    / "fixtures"
-    / "paragraph_ids"
-    / "contoh.docx"
-)
+FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "paragraph_ids" / "contoh.docx"
 DOCUMENT_PART = "word/document.xml"
 W_BODY = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}body"
 W_P = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}p"
 W_PPR = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}pPr"
 W_PSTYLE = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}pStyle"
-W_BOOKMARK_START = (
-    "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}bookmarkStart"
-)
-W_BOOKMARK_END = (
-    "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}bookmarkEnd"
-)
+W_BOOKMARK_START = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}bookmarkStart"
+W_BOOKMARK_END = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}bookmarkEnd"
 W_ID = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}id"
 W_NAME = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}name"
 W_VAL = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}val"
@@ -50,10 +39,7 @@ PARAGRAPH_ID_RE = re.compile(r"^p\d{4,}$")
 
 def zip_hashes(path: Path) -> dict[str, str]:
     with zipfile.ZipFile(path) as archive:
-        return {
-            name: hashlib.sha256(archive.read(name)).hexdigest()
-            for name in archive.namelist()
-        }
+        return {name: hashlib.sha256(archive.read(name)).hexdigest() for name in archive.namelist()}
 
 
 def document_root(path: Path) -> etree._Element:
@@ -141,9 +127,7 @@ def test_injection_preserves_other_parts_and_content(tmp_path: Path) -> None:
             assert after[name] == digest, f"part berubah: {name}"
 
     assert paragraph_signature(FIXTURE) == paragraph_signature(output_path)
-    assert canonical_without_paragraph_ids(
-        FIXTURE
-    ) == canonical_without_paragraph_ids(output_path)
+    assert canonical_without_paragraph_ids(FIXTURE) == canonical_without_paragraph_ids(output_path)
 
 
 def test_bookmark_count_and_wrapping(tmp_path: Path) -> None:
@@ -165,8 +149,7 @@ def test_bookmark_count_and_wrapping(tmp_path: Path) -> None:
         start_index = next(
             index
             for index, child in enumerate(children)
-            if child.tag == W_BOOKMARK_START
-            and PARAGRAPH_ID_RE.fullmatch(child.get(W_NAME) or "")
+            if child.tag == W_BOOKMARK_START and PARAGRAPH_ID_RE.fullmatch(child.get(W_NAME) or "")
         )
         expected_start = 0 if ppr is None else children.index(ppr) + 1
         assert start_index == expected_start
@@ -206,7 +189,7 @@ def test_idempotent_and_manifest_deterministic(tmp_path: Path) -> None:
 
 
 def test_manifest_schema_and_text_sha256(tmp_path: Path) -> None:
-    _, output_path, manifest_path = run_tool(FIXTURE, tmp_path, docx_name="Tugas.docx")
+    _, _output_path, manifest_path = run_tool(FIXTURE, tmp_path, docx_name="Tugas.docx")
     manifest = load_manifest(manifest_path)
 
     assert manifest.version == 1
@@ -291,9 +274,7 @@ def test_protected_caption_sectpr_and_toc(tmp_path: Path) -> None:
         assert by_index[index].protected is True
         assert by_index[index].protected_reason == "toc_field"
 
-    reasons = {
-        entry.protected_reason for entry in manifest.paragraphs if entry.protected
-    }
+    reasons = {entry.protected_reason for entry in manifest.paragraphs if entry.protected}
     assert {"seq_field", "page_field", "pageref_field", "toc_style"} <= reasons
 
 
@@ -301,17 +282,11 @@ def test_source_matching_uses_shared_markdown_parser(tmp_path: Path) -> None:
     chapters = tmp_path / "chapters"
     chapters.mkdir()
     (chapters / "bab1.md").write_text(
-        "# BAB I PENDAHULUAN\n"
-        "\n"
-        "## 1.1 Latar Belakang\n"
-        "\n"
-        "Paragraf pertama di bawah subbab.\n",
+        "# BAB I PENDAHULUAN\n\n## 1.1 Latar Belakang\n\nParagraf pertama di bawah subbab.\n",
         encoding="utf-8",
     )
 
-    manifest, _, _ = run_tool(
-        FIXTURE, tmp_path, stem="sourced", source_dir=chapters
-    )
+    manifest, _, _ = run_tool(FIXTURE, tmp_path, stem="sourced", source_dir=chapters)
     assert manifest is not None
 
     first_body = next(
@@ -394,9 +369,7 @@ def test_source_scan_can_be_disabled_on_analyze(tmp_path: Path) -> None:
 
 
 def test_docx_name_is_recorded_in_manifest(tmp_path: Path) -> None:
-    manifest, _, manifest_path = run_tool(
-        FIXTURE, tmp_path, docx_name="Tugas.docx"
-    )
+    manifest, _, manifest_path = run_tool(FIXTURE, tmp_path, docx_name="Tugas.docx")
     assert manifest is not None
     assert manifest.docx == "Tugas.docx"
     assert load_manifest(manifest_path).docx == "Tugas.docx"
@@ -412,4 +385,3 @@ def test_write_prepared_manifest_defaults_to_laporan_directory(tmp_path: Path) -
     assert destination == tmp_path / ".laporan" / "manifest.json"
     assert destination.is_file()
     assert load_manifest(destination) == prepared
-

@@ -1,7 +1,5 @@
 """Tes unit fondasi XML DOCX."""
 
-from __future__ import annotations
-
 import re
 
 import pytest
@@ -29,12 +27,12 @@ from docgen.docx import (
     sha256_c14n,
 )
 from docgen.docx.names import (
-    local_name,
     is_caption_style,
     is_code_style,
     is_cover_style,
     is_heading_style,
     is_style,
+    local_name,
     normalize_style_id,
 )
 
@@ -45,9 +43,8 @@ R_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 
 def _document(body: str) -> etree._Element:
     data = (
-        f'<w:document xmlns:w="{W_NS}" xmlns:r="{R_NS}">'
-        f"<w:body>{body}</w:body></w:document>"
-    ).encode("utf-8")
+        f'<w:document xmlns:w="{W_NS}" xmlns:r="{R_NS}"><w:body>{body}</w:body></w:document>'
+    ).encode()
     return parse_xml(data)
 
 
@@ -108,16 +105,14 @@ def test_parse_and_serialize_preserve_comments_pi_and_space() -> None:
         f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
         f'<w:p xmlns:w="{W_NS}"><!-- komentar --><?pi data?>'
         '<w:r><w:t xml:space="preserve"> a </w:t></w:r></w:p>'
-    ).encode("utf-8")
+    ).encode()
     root = parse_xml(data)
 
     output = serialize_xml(root)
-    assert output.startswith(
-        b'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
-    )
+    assert output.startswith(b'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n')
     assert b"<!-- komentar -->" in output
     assert b"<?pi data?>" in output
-    assert b'> a </w:t>' in output
+    assert b"> a </w:t>" in output
     assert b"\r" not in output
 
     assert not serialize_xml(root, xml_declaration=False).startswith(b"<?xml")
@@ -130,9 +125,7 @@ def test_parse_xml_rejects_malformed_and_entities() -> None:
     with pytest.raises(XmlError):
         parse_xml(b"<w:p>")
 
-    entity_document = (
-        f'<!DOCTYPE w:p [<!ENTITY e "x">]><w:p xmlns:w="{W_NS}">&e;</w:p>'
-    ).encode("utf-8")
+    entity_document = (f'<!DOCTYPE w:p [<!ENTITY e "x">]><w:p xmlns:w="{W_NS}">&e;</w:p>').encode()
     with pytest.raises(XmlError):
         parse_xml(entity_document)
 
@@ -147,15 +140,11 @@ def test_canonicalize_docx_profile_removes_word_noise() -> None:
         "<w:r><w:t>x</w:t></w:r>"
         "<w:lastRenderedPageBreak/>"
         "</w:p>"
-    ).encode("utf-8")
-    clean = f'<w:p xmlns:w="{W_NS}"><w:r><w:t>x</w:t></w:r></w:p>'.encode(
-        "utf-8"
-    )
+    ).encode()
+    clean = f'<w:p xmlns:w="{W_NS}"><w:r><w:t>x</w:t></w:r></w:p>'.encode()
 
     assert canonicalize_xml(noisy) == canonicalize_xml(clean)
-    assert canonicalize_xml(noisy, profile="c14n") != canonicalize_xml(
-        clean, profile="c14n"
-    )
+    assert canonicalize_xml(noisy, profile="c14n") != canonicalize_xml(clean, profile="c14n")
 
     canonical = canonicalize_xml(noisy)
     assert b"proofErr" not in canonical
@@ -173,9 +162,7 @@ def test_canonicalize_docx_profile_removes_word_noise() -> None:
 
 
 def test_canonicalize_is_deterministic_and_sha256_is_lowercase_hex() -> None:
-    data = f'<w:p xmlns:w="{W_NS}"><w:r><w:t>x</w:t></w:r></w:p>'.encode(
-        "utf-8"
-    )
+    data = f'<w:p xmlns:w="{W_NS}"><w:r><w:t>x</w:t></w:r></w:p>'.encode()
     first = canonicalize_xml(data)
     second = canonicalize_xml(data)
     assert first == second
@@ -184,9 +171,7 @@ def test_canonicalize_is_deterministic_and_sha256_is_lowercase_hex() -> None:
     assert re.fullmatch(r"[0-9a-f]{64}", digest)
 
     # Komentar tidak memengaruhi canonical C14N tanpa komentar.
-    with_comment = (
-        f'<w:p xmlns:w="{W_NS}"><!--x--><w:r><w:t>x</w:t></w:r></w:p>'
-    ).encode("utf-8")
+    with_comment = (f'<w:p xmlns:w="{W_NS}"><!--x--><w:r><w:t>x</w:t></w:r></w:p>').encode()
     assert sha256_c14n(with_comment) == digest
 
 

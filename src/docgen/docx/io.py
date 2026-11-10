@@ -3,8 +3,7 @@
 Modul internal package. Stage tidak boleh memakainya langsung.
 """
 
-from __future__ import annotations
-
+import contextlib
 import copy
 import os
 import tempfile
@@ -35,9 +34,7 @@ def read_zip(path: str | Path) -> tuple[ZipEntry, ...]:
             seen: set[str] = set()
             for info in archive.infolist():
                 if info.filename in seen:
-                    raise PackageError(
-                        f"Entry ZIP duplikat: {info.filename}"
-                    )
+                    raise PackageError(f"Entry ZIP duplikat: {info.filename}")
                 seen.add(info.filename)
                 entries.append(
                     ZipEntry(
@@ -170,10 +167,8 @@ def write_zip_atomic(
 
 
 def _unlink_quietly(path: Path) -> None:
-    try:
+    with contextlib.suppress(OSError):
         path.unlink()
-    except OSError:
-        pass
 
 
 __all__ = ["ZipEntry", "read_zip", "write_zip", "write_zip_atomic"]

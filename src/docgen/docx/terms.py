@@ -12,8 +12,6 @@ Pemisahan internal:
 - verifikasi: :func:`verify_terms`, :func:`resolve_style`.
 """
 
-from __future__ import annotations
-
 import copy
 import re
 from collections.abc import Iterator, Mapping, Sequence
@@ -27,7 +25,6 @@ from .names import (
     STYLE_BIBLIOGRAPHY,
     STYLE_ISTILAH_ASING,
     STYLE_ISTILAH_REVIEW,
-    W,
     W_BR,
     W_CR,
     W_FLDCHAR,
@@ -43,9 +40,10 @@ from .names import (
     W_T,
     W_TAB,
     W_VAL,
+    W,
 )
 from .styles import StyleError, ensure_character_style
-from .xml import iter_paragraphs, is_on, qn
+from .xml import is_on, iter_paragraphs, qn
 
 W_BASEDON = W + "basedOn"
 W_HIGHLIGHT = W + "highlight"
@@ -65,9 +63,7 @@ DEFAULT_PARAGRAPH_FONT = "DefaultParagraphFont"
 BARRIER = "\ufffc"
 MARKER_PREFIX = "{{?"
 MARKER_SUFFIX = "?}}"
-MARKER_RE = re.compile(
-    r"\{\{\?((?:(?!\{\{|\}\}|\r|\n).)+?)\?\}\}"
-)
+MARKER_RE = re.compile(r"\{\{\?((?:(?!\{\{|\}\}|\r|\n).)+?)\?\}\}")
 
 _GLOSSARY_HEADER = ("term", "italic")
 _LEGACY_GLOSSARY_HEADER = ("term", "italic", "gloss_first", "status")
@@ -196,8 +192,7 @@ def load_glossary(path: str | Path) -> Glossary:
 
         if len(columns) < expected_columns:
             errors.append(
-                f"Baris {line_number}: kolom kurang "
-                f"({len(columns)} dari {expected_columns})."
+                f"Baris {line_number}: kolom kurang ({len(columns)} dari {expected_columns})."
             )
             continue
         if len(columns) > expected_columns:
@@ -212,17 +207,13 @@ def load_glossary(path: str | Path) -> Glossary:
             errors.append(f"Baris {line_number}: term kosong.")
             continue
         if italic not in {_TRUE, _FALSE}:
-            errors.append(
-                f"Baris {line_number}: italic harus 'yes' atau 'no', "
-                f"bukan {italic!r}."
-            )
+            errors.append(f"Baris {line_number}: italic harus 'yes' atau 'no', bukan {italic!r}.")
             continue
 
         key = term.casefold()
         if key in seen:
             errors.append(
-                f"Baris {line_number}: term duplikat {term!r} "
-                f"(sudah ada di baris {seen[key]})."
+                f"Baris {line_number}: term duplikat {term!r} (sudah ada di baris {seen[key]})."
             )
             continue
         seen[key] = line_number
@@ -265,13 +256,11 @@ def match_terms(text: str, glossary: Glossary) -> tuple[TermMatch, ...]:
 
     occupied = bytearray(len(text))
     selected: list[TermMatch] = []
-    for match in candidates:
-        if any(occupied[match.start : match.end]):
+    for candidate in candidates:
+        if any(occupied[candidate.start : candidate.end]):
             continue
-        occupied[match.start : match.end] = b"\x01" * (
-            match.end - match.start
-        )
-        selected.append(match)
+        occupied[candidate.start : candidate.end] = b"\x01" * (candidate.end - candidate.start)
+        selected.append(candidate)
 
     selected.sort(key=lambda item: item.start)
     return tuple(selected)
@@ -335,10 +324,7 @@ def iter_markers(text: str) -> Iterator[Marker]:
 
     for match in re.finditer(r"\?\?", text):
         if not inside_valid(match.start()):
-            raise MarkerError(
-                "Penanda '??' kosong tidak diperbolehkan. "
-                "Gunakan {{?istilah?}}."
-            )
+            raise MarkerError("Penanda '??' kosong tidak diperbolehkan. Gunakan {{?istilah?}}.")
 
     yield from markers
 
@@ -411,7 +397,7 @@ def paragraph_style_id(paragraph: etree._Element) -> str | None:
 def _relation_index(package: object) -> dict[str, object]:
     try:
         relationships = package.relationships(W_DOCUMENT_PART)  # type: ignore[attr-defined]
-    except Exception:  # pragma: no cover - package tanpa rels
+    except Exception:  # noqa: BLE001 - package tanpa rels adalah boundary opsional
         return {}
     return {relationship.rel_id: relationship for relationship in relationships}
 
@@ -480,11 +466,10 @@ def build_paragraph_model(
                     if field_depth == 0:
                         append_barrier()
                     field_depth += 1
-                elif field_type == "end":
-                    if field_depth > 0:
-                        field_depth -= 1
-                        if field_depth == 0:
-                            flush_field_text()
+                elif field_type == "end" and field_depth > 0:
+                    field_depth -= 1
+                    if field_depth == 0:
+                        flush_field_text()
                 continue
 
             if tag == W_INSTRTEXT:
@@ -601,9 +586,7 @@ class StyleResolver:
     def __init__(self, package: object) -> None:
         root = package.xml("word/styles.xml")  # type: ignore[attr-defined]
         self.styles = {
-            style.get(W_STYLE_ID): style
-            for style in root.findall(W_STYLE)
-            if style.get(W_STYLE_ID)
+            style.get(W_STYLE_ID): style for style in root.findall(W_STYLE) if style.get(W_STYLE_ID)
         }
 
     def _chain(self, style_id: str | None) -> Iterator[etree._Element]:
@@ -893,9 +876,7 @@ def transform_runs(model: ParagraphModel, actions: list[CharAction]) -> bool:
             if child.tag == W_T:
                 text = child.text or ""
                 node = node_actions.get(id(child))
-                char_actions = (
-                    node[1] if node is not None else [DEFAULT_ACTION] * len(text)
-                )
+                char_actions = node[1] if node is not None else [DEFAULT_ACTION] * len(text)
                 index = 0
                 while index < len(text):
                     action = char_actions[index]
@@ -1035,8 +1016,7 @@ def apply_terms(
             ):
                 continue
             if any(
-                char is not None
-                and direct_style_id(char.run) == ISTILAH_REVIEW
+                char is not None and direct_style_id(char.run) == ISTILAH_REVIEW
                 for char in model.chars[match.start : match.end]
             ):
                 continue
@@ -1116,9 +1096,8 @@ def _term_status(
     if all(style in {ISTILAH_ASING, ISTILAH_REVIEW} for style in styles):
         return "review"
     if all(
-        style == ISTILAH_ASING
-        or resolver.effective_italic(char.run)  # type: ignore[union-attr]
-        for style, char in zip(styles, chars)
+        style == ISTILAH_ASING or resolver.effective_italic(char.run)  # type: ignore[union-attr]
+        for style, char in zip(styles, chars, strict=True)
     ):
         return "direct"
     return "plain"
@@ -1167,12 +1146,8 @@ def verify_terms(package: object, glossary: Glossary) -> TermsVerifyReport:
             chars = model.chars[match.start : match.end]
             if not match.entry.italic:
                 runs = _unique_runs(chars)
-                uses_asing = any(
-                    direct_style_id(run) == ISTILAH_ASING for run in runs
-                )
-                uses_italic = any(
-                    resolver.effective_italic(run, paragraph) for run in runs
-                )
+                uses_asing = any(direct_style_id(run) == ISTILAH_ASING for run in runs)
+                uses_italic = any(resolver.effective_italic(run, paragraph) for run in runs)
                 if uses_asing or uses_italic:
                     violations.append(
                         f"Paragraf {number}: istilah italic=no "
@@ -1338,8 +1313,10 @@ def check_markdown(
     if glossary_path is not None:
         load_glossary(glossary_path)
     terms = list(collect_markdown_terms(text))
-    output = Path(review_path) if review_path is not None else (
-        markdown.parent / "review" / "istilah-baru.txt"
+    output = (
+        Path(review_path)
+        if review_path is not None
+        else (markdown.parent / "review" / "istilah-baru.txt")
     )
     write_review_file(output, terms)
     return terms, output
@@ -1349,15 +1326,15 @@ __all__ = [
     "BARRIER",
     "BIBLIOGRAPHY_STYLE",
     "DEFAULT_ACTION",
-    "CharAction",
-    "Glossary",
-    "GlossaryEntry",
-    "GlossaryError",
     "ISTILAH_ASING",
     "ISTILAH_REVIEW",
     "MARKER_PREFIX",
     "MARKER_RE",
     "MARKER_SUFFIX",
+    "CharAction",
+    "Glossary",
+    "GlossaryEntry",
+    "GlossaryError",
     "Marker",
     "MarkerError",
     "ParagraphModel",

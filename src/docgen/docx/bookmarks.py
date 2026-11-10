@@ -6,8 +6,6 @@ Bookmark membungkus isi paragraf: ``w:bookmarkStart`` tepat setelah
 dihitung karena tidak berada di part tersebut.
 """
 
-from __future__ import annotations
-
 import re
 from dataclasses import dataclass
 
@@ -26,10 +24,10 @@ from .names import (
     W_NO_BREAK_HYPHEN,
     W_OBJECT,
     W_P,
+    W_PICT,
     W_PPR,
     W_PSTYLE,
     W_PTAB,
-    W_PICT,
     W_T,
     W_TAB,
     W_TBL,
@@ -299,9 +297,9 @@ def bookmark_wraps_content(bookmark: Bookmark) -> bool:
 
 
 __all__ = [
+    "PARAGRAPH_ID_RE",
     "Bookmark",
     "BookmarkError",
-    "PARAGRAPH_ID_RE",
     "ParagraphBookmark",
     "add_paragraph_ids",
     "bookmark_wraps_content",

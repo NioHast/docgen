@@ -1,7 +1,5 @@
 """Tes unit orkestrasi pipeline: nama stage, urutan, opsi, dan workspace."""
 
-from __future__ import annotations
-
 from pathlib import Path
 
 import pytest

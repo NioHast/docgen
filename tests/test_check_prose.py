@@ -2,6 +2,7 @@
 
 Jalankan: .venv/Scripts/python.exe -m pytest tests/test_check_prose.py -q
 """
+
 import io
 import sys
 import tempfile
@@ -36,8 +37,9 @@ class TesRegistry(unittest.TestCase):
         jumlah = {}
         for aturan in check_prose.ATURAN:
             jumlah[aturan["jenis"]] = jumlah.get(aturan["jenis"], 0) + 1
-        self.assertEqual(jumlah, {"regex": 52, "regex_mentah": 1, "dinamis": 4,
-                                  "kamus": 1, "akronim": 1})
+        self.assertEqual(
+            jumlah, {"regex": 52, "regex_mentah": 1, "dinamis": 4, "kamus": 1, "akronim": 1}
+        )
 
     def test_kamus_dan_akronim(self):
         self.assertEqual(len(check_prose.KATA_BAKU), 129)
@@ -64,8 +66,7 @@ class TesRegistry(unittest.TestCase):
 
 class TesAI20(unittest.TestCase):
     def test_dua_butir_berlabel_dilaporkan(self):
-        teks = ("- **Kecepatan Tinggi**: Sistem cepat.\n"
-                "- **Ukuran Kecil**: Berkas kecil.")
+        teks = "- **Kecepatan Tinggi**: Sistem cepat.\n- **Ukuran Kecil**: Berkas kecil."
         hasil = temuan(teks, "AI-20")
         self.assertEqual([x[0] for x in hasil], [1, 2])
         self.assertEqual([x[3] for x in hasil], ["Kecepatan Tinggi", "Ukuran Kecil"])
@@ -75,35 +76,43 @@ class TesAI20(unittest.TestCase):
         self.assertEqual(temuan("- **Kecepatan Tinggi**: Sistem cepat.", "AI-20"), [])
 
     def test_label_prosedur_dan_definisi_dikecualikan(self):
-        teks = ("- **Langkah 1**: Jalankan build.\n"
-                "- **Seksi Sampul**: Bagian awal.\n"
-                "- **Sensor**: adalah alat ukur.\n"
-                "- **Aktuator**: merupakan penggerak.")
+        teks = (
+            "- **Langkah 1**: Jalankan build.\n"
+            "- **Seksi Sampul**: Bagian awal.\n"
+            "- **Sensor**: adalah alat ukur.\n"
+            "- **Aktuator**: merupakan penggerak."
+        )
         self.assertEqual(temuan(teks, "AI-20"), [])
 
     def test_tabel_paragraf_dan_jalur_berkas_dikecualikan(self):
-        teks = ("| **Kecepatan Tinggi** | Sistem cepat |\n"
-                "| **Ukuran Kecil** | Berkas kecil |\n\n"
-                "Kecepatan Tinggi: sistem ini cepat.\n"
-                "Ukuran Kecil: berkas ini kecil.\n\n"
-                "- **scripts/scan-preset.py**: Alat pemindai.\n"
-                "- **scripts/validate-preset.py**: Alat validasi.")
+        teks = (
+            "| **Kecepatan Tinggi** | Sistem cepat |\n"
+            "| **Ukuran Kecil** | Berkas kecil |\n\n"
+            "Kecepatan Tinggi: sistem ini cepat.\n"
+            "Ukuran Kecil: berkas ini kecil.\n\n"
+            "- **scripts/scan-preset.py**: Alat pemindai.\n"
+            "- **scripts/validate-preset.py**: Alat validasi."
+        )
         self.assertEqual(temuan(teks, "AI-20"), [])
 
     def test_penanda_sebelum_dan_abaikan(self):
-        teks = ("**Sebelum:** - **Kecepatan Tinggi**: Sistem cepat.\n"
-                "**Sebelum:** - **Ukuran Kecil**: Berkas kecil.\n"
-                "<!-- periksa:abaikan -->\n"
-                "- **Kecepatan Tinggi**: Sistem cepat.\n"
-                "- **Ukuran Kecil**: Berkas kecil.\n"
-                "<!-- periksa:lanjut -->")
+        teks = (
+            "**Sebelum:** - **Kecepatan Tinggi**: Sistem cepat.\n"
+            "**Sebelum:** - **Ukuran Kecil**: Berkas kecil.\n"
+            "<!-- periksa:abaikan -->\n"
+            "- **Kecepatan Tinggi**: Sistem cepat.\n"
+            "- **Ukuran Kecil**: Berkas kecil.\n"
+            "<!-- periksa:lanjut -->"
+        )
         self.assertEqual(temuan(teks, "AI-20"), [])
 
     def test_abaikan_kode_ai20(self):
         with tempfile.TemporaryDirectory() as d:
             jalur = Path(d) / "butir.md"
-            jalur.write_text("- **Kecepatan Tinggi**: Sistem cepat.\n"
-                             "- **Ukuran Kecil**: Berkas kecil.\n", encoding="utf-8")
+            jalur.write_text(
+                "- **Kecepatan Tinggi**: Sistem cepat.\n- **Ukuran Kecil**: Berkas kecil.\n",
+                encoding="utf-8",
+            )
             buf = io.StringIO()
             with redirect_stdout(buf):
                 kode = check_prose.main(["--abaikan", "AI-20", str(jalur)])

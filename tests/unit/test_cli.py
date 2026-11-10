@@ -1,7 +1,5 @@
 """Tes unit antarmuka ``docgen`` tanpa Word/Pandoc/mmdc."""
 
-from __future__ import annotations
-
 from pathlib import Path
 
 import pytest
@@ -106,7 +104,7 @@ def test_reconcile_handler_dispatch(monkeypatch: pytest.MonkeyPatch) -> None:
     captured: dict[str, object] = {}
 
     def fake_reconcile(args: object) -> int:
-        captured["document"] = getattr(args, "document")
+        captured["document"] = args.document
         return 3
 
     monkeypatch.setattr(cli, "command_reconcile", fake_reconcile)
@@ -193,7 +191,9 @@ def test_build_hanya_memakai_pipeline_python(monkeypatch: pytest.MonkeyPatch) ->
     assert calls == ["pipeline"]
 
 
-def test_build_error_exit_code(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+def test_build_error_exit_code(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     def fake_run(self: object, document: str | Path, options: object) -> BuildResult:
         raise ConfigError("rusak", code="CFG-TEST", path=Path(document))
 
@@ -215,7 +215,9 @@ def test_doctor_ready(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFix
     assert "siap untuk DOCX" in output
 
 
-def test_doctor_missing_pandoc(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+def test_doctor_missing_pandoc(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     monkeypatch.setattr(cli, "_find_tool", lambda name: None)
     monkeypatch.setattr(cli, "_find_word", lambda: None)
     assert cli.main(["doctor"]) == 1

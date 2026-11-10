@@ -1,7 +1,5 @@
 """Tes unit stage ``code``: blok kode, tabel 1x1, dan idempotensi."""
 
-from __future__ import annotations
-
 import zipfile
 from pathlib import Path
 
@@ -24,7 +22,6 @@ from docgen.docx.xml import sha256_c14n
 from docgen.stages.captions import apply_captions
 from docgen.stages.code import CodeStage, apply_code
 
-
 # ---------------------------------------------------------------------------
 # Fixture DOCX
 # ---------------------------------------------------------------------------
@@ -46,12 +43,8 @@ def build_docx(
     """Bangun DOCX kecil dari daftar blok ``code``/``body``/``inline``."""
 
     document = Document()
-    code_style = ensure_style(
-        document, code_style_name, WD_STYLE_TYPE.PARAGRAPH
-    )
-    char_style = ensure_style(
-        document, "Verbatim Char", WD_STYLE_TYPE.CHARACTER
-    )
+    code_style = ensure_style(document, code_style_name, WD_STYLE_TYPE.PARAGRAPH)
+    char_style = ensure_style(document, "Verbatim Char", WD_STYLE_TYPE.CHARACTER)
 
     for block in blocks:
         kind = block[0]
@@ -106,10 +99,7 @@ def cell_margins(table: etree._Element) -> dict[str, str | None]:
     assert table_properties is not None
     margins = table_properties.find(qn("w:tblCellMar"))
     assert margins is not None
-    return {
-        margin.tag.rsplit("}", 1)[-1]: margin.get(qn("w:w"))
-        for margin in margins
-    }
+    return {margin.tag.rsplit("}", 1)[-1]: margin.get(qn("w:w")) for margin in margins}
 
 
 @pytest.fixture()
@@ -196,8 +186,7 @@ def test_border_dan_margin_tabel_kode(source_docx, tmp_path):
     cell_margins_element = cell.find(f"{qn('w:tcPr')}/{qn('w:tcMar')}")
     assert cell_margins_element is not None
     assert {
-        margin.tag.rsplit("}", 1)[-1]: margin.get(qn("w:w"))
-        for margin in cell_margins_element
+        margin.tag.rsplit("}", 1)[-1]: margin.get(qn("w:w")) for margin in cell_margins_element
     } == {"top": "108", "left": "108", "bottom": "108", "right": "108"}
 
     assert table.findall(f".//{qn('w:shd')}") == []
@@ -249,17 +238,14 @@ def test_indentasi_spasi_dipertahankan(tmp_path):
         f"{qn('w:tr')}/{qn('w:tc')}/{qn('w:p')}"
     )
     assert [
-        "".join(node.text or "" for node in paragraph.iter(qn("w:t")))
-        for paragraph in paragraphs
+        "".join(node.text or "" for node in paragraph.iter(qn("w:t"))) for paragraph in paragraphs
     ] == ["    if nilai:", "        return nilai"]
 
     for paragraph in paragraphs:
         text_nodes = paragraph.findall(f".//{qn('w:t')}")
         assert text_nodes
         for node in text_nodes:
-            assert node.get(
-                "{http://www.w3.org/XML/1998/namespace}space"
-            ) == "preserve"
+            assert node.get("{http://www.w3.org/XML/1998/namespace}space") == "preserve"
 
 
 def test_dua_blok_kode_terpisah_menjadi_dua_tabel(tmp_path):
@@ -305,18 +291,14 @@ def test_idempoten_dan_normalized_tables_nol(source_docx, tmp_path):
     assert second.tables == 0
     assert second.normalized_tables == 0
     assert second.changed is False
-    assert sha256_c14n(
-        DocumentPackage.load(first_path).part(DOCUMENT_PART)
-    ) == sha256_c14n(
+    assert sha256_c14n(DocumentPackage.load(first_path).part(DOCUMENT_PART)) == sha256_c14n(
         DocumentPackage.load(second_path).part(DOCUMENT_PART)
     )
 
 
 def test_tabel_kode_lama_dinormalisasi(tmp_path):
     document = Document()
-    code_style = ensure_style(
-        document, "Source Code", WD_STYLE_TYPE.PARAGRAPH
-    )
+    code_style = ensure_style(document, "Source Code", WD_STYLE_TYPE.PARAGRAPH)
     table = document.add_table(rows=1, cols=1)
     paragraph = table.cell(0, 0).paragraphs[0]
     paragraph.style = code_style
@@ -429,9 +411,7 @@ def test_line_break_dalam_satu_paragraf_dipecah(tmp_path):
 
 def test_bookmark_di_dalam_blok_kode_dipertahankan(tmp_path):
     document = Document()
-    code_style = ensure_style(
-        document, "Source Code", WD_STYLE_TYPE.PARAGRAPH
-    )
+    code_style = ensure_style(document, "Source Code", WD_STYLE_TYPE.PARAGRAPH)
     paragraph = document.add_paragraph(style=code_style)
 
     bookmark_start = OxmlElement("w:bookmarkStart")
@@ -467,9 +447,7 @@ def test_bookmark_di_dalam_blok_kode_dipertahankan(tmp_path):
 
 def test_paragraf_kode_dengan_field_dilewati(tmp_path):
     document = Document()
-    code_style = ensure_style(
-        document, "Source Code", WD_STYLE_TYPE.PARAGRAPH
-    )
+    code_style = ensure_style(document, "Source Code", WD_STYLE_TYPE.PARAGRAPH)
     paragraph = document.add_paragraph(style=code_style)
     field = OxmlElement("w:fldSimple")
     field.set(qn("w:instr"), "PAGE")
@@ -519,9 +497,7 @@ def test_code_table_tidak_diberi_caption_tabel(tmp_path):
     assert len(table.rows) == 1
     assert len(table.columns) == 1
     assert not [
-        paragraph
-        for paragraph in document.paragraphs
-        if paragraph.style.style_id == "TableCaption"
+        paragraph for paragraph in document.paragraphs if paragraph.style.style_id == "TableCaption"
     ]
 
     table_info = iter_tables(package)[0]
@@ -556,17 +532,13 @@ def test_tabel_data_tidak_dianggap_tabel_kode(tmp_path):
 
 def test_part_non_target_byte_identik(source_docx, tmp_path):
     package = DocumentPackage.load(source_docx)
-    original = {
-        name: package.part(name)
-        for name in package.part_names()
-        if name != DOCUMENT_PART
-    }
+    original = {name: package.part(name) for name in package.part_names() if name != DOCUMENT_PART}
 
     apply_code(package)
     output = tmp_path / "out.docx"
     package.save(output)
 
-    with zipfile.ZipFile(source_docx) as source, zipfile.ZipFile(output) as result:
+    with zipfile.ZipFile(source_docx) as _source, zipfile.ZipFile(output) as result:
         for name, payload in original.items():
             assert result.read(name) == payload
 

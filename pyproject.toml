@@ -71,6 +71,10 @@ ignore = [
   "D401", # Imperative mood Inggris sulit diterapkan pada docstring Indonesia.
 ]
 
+[tool.ruff.lint.per-file-ignores]
+# `O` adalah prefix namespace OOXML resmi di tabel Clark notation, bukan variabel lokal.
+"src/docgen/docx/names.py" = ["E741"]
+
 [tool.mypy]
 # Non-strict dulu: target Fase 1 adalah baseline yang bersih, bukan strict total.
 python_version = "3.15"

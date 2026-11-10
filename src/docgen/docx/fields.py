@@ -10,17 +10,15 @@ Field kompleks selalu ditulis lengkap: ``begin`` -> ``instrText`` ->
 pipeline tidak menulis cache nomor halaman palsu.
 """
 
-from __future__ import annotations
-
 import re
-from dataclasses import dataclass, field as dataclass_field
+from dataclasses import dataclass
+from dataclasses import field as dataclass_field
 from enum import Enum
 
 from lxml import etree
 
 from ..errors import DocgenError
 from .names import (
-    W,
     W_BODY,
     W_DOCUMENT,
     W_FLDCHAR,
@@ -37,6 +35,7 @@ from .names import (
     W_T,
     W_TAB,
     W_TBL,
+    W,
 )
 from .package import DOCUMENT_PART
 from .xml import paragraph_text, qn
@@ -77,7 +76,7 @@ class Field:
     begin: etree._Element
     separate: etree._Element | None
     end: etree._Element
-    nested: tuple["Field", ...] = ()
+    nested: tuple[Field, ...] = ()
 
 
 @dataclass
@@ -224,20 +223,14 @@ def iter_fields(package: object) -> tuple[Field, ...]:
 def iter_fields_in_paragraph(paragraph: etree._Element) -> tuple[Field, ...]:
     """Field yang berada di satu paragraf, termasuk field bersarang."""
 
-    return tuple(
-        field
-        for field in iter_fields_in_root(paragraph)
-        if field.paragraph is paragraph
-    )
+    return tuple(field for field in iter_fields_in_root(paragraph) if field.paragraph is paragraph)
 
 
 def field_result_text(field: Field) -> str:
     """Teks cache hasil field (antara ``separate`` dan ``end``)."""
 
     if field.begin.tag == W_FLDSIMPLE:
-        return "".join(
-            node.text or "" for node in field.begin.iter(W_T) if node.text
-        )
+        return "".join(node.text or "" for node in field.begin.iter(W_T) if node.text)
     if field.separate is None:
         return ""
     root = field.begin.getroottree().getroot()
@@ -367,11 +360,7 @@ def _remove_toc_sdts(root: etree._Element) -> int:
     removed = 0
     for sdt in list(root.iter(W_SDT)):
         pr = sdt.find(W + "sdtPr")
-        gallery = (
-            pr.find(".//" + qn("w:docPartGallery"))
-            if pr is not None
-            else None
-        )
+        gallery = pr.find(".//" + qn("w:docPartGallery")) if pr is not None else None
         if gallery is None or gallery.get(W + "val") != _TOC_GALLERY:
             continue
         _remove_element(sdt)
@@ -550,9 +539,7 @@ def _paragraph_has_page_break(paragraph: etree._Element) -> bool:
         if (br.get(W + "type") or "").casefold() == "page":
             return True
     ppr = paragraph.find(W + "pPr")
-    if ppr is not None and ppr.find(W + "pageBreakBefore") is not None:
-        return True
-    return False
+    return ppr is not None and ppr.find(W + "pageBreakBefore") is not None
 
 
 def _remove_blank_breaks_after(body: etree._Element, sdt: etree._Element) -> int:
@@ -585,10 +572,10 @@ def insert_toc(
     caption: str | None = None,
     before: etree._Element | None = None,
 ) -> Field:
-    """Tulis field TOC native di dalam ``w:sdt``.
+    r"""Tulis field TOC native di dalam ``w:sdt``.
 
     Field TOC lama diganti, bukan ditambah. ``caption`` mengubah instruksi
-    menjadi ``TOC \\c "..."`` untuk daftar gambar/tabel. Bila ``before``
+    menjadi ``TOC \c "..."`` untuk daftar gambar/tabel. Bila ``before``
     tidak diberikan, TOC diletakkan sebelum Heading1 ``BAB ...`` pertama,
     atau di akhir body sebelum ``w:sectPr``.
     """
@@ -671,7 +658,7 @@ def insert_pageref(
     paragraph: etree._Element,
     bookmark: str,
 ) -> Field:
-    """Tambahkan field ``PAGEREF <bookmark> \\h`` pada akhir paragraf."""
+    r"""Tambahkan field ``PAGEREF <bookmark> \h`` pada akhir paragraf."""
 
     if not isinstance(bookmark, str) or not bookmark.strip():
         raise FieldError("Nama bookmark PAGEREF tidak boleh kosong")
@@ -745,9 +732,7 @@ def ensure_no_blank_page_after_toc(package: object) -> int:
         if child.tag != W_SDT:
             continue
         pr = child.find(W + "sdtPr")
-        gallery = (
-            pr.find(".//" + qn("w:docPartGallery")) if pr is not None else None
-        )
+        gallery = pr.find(".//" + qn("w:docPartGallery")) if pr is not None else None
         if gallery is None or gallery.get(W + "val") != _TOC_GALLERY:
             continue
         removed += _remove_blank_breaks_after(body, child)
@@ -755,10 +740,10 @@ def ensure_no_blank_page_after_toc(package: object) -> int:
 
 
 __all__ = [
+    "SETTINGS_PART",
     "Field",
     "FieldError",
     "FieldKind",
-    "SETTINGS_PART",
     "ensure_no_blank_page_after_toc",
     "field_has_result",
     "field_instruction",

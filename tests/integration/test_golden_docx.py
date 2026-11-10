@@ -9,8 +9,6 @@ Jalankan:
     python -m pytest tests/integration/test_golden_docx.py -v
 """
 
-from __future__ import annotations
-
 import hashlib
 import json
 import re
@@ -117,9 +115,7 @@ def _toc_instructions(root: etree._Element) -> list[str]:
 def _toc_galleries(root: etree._Element) -> list[etree._Element]:
     return [
         gallery
-        for gallery in root.xpath(
-            "//w:sdt/w:sdtPr/w:docPartObj/w:docPartGallery", namespaces=NS
-        )
+        for gallery in root.xpath("//w:sdt/w:sdtPr/w:docPartObj/w:docPartGallery", namespaces=NS)
         if gallery.get(W_VAL) == "Table of Contents"
     ]
 
@@ -138,16 +134,12 @@ def _captions(root: etree._Element) -> dict[str, list[str]]:
 
 def _is_code_table(table: etree._Element) -> bool:
     styles = {
-        style.get(W_VAL)
-        for style in table.xpath(".//w:pStyle", namespaces=NS)
-        if style.get(W_VAL)
+        style.get(W_VAL) for style in table.xpath(".//w:pStyle", namespaces=NS) if style.get(W_VAL)
     }
     return bool(styles) and styles <= {"SourceCode"}
 
 
-def _effective_border(
-    table: etree._Element, cell: etree._Element, side: str
-) -> str | None:
+def _effective_border(table: etree._Element, cell: etree._Element, side: str) -> str | None:
     """Ambil border efektif dari tabel atau sel untuk satu sisi."""
 
     cell_border = cell.find(f"./w:tcPr/w:tcBorders/w:{side}", namespaces=NS)
@@ -190,13 +182,9 @@ def _toc_entry(root: etree._Element, prefix: str) -> etree._Element:
 
 
 def _style_has_dot_leader(parts: dict[str, bytes], style_id: str) -> bool:
-    styles = _styles_root(parts).xpath(
-        f'//w:style[@w:styleId="{style_id}"]', namespaces=NS
-    )
+    styles = _styles_root(parts).xpath(f'//w:style[@w:styleId="{style_id}"]', namespaces=NS)
     assert len(styles) == 1, f"style {style_id} tidak ada"
-    return any(
-        tab.get(W_LEADER) == "dot" for tab in styles[0].xpath(".//w:tab", namespaces=NS)
-    )
+    return any(tab.get(W_LEADER) == "dot" for tab in styles[0].xpath(".//w:tab", namespaces=NS))
 
 
 def _app_page_count(parts: dict[str, bytes]) -> int:
@@ -212,12 +200,8 @@ def test_toc_field_count_and_instructions() -> None:
 
     instructions = _toc_instructions(root)
     main = [value for value in instructions if value.startswith("TOC \\o")]
-    table_captions = [
-        value for value in instructions if 'TOC \\c "Tabel"' in value
-    ]
-    figure_captions = [
-        value for value in instructions if 'TOC \\c "Gambar"' in value
-    ]
+    table_captions = [value for value in instructions if 'TOC \\c "Tabel"' in value]
+    figure_captions = [value for value in instructions if 'TOC \\c "Gambar"' in value]
     assert len(main) == 1
     assert len(table_captions) == 1
     assert len(figure_captions) == 1
@@ -239,26 +223,18 @@ def test_captions_match_baseline() -> None:
 def test_fixture_fingerprint_matches_baseline_record() -> None:
     baseline = json.loads(BASELINE_JSON.read_text(encoding="utf-8"))
     assert baseline["source"] == "examples/thesis-single/document.md"
-    assert baseline["docx"]["path"] == (
-        FIXTURE.relative_to(ROOT).as_posix()
-    )
+    assert baseline["docx"]["path"] == (FIXTURE.relative_to(ROOT).as_posix())
     assert baseline["docx"]["size_bytes"] == FIXTURE.stat().st_size
-    assert baseline["docx"]["sha256"] == hashlib.sha256(
-        FIXTURE.read_bytes()
-    ).hexdigest()
+    assert baseline["docx"]["sha256"] == hashlib.sha256(FIXTURE.read_bytes()).hexdigest()
 
     parts = _read_parts()
-    assert baseline["docx"]["document_xml_sha256_c14n"] == sha256_c14n(
-        parts["word/document.xml"]
-    )
+    assert baseline["docx"]["document_xml_sha256_c14n"] == sha256_c14n(parts["word/document.xml"])
     assert baseline["docx"]["page_count"] == _app_page_count(parts)
 
 
 def test_code_tables_are_1x1_with_full_borders() -> None:
     root = _document_root(_read_parts())
-    code_tables = [
-        table for table in root.xpath("//w:tbl", namespaces=NS) if _is_code_table(table)
-    ]
+    code_tables = [table for table in root.xpath("//w:tbl", namespaces=NS) if _is_code_table(table)]
     assert len(code_tables) == EXPECTED_CODE_TABLES
 
     for table in code_tables:
@@ -273,10 +249,7 @@ def test_code_tables_are_1x1_with_full_borders() -> None:
 
 @pytest.mark.parametrize(
     ("prefix", "page", "dot_leader"),
-    [
-        (prefix, page, dot_leader)
-        for prefix, (page, dot_leader) in EXPECTED_TOC_ENTRIES.items()
-    ],
+    [(prefix, page, dot_leader) for prefix, (page, dot_leader) in EXPECTED_TOC_ENTRIES.items()],
 )
 def test_key_toc_entries_have_dot_leader_and_page_number(
     prefix: str, page: str, dot_leader: bool
@@ -328,9 +301,9 @@ def test_toc_styles_exist() -> None:
         assert styles[style_id].get(W_TYPE) == "paragraph"
 
     toc1 = styles["TOC1"]
-    assert any(
-        tab.get(W_LEADER) == "dot" for tab in toc1.xpath(".//w:tab", namespaces=NS)
-    ), "style TOC1 tidak punya tab leader titik"
+    assert any(tab.get(W_LEADER) == "dot" for tab in toc1.xpath(".//w:tab", namespaces=NS)), (
+        "style TOC1 tidak punya tab leader titik"
+    )
 
 
 def test_no_unresolved_placeholders() -> None:

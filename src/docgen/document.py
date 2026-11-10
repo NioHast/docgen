@@ -5,13 +5,12 @@ validasi yang bisa dilakukan tanpa DOCX berada di sini agar ``docgen check``
 aman dijalankan di lingkungan tanpa Word.
 """
 
-from __future__ import annotations
-
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any, Mapping
+from typing import Any
 
 from . import paths as path_mod
 from .assets import Assets, masked_lines, resolve_assets
@@ -30,9 +29,7 @@ _FRONT_MATTER_START = "---"
 _FRONT_MATTER_END = {"---", "..."}
 _HEADING_RE = re.compile(r"^ {0,3}(?P<hashes>#{1,6})[ \t]+(?P<text>.*?)[ \t]*$")
 _CLOSING_HASHES_RE = re.compile(r"[ \t]+#+[ \t]*$")
-_NUMBERED_HEADING_RE = re.compile(
-    r"^(?:BAB\s+[IVXLCDM]+|[0-9]+(?:\.[0-9]+)*\.?)(?:\s+|$)"
-)
+_NUMBERED_HEADING_RE = re.compile(r"^(?:BAB\s+[IVXLCDM]+|[0-9]+(?:\.[0-9]+)*\.?)(?:\s+|$)")
 _INLINE_LINK_RE = re.compile(r"!?\[([^\]]*)\]\([^)]*\)")
 _HTML_TAG_RE = re.compile(r"<[^>]+>")
 _ESCAPE_RE = re.compile(r"\\([\\`*_{}\[\]()#+.!-])")

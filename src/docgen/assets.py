@@ -5,8 +5,6 @@ memakai ``/``, tidak boleh absolut atau keluar direktori. Glosarium pengguna
 di ``<dir dokumen>/istilah.tsv`` mengalahkan glosarium paket.
 """
 
-from __future__ import annotations
-
 import re
 from dataclasses import dataclass
 from pathlib import Path
