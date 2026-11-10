@@ -76,7 +76,8 @@ Pandoc tidak ditemukan; build DOCX tidak dapat dilanjutkan.
 
 Tindakan:
 
-1. Pasang Pandoc dari <https://pandoc.org/installing.html>.
+1. Pasang Pandoc; lihat label `Pandoc installation` di
+   [registry referensi](../dev/references.md).
 2. Pastikan `pandoc --version` berhasil dari shell yang sama.
 3. Jalankan `doctor` lagi.
 

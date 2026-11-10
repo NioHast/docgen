@@ -220,7 +220,7 @@ atau memanggil stage lain.
 |---|---|---|
 | `src/docgen/pipeline.py` | WS2 Fase 1; WS15 Fase 3 | Handoff eksplisit; tidak ada editor lain |
 | `src/docgen/cli.py` | WS2 | Hanya WS2 mendaftarkan command |
-| `src/docgen/config.py`, `document.py`, `metadata.py`, `assets.py`, `errors.py`, `paths.py` | WS2 | Loader dan model inti |
+| `src/docgen/config/`, `document.py`, `metadata.py`, `assets.py`, `errors.py`, `paths.py` | WS2 | Loader dan model inti |
 | `src/docgen/docx/**` | WS3/WS4/WS5/WS6/WS7/WS10 | Lihat `docs/dev/contracts/docx-api.md` |
 | `src/docgen/adeu/**` | WS10 | Manifest, paragraph ID, reconcile |
 | `scripts/word.ps1` | WS8 | Satu adapter Word; aset repo-local, bukan package-data wheel |
@@ -271,8 +271,8 @@ class StageContext:
 | Field | Tipe | Diisi oleh | Mutasi |
 |---|---|---|---|
 | `document` | `Document` | `document.py` | immutable |
-| `structure` | `Structure` | `config.py` | immutable |
-| `format` | `Format` | `config.py` | immutable |
+| `structure` | `Structure` | `config/structure.py` | immutable |
+| `format` | `Format` | `config/format.py` | immutable |
 | `options` | `BuildOptions` | CLI | immutable |
 | `repo_root` | `Path` | pipeline | immutable |
 | `package_root` | `Path` | pipeline | immutable |

@@ -268,7 +268,7 @@ dan error utama; docstring bukan narasi riwayat perubahan.
   dengan kata "This" (`D404`).
 - Gunakan tanda kutip tiga ganda (`D300`). Tanda kutip penutup docstring
   multi-baris berada pada baris terpisah (`D209`).
-- Modul kunci wajib punya module docstring: `pipeline.py`, `config.py` atau
+- Modul kunci wajib punya module docstring: `pipeline.py`,
   `config/__init__.py`, `errors.py`, dan `document.py`. Ini adalah kontrak
   docstring modul, bukan pengecualian dari `D100`.
 - Fungsi lebih dari 40 baris wajib punya docstring yang menjelaskan input,

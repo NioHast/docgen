@@ -27,7 +27,7 @@ DOCX. Stage tidak menyentuh ZIP secara langsung. Semua mutasi terjadi pada
 | `layout.py` | Spasi, indentasi, perataan, bold, dan klasifikasi blok. |
 | `fields.py` | TOC, PAGEREF, SEQ, PAGE, NUMPAGES. |
 | `bookmarks.py` | Bookmark `pNNNN` dan verifikasi. |
-| `terms.py` | Glosarium, style istilah, transformasi run, verifikasi. |
+| `terms/` | Glosarium, style istilah, transformasi run, verifikasi. |
 
 ## Batas helper kanonis
 

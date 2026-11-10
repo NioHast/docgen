@@ -1,5 +1,9 @@
 # Testing
 
+Untuk kriteria memilih kasus test, batas mocking, dan review test, lihat
+[test-quality.md](test-quality.md). Dokumen ini fokus pada cara menjalankan tes
+dan invariant golden baseline.
+
 Dokumen ini mencatat invariant golden baseline P0.1. Baseline diambil dari
 output lama commit `06bda0b` tanpa build ulang. Tujuannya membekukan perilaku
 output sebelum refactor, bukan menggantikan tes domain yang sudah ada.

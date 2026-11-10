@@ -2,7 +2,7 @@
 
 **Status:** beku untuk Fase 0.
 **Ruang lingkup:** `format.yml`, `structure.yml`, dan front matter `document.md`.
-**Pemilik kontrak:** WS0. **Pemilik implementasi:** WS1 (data dan schema), WS2 (`config.py`, `document.py`).
+**Pemilik kontrak:** WS0. **Pemilik implementasi:** WS1 (data dan schema), WS2 (`config/`, `document.py`).
 **Rujukan:** `docs/dev/archive/restructure-plan.md` v0.13, bagian P0.2, 2.3, dan WS1.
 
 Kontrak ini menetapkan satu sumber kebenaran untuk setiap nilai. Tidak ada
@@ -72,7 +72,7 @@ direktori data dan memakai pola `[a-z0-9][a-z0-9-]*`.
 | Alignment | `left`, `right`, `center`, `justify`, `both` | `justify` |
 
 API DOCX memakai twip untuk panjang dan setengah poin untuk ukuran font.
-Konversi satuan dilakukan sekali di `config.py`, bukan di stage.
+Konversi satuan dilakukan sekali di `config/common.py`, bukan di stage.
 
 ### 1.5 Urutan presedensi
 
@@ -280,7 +280,7 @@ assets:
 | Key | Tipe | Wajib | Default | Validasi |
 |---|---|---:|---|---|
 | `page.size` | enum `A4`, `Letter` | tidak | `A4` | Ukuran halaman yang didukung Word |
-| `page.orientation` | enum `portrait`, `landscape` | tidak | `portrait` | Harus konsisten dengan `size` |
+| `page.orientation` | enum `portrait`, `landscape` | tidak | `portrait` | Hanya enum; tidak dicocokkan dengan `size` |
 | `page.margins.top` | dimensi | ya | - | > 0 |
 | `page.margins.bottom` | dimensi | ya | - | > 0 |
 | `page.margins.left` | dimensi | ya | - | > 0 |
@@ -327,7 +327,7 @@ key di bawah boleh ditulis pada ketiga style; default berbeda per level.
 | `line_spacing` | angka | `font.body.line_spacing` | `font.body.line_spacing` | 0.5-3.0 |
 | `keep_next` | boolean | `true` | `true` | - |
 | `keep_lines` | boolean | `true` | `true` | - |
-| `outline_level` | integer | `0` | `1`/`2` | 0-8; harus cocok level |
+| `outline_level` | integer | `0` | `1`/`2` | 0-8; tidak wajib cocok dengan level heading |
 | `first_line_indent` | dimensi | `0cm` | `0cm` | >= 0 |
 | `indent_left` | dimensi | `0cm` | `1.25cm` | >= 0 |
 | `indent_hanging` | dimensi | `0cm` | `1.25cm` | >= 0 |
@@ -408,7 +408,7 @@ Aturan kode:
 |---|---|---:|---|---|
 | `citation.csl` | path relatif | ya | - | `.csl`, ada, XML valid |
 | `citation.bibliography` | path relatif | tidak | `references.bib` | `.bib`; default untuk `document.md` |
-| `citation.locale` | BCP-47 | tidak | `id-ID` | Locale valid |
+| `citation.locale` | teks | tidak | `id-ID` | Hanya teks; tidak divalidasi sebagai BCP-47 |
 
 `citation.csl` dan `citation.bibliography` tidak boleh memakai path absolut.
 `document.md` boleh menimpa `bibliography`; `csl` hanya boleh berasal dari
@@ -436,7 +436,7 @@ source tidak boleh ditimpa.
 
 | Key | Tipe | Wajib | Default | Validasi |
 |---|---|---:|---|---|
-| `toc_heading.heading_style` | teks | tidak | `TOCHeading` | Style wajib ada di `reference.docx` |
+| `toc_heading.heading_style` | teks | tidak | `TOCHeading` | Tidak divalidasi terhadap `reference.docx`; style dibuat bila belum ada |
 | `toc_heading.font` | teks | tidak | `font.body.family` | Tidak kosong |
 | `toc_heading.size` | dimensi `pt` | tidak | `font.body.size` | 6-72 pt |
 | `toc_heading.bold` | boolean | tidak | `true` | - |
@@ -496,8 +496,9 @@ memakai `figures.space_before`, `figures.space_after`, dan
 - `page.margins` wajib lengkap. `page.size`, `page.orientation`,
   `page.header_distance`, `page.footer_distance`, dan `page.gutter` memakai
   default di 2.3.
-- `toc_heading.heading_style` wajib ada di `reference.docx`;
-  `toc_heading` tidak boleh memuat toggle `toc`.
+- `toc_heading.heading_style` tidak dicek terhadap `reference.docx`; nilainya
+  dipakai sebagai style tujuan dan dibuat bila belum ada. `toc_heading` tidak
+  boleh memuat toggle `toc`.
 - `toc_heading.color` wajib heksadesimal 6 digit; `toc_heading.alignment`
   wajib enum alignment; `toc_heading.first_line_indent` wajib >= 0.
 - `bibliography_style.heading` tidak boleh kosong; grup ini tidak boleh

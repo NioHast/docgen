@@ -1,7 +1,11 @@
+> **ARCHIVED**: dokumen ini adalah rencana refactor yang sudah selesai dan
+> disimpan sebagai catatan historis. Sumber kebenaran ada di kode, kontrak,
+> dan ADR aktif.
+
 # Refactor Plan Final - docgen
 
 **Baseline:** commit `4a5b777`
-**Status:** final; P0.2 selesai 2026-11-10, fase lain belum dieksekusi
+**Status:** final; semua fase selesai 2026-11-10; tag `v0.2.0` tidak dibuat sesuai keputusan.
 **Bahasa:** Indonesia untuk prosa dan pesan pengguna, Inggris untuk identifier
 **Ruang lingkup:** `src/docgen`, `tests`, `docs`, `examples`, `pyproject.toml`, `uv.lock`, `scripts`
 **Di luar lingkup:** `acuan/`, konten naskah pengguna, dan perubahan perilaku pipeline

@@ -5,8 +5,55 @@ bookmark paragraf, menulis manifest, memetakan sumber Markdown, dan
 menyediakan perintah `reconcile`. Bookmark dan manifest dibuat sebagai hook di
 dalam pass package, bukan stage kanonik.
 
+## Apa itu Adeu
+
+Adeu adalah produk dan engine eksternal, bukan bagian dari repo ini. Ia adalah
+**MCP server** untuk Microsoft Word: server yang menyediakan tool dan sumber
+data untuk dipanggil AI agent. Pemanggilannya memakai **Model Context Protocol
+(MCP)**, yaitu standar agar AI agent dapat memanggil tool dan membaca dokumen
+dengan cara yang seragam. Adeu tersedia sebagai MCP server (Python/Node) dan
+SDK.
+
+Adeu adalah **docx ↔ LLM translator**: ia membaca DOCX menjadi
+Markdown/CriticMarkup, memvalidasi edit, lalu menulis edit tersebut kembali
+sebagai **native Word Track Changes** tanpa merusak format. Adeu menyebut
+dirinya "Virtual DOM for Microsoft Word".
+
+Repo ini **bukan** server MCP Adeu dan tidak memanggil atau membungkus server
+tersebut. Yang ada di repo ini adalah lapisan integrasi di `src/docgen/adeu/`:
+
+| Aspek | Adeu (eksternal) | `src/docgen/adeu/` (repo ini) |
+| --- | --- | --- |
+| Bentuk | MCP server (Python/Node) dan SDK; proyek terpisah. | Kode integrasi Python di dalam pipeline `docgen`; bukan server MCP. |
+| Tugas | Membaca DOCX menjadi Markdown/CriticMarkup, memvalidasi edit, dan menulisnya sebagai native Word Track Changes. | Menambahkan bookmark `pNNNN`, menulis manifest deterministik `.laporan/manifest.json`, memetakan paragraf ke sumber Markdown, dan menyediakan `docgen reconcile`. |
+| Cara pakai | Dipasang dan dijalankan sendiri oleh pengguna atau agent. | Dipanggil lewat `docgen build` dan `docgen reconcile`; tidak memanggil server Adeu. |
+
+Alur kerja yang didukung repo ini:
+
+1. `docgen build` menghasilkan DOCX dan manifest. Setiap paragraf body mendapat
+   bookmark `pNNNN` yang menghubungkan DOCX, manifest, dan Markdown.
+2. Adeu atau agent mengedit DOCX. Adeu dapat menulis edit sebagai native Word
+   Track Changes.
+3. `docgen reconcile` membandingkan DOCX hasil edit dengan manifest dan sumber
+   Markdown, lalu menulis laporan (default `.laporan/reconcile.md`). Perubahan
+   yang disetujui tetap diterapkan manual ke `document.md`, lalu build ulang.
+
+Tautan resmi:
+
+- Repo resmi: <https://github.com/dealfluence/adeu>
+- PyPI: <https://pypi.org/project/adeu/>
+- MCP server (npm): <https://www.npmjs.com/package/@adeu/mcp-server>
+- Referensi tool MCP: <https://github.com/dealfluence/adeu/blob/main/skills/adeu-redlining/references/mcp-tools.md>
+- Situs perusahaan: <https://adeu.ai>
+
+> **Peringatan:** bila yang Anda cari adalah MCP server Adeu, itu proyek
+> terpisah di tautan di atas. Repo ini tidak memanggil, membungkus, atau
+> mendistribusikan server tersebut; repo ini hanya menyediakan bookmark,
+> manifest, source scan, dan `reconcile` untuk alur edit DOCX.
+
 ## Daftar isi
 
+- [Apa itu Adeu](#apa-itu-adeu)
 - [Bookmark `pNNNN`](#bookmark-pnnnn)
 - [Manifest](#manifest)
 - [Paragraf terlindungi](#paragraf-terlindungi)

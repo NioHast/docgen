@@ -24,7 +24,7 @@ sendiri. Semua perubahan XML melewati `docgen/docx/`.
 - [11. `docgen/docx/tables.py`](#11-docgendocxtablespy)
 - [12. `docgen/docx/layout.py`](#12-docgendocxlayoutpy)
 - [13. `docgen/docx/fields.py`](#13-docgendocxfieldspy)
-- [14. `docgen/docx/terms.py`](#14-docgendocxtermspy)
+- [14. `docgen/docx/terms/`](#14-docgendocxterms)
 - [15. `docgen/docx/bookmarks.py`](#15-docgendocxbookmarkspy)
 - [16. Modul helper kanonis](#16-modul-helper-kanonis)
 - [17. Matriks part yang boleh berubah](#17-matriks-part-yang-boleh-berubah)
@@ -94,7 +94,7 @@ Perbandingan dilakukan pada dua tingkat:
 ### 1.4 Satuan dan tipe
 
 API DOCX tidak menerima string `"4cm"` atau `"12pt"`. Konversi dilakukan di
-`config.py`:
+`config/common.py`:
 
 | Nilai | Tipe API |
 |---|---|
@@ -699,13 +699,25 @@ class Field:
     end: etree._Element
     nested: tuple["Field", ...]
 
+@dataclass(frozen=True, slots=True)
+class FieldPosition:
+    paragraph: etree._Element
+    before: etree._Element | None = None
+    end_paragraph: etree._Element | None = None
+    rpr: etree._Element | None = None
+
 def iter_fields(package: DocumentPackage) -> tuple[Field, ...]: ...
 def field_kind(instruction: str) -> FieldKind: ...
 def field_instruction(field: Field) -> str: ...
+def insert_field(switches: Sequence[str],
+                 position: FieldPosition,
+                 result: str = "") -> Field: ...
 def insert_toc(package: DocumentPackage, *,
                title: str,
                levels: tuple[int, int] = (1, 3),
-               caption: str | None = None) -> Field: ...
+               caption: str | None = None,
+               before: etree._Element | None = None,
+               keep_existing: bool = False) -> Field: ...
 def insert_seq(package: DocumentPackage, *,
                paragraph: etree._Element,
                label: str) -> Field: ...
@@ -718,7 +730,11 @@ def strip_update_fields(package: DocumentPackage) -> bool: ...
 
 **Input/output.** Menerima package/paragraf dan parameter field; output
 berupa `Field`, tuple `Field`, string instruksi, atau boolean. Fungsi insert
-memutasi `word/document.xml` dan mengembalikan field baru.
+memutasi `word/document.xml` dan mengembalikan field baru. `FieldPosition`
+menentukan paragraf awal, anchor `before`, paragraf `end`, dan template
+`rPr`; `insert_toc(..., before=None, keep_existing=False)` memakai posisi
+default sebelum Heading1 bab pertama atau di akhir body dan mengganti TOC
+lama kecuali `keep_existing=True`.
 
 ### 13.2 Invariant
 
@@ -745,7 +761,7 @@ field.
 
 ---
 
-## 14. `docgen/docx/terms.py`
+## 14. `docgen/docx/terms/`
 
 ### 14.1 Signature
 
@@ -777,7 +793,9 @@ class TermsVerifyReport:
     violations: tuple[str, ...]
     warnings: tuple[str, ...]
 
+def open_docx(path: str | Path) -> object: ...
 def load_glossary(path: str | Path) -> Glossary: ...
+def merge_glossaries(base: Glossary, override: Glossary) -> Glossary: ...
 def match_terms(text: str, glossary: Glossary) -> tuple[TermMatch, ...]: ...
 def apply_terms(package: DocumentPackage,
                 glossary: Glossary,
@@ -786,11 +804,13 @@ def apply_terms(package: DocumentPackage,
 def verify_terms(package: DocumentPackage,
                  glossary: Glossary) -> TermsVerifyReport: ...
 def resolve_style(package: DocumentPackage, style_id: str) -> StyleResolution: ...
+def write_review_file(path: str | Path, terms: Sequence[str]) -> Path: ...
 ```
 
 **Input/output.** Menerima path TSV, package, dan `Glossary`; output berupa
-`Glossary`, tuple `TermMatch`, `TermsReport`, `TermsVerifyReport`, atau
-mutasi run/style. `review_path` hanya menentukan lokasi laporan.
+`DocumentPackage` dari `open_docx`, `Glossary`, tuple `TermMatch`,
+`TermsReport`, `TermsVerifyReport`, `Path`, atau mutasi run/style.
+`review_path` hanya menentukan lokasi laporan.
 
 ### 14.2 Invariant
 

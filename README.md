@@ -40,6 +40,7 @@ belum lengkap.
 ```yaml
 ---
 title: "Analisis Pipeline Markdown untuk Laporan Tugas"
+report_name: "Tugas"
 author: "Nama Mahasiswa"
 nim: "30000000000000"
 structure: assignment

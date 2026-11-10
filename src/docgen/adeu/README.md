@@ -1,5 +1,24 @@
 # Adeu (`src/docgen/adeu`)
 
+## Apa itu Adeu
+
+Adeu adalah produk eksternal berupa server MCP (Model Context Protocol) yang
+menerjemahkan DOCX ke Markdown/CriticMarkup, memvalidasi edit, lalu
+menuliskannya kembali sebagai native Word Track Changes. Repo ini bukan server
+MCP dan tidak mengimplementasikan protokolnya; folder ini adalah lapisan
+integrasi yang menyiapkan bookmark `pNNNN` dan manifest agar DOCX dapat diedit
+di luar pipeline.
+
+Alur integrasi:
+
+```text
+docgen build -> manifest -> edit eksternal -> docgen reconcile
+```
+
+`docgen build` menulis DOCX ber-bookmark dan manifest; edit dilakukan di luar
+pipeline, misalnya lewat Adeu MCP server atau Word; `docgen reconcile`
+membandingkan DOCX hasil edit dengan manifest dan menulis laporan tinjauan.
+
 ## Tujuan
 
 Folder ini menangani bookmark paragraf `pNNNN`, manifest Adeu, pemindaian
@@ -45,6 +64,13 @@ pipeline dijalankan setelah stage `lists` dan sebelum save; urutan itu dimiliki
 - Jangan menulis timestamp atau urutan non-deterministik ke manifest.
 - Jangan membuka ZIP atau mem-parse XML dari byte sendiri; gunakan
   `DocumentPackage.xml()` dan API `docgen.docx`.
+
+## Referensi resmi
+
+- [GitHub Adeu](https://github.com/dealfluence/adeu)
+- [PyPI adeu](https://pypi.org/project/adeu/)
+- [npm @adeu/mcp-server](https://www.npmjs.com/package/@adeu/mcp-server)
+- [Referensi tool MCP Adeu](https://github.com/dealfluence/adeu/blob/main/skills/adeu-redlining/references/mcp-tools.md)
 
 ## Tautan
 

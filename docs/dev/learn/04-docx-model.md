@@ -107,6 +107,9 @@ masih diekspor sebagai nama lama, tetapi kode baru memakai
 | `bookmarks.py` | Bookmark `pNNNN` dan verifikasi. |
 | `terms/` | Glosarium, model istilah, apply, verify, dan review. |
 
+Bookmark `pNNNN` yang ditulis `bookmarks.py` adalah penghubung ke Adeu dan
+manifest; alur lengkapnya ada di [Integrasi Adeu](../adeu-integration.md).
+
 `terms/` adalah package, bukan satu modul:
 
 | Modul | Tanggung jawab |

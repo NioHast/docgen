@@ -51,6 +51,10 @@ Urutan stage ditegakkan oleh `pipeline.py`. Stage tidak boleh memanggil
 `load` atau `save` package target. Detail kontrak ada di
 [contracts/stage-api.md](contracts/stage-api.md).
 
+Adeu adalah server MCP (Model Context Protocol) eksternal; hook `Adeu` di
+repo ini hanya menyiapkan bookmark `pNNNN` dan manifest untuk
+[integrasi Adeu](adeu-integration.md), bukan menjalankan server.
+
 ## Invariant utama
 
 1. **Satu sumber konten.** Hanya `document.md` dan asetnya yang menjadi
@@ -79,13 +83,14 @@ Urutan stage ditegakkan oleh `pipeline.py`. Stage tidak boleh memanggil
 - `xml.py`: parse, serialisasi, c14n, hash, helper XML.
 - `names.py`: konstanta namespace dan style.
 - `styles.py`: style paragraf, karakter, dan tabel.
-- `sections.py`: section, margin, ukuran halaman, heading numbering.
+- `sections.py`: section, margin, ukuran halaman, header/footer.
+- `heading_numbering.py`: penomoran heading DOCX, heading unnumbered, nama bookmark.
 - `captions.py`: caption tabel/gambar, numbering, layout gambar.
 - `tables.py`: tabel biasa dan tabel kode.
 - `layout.py`: normalisasi spacing, indentasi, perataan, bold.
 - `fields.py`: TOC, PAGEREF, SEQ, PAGE, NUMPAGES.
 - `bookmarks.py`: bookmark `pNNNN`.
-- `terms.py`: glosarium dan transformasi istilah.
+- `terms/`: glosarium dan transformasi istilah.
 
 Dokumen rinci ada di [docx/README.md](docx/README.md) dan
 [contracts/docx-api.md](contracts/docx-api.md).

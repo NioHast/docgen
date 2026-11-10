@@ -30,11 +30,12 @@ bila baru mengenal repo, lalu pilih salah satu pintu berikut:
 | [dev/formats.md](dev/formats.md) | Skema `format.yml`, `structure.yml`, dan struktur yang tersedia. |
 | [dev/docx/terms.md](dev/docx/terms.md) | Glosarium, penanda istilah, stage `terms`, dan audit. |
 | [dev/pdf.md](dev/pdf.md) | Ekspor PDF Word-only dan batas Debian. |
-| [dev/adeu-integration.md](dev/adeu-integration.md) | Bookmark `pNNNN`, manifest, source scan, dan reconcile. |
+| [dev/adeu-integration.md](dev/adeu-integration.md) | Adeu (MCP DOCX↔LLM): konsep, bookmark `pNNNN`, manifest, source scan, reconcile. |
 | [dev/packaging.md](dev/packaging.md) | Entry point, package data, dan pemakaian repo-local. |
 | [dev/repo-map.md](dev/repo-map.md) | Peta direktori dan tanggung jawab berkas. |
 | [dev/contributing.md](dev/contributing.md) | Alur kontribusi, tes, dan aturan perubahan. |
 | [dev/testing.md](dev/testing.md) | Golden invariant dan cara menjalankan tes. |
+| [dev/test-quality.md](dev/test-quality.md) | Prinsip memilih kasus test dan hasil audit suite. |
 | [dev/code-style.md](dev/code-style.md) | Konfigurasi Ruff, mypy, dan tabel rule. |
 
 ## Referensi
@@ -46,7 +47,7 @@ bila baru mengenal repo, lalu pilih salah satu pintu berikut:
 | [dev/contracts/config.md](dev/contracts/config.md) | Kontrak `format.yml`, `structure.yml`, dan front matter. |
 | [dev/contracts/docx-api.md](dev/contracts/docx-api.md) | Kontrak API `src/docgen/docx/`. |
 | [dev/contracts/stage-api.md](dev/contracts/stage-api.md) | Kontrak stage, urutan, error, output, dan CLI. |
-| [dev/archive/refactor-plan.md](dev/archive/refactor-plan.md) | Rencana refactor aktif dan keputusan kerja. |
+| [dev/archive/refactor-plan.md](dev/archive/refactor-plan.md) | Rencana refactor (arsip) dan keputusan kerja. |
 | [dev/archive/restructure-plan.md](dev/archive/restructure-plan.md) | Arsip rencana restrukturisasi (superseded). |
 | [dev/archive/duplication-map.md](dev/archive/duplication-map.md) | Arsip peta duplikasi DOCX (superseded). |
 

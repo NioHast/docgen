@@ -43,6 +43,17 @@ bila merujuk dokumentasi eksternal. Label harus unik; URL harus memakai skema
 | mypy error codes | https://mypy.readthedocs.io/en/stable/error_code_list.html | Kode error dan `# type: ignore[kode]`; `docs/dev/code-style.md`. |
 | pytest documentation | https://docs.pytest.org/en/stable/ | Penulisan dan menjalankan tes; `tests/`, `docs/dev/testing.md`. |
 | pytest markers | https://docs.pytest.org/en/stable/how-to/mark.html | Marker `unit`, `integration`, `word`, dan `windows`; `pytest.ini`, `docs/dev/testing.md`. |
+| Google Testing Blog - Test Behavior | https://testing.googleblog.com/2013/08/testing-on-toilet-test-behavior-not.html | Alasan test berfokus pada perilaku, bukan implementasi; `docs/dev/test-quality.md`. |
+| Software Engineering at Google ch12 | https://abseil.io/resources/swe-book/html/ch12.html | Trade-off unit, integration, dan end-to-end test; `docs/dev/test-quality.md`. |
+| Kent Beck Test Desiderata | https://testdesiderata.com/ | Sifat test yang diinginkan dan trade-off antarsifat; `docs/dev/test-quality.md`. |
+| xUnit Test Patterns - Test Smells | http://xunitpatterns.com/TestSmells.html | Katalog gejala test; `docs/dev/test-quality.md`. |
+| xUnit Test Patterns - Fragile Test | http://xunitpatterns.com/Fragile%20Test.html | Definisi dan perbaikan test yang rapuh; `docs/dev/test-quality.md`. |
+| xUnit Test Patterns - Assertion Roulette | http://xunitpatterns.com/Assertion%20Roulette.html | Assertion tanpa pesan dan test yang terlalu ramai; `docs/dev/test-quality.md`. |
+| pytest parametrize | https://docs.pytest.org/en/stable/how-to/parametrize.html | Test parametrik dan opsi id; `docs/dev/test-quality.md`. |
+| pytest fixtures | https://docs.pytest.org/en/stable/how-to/fixtures.html | Setup, isolasi, dan resource test; `docs/dev/test-quality.md`. |
+| pytest good practices | https://docs.pytest.org/en/stable/explanation/goodpractices.html | Struktur test dan praktik pytest; `docs/dev/test-quality.md`. |
+| coverage.py | https://coverage.readthedocs.io/ | Pengukuran coverage sebagai diagnostik; `docs/dev/test-quality.md`. |
+| mutmut | https://github.com/boxed/mutmut | Mutation testing opsional untuk modul kritis; `docs/dev/test-quality.md`. |
 | uv documentation | https://docs.astral.sh/uv/ | Environment, `uv run`, dan `uv sync`; `README.md`, `docs/dev/contributing.md`. |
 | Mermaid CLI | https://github.com/mermaid-js/mermaid-cli | Perintah `mmdc` dan opsi render; `src/docgen/stages/mermaid.py`, `README.md`, `docs/agent/mermaid.md`. |
 | Mermaid documentation | https://mermaid.js.org/ | Sintaks diagram Mermaid; `docs/agent/mermaid.md`. |
@@ -50,6 +61,11 @@ bila merujuk dokumentasi eksternal. Label harus unik; URL harus memakai skema
 | python-docx documentation | https://python-docx.readthedocs.io/ | Referensi pembanding untuk API DOCX; `docs/dev/contracts/docx-api.md`. |
 | pypdf documentation | https://pypdf.readthedocs.io/ | Pemeriksaan PDF pada tes; `tests/integration/test_golden_pdf.py`. |
 | ruamel.yaml documentation | https://yaml.dev/doc/ruamel.yaml/ | Parser YAML dan penanganan duplicate key; `src/docgen/config/common.py`. |
+| Adeu GitHub | https://github.com/dealfluence/adeu | Source resmi SDK/CLI Adeu; `docs/dev/adeu-integration.md`. |
+| Adeu PyPI | https://pypi.org/project/adeu/ | Distribusi paket Python SDK/CLI Adeu; `docs/dev/adeu-integration.md`. |
+| Adeu MCP server npm | https://www.npmjs.com/package/@adeu/mcp-server | Server MCP eksternal untuk alur DOCX-LLM; bukan komponen repo ini; `docs/dev/adeu-integration.md`. |
+| Adeu MCP tools | https://github.com/dealfluence/adeu/blob/main/skills/adeu-redlining/references/mcp-tools.md | Referensi tool MCP redlining Adeu; `docs/dev/adeu-integration.md`. |
+| Adeu | https://adeu.ai | Situs perusahaan dan gambaran produk Adeu; `docs/dev/adeu-integration.md`. |
 
 ## Aturan pemakaian
 

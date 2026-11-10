@@ -6,9 +6,45 @@ from pathlib import Path
 
 import pytest
 
-from docgen import paths
+from docgen import config, paths
 from docgen.config import load_format, load_structure
 from docgen.errors import ConfigError
+
+_EXPECTED_CONFIG_EXPORTS = frozenset(
+    {
+        "AssetsFormat",
+        "BackMatterItem",
+        "BibliographyStyle",
+        "BodyChapter",
+        "BodyFont",
+        "CaptionFont",
+        "CaptionStyle",
+        "CaptionsFormat",
+        "CitationFormat",
+        "CodeBorder",
+        "CodeFont",
+        "CodeFormat",
+        "CodeTable",
+        "CoverOverrides",
+        "FigureStyle",
+        "FontFormat",
+        "Format",
+        "FrontMatterItem",
+        "HeadingStyle",
+        "ListSettings",
+        "Margins",
+        "MonoFont",
+        "Numbering",
+        "PageFormat",
+        "Structure",
+        "TocHeadingStyle",
+        "format_override_warning",
+        "load_format",
+        "load_structure",
+        "load_yaml_mapping",
+        "parse_yaml_mapping",
+    }
+)
 
 
 def _copy_format(tmp_path: Path, name: str = "undip-msi") -> Path:
@@ -43,6 +79,12 @@ def _minimal_structure(extra: str = "") -> str:
         "  figures: false\n"
         "  tables: false\n" + extra
     )
+
+
+def test_config_public_api_complete() -> None:
+    assert len(config.__all__) == 31
+    missing = _EXPECTED_CONFIG_EXPORTS.difference(config.__all__)
+    assert not missing, f"nama publik hilang: {sorted(missing)}"
 
 
 def test_load_builtin_format() -> None:

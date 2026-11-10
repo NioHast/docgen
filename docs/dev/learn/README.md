@@ -75,7 +75,7 @@ uv run --extra dev pytest tests/unit
   `pyproject.toml`.
 - Jika perintah dijalankan dari direktori lain, tambahkan
   `--project <path-repo>` pada `uv`, misalnya
-  `uv run --project C:/dev/apps/design-system-format-laporan docgen --version`.
+  `uv run --project <path-repo> docgen --version`.
 - Output build adalah artefak. Jangan menyunting DOCX atau PDF sebagai
   sumber; perbaiki `document.md` atau data di `src/docgen/data/`.
 

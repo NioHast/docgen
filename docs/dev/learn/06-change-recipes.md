@@ -33,6 +33,7 @@ Setelah halaman ini, pembaca bisa:
 - [Resep 4: menambah atau mengubah field](#resep-4-menambah-atau-mengubah-field)
 - [Resep 5: mengubah fitur istilah](#resep-5-mengubah-fitur-istilah)
 - [Resep 6: mengubah dokumentasi](#resep-6-mengubah-dokumentasi)
+- [Menghubungkan perubahan dengan Adeu](#menghubungkan-perubahan-dengan-adeu)
 - [Peta gejala ke pemilik](#peta-gejala-ke-pemilik)
 - [Checklist sebelum selesai](#checklist-sebelum-selesai)
 - [Latihan](#latihan)
@@ -296,6 +297,26 @@ Cara memeriksa:
 - halaman baru terhubung dari indeks yang relevan;
 - tidak ada klaim API yang tidak ada di kode.
 
+### Menghubungkan perubahan dengan Adeu
+
+Adeu adalah server MCP (Model Context Protocol) eksternal yang menghubungkan
+DOCX dengan LLM. Repo ini tidak mengimplementasikan server MCP; repo ini
+menghasilkan bookmark `pNNNN` dan
+manifest `.laporan/manifest.json` saat build. Setelah DOCX diedit lewat Adeu
+atau agent, jalankan:
+
+```bash
+uv run docgen reconcile document.md
+```
+
+`docgen reconcile` membandingkan DOCX hasil edit dengan manifest, menulis
+laporan `.laporan/reconcile.md`, dan tidak mengubah DOCX atau `document.md`.
+Setujui perubahan di laporan, terapkan manual ke `document.md`, lalu build
+ulang. Alur lengkap ada di [Integrasi Adeu](../adeu-integration.md). Label
+registry resminya `Adeu GitHub`, `Adeu PyPI`, `Adeu MCP server npm`,
+`Adeu MCP tools`, dan `Adeu`; URL resminya ada di
+[registry referensi](../references.md).
+
 ## Peta gejala ke pemilik
 
 | Gejala | Mulai dari |
@@ -391,5 +412,7 @@ perubahan kontrak.
 ### Referensi resmi
 
 Label registry yang dipakai halaman ini: `Ruff configuration`, `Ruff rules`,
-`Ruff formatter`, `mypy configuration`, `pytest documentation`, dan
-`uv documentation`. URL resminya ada di [registry referensi](../references.md).
+`Ruff formatter`, `mypy configuration`, `pytest documentation`,
+`uv documentation`, `Adeu GitHub`, `Adeu PyPI`, `Adeu MCP server npm`,
+`Adeu MCP tools`, dan `Adeu`. URL resminya ada di
+[registry referensi](../references.md).

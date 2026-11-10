@@ -7,6 +7,7 @@ daftar istilah arsitektur.
 
 | Istilah | Arti | Rujukan |
 | --- | --- | --- |
+| Adeu | Produk/MCP server eksternal docx↔LLM; repo ini menyediakan integrasi manifest/bookmark/reconcile. | [adeu-integration.md](adeu-integration.md) |
 | ADR | Architecture Decision Record; catatan keputusan arsitektur yang mengikat. | [decisions/](decisions/) |
 | Artefak | Nilai yang dihasilkan satu stage dan diteruskan ke stage lain melalui context; bukan selalu file output. | [contracts/stage-api.md](contracts/stage-api.md) |
 | c14n | Canonical XML; bentuk ternormalisasi untuk membandingkan `document.xml` dan menghitung hash. | [docx/package.md](docx/package.md) |
@@ -17,6 +18,7 @@ daftar istilah arsitektur.
 | Kontrak | Spesifikasi API atau perilaku yang mengikat implementasi dan tes. | [contracts/](contracts/) |
 | Manifest | `.laporan/manifest.json`; daftar paragraf, bookmark, hash teks, dan status perlindungan. | [adeu-integration.md](adeu-integration.md) |
 | Marker | Label pytest yang memilih kelompok tes, misalnya `unit`, `integration`, `word`, atau `windows`. | [testing.md](testing.md) |
+| MCP | Model Context Protocol; standar agar AI agent dapat memanggil tool dan membaca dokumen. | [adeu-integration.md](adeu-integration.md) |
 | Output dir | Direktori tujuan artefak pengguna: samping `document.md` atau `examples/<name>/out/`. | [pipeline/outputs.md](pipeline/outputs.md) |
 | Paragraph ID | Bookmark `pNNNN` pada paragraf body untuk mencocokkan DOCX dengan manifest. | [docx/bookmarks.md](docx/bookmarks.md) |
 | Part | Anggota paket OOXML/ZIP, misalnya `word/document.xml` atau `word/styles.xml`. | [docx/package.md](docx/package.md) |

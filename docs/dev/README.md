@@ -18,7 +18,7 @@ pilih jalur baca yang sesuai di indeks materi belajar.
 | [architecture.md](architecture.md) | Lapisan konten, struktur, format, pipeline, dan invariant utama. |
 | [repo-map.md](repo-map.md) | Peta direktori dan tanggung jawab berkas. |
 | [glossary.md](glossary.md) | Istilah codebase: artefak, package, part, manifest, dan sejenisnya. |
-| [refactor-plan.md](archive/refactor-plan.md) | Rencana refactor aktif dan keputusan kerja. |
+| [refactor-plan.md](archive/refactor-plan.md) | Rencana refactor (arsip) dan keputusan kerja. |
 
 ## Pipeline
 
@@ -64,7 +64,7 @@ pilih jalur baca yang sesuai di indeks materi belajar.
 | Dokumen | Isi |
 | --- | --- |
 | [formats.md](formats.md) | Skema format dan struktur yang tersedia. |
-| [adeu-integration.md](adeu-integration.md) | Bookmark, manifest, source scan, dan reconcile. |
+| [adeu-integration.md](adeu-integration.md) | Adeu (MCP eksternal DOCX↔LLM) dan integrasi repo ini: bookmark `pNNNN`, manifest, source scan, reconcile. |
 | [pdf.md](pdf.md) | Ekspor PDF Word-only dan batas Debian. |
 | [packaging.md](packaging.md) | Entry point, package data, dan pemakaian repo-local. |
 
@@ -74,6 +74,7 @@ pilih jalur baca yang sesuai di indeks materi belajar.
 | --- | --- |
 | [contributing.md](contributing.md) | Alur kontribusi, tes, dan aturan perubahan. |
 | [testing.md](testing.md) | Golden invariant dan cara menjalankan tes. |
+| [test-quality.md](test-quality.md) | Prinsip memilih kasus test dan hasil audit suite. |
 | [code-style.md](code-style.md) | Konfigurasi Ruff, mypy, dan tabel rule. |
 | [references.md](references.md) | Registry resmi label dan URL dokumentasi eksternal. |
 

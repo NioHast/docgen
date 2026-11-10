@@ -17,7 +17,13 @@ single-file, tes, serta dokumentasi. Semua path relatif terhadap akar repo.
 |   `-- docgen/
 |       |-- cli.py
 |       |-- pipeline.py
-|       |-- config.py
+|       |-- config/
+|       |   |-- __init__.py
+|       |   |-- common.py
+|       |   |-- format.py
+|       |   |-- models.py
+|       |   |-- structure.py
+|       |   `-- validation.py
 |       |-- document.py
 |       |-- metadata.py
 |       |-- assets.py
@@ -65,7 +71,7 @@ single-file, tes, serta dokumentasi. Semua path relatif terhadap akar repo.
 | --- | --- |
 | `src/docgen/cli.py` | Parser `docgen` dan handler `check`, `build`, `doctor`, `reconcile`. |
 | `src/docgen/pipeline.py` | Urutan stage, `BuildOptions`, `StageContext`, output, manifest hook. |
-| `src/docgen/config.py` | Skema dan validasi `format.yml` dan `structure.yml`. |
+| `src/docgen/config/` | Skema, model, dan validasi `format.yml` serta `structure.yml`. |
 | `src/docgen/document.py` | Parse `document.md`, validasi front matter dan body. |
 | `src/docgen/metadata.py` | Normalisasi metadata penulis dan field front matter. |
 | `src/docgen/assets.py` | Resolusi gambar, bibliografi, glosarium, dan template. |
@@ -73,7 +79,7 @@ single-file, tes, serta dokumentasi. Semua path relatif terhadap akar repo.
 | `src/docgen/errors.py` | Hierarki error dan pemetaan exit code. |
 | `src/docgen/data/` | Format, struktur, template, glosarium, logo, CSL, `reference.docx`. |
 | `src/docgen/docx/` | Model package DOCX dan seluruh mutasi XML; helper kanonis ada di `paragraphs.py`, `runs.py`, `numbering.py`, dan `page.py`. |
-| `src/docgen/adeu/` | Bookmark `pNNNN`, manifest, source scan, reconcile. |
+| `src/docgen/adeu/` | Integrasi Adeu (MCP docx↔LLM eksternal): bookmark `pNNNN`, manifest, source scan, reconcile. |
 | `src/docgen/markdown/` | Parser blok Markdown dan penomoran heading Markdown untuk manifest, reconcile, dan front matter. |
 | `src/docgen/stages/` | Stage kanonik pipeline. |
 | `examples/assignment-single/` | Contoh tiga bab, tabel, dan Mermaid. |
@@ -129,5 +135,5 @@ Semua di-ignore Git. Jangan menyunting artefak ini sebagai sumber.
 
 Folder `tests/fixtures/golden/` menyimpan baseline DOCX dan invariant PDF.
 Fixture itu hanya untuk tes, bukan contoh penggunaan. `docs/dev/archive/refactor-plan.md`
-adalah acuan kerja aktif; arsip historis berada di `docs/dev/archive/`, dan
-kontrak adalah acuan implementasi, bukan panduan pengguna.
+adalah arsip historis; arsip lain berada di `docs/dev/archive/`, dan kontrak
+adalah acuan implementasi, bukan panduan pengguna.
