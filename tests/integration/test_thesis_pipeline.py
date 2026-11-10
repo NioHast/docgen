@@ -163,12 +163,14 @@ def test_build_thesis_example_lewat_pipeline_python(
 
     result = Pipeline().run(document, BuildOptions(target=TARGET))  # type: ignore[arg-type]
 
-    assert result.docx is not None and result.docx.is_file()
+    assert result.docx is not None
+    assert result.docx.is_file()
     assert zipfile.is_zipfile(result.docx)
     output = result.docx
     assert output == document.parent / f"{report_name}.docx"
     if TARGET == "both":
-        assert result.pdf is not None and result.pdf.is_file()
+        assert result.pdf is not None
+        assert result.pdf.is_file()
         assert result.pdf.read_bytes().startswith(b"%PDF-")
     else:
         assert result.pdf is None

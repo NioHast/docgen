@@ -20,6 +20,7 @@ baseline, lihat [testing.md](testing.md).
 - [Checklist keputusan](#checklist-keputusan)
 - [Checklist review test](#checklist-review-test)
 - [Contoh dari repo ini](#contoh-dari-repo-ini)
+- [Pemeriksaan deterministik](#pemeriksaan-deterministik)
 - [Hasil audit suite saat ini](#hasil-audit-suite-saat-ini)
 - [Referensi resmi](#referensi-resmi)
 
@@ -307,6 +308,171 @@ Jangan menuduh test tertentu buruk tanpa membaca tujuan, riwayat, dan biaya
 perawatannya. Gunakan pola di dokumen ini untuk mengajukan pertanyaan, bukan
 untuk memberi label.
 
+## Pemeriksaan deterministik
+
+Pemeriksaan deterministik memberi sinyal awal yang dapat diulang tanpa membuka
+Word atau menjalankan build. Hasilnya bukan keputusan akhir: sinyal dipakai
+untuk memilih test yang perlu dibaca, lalu reviewer memutuskan dengan konteks
+kontrak. Tiga lapisan yang dipakai:
+
+| Lapisan | Alat | Sifat | Status |
+| --- | --- | --- | --- |
+| Statis | Ruff PT dan `tools/dev/check_tests.py` | Membaca AST dan aturan gaya; tidak menjalankan test. | Dipakai sebelum suite. |
+| Coverage | `pytest-cov` dan `tools/dev/check_coverage.py` | Membaca context per test dari `.coverage`; butuh suite dijalankan. | Dipakai setelah suite unit. |
+| Mutation | `mutmut` atau alat sejenis | Mengubah kode untuk menguji kekuatan assertion. | Belum diimplementasikan; langkah berikutnya. |
+
+Mutation testing belum menjadi bagian gate. Jalankan hanya pada subset modul
+kritis setelah sinyal statis dan coverage stabil; lihat
+[Coverage dan mutation testing](#coverage-dan-mutation-testing).
+
+### Ruff PT
+
+Delapan aturan `flake8-pytest-style` berikut aktif di `[tool.ruff.lint]`:
+`PT010`, `PT011`, `PT012`, `PT014`, `PT018`, `PT019`, `PT027`, dan `PT028`.
+Aturan ini menjaga `pytest.raises`, assertion, fixture, dan `parametrize` tetap
+spesifik. Perintah fokus untuk suite test:
+
+```bash
+uv run --extra dev ruff check --select PT010,PT011,PT012,PT014,PT018,PT019,PT027,PT028 tests
+```
+
+Perintah di atas memeriksa aturan PT saja. Gate lint penuh tetap memakai
+`uv run --extra dev ruff check .` seperti di [code-style.md](code-style.md).
+Detail alasan tiap aturan ada di halaman yang sama; daftar resminya di
+[Ruff flake8-pytest-style](references.md#registry).
+
+### Pemeriksaan statis test
+
+`tools/dev/check_tests.py` memindai fungsi `test_*` pada tingkat module dan
+class, lalu memberi verdict berdasarkan sinyal AST. Alat ini tidak menjalankan
+test dan tidak membaca niat penulis.
+
+```bash
+python tools/dev/check_tests.py tests --format json
+python tools/dev/check_tests.py tests --format markdown
+python tools/dev/check_tests.py tests --fail-on high
+```
+
+Default exit code adalah 0 meskipun ada temuan, karena temuan diperlakukan
+sebagai warning. `--fail-on high|medium|low` menaikkan exit code menjadi 1 bila
+ada finding non-`KEEP` pada level keyakinan tersebut atau lebih tinggi. Path
+yang tidak ditemukan menghasilkan exit code 2. Opsi `--output PATH` menulis
+laporan ke berkas, bukan stdout.
+
+Bentuk JSON ringkas:
+
+```text
+{
+  "schema_version": 1,
+  "generated_by": "tools/dev/check_tests.py",
+  "summary": {
+    "total": int, "KEEP": int, "KEEP-WEAK": int,
+    "MERGE": int, "TRIM": int, "REMOVE": int
+  },
+  "tests": [{
+    "id": str, "file": str, "line": int,
+    "verdict": "KEEP" | "KEEP-WEAK" | "MERGE" | "TRIM" | "REMOVE",
+    "confidence": "low" | "medium" | "high",
+    "signals": [str], "evidence": str, "suggested_action": str,
+    "duplicate_of": str | null
+  }]
+}
+```
+
+`duplicate_of` hanya terisi pada sinyal `duplicate_body` dan menunjuk id test
+pertama yang body AST-nya sama.
+
+| Verdict | Arti | Sinyal yang memicunya |
+| --- | --- | --- |
+| `KEEP` | Tidak ada sinyal kelemahan. | Tidak ada. |
+| `KEEP-WEAK` | Test berharga, assertion perlu diperkuat. | `broad_raises`, `exit_code_only`, `env_dependent`, `platform_skip_only`. |
+| `MERGE` | Duplikat atau tumpang tindih. | `duplicate_body`, `integration_in_unit`. |
+| `TRIM` | Sebagian berharga, sebagian detail implementasi. | `private_access`, `exact_snapshot`. |
+| `REMOVE` | Tidak memberi sinyal regresi. | `no_assert`, `tautology`, `expected_from_sut`, `existence_only`. |
+
+Verdict diambil dari sinyal dengan tingkat keparahan tertinggi, bukan jumlah
+sinyal. Satu sinyal `no_assert` sudah cukup untuk `REMOVE`.
+
+Batas alat ini:
+
+- Deteksi duplikasi hanya exact AST setelah docstring dibuang. Dua test yang
+  setara secara semantik tetapi berbeda literal, nama, atau susunan statement
+  tidak ditandai duplikat.
+- Alat tidak menilai niat test, kontrak yang dilindungi, atau apakah assertion
+  benar-benar independen dari implementasi.
+- Pola dinamis seperti helper yang dibangun saat runtime atau assertion di
+  dalam library pihak ketiga dapat lolos.
+- Temuan adalah bahan review. Jangan menghapus test hanya karena verdict
+  `REMOVE`; periksa kontrak dan riwayatnya lebih dulu.
+
+### Coverage context
+
+`pytest-cov` dengan `--cov-context=test` mencatat test mana yang menjalankan
+setiap baris. `tools/dev/check_coverage.py` membaca `.coverage` lewat
+`CoverageData`, lalu menghitung baris unik dan baris yang tumpang tindih.
+
+```bash
+COVERAGE_CORE=ctrace uv run --extra dev pytest tests/unit \
+  --cov=src/docgen --cov-context=test
+python tools/dev/check_coverage.py \
+  --coverage-file .coverage --source src/docgen --format json
+```
+
+`COVERAGE_CORE=ctrace` wajib dipakai. Core `sysmon` belum mendukung dynamic
+context secara lengkap, sehingga context `|run` dapat hilang atau tidak stabil
+dan analisis overlap menjadi salah. `check_coverage.py` hanya menghitung context
+fase `|run`; context `setup` dan `teardown` diabaikan.
+
+Default `--max-covered-lines` adalah 1000. Test yang melampaui batas itu
+ditandai `god_test`. Naikkan batas hanya untuk test integrasi yang memang
+menjalankan satu alur panjang, bukan untuk membuat gate hijau.
+
+| Sinyal | Verdict dan keyakinan | Arti |
+| --- | --- | --- |
+| `no_unique_coverage` | `KEEP-WEAK` / low | Test tidak punya baris yang hanya dicakup dirinya sendiri. Ini informasi overlap, bukan vonis duplikat. |
+| `god_test` | `TRIM` / medium | Test mencakup baris melebihi `--max-covered-lines`; pecah per perilaku bila memang terlalu luas. |
+| `integration_only_lines` | high pada tingkat baris | Baris hanya dicakup test integration/e2e, bukan unit. Sinyal ini baru muncul bila context integration/e2e ikut dijalankan. |
+
+Jika `no_unique_coverage` dan `god_test` muncul bersamaan, `god_test` menentukan
+verdict `TRIM` medium; `no_unique_coverage` tetap menjadi informasi overlap.
+
+`no_unique_coverage` lazim pada suite yang sehat karena beberapa test boleh
+menyentuh jalur yang sama dengan assertion dan tujuan berbeda. Periksa isi test
+sebelum menggabungkan atau menghapus. `integration_only_lines` adalah daftar
+baris, bukan verdict test; tambahkan unit test atau pindahkan cakupan sesuai
+risiko. Untuk memunculkan sinyal itu, sertakan `tests/integration` dan
+`tests/e2e` pada invokasi pytest yang sama.
+
+Contoh hasil audit saat tooling diperkenalkan: 584 test, 370 test dengan
+`no_unique_coverage` (low), dan 52 `god_test`. Angka ini contoh yang akan
+berubah ketika suite dan konfigurasi coverage berubah; jangan memakainya sebagai
+baseline atau target.
+
+### Urutan pemakaian
+
+```text
+ruff PT -> check_tests -> coverage -> review manual -> perbaiki
+```
+
+1. Jalankan Ruff PT untuk menangkap kesalahan bentuk yang paling murah.
+2. Jalankan `check_tests.py` untuk memetakan kandidat test yang perlu dibaca.
+3. Jalankan coverage context untuk melihat overlap dan test yang terlalu luas.
+4. Review manual dengan [Checklist review test](#checklist-review-test) dan
+   kontrak yang dilindungi.
+5. Perbaiki test atau assertion. Jangan mengubah kode produksi hanya agar
+   sinyal tooling hilang.
+
+Untuk baseline lama, biarkan default warning dan baru pasang `--fail-on high`
+setelah temuan high sudah diselesaikan. Gate yang terlalu ketat di awal membuat
+tim menghapus test, bukan memperbaiki mutunya.
+
+### Batas keseluruhan
+
+Sinyal deterministik bukan keputusan akhir. `KEEP` tidak membuktikan test kuat,
+dan `KEEP-WEAK`, `TRIM`, atau `REMOVE` tidak membuktikan test harus diubah.
+Keputusan tetap memakai kontrak, riwayat bug, biaya perawatan, dan checklist di
+dokumen ini. Mutation testing tetap langkah berikutnya dan belum menjadi gate.
+
 ## Hasil audit suite saat ini
 
 Audit ini menilai seluruh 617 fungsi test di 49 berkas. Semua fungsi mendapat
@@ -413,5 +579,8 @@ label dipakai di dokumen ini dan di dokumen developer lain.
 | [pytest parametrize](references.md#registry) | Sintaks dan opsi test parametrik. |
 | [pytest fixtures](references.md#registry) | Setup, isolasi, dan resource test. |
 | [pytest good practices](references.md#registry) | Struktur test dan praktik pytest yang disarankan. |
+| [Ruff flake8-pytest-style](references.md#registry) | Aturan pytest yang diperiksa Ruff untuk assertion dan raises. |
 | [coverage.py](references.md#registry) | Pengukuran coverage sebagai diagnostik. |
+| [coverage.py contexts](references.md#registry) | Format context dinamis yang dibaca dari `.coverage`. |
+| [pytest-cov contexts](references.md#registry) | Opsi `--cov-context=test` untuk mencatat context per test. |
 | [mutmut](references.md#registry) | Mutation testing opsional untuk modul kritis. |

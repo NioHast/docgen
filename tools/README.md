@@ -26,6 +26,8 @@ untuk pemeriksa dan aturan prosa.
 | `dev/check_docs.py` | Memeriksa tautan relatif di README/docs aktif dan validitas registry `docs/dev/references.md`. |
 | `dev/check_prose.py` | Memeriksa pola kaidah, gaya, dan klise prosa Indonesia; aturan dibaca dari `dev/rules.yml`. |
 | `dev/audit_terms.py` | Mengaudit italic istilah pada DOCX hasil build; hanya membaca dan menulis laporan Markdown. |
+| `dev/check_tests.py` | Memindai AST fungsi `test_*`, mencetak laporan JSON atau Markdown, dan memakai warning sebagai default. `--fail-on` menerima `high`, `medium`, atau `low` dan mengubah temuan menjadi gate. |
+| `dev/check_coverage.py` | Membaca `.coverage` hasil `pytest-cov`, membutuhkan `COVERAGE_CORE=ctrace`, dan melaporkan sinyal overlap, god test, serta baris integration-only. |
 | `dev/rules.yml` | Data aturan prosa: kamus, akronim, singkatan, dan pola. |
 
 ## Alat dev vs resource runtime

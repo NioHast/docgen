@@ -312,8 +312,10 @@ def test_page_numbers_stage_body_has_first_page_variants(tmp_path: Path) -> None
     PageNumbersStage().run(_fake_ctx(package))
     body = iter_sections(package)[2]
     refs = section_header_footer(body)
-    assert refs.header and refs.first_page_header
-    assert refs.footer and refs.first_page_footer
+    assert refs.header
+    assert refs.first_page_header
+    assert refs.footer
+    assert refs.first_page_footer
     assert body.sect_pr.find(qn("w:titlePg")) is not None
 
     default_header, _ = header_footer_part(package, refs.header)

@@ -145,7 +145,8 @@ def test_build_no_adeu_tidak_menulis_manifest(
         BuildOptions(target="docx", adeu=False),
     )
 
-    assert result.docx is not None and result.docx.is_file()
+    assert result.docx is not None
+    assert result.docx.is_file()
     assert result.manifest is None
     assert not (project / ".laporan" / "manifest.json").exists()
     with zipfile.ZipFile(result.docx) as archive:

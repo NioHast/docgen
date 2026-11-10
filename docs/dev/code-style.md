@@ -150,10 +150,21 @@ URL resmi hanya disimpan di sana agar tidak terduplikasi.
 | `D211` | Dipakai | Tidak ada baris kosong antara `class` dan docstring. | `class A:` lalu `"""Ringkasan."""` tanpa baris kosong | [Ruff D211](references.md#registry) |
 | `D212` | Dipakai | Ringkasan docstring multi-baris dimulai pada baris pertama setelah `"""`. | `"""Ringkasan.` lalu detail pada baris berikutnya | [Ruff D212](references.md#registry) |
 | `D213` | Diabaikan | Bertentangan dengan D212. Ruff mengabaikan D213 secara otomatis; jangan menambahkannya ke `ignore`. | Ringkasan pada baris kedua setelah `"""` adalah salah | [Ruff D213](references.md#registry) |
+| `PT010` | Dipakai | `pytest.raises` wajib menyebut tipe exception; panggilan tanpa tipe gagal saat runtime. | `with pytest.raises(ValueError):` | [Ruff flake8-pytest-style](references.md#registry) |
+| `PT011` | Dipakai | Exception yang terlalu luas tanpa `match` atau `check` dapat menangkap error yang tidak berhubungan. | `pytest.raises(ValueError, match="pesan")` | [Ruff flake8-pytest-style](references.md#registry) |
+| `PT012` | Dipakai | Blok `pytest.raises` dengan banyak statement dapat lulus pada statement yang salah. | satu panggilan yang gagal di dalam `with pytest.raises(...)` | [Ruff flake8-pytest-style](references.md#registry) |
+| `PT014` | Dipakai | Kasus `parametrize` duplikat menambah runtime tanpa cakupan perilaku baru. | hapus kasus yang identik | [Ruff flake8-pytest-style](references.md#registry) |
+| `PT018` | Dipakai | Assertion gabungan tidak menunjukkan kondisi mana yang gagal. | `assert a` lalu `assert b` | [Ruff flake8-pytest-style](references.md#registry) |
+| `PT019` | Dipakai | Fixture yang hanya perlu aktif tanpa nilainya lebih jelas lewat `@pytest.mark.usefixtures`. | `@pytest.mark.usefixtures("fixture")` | [Ruff flake8-pytest-style](references.md#registry) |
+| `PT027` | Dipakai | Metode assertion exception dari `unittest` tidak konsisten dengan gaya pytest. | `pytest.raises` menggantikan `assertRaises` | [Ruff flake8-pytest-style](references.md#registry) |
+| `PT028` | Dipakai | Parameter test dengan default selalu memakai default dan mengalahkan fixture bernama sama. | `def test_x(a):` bukan `def test_x(a=1):` | [Ruff flake8-pytest-style](references.md#registry) |
 
 `BLE001` dan `SIM118` adalah subaturan dari kelompok `BLE` dan `SIM` yang
 dipilih, bukan aturan tambahan di luar `pyproject.toml`. `E741` berasal dari
 `per-file-ignores`, sedangkan `D211` dan `D212` berasal dari kelompok `D`.
+`PT010` sampai `PT028` adalah aturan `flake8-pytest-style` yang dipilih satu
+per satu; kelompok `PT` tidak diaktifkan seluruhnya. Aturan ini berlaku untuk
+setiap file Python yang diperiksa Ruff, terutama `tests`.
 
 Subaturan `D` lain yang tidak tercantum di tabel tetap aktif karena
 `select = ["D"]`: `D100`, `D104`, `D106`, `D200`, `D201`, `D204` sampai `D210`,
@@ -541,6 +552,7 @@ Label yang dipakai untuk konfigurasi dan aturan:
 | --- | --- |
 | Konfigurasi Ruff | [Ruff configuration](references.md#registry) |
 | Daftar aturan Ruff | [Ruff rules](references.md#registry) |
+| Aturan pytest Ruff | [Ruff flake8-pytest-style](references.md#registry) |
 | Pengaturan Ruff | [Ruff settings](references.md#registry) |
 | Formatter Ruff | [Ruff formatter](references.md#registry) |
 | Konfigurasi mypy | [mypy configuration](references.md#registry) |

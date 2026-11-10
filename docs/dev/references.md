@@ -23,6 +23,7 @@ bila merujuk dokumentasi eksternal. Label harus unik; URL harus memakai skema
 | Pandoc Lua filters | https://pandoc.org/lua-filters.html | Referensi filter Lua; pipeline tidak memakai `--lua-filter`, tetapi kontrak historis menyebut paritasnya. |
 | Ruff configuration | https://docs.astral.sh/ruff/configuration/ | Konfigurasi `[tool.ruff]`; `pyproject.toml`, `docs/dev/code-style.md`. |
 | Ruff rules | https://docs.astral.sh/ruff/rules/ | Daftar kode aturan; `docs/dev/code-style.md`. |
+| Ruff flake8-pytest-style | https://docs.astral.sh/ruff/rules/#flake8-pytest-style-pt | Aturan pytest yang dipilih untuk assertion dan raises; `docs/dev/code-style.md`, `docs/dev/test-quality.md`. |
 | Ruff settings | https://docs.astral.sh/ruff/settings/ | Daftar pengaturan; `pyproject.toml`, `docs/dev/code-style.md`. |
 | Ruff formatter | https://docs.astral.sh/ruff/formatter/ | Format otomatis dan `format --check`; `docs/dev/code-style.md`. |
 | Ruff D101 | https://docs.astral.sh/ruff/rules/undocumented-public-class/ | Aturan docstring class publik yang diabaikan; `docs/dev/code-style.md`. |
@@ -53,6 +54,8 @@ bila merujuk dokumentasi eksternal. Label harus unik; URL harus memakai skema
 | pytest fixtures | https://docs.pytest.org/en/stable/how-to/fixtures.html | Setup, isolasi, dan resource test; `docs/dev/test-quality.md`. |
 | pytest good practices | https://docs.pytest.org/en/stable/explanation/goodpractices.html | Struktur test dan praktik pytest; `docs/dev/test-quality.md`. |
 | coverage.py | https://coverage.readthedocs.io/ | Pengukuran coverage sebagai diagnostik; `docs/dev/test-quality.md`. |
+| coverage.py contexts | https://coverage.readthedocs.io/en/latest/contexts.html | Format dan pembacaan context dinamis dari `.coverage`; `docs/dev/test-quality.md`. |
+| pytest-cov contexts | https://pytest-cov.readthedocs.io/en/stable/contexts.html | Opsi `--cov-context=test` untuk mencatat context per test; `docs/dev/test-quality.md`. |
 | mutmut | https://github.com/boxed/mutmut | Mutation testing opsional untuk modul kritis; `docs/dev/test-quality.md`. |
 | uv documentation | https://docs.astral.sh/uv/ | Environment, `uv run`, dan `uv sync`; `README.md`, `docs/dev/contributing.md`. |
 | Mermaid CLI | https://github.com/mermaid-js/mermaid-cli | Perintah `mmdc` dan opsi render; `src/docgen/stages/mermaid.py`, `README.md`, `docs/user/mermaid.md`. |

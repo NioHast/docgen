@@ -190,7 +190,8 @@ def _style_has_dot_leader(parts: dict[str, bytes], style_id: str) -> bool:
 def _app_page_count(parts: dict[str, bytes]) -> int:
     root = etree.fromstring(parts["docProps/app.xml"])
     pages = root.find(APP_PAGES)
-    assert pages is not None and pages.text is not None
+    assert pages is not None
+    assert pages.text is not None
     return int(pages.text)
 
 

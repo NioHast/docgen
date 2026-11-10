@@ -22,6 +22,7 @@ dev = [
     "python-docx==1.2.0",
     "mypy==2.4.1",
     "ruff==0.17.4",
+    "pytest-cov==7.1.0",
 ]
 
 [project.scripts]
@@ -58,6 +59,15 @@ select = [
   "SIM", # simplify: kontrol alur yang bisa disederhanakan.
   "RUF", # aturan khusus Ruff: konsistensi dan potensi bug.
   "BLE", # blind except: except terlalu luas tanpa alasan.
+  # flake8-pytest-style: assertion dan raises yang spesifik, sesuai docs/dev/test-quality.md.
+  "PT010", # raises tanpa exception type.
+  "PT011", # raises terlalu luas tanpa match.
+  "PT012", # blok raises berisi lebih dari satu statement.
+  "PT014", # parametrize duplikat.
+  "PT018", # assertion gabungan.
+  "PT019", # fixture dipakai tanpa parameter.
+  "PT027", # pytest.raises dengan alias unittest.
+  "PT028", # parameter test dengan default.
   "D",   # pydocstyle: kualitas docstring, dengan pengecualian di bawah.
 ]
 

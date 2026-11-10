@@ -158,10 +158,12 @@ def test_build_thesis_menghasilkan_docx_pdf_dan_manifest(
     project, completed = built_example
     assert completed.returncode == 0, completed.stderr
     docx = project / "Tugas.docx"
-    assert docx.is_file() and zipfile.is_zipfile(docx)
+    assert docx.is_file()
+    assert zipfile.is_zipfile(docx)
     if TARGET == "both":
         pdf = project / "Tugas.pdf"
-        assert pdf.is_file() and pdf.read_bytes().startswith(b"%PDF-")
+        assert pdf.is_file()
+        assert pdf.read_bytes().startswith(b"%PDF-")
 
     manifest_path = project / ".laporan" / "manifest.json"
     assert manifest_path.is_file()
@@ -231,7 +233,8 @@ def test_fixture_thesis_dua_tabel_gambar_dan_toc_level_tiga(
     assert completed.returncode == 0, completed.stderr
 
     docx = project / "Tugas.docx"
-    assert docx.is_file() and zipfile.is_zipfile(docx)
+    assert docx.is_file()
+    assert zipfile.is_zipfile(docx)
     root = _document_root(docx)
     text = _text(root)
     assert "Tabel 2.1 Perbandingan pendekatan penulisan dokumen" in text

@@ -61,9 +61,9 @@ def test_qn_and_local_name() -> None:
     assert qn("r:id") == f"{{{R_NS}}}id"
     assert qn(f"{W}p") == f"{W}p"
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Prefix namespace tidak dikenal: 'unknown'"):
         qn("unknown:p")
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Tag XML harus memakai prefix: 'p'"):
         qn("p")
 
     assert local_name(f"{W}p") == "p"
@@ -157,7 +157,7 @@ def test_canonicalize_docx_profile_removes_word_noise() -> None:
     assert root.get(f"{W}rsidR") == "00AA"
     assert root.find(f"{W}proofErr") is not None
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Profil canonical tidak dikenal: 'invalid'"):
         canonicalize_xml(noisy, profile="invalid")  # type: ignore[arg-type]
 
 

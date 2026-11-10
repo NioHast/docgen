@@ -313,7 +313,8 @@ def test_golden_header_footer_per_section() -> None:
     sections = iter_sections(package)
     cover_refs = section_header_footer(sections[0])
     assert cover_refs == section_header_footer(sections[0])
-    assert cover_refs.header is None and cover_refs.footer is None
+    assert cover_refs.header is None
+    assert cover_refs.footer is None
     front_refs = section_header_footer(sections[1])
     assert front_refs.header is None
     assert front_refs.footer is not None

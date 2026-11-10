@@ -75,7 +75,8 @@ def _assert_pdf_matches_baseline(reader: object, baseline: dict[str, object]) ->
     assert len(reader.pages) == expected_pages  # type: ignore[attr-defined]
 
     expected_size = baseline["page_size_points"]
-    assert isinstance(expected_size, list) and len(expected_size) == 2
+    assert isinstance(expected_size, list)
+    assert len(expected_size) == 2
     for page in reader.pages:  # type: ignore[attr-defined]
         actual_size = [float(page.mediabox.width), float(page.mediabox.height)]
         assert actual_size == pytest.approx(expected_size, abs=0.01)
@@ -100,31 +101,38 @@ def test_pdf_baseline_record_is_complete(baseline: dict[str, object]) -> None:
     assert "fixture" not in baseline
 
     source = baseline["source"]
-    assert isinstance(source, str) and "examples/thesis-single" in source
+    assert isinstance(source, str)
+    assert "examples/thesis-single" in source
 
     page_count = baseline["page_count"]
-    assert isinstance(page_count, int) and page_count > 0
+    assert isinstance(page_count, int)
+    assert page_count > 0
 
     page_size = baseline["page_size_points"]
-    assert isinstance(page_size, list) and len(page_size) == 2
+    assert isinstance(page_size, list)
+    assert len(page_size) == 2
     assert all(isinstance(value, (int, float)) and value > 0 for value in page_size)
     assert page_size[0] < page_size[1]
 
     key_text = baseline["key_text"]
-    assert isinstance(key_text, list) and key_text
+    assert isinstance(key_text, list)
+    assert key_text
     assert all(isinstance(key, str) and key for key in key_text)
     assert len(set(key_text)) == len(key_text)
 
     toc = baseline["toc"]
-    assert isinstance(toc, list) and toc
+    assert isinstance(toc, list)
+    assert toc
     labels: list[str] = []
     for entry in toc:
         assert isinstance(entry, dict)
         assert set(entry) == {"label", "page"}
         label = entry["label"]
         page = entry["page"]
-        assert isinstance(label, str) and label
-        assert isinstance(page, str) and PAGE_NUMBER_RE.match(page)
+        assert isinstance(label, str)
+        assert label
+        assert isinstance(page, str)
+        assert PAGE_NUMBER_RE.match(page)
         labels.append(label)
     assert len(set(labels)) == len(labels)
 
@@ -170,6 +178,7 @@ def test_pdf_build_matches_baseline(baseline: dict[str, object], tmp_path: Path)
 
     report_name = load_project(project / "document.md").document.metadata.report_name
     pdf = project / f"{report_name}.pdf"
-    assert pdf.is_file() and pdf.read_bytes().startswith(b"%PDF-")
+    assert pdf.is_file()
+    assert pdf.read_bytes().startswith(b"%PDF-")
 
     _assert_pdf_matches_baseline(PdfReader(str(pdf)), baseline)

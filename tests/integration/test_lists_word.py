@@ -152,7 +152,8 @@ def test_lists_word_updates_caption_and_list_fields(tmp_path: Path) -> None:
     assert sum(text.split("\t")[0] == "Gambar 2.1 Diagram Alur" for text in texts) >= 2
 
     _run_word(docx, pdf=pdf)
-    assert pdf.is_file() and pdf.stat().st_size > 0
+    assert pdf.is_file()
+    assert pdf.stat().st_size > 0
     pypdf = pytest.importorskip("pypdf")
     text = "\n".join(page.extract_text() or "" for page in pypdf.PdfReader(str(pdf)).pages)
     assert "DAFTAR TABEL" in text

@@ -251,7 +251,8 @@ def test_adapter_export_pdf_atomic_dan_memeriksa_hasil(
 
     assert adapter.export_pdf(docx, pdf, timeout=7) == pdf.resolve()
     assert pdf.read_bytes() == _PDF_STUB
-    assert seen and not seen[0].exists()
+    assert seen
+    assert not seen[0].exists()
 
 
 def test_adapter_export_pdf_menolak_hasil_bukan_pdf(

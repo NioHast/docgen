@@ -144,7 +144,7 @@ def test_adeu_options_memeta_kan_flag() -> None:
 
 
 def test_build_options_menolak_target_tidak_dikenal() -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="target tidak dikenal: 'rtf'"):
         BuildOptions(target="rtf")  # type: ignore[arg-type]
 
 

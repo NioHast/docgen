@@ -31,7 +31,8 @@ BUILDER_PATH = FIXTURES / "make_fixture.py"
 
 def _load_builder():
     spec = importlib.util.spec_from_file_location("format_figures_make_fixture", BUILDER_PATH)
-    assert spec is not None and spec.loader is not None
+    assert spec is not None
+    assert spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
