@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 
 from lxml import etree
 
-from . import DocxError, names, paragraphs
+from . import DocxError, names, page, paragraphs
 from .package import DOCUMENT_PART
 from .runs import append_text_run
 from .xml import (
@@ -76,8 +76,6 @@ CELL_MARGIN_TAGS: tuple[str, ...] = (
 
 CELL_MARGIN_ORDER: tuple[str, ...] = tuple(qn(tag) for tag in CELL_MARGIN_TAGS)
 
-CONTENT_WIDTH_FALLBACK = 9360  # letter: 12240 - 2 x 1440 twip
-
 W_P = names.W_P
 W_PPR = names.W_PPR
 W_VAL = names.W_VAL
@@ -99,11 +97,8 @@ W_SECTPR = names.W_SECTPR
 W_TBL = names.W_TBL
 W_TR = names.W_TR
 W_TC = names.W_TC
-W_PG_SZ = qn("w:pgSz")
-W_PG_MAR = qn("w:pgMar")
 W_W = qn("w:w")
 W_TYPE = qn("w:type")
-W_GUTTER = qn("w:gutter")
 W_LEFT = qn("w:left")
 W_RIGHT = qn("w:right")
 W_FIRST_LINE = qn("w:firstLine")
@@ -691,30 +686,6 @@ def normalize_code_tables(
 # ---------------------------------------------------------------------------
 
 
-def _content_width(body: etree._Element) -> int:
-    section = body.find(W_SECTPR)
-    if section is None:
-        sections = body.findall(f".//{W_SECTPR}")
-        section = sections[-1] if sections else None
-    if section is None:
-        return CONTENT_WIDTH_FALLBACK
-
-    page_size = section.find(W_PG_SZ)
-    page_margin = section.find(W_PG_MAR)
-    if page_size is None or page_margin is None:
-        return CONTENT_WIDTH_FALLBACK
-
-    width = paragraphs.int_attribute(page_size, W_W)
-    left = paragraphs.int_attribute(page_margin, W_LEFT)
-    right = paragraphs.int_attribute(page_margin, W_RIGHT)
-    if width is None or left is None or right is None:
-        return CONTENT_WIDTH_FALLBACK
-    gutter = paragraphs.int_attribute(page_margin, W_GUTTER) or 0
-
-    content_width = width - left - right - gutter
-    return content_width if content_width > 0 else CONTENT_WIDTH_FALLBACK
-
-
 def _paragraph_lines(paragraph: etree._Element) -> list[_Line]:
     """Ambil baris kode dari satu paragraf.
 
@@ -890,7 +861,7 @@ def make_code_table(
 
     code_spec = spec or CodeSpec()
     body = paragraphs.document_body(package)
-    content_width = _content_width(body)
+    content_width = page.content_width(body)
     if not items:
         raise TableError(
             "tabel kode membutuhkan minimal satu paragraf",

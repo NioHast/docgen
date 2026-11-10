@@ -126,7 +126,8 @@ def _context(
         dry_run=False,
     )
     if markdown:
-        path = workspace.path("front_matter.md")
+        # Nama file tidak penting: Pandoc hanya boleh membaca path artifact.
+        path = workspace.path("markdown.md")
         path.write_text(
             "# Pendahuluan\n\nTeks dengan sitasi [@pandoc2024].\n",
             encoding="utf-8",
@@ -380,7 +381,7 @@ def test_stage_kedua_kali_idempoten(
     assert second.status == "ok"
 
 
-def test_stage_gagal_tanpa_markdown_artifact(
+def test_stage_gagal_tanpa_artifact_markdown(
     tmp_path: Path,
     format_spec,
 ) -> None:
@@ -393,9 +394,42 @@ def test_stage_gagal_tanpa_markdown_artifact(
         reference=reference,
         markdown=False,
     )
+    # File lama di workspace tidak boleh menjadi fallback untuk Pandoc.
+    ctx.workspace.path("front_matter.md").write_text(
+        "# Pendahuluan\n\nTeks lama.\n",
+        encoding="utf-8",
+    )
 
-    with pytest.raises(PandocError, match="front_matter"):
+    with pytest.raises(PandocError, match="artifact 'markdown'") as excinfo:
         PandocStage().run(ctx)
+
+    assert excinfo.value.code == "PANDOC-INPUT"
+    assert excinfo.value.path is None
+    assert excinfo.value.key == "markdown"
+
+
+def test_stage_gagal_artifact_markdown_bukan_file(
+    tmp_path: Path,
+    format_spec,
+) -> None:
+    reference = _reference(tmp_path, format_spec)
+    fake, _ = _fake_pandoc(tmp_path, reference)
+    ctx = _context(
+        tmp_path,
+        format_spec=format_spec,
+        fake_pandoc=fake,
+        reference=reference,
+        markdown=False,
+    )
+    missing = ctx.workspace.path("markdown-hilang.md")
+    ctx.artifacts.put("markdown", missing)
+
+    with pytest.raises(PandocError, match="artifact 'markdown'") as excinfo:
+        PandocStage().run(ctx)
+
+    assert excinfo.value.code == "PANDOC-INPUT"
+    assert excinfo.value.path == missing
+    assert excinfo.value.key == "markdown"
 
 
 def test_stage_gagal_tanpa_reference_derived(

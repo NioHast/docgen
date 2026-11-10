@@ -571,7 +571,12 @@ def render_blocks(
 
 
 class MermaidStage(BaseStage):
-    """Materialisasi blok Mermaid sebelum ``front_matter``/Pandoc."""
+    """Materialisasi blok Mermaid sebelum ``front_matter``/Pandoc.
+
+    ``mermaid.md`` dan artifact ``mermaid.markdown`` selalu ditulis, termasuk
+    untuk dokumen tanpa blok Mermaid, agar stage ``front_matter`` memiliki
+    sumber body yang eksplisit.
+    """
 
     name = StageName.MERMAID
     order = 20
@@ -585,14 +590,6 @@ class MermaidStage(BaseStage):
         body = getattr(document, "body", "") or ""
         document_path = getattr(document, "path", None)
         blocks = extract_blocks(body, path=document_path)
-        if not blocks:
-            return StageResult(
-                stage=self.name.value,
-                status="skipped",
-                changed=False,
-                duration_ms=int((time.monotonic() - started) * 1000),
-                metrics={"blocks": 0},
-            )
 
         workspace = getattr(ctx, "workspace", None)
         if workspace is None or not callable(getattr(workspace, "ensure", None)):

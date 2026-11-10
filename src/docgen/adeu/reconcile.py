@@ -58,6 +58,7 @@ from ..markdown.blocks import (
     parse_markdown_blocks,
 )
 from ..metadata import normalize_metadata
+from ..paths import output_directory
 from .manifest import (
     ManifestParagraph,
     default_manifest_path,
@@ -630,15 +631,6 @@ def write_report(path: str | Path, report: str) -> Path:
     return destination
 
 
-def _default_docx_path(document_file: Path, report_name: str) -> Path:
-    """DOCX hasil build: ``out/<report_name>.docx`` lalu di samping dokumen."""
-
-    built = document_file.parent / "out" / f"{report_name}.docx"
-    if built.is_file():
-        return built
-    return document_file.parent / f"{report_name}.docx"
-
-
 def run(
     document_path: str | Path,
     *,
@@ -652,8 +644,17 @@ def run(
     document_file = raw.path
     report_name = normalize_metadata(raw.front_matter, source=raw.path).report_name
     docx = (
-        Path(docx_path) if docx_path is not None else _default_docx_path(document_file, report_name)
+        Path(docx_path)
+        if docx_path is not None
+        else output_directory(document_file) / f"{report_name}.docx"
     )
+    if not docx.is_file():
+        raise ReconcileError(
+            "DOCX hasil edit tidak ditemukan; jalankan build atau berikan path "
+            "eksplisit lewat --docx",
+            code="RECONCILE-INPUT",
+            path=docx,
+        )
     manifest_file = (
         Path(manifest_path) if manifest_path is not None else default_manifest_path(document_file)
     )

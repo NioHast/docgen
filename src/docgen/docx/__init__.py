@@ -71,7 +71,7 @@ from .package import (  # noqa: E402
     PartInfo,
     Relationship,
 )
-from .page import PAGE_SIZES, page_size  # noqa: E402
+from .page import PAGE_SIZES, PageError, content_width, page_size  # noqa: E402
 from .paragraphs import (  # noqa: E402
     ParagraphError,
     body_children,
@@ -125,6 +125,7 @@ __all__ = [
     "PAGE_SIZES",
     "PPR_ORDER",
     "PackageError",
+    "PageError",
     "ParagraphError",
     "PartExistsError",
     "PartInfo",
@@ -149,6 +150,7 @@ __all__ = [
     "canonicalize_xml",
     "chapter_number",
     "clone_run",
+    "content_width",
     "copy_rpr",
     "document_body",
     "ensure_ppr",

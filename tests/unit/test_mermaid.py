@@ -4,12 +4,15 @@ import base64
 import json
 import shutil
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 from docgen.errors import DocgenError, ToolMissingError
+from docgen.pipeline import ArtifactStore, Workspace
 from docgen.stages.mermaid import (
     MermaidError,
+    MermaidStage,
     RenderOptions,
     extract_blocks,
     find_mmdc,
@@ -273,6 +276,36 @@ def test_render_blocks_tanpa_blok_tidak_membuat_folder(
 
     assert result == source
     assert not base.exists()
+
+
+def _mermaid_context(tmp_path: Path, body: str) -> SimpleNamespace:
+    return SimpleNamespace(
+        document=SimpleNamespace(body=body, path=Path("document.md")),
+        workspace=Workspace(root=tmp_path / ".laporan-build", keep=True),
+        artifacts=ArtifactStore(),
+    )
+
+
+def test_stage_tanpa_blok_tetap_menulis_mermaid_md_dan_artifact(tmp_path: Path) -> None:
+    body = "# BAB I\n\nTidak ada diagram.\n"
+    ctx = _mermaid_context(tmp_path, body)
+
+    first = MermaidStage().run(ctx)
+
+    output = ctx.workspace.path("mermaid.md")
+    assert first.status == "ok"
+    assert first.changed is True
+    assert first.metrics["blocks"] == 0
+    assert first.artifacts == (output,)
+    assert output.read_text(encoding="utf-8") == body
+    assert ctx.artifacts.get("mermaid.markdown") == output
+
+    second = MermaidStage().run(ctx)
+
+    assert second.status == "ok"
+    assert second.changed is False
+    assert second.metrics["blocks"] == 0
+    assert ctx.artifacts.get("mermaid.markdown") == output
 
 
 def test_render_blocks_mmdc_hilang_melempar_tool_missing(

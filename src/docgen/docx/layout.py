@@ -65,7 +65,6 @@ __all__ = [
     "LayoutError",
     "LayoutReport",
     "LayoutSpec",
-    "content_width",
     "document_root",
     "ensure_ppr",
     "ensure_rpr",
@@ -195,8 +194,6 @@ TITLE_STYLE = "title"
 EXEMPT_FIELDS = frozenset({"TOC", "PAGEREF", "SEQ"})
 
 FIELD_NAME_RE = re.compile(r"\s*([A-Za-z]+)")
-
-DEFAULT_CONTENT_WIDTH_TWIPS = 9072
 
 TRACKED_INSERT_TAGS = frozenset({qn("w:ins"), W_MOVE_TO})
 TRACKED_DELETE_TAGS = frozenset({W_DEL, W_MOVEFROM})
@@ -720,37 +717,3 @@ def normalize_layout(
         bold_paragraphs=bold_paragraphs,
         bold_runs_removed=bold_runs_removed,
     )
-
-
-# ---------------------------------------------------------------------------
-# Helper tambahan untuk stage lain
-# ---------------------------------------------------------------------------
-
-
-def content_width(
-    body: etree._Element,
-    *,
-    fallback: int = DEFAULT_CONTENT_WIDTH_TWIPS,
-) -> int:
-    """Lebar area teks dari ``sectPr`` terakhir, fallback 9072 twip."""
-
-    section = body.find(W_SECTPR)
-    if section is None:
-        sections = body.findall(f".//{W_SECTPR}")
-        section = sections[-1] if sections else None
-    if section is None:
-        return fallback
-
-    page_size = section.find(qn("w:pgSz"))
-    page_margin = section.find(qn("w:pgMar"))
-    if page_size is None or page_margin is None:
-        return fallback
-
-    width = paragraphs.int_attribute(page_size, qn("w:w"))
-    left = paragraphs.int_attribute(page_margin, qn("w:left"))
-    right = paragraphs.int_attribute(page_margin, qn("w:right"))
-    if width is None or left is None or right is None:
-        return fallback
-    gutter = paragraphs.int_attribute(page_margin, qn("w:gutter")) or 0
-    result = width - left - right - gutter
-    return result if result > 0 else fallback

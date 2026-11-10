@@ -9,8 +9,10 @@ sebelum Pandoc:
 - penomoran Heading 1/2/3 pada body;
 - page break dan section break front matter dengan margin dari ``format.yml``.
 
-Output berupa Markdown yang siap dikonsumsi Pandoc. TOC dan daftar
-gambar/tabel **tidak** ditulis di sini; keduanya milik stage post-Pandoc.
+Output berupa Markdown yang siap dikonsumsi Pandoc. Body hanya dibaca dari
+artifact ``mermaid.markdown`` milik stage mermaid; tidak ada fallback ke
+``document.body``. TOC dan daftar gambar/tabel **tidak** ditulis di sini;
+keduanya milik stage post-Pandoc.
 """
 
 import re
@@ -507,40 +509,48 @@ def render_front_matter(
     return "\n\n".join(block.strip("\n") for block in blocks if block.strip()) + "\n"
 
 
-def _markdown_source(ctx: Any, *, own_path: Path) -> str:
-    """Sumber body: artifact Markdown dari stage sebelumnya, bukan output sendiri."""
+def _markdown_source(ctx: Any) -> str:
+    """Sumber body satu-satunya: artifact ``mermaid.markdown`` dari stage mermaid.
+
+    Tidak ada fallback ke ``document.body`` maupun ke artifact ``markdown``
+    milik stage ini sendiri. Artifact yang tidak dideklarasikan atau tidak
+    dapat dibaca adalah error input, bukan alasan memakai sumber cadangan.
+    """
 
     artifacts = getattr(ctx, "artifacts", None)
-    if artifacts is not None:
-        try:
-            keys = tuple(artifacts.keys())
-        except AttributeError, TypeError:
-            keys = ()
-        # ``mermaid.markdown`` adalah output stage mermaid; ``markdown`` adalah
-        # output stage ini sendiri (atau kompatibilitas pemanggil lama).
-        for key in ("markdown", "mermaid.markdown"):
-            if key not in keys:
-                continue
-            path = Path(artifacts.get(key))
-            try:
-                same_file = path.resolve() == own_path.resolve()
-            except OSError:
-                same_file = False
-            if same_file:
-                continue
-            try:
-                return path.read_text(encoding="utf-8-sig")
-            except OSError as exc:
-                raise FrontMatterError(
-                    f"artifact markdown tidak dapat dibaca: {exc}",
-                    code="FRONT-MATTER-INPUT",
-                    path=path,
-                ) from exc
-    return ctx.document.body
+    try:
+        keys = tuple(artifacts.keys()) if artifacts is not None else ()
+    except AttributeError, TypeError:
+        keys = ()
+    if artifacts is None or "mermaid.markdown" not in keys:
+        raise FrontMatterError(
+            "artifact 'mermaid.markdown' dari stage mermaid tidak tersedia",
+            code="FRONT-MATTER-INPUT",
+            key="mermaid.markdown",
+        )
+    path = Path(artifacts.get("mermaid.markdown"))
+    if not path.is_file():
+        raise FrontMatterError(
+            f"artifact mermaid.markdown tidak ditemukan atau bukan file: {path}",
+            code="FRONT-MATTER-INPUT",
+            path=path,
+        )
+    try:
+        return path.read_text(encoding="utf-8-sig")
+    except OSError as exc:
+        raise FrontMatterError(
+            f"artifact mermaid.markdown tidak dapat dibaca: {exc}",
+            code="FRONT-MATTER-INPUT",
+            path=path,
+        ) from exc
 
 
 class FrontMatterStage(BaseStage):
-    """Stage materialisasi Markdown sebelum ``pandoc``."""
+    """Stage materialisasi Markdown sebelum ``pandoc``.
+
+    Body hanya dibaca dari artifact ``mermaid.markdown`` milik stage mermaid;
+    tidak ada fallback ke ``document.body`` atau artifact lain.
+    """
 
     name: ClassVar[StageName] = StageName.FRONT_MATTER
     order: ClassVar[int] = 35
@@ -556,7 +566,7 @@ class FrontMatterStage(BaseStage):
         started = time.monotonic()
         ctx.workspace.ensure()
         path = ctx.workspace.path("front_matter.md")
-        body = _markdown_source(ctx, own_path=path)
+        body = _markdown_source(ctx)
         text = render_front_matter(
             ctx.document,
             ctx.structure,

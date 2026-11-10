@@ -13,7 +13,6 @@ from docx.shared import Pt, Twips
 
 from docgen.docx import DOCUMENT_PART, DocumentPackage
 from docgen.docx.layout import (
-    content_width,
     has_bold_field,
     is_chapter_heading,
     is_exempt,
@@ -21,6 +20,7 @@ from docgen.docx.layout import (
     normalize_layout,
 )
 from docgen.docx.numbering import chapter_number
+from docgen.docx.page import PageError, content_width
 from docgen.docx.paragraphs import heading_level, paragraph_text
 from docgen.pipeline import BuildOptions, StageName
 from docgen.stages import blank_lines, equations, normalize, numbering
@@ -487,6 +487,17 @@ def test_content_width_dari_sectpr() -> None:
     section.gutter = Twips(0)
     body = document.element.body
     assert content_width(body) == 9072
+
+
+def test_content_width_tanpa_sectpr_menimbulkan_page_error() -> None:
+    document = Document()
+    body = document.element.body
+    for section in body.findall(qn("w:sectPr")):
+        body.remove(section)
+
+    with pytest.raises(PageError) as excinfo:
+        content_width(body)
+    assert excinfo.value.code == "PAGE-WIDTH"
 
 
 # ---------------------------------------------------------------------------

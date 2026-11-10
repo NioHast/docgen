@@ -19,7 +19,6 @@ from lxml import etree
 
 from ..docx.layout import (
     PPR_ORDER,
-    content_width,
     document_root,
     has_deleted_ancestor,
     has_field,
@@ -38,6 +37,7 @@ from ..docx.names import (
 )
 from ..docx.numbering import chapter_number
 from ..docx.package import DocumentPackage
+from ..docx.page import content_width
 from ..docx.paragraphs import document_body, paragraph_style_id, paragraph_text
 from ..docx.xml import ensure_ppr, get_or_add, qn, sha256_c14n
 from ..errors import DocgenError
@@ -64,7 +64,6 @@ EQUATION_NUMBER_RE = re.compile(r"\(\d+\.\d+\)")
 DEFAULT_LEFT_INDENT_TWIPS = 1440
 DEFAULT_SPACING_TWIPS = 0
 DEFAULT_JUSTIFICATION = "left"
-DEFAULT_RIGHT_TAB_TWIPS = 9072
 HEADING1_STYLES = frozenset({"heading1", "chaptertitle"})
 
 
@@ -81,7 +80,6 @@ class EquationSpec:
     left_indent_twips: int = DEFAULT_LEFT_INDENT_TWIPS
     spacing_twips: int = DEFAULT_SPACING_TWIPS
     justification: str = DEFAULT_JUSTIFICATION
-    fallback_right_tab_twips: int = DEFAULT_RIGHT_TAB_TWIPS
     chapter_styles: frozenset[str] = HEADING1_STYLES
 
     def __post_init__(self) -> None:
@@ -89,8 +87,6 @@ class EquationSpec:
             raise EquationError("indentasi kiri persamaan tidak boleh negatif")
         if self.spacing_twips < 0:
             raise EquationError("spacing persamaan tidak boleh negatif")
-        if self.fallback_right_tab_twips <= 0:
-            raise EquationError("fallback tab stop harus positif")
         if self.justification not in {"left", "right", "center", "both", "justify"}:
             raise EquationError(f"justification persamaan tidak dikenal: {self.justification!r}")
 
@@ -289,9 +285,7 @@ def format_equation_paragraph(
 
 
 def _apply_numbers(body: etree._Element, report: EquationReport, spec: EquationSpec) -> None:
-    width = content_width(body, fallback=spec.fallback_right_tab_twips)
-    if width <= 0:
-        width = spec.fallback_right_tab_twips
+    width = content_width(body)
     current_chapter: int | None = None
     counter = 0
 
@@ -433,7 +427,6 @@ def _spec_from_context(ctx: object) -> EquationSpec:
 
 __all__ = [
     "DEFAULT_LEFT_INDENT_TWIPS",
-    "DEFAULT_RIGHT_TAB_TWIPS",
     "DEFAULT_SPACING_TWIPS",
     "EQUATION_NUMBER_RE",
     "HEADING1_STYLES",

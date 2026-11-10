@@ -206,32 +206,24 @@ def _artifact_path(ctx: object, key: str) -> Path | None:
 
 
 def _markdown_path(ctx: object) -> Path:
-    """Markdown hasil ``front_matter`` + ``mermaid``.
+    """Markdown hasil ``front_matter`` + ``mermaid`` dari satu sumber.
 
-    Artifact ``markdown`` adalah sumber utama. Sebagai kompatibilitas selama
-    integrasi, file ``front_matter.md`` di workspace juga diterima; keduanya
-    ditulis oleh ``FrontMatterStage``.
+    Satu-satunya input adalah artifact ``markdown`` yang dideklarasikan stage
+    ``front_matter``. Tidak ada fallback ke file workspace: artifact yang
+    hilang atau bukan file selalu menjadi ``PANDOC-INPUT`` agar penyebabnya
+    terlihat, bukan tertutup oleh file cadangan lama.
     """
 
     artifact = _artifact_path(ctx, "markdown")
-    candidates: list[Path] = []
-    if artifact is not None:
-        candidates.append(artifact)
-
-    workspace = getattr(ctx, "workspace", None)
-    if workspace is not None and callable(getattr(workspace, "path", None)):
-        candidates.append(Path(workspace.path("front_matter.md")))
-
-    for candidate in candidates:
-        if candidate.is_file():
-            return candidate
-    raise PandocError(
-        "Markdown materialized untuk Pandoc tidak ditemukan; jalankan stage "
-        "front_matter/mermaid lebih dulu atau pastikan artifact 'markdown' ada.",
-        code="PANDOC-INPUT",
-        path=artifact or (candidates[0] if candidates else None),
-        key="markdown",
-    )
+    if artifact is None or not artifact.is_file():
+        raise PandocError(
+            "Markdown materialized untuk Pandoc tidak tersedia sebagai file "
+            "artifact 'markdown'; jalankan stage front_matter/mermaid lebih dulu.",
+            code="PANDOC-INPUT",
+            path=artifact,
+            key="markdown",
+        )
+    return artifact
 
 
 def _reference_path(ctx: object) -> Path:

@@ -12,6 +12,7 @@ from docx.shared import Twips
 from lxml import etree
 
 from docgen.docx import DOCUMENT_PART, DocumentPackage
+from docgen.docx.page import PageError
 from docgen.pipeline import BuildOptions, StageName
 from docgen.stages import equations
 
@@ -289,6 +290,24 @@ def test_tab_stop_dan_indentasi(equations_docx: Path, tmp_path: Path) -> None:
     assert ppr.find(W_JC).get(W_VAL) == "left"
 
     assert ppr.index(tabs) < ppr.index(spacing) < ppr.index(indent)
+
+
+def test_tanpa_sectpr_menimbulkan_page_error(tmp_path: Path) -> None:
+    document = Document()
+    _configure_a4(document)
+    document.add_paragraph("BAB I PENDAHULUAN")
+    source = tmp_path / "no-section.docx"
+    document.save(source)
+
+    package = DocumentPackage.load(source)
+    body = package.xml(DOCUMENT_PART).find(W_BODY)
+    assert body is not None
+    for section in body.findall(qn("w:sectPr")):
+        body.remove(section)
+
+    with pytest.raises(PageError) as excinfo:
+        equations.format_equations(package)
+    assert excinfo.value.code == "PAGE-WIDTH"
 
 
 def test_field_dan_bookmark_tetap_aman(equations_docx: Path, tmp_path: Path) -> None:

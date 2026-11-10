@@ -27,6 +27,7 @@ def test_layout_api_mati_hilang() -> None:
 def test_duplikat_paragraf_hilang_dari_modul_lain() -> None:
     for name in ("document_body", "heading_level", "paragraph_style_id", "paragraph_text"):
         assert not hasattr(layout, name)
+    assert not hasattr(layout, "content_width")
     for name in ("paragraph_style_id", "paragraph_heading_level"):
         assert not hasattr(bookmarks, name)
     assert not hasattr(sections, "heading_level")
@@ -85,12 +86,14 @@ def test_stage_spec_tanpa_owner() -> None:
 def test_docx_package_level_helper_baru_tersedia() -> None:
     from docgen.docx import (
         PAGE_SIZES,
+        PageError,
         ParagraphError,
         append_text_run,
         body_children,
         build_run,
         chapter_number,
         clone_run,
+        content_width,
         copy_rpr,
         document_body,
         format_roman,
@@ -108,6 +111,8 @@ def test_docx_package_level_helper_baru_tersedia() -> None:
 
     assert PAGE_SIZES["A4"] == (11906, 16838)
     assert page_size("Letter", "landscape") == (15840, 12240)
+    assert PageError.default_code == "PAGE"
+    assert callable(content_width)
     assert roman_to_int("XIV") == 14
     assert to_roman(14) == "XIV"
     assert chapter_number("BAB IV") == 4

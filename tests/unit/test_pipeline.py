@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from docgen.errors import OutputError, StageOrderError
+from docgen.paths import output_directory
 from docgen.pipeline import (
     CANONICAL_ORDER,
     CANONICAL_STAGES,
@@ -15,7 +16,6 @@ from docgen.pipeline import (
     StageSpec,
     Workspace,
     _adeu_options,
-    _output_directory,
     validate_stage_order,
 )
 from docgen.stages.pandoc import build_pandoc_command
@@ -148,12 +148,12 @@ def test_build_options_menolak_target_tidak_dikenal() -> None:
         BuildOptions(target="rtf")  # type: ignore[arg-type]
 
 
-def test_output_directory_contoh_dan_pengguna(tmp_path: Path) -> None:
+def test_direktori_output_contoh_dan_pengguna(tmp_path: Path) -> None:
     example = tmp_path / "examples" / "assignment-single" / "document.md"
-    assert _output_directory(example) == example.parent / "out"
+    assert output_directory(example) == example.parent / "out"
 
     user = tmp_path / "proyek" / "document.md"
-    assert _output_directory(user) == user.parent
+    assert output_directory(user) == user.parent
 
 
 def test_workspace_cleanup_dan_keep(tmp_path: Path) -> None:

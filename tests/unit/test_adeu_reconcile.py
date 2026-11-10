@@ -10,7 +10,8 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 
 from docgen.adeu.cli import build_parser, command_reconcile
-from docgen.adeu.reconcile import extract_bookmarks, main
+from docgen.adeu.reconcile import extract_bookmarks, main, run
+from docgen.errors import ReconcileError
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "reconcile"
 MANIFEST = FIXTURES / "manifest.json"
@@ -256,25 +257,27 @@ def test_default_paths_follow_document(tmp_path: Path) -> None:
     assert "- Diperiksa: 7 paragraf" in read_report(report_path)
 
 
-def test_default_docx_prefers_out_directory(tmp_path: Path) -> None:
+def test_default_docx_dokumen_pengguna_tidak_memakai_out(tmp_path: Path) -> None:
     document = make_document(tmp_path)
     (tmp_path / "out").mkdir()
     write_docx(tmp_path / "out" / "Laporan.docx")
-    (tmp_path / ".laporan").mkdir()
-    write_manifest(tmp_path / ".laporan" / "manifest.json", load_fixture_manifest())
 
-    code = run_cli(document)
+    with pytest.raises(ReconcileError) as error:
+        run(document)
 
-    assert code == 0
-    report_path = tmp_path / ".laporan" / "reconcile.md"
-    assert report_path.is_file()
-    assert "- Diperiksa: 7 paragraf" in read_report(report_path)
+    assert error.value.code == "RECONCILE-INPUT"
+    assert error.value.path == (tmp_path / "Laporan.docx").resolve()
+    assert "--docx" in str(error.value)
 
 
-def test_default_docx_falls_back_to_document_directory(tmp_path: Path) -> None:
+def test_default_docx_dokumen_pengguna_memakai_folder_dokumen(tmp_path: Path) -> None:
     document = make_document(tmp_path)
-    (tmp_path / "out").mkdir()
     write_docx(tmp_path / "Laporan.docx")
+    (tmp_path / "out").mkdir()
+    write_docx(
+        tmp_path / "out" / "Laporan.docx",
+        overrides={"p0006": NEW_LANDASAN},
+    )
     (tmp_path / ".laporan").mkdir()
     write_manifest(tmp_path / ".laporan" / "manifest.json", load_fixture_manifest())
 
@@ -284,6 +287,31 @@ def test_default_docx_falls_back_to_document_directory(tmp_path: Path) -> None:
     report_path = tmp_path / ".laporan" / "reconcile.md"
     assert report_path.is_file()
     assert "- Diperiksa: 7 paragraf" in read_report(report_path)
+
+
+def test_default_docx_contoh_memakai_out(tmp_path: Path) -> None:
+    document_dir = tmp_path / "examples" / "tugas"
+    document_dir.mkdir(parents=True)
+    document = make_document(document_dir)
+    (document_dir / "out").mkdir()
+    write_docx(document_dir / "out" / "Laporan.docx")
+    write_manifest(document_dir / ".laporan" / "manifest.json", load_fixture_manifest())
+
+    code = run_cli(document)
+
+    assert code == 0
+    assert (document_dir / ".laporan" / "reconcile.md").is_file()
+
+
+def test_default_docx_tidak_ada_menghasilkan_reconcile_input(tmp_path: Path) -> None:
+    document = make_document(tmp_path)
+
+    with pytest.raises(ReconcileError) as error:
+        run(document)
+
+    assert error.value.code == "RECONCILE-INPUT"
+    assert error.value.path == (tmp_path / "Laporan.docx").resolve()
+    assert "--docx" in str(error.value)
 
 
 def test_report_name_wajib_tanpa_fallback(
@@ -303,10 +331,9 @@ def test_report_name_wajib_tanpa_fallback(
     assert "report_name" in error
 
 
-def test_explicit_docx_overrides_out_default(tmp_path: Path) -> None:
+def test_docx_eksplisit_menang(tmp_path: Path) -> None:
     document = make_document(tmp_path)
-    (tmp_path / "out").mkdir()
-    write_docx(tmp_path / "out" / "Laporan.docx")
+    write_docx(tmp_path / "Laporan.docx")
     edited = write_docx(
         tmp_path / "suntingan.docx",
         overrides={"p0006": NEW_LANDASAN},

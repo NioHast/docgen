@@ -23,6 +23,22 @@ def package_root() -> Path:
     return PACKAGE_ROOT
 
 
+def output_directory(document_path: Path) -> Path:
+    """Direktori keluaran build untuk sebuah dokumen.
+
+    Dokumen contoh di ``examples/<nama>/document.md`` ditulis ke
+    ``examples/<nama>/out`` agar berkas sumber tetap bersih. Dokumen pengguna
+    lain ditulis di folder yang sama dengan dokumen. Aturan ini dipakai
+    bersama oleh pipeline build dan reconcile; tidak ada fallback ke direktori
+    kerja saat ini atau lokasi tebakan lain.
+    """
+
+    parent = document_path.parent
+    if parent.parent.name == "examples":
+        return parent / "out"
+    return parent
+
+
 def data_root() -> Path:
     """Direktori data paket, tanpa fallback ke cwd/root repo."""
 

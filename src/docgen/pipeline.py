@@ -25,7 +25,7 @@ from .errors import (
     StageOrderError,
     ToolMissingError,
 )
-from .paths import safe_relative_path
+from .paths import output_directory, safe_relative_path
 
 if TYPE_CHECKING:  # pragma: no cover - hanya anotasi
     from .docx.package import DocumentPackage
@@ -593,15 +593,6 @@ def _resolve_target(options: BuildOptions) -> tuple[Literal["docx", "pdf", "both
     return options.target, warnings
 
 
-def _output_directory(document_path: Path) -> Path:
-    """Contoh repo menulis ke ``examples/<name>/out``; pengguna di samping file."""
-
-    parent = document_path.parent
-    if parent.parent.name == "examples":
-        return parent / "out"
-    return parent
-
-
 # ---------------------------------------------------------------------------
 # Registrasi stage
 # ---------------------------------------------------------------------------
@@ -840,7 +831,7 @@ class Pipeline:
         run_options = options if target == options.target else replace(options, target=target)
         warnings = list(project.warnings) + list(target_warnings)
 
-        output_dir = _output_directory(project.document.path)
+        output_dir = output_directory(project.document.path)
         workspace = Workspace(
             root=(project.document.path.parent / ".laporan-build").resolve(),
             keep=run_options.keep,

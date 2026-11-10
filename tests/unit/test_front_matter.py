@@ -21,6 +21,7 @@ from docgen.stages.front_matter import (
     render_template,
     spacer,
 )
+from docgen.stages.mermaid import MermaidStage
 
 _TITLE = "Optimasi Pipeline Pemrosesan Dokumen Markdown untuk Laporan Tugas Akhir"
 _BODY = (
@@ -328,16 +329,27 @@ def test_placeholder_terms_tidak_diubah() -> None:
     assert render_template("teks {{?istilah?}}", {"title": "x"}) == "teks {{?istilah?}}"
 
 
-def _stage_context(tmp_path: Path) -> SimpleNamespace:
+def _stage_context(
+    tmp_path: Path,
+    *,
+    with_mermaid: bool = True,
+    artifact_body: str = _BODY,
+    document_body: str = _BODY,
+) -> SimpleNamespace:
     structure = load_structure("thesis")
     format_ = load_format("undip-msi")
-    document = _document()
+    document = _document(body=document_body)
+    artifacts = ArtifactStore()
+    if with_mermaid:
+        source = tmp_path / "mermaid.md"
+        source.write_text(artifact_body, encoding="utf-8", newline="\n")
+        artifacts.put("mermaid.markdown", source)
     return SimpleNamespace(
         document=document,
         structure=structure,
         format=format_,
         workspace=Workspace(root=tmp_path / ".laporan-build", keep=True),
-        artifacts=ArtifactStore(),
+        artifacts=artifacts,
         dry_run=False,
     )
 
@@ -358,3 +370,101 @@ def test_stage_front_matter_menulis_markdown_idempoten(tmp_path: Path) -> None:
     second = stage.run(ctx)
     assert second.changed is False
     assert path.read_text(encoding="utf-8") == text
+
+
+def test_stage_membaca_artifact_mermaid_bukan_body_dokumen(tmp_path: Path) -> None:
+    ctx = _stage_context(
+        tmp_path,
+        artifact_body="# Pendahuluan\n\nTeks dari artifact.\n",
+        document_body="# Pendahuluan\n\nTeks dari body mentah.\n",
+    )
+
+    FrontMatterStage().run(ctx)
+
+    text = ctx.workspace.path("front_matter.md").read_text(encoding="utf-8")
+    assert "Teks dari artifact." in text
+    assert "Teks dari body mentah." not in text
+
+
+def test_stage_menolak_artifact_mermaid_yang_hilang(tmp_path: Path) -> None:
+    ctx = _stage_context(tmp_path, with_mermaid=False)
+
+    with pytest.raises(FrontMatterError) as excinfo:
+        FrontMatterStage().run(ctx)
+
+    assert excinfo.value.code == "FRONT-MATTER-INPUT"
+    assert not ctx.workspace.path("front_matter.md").exists()
+
+
+def test_stage_menolak_artifact_mermaid_yang_menunjuk_file_tidak_ada(tmp_path: Path) -> None:
+    ctx = _stage_context(tmp_path, with_mermaid=False)
+    missing = tmp_path / "mermaid-hilang.md"
+    ctx.artifacts.put("mermaid.markdown", missing)
+
+    with pytest.raises(FrontMatterError) as excinfo:
+        FrontMatterStage().run(ctx)
+
+    assert excinfo.value.code == "FRONT-MATTER-INPUT"
+    assert excinfo.value.path == missing
+    assert str(missing) in str(excinfo.value)
+
+
+def test_stage_menolak_artifact_mermaid_berupa_direktori(tmp_path: Path) -> None:
+    ctx = _stage_context(tmp_path, with_mermaid=False)
+    directory = tmp_path / "mermaid-dir"
+    directory.mkdir()
+    ctx.artifacts.put("mermaid.markdown", directory)
+
+    with pytest.raises(FrontMatterError) as excinfo:
+        FrontMatterStage().run(ctx)
+
+    assert excinfo.value.code == "FRONT-MATTER-INPUT"
+    assert excinfo.value.path == directory
+
+
+def test_stage_tidak_memakai_body_dokumen_saat_artifact_hilang(tmp_path: Path) -> None:
+    ctx = _stage_context(tmp_path, with_mermaid=False)
+    ctx.document = replace(ctx.document, body="# BODY MENTAH\n\nTidak boleh dipakai.\n")
+
+    with pytest.raises(FrontMatterError) as excinfo:
+        FrontMatterStage().run(ctx)
+
+    assert excinfo.value.code == "FRONT-MATTER-INPUT"
+    assert not ctx.workspace.path("front_matter.md").exists()
+
+
+def test_stage_menolak_artifact_markdown_lama_tanpa_mermaid(tmp_path: Path) -> None:
+    ctx = _stage_context(tmp_path, with_mermaid=False)
+    legacy = tmp_path / "front_matter-lama.md"
+    legacy.write_text(_BODY, encoding="utf-8", newline="\n")
+    ctx.artifacts.put("markdown", legacy)
+
+    with pytest.raises(FrontMatterError) as excinfo:
+        FrontMatterStage().run(ctx)
+
+    assert excinfo.value.code == "FRONT-MATTER-INPUT"
+
+
+def test_dokumen_tanpa_mermaid_tetap_bisa_melewati_front_matter(tmp_path: Path) -> None:
+    ctx = _stage_context(tmp_path, with_mermaid=False)
+    ctx.document = replace(
+        ctx.document,
+        body="# Pendahuluan\n\nTeks tanpa diagram.\n",
+    )
+
+    mermaid = MermaidStage().run(ctx)
+
+    assert mermaid.status == "ok"
+    assert mermaid.metrics["blocks"] == 0
+    source = ctx.workspace.path("mermaid.md")
+    assert ctx.artifacts.get("mermaid.markdown") == source
+    assert source.read_text(encoding="utf-8") == ctx.document.body
+
+    result = FrontMatterStage().run(ctx)
+
+    assert result.status == "ok"
+    front_matter = ctx.workspace.path("front_matter.md")
+    text = front_matter.read_text(encoding="utf-8")
+    assert "# BAB I" in text
+    assert "Teks tanpa diagram." in text
+    assert ctx.artifacts.get("markdown") == front_matter
