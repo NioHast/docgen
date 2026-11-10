@@ -17,7 +17,6 @@ pytestmark = pytest.mark.integration
 
 ROOT = Path(__file__).resolve().parents[2]
 CSL = ROOT / "src" / "docgen" / "data" / "formats" / "undip-msi" / "citation.csl"
-PANDOC_DIR = Path(r"C:\Users\nioha\AppData\Local\Pandoc")
 
 BIB = """\
 @book{satu2020,
@@ -54,12 +53,9 @@ Naratif dua: @dua2020.
 
 
 def _pandoc() -> tuple[str, dict[str, str]]:
-    """Cari Pandoc di PATH, env, atau instalasi Windows pengguna."""
+    """Cari Pandoc dari env LAPORAN_PANDOC/PANDOC, PATH, atau instalasi pengguna."""
     env = os.environ.copy()
     search_path = env.get("PATH", "")
-    if PANDOC_DIR.is_dir():
-        search_path = str(PANDOC_DIR) + os.pathsep + search_path
-    env["PATH"] = search_path
 
     candidates = [
         env.get("LAPORAN_PANDOC"),
