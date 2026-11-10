@@ -8,6 +8,14 @@ from types import SimpleNamespace
 import pytest
 
 from docgen.docx.fields import FieldKind, iter_fields
+from docgen.docx.heading_numbering import (
+    NumberingSpec,
+    apply_heading_numbering,
+    heading_bookmark_name,
+    heading_text,
+    is_unnumbered,
+    iter_headings,
+)
 from docgen.docx.package import (
     CONTENT_TYPES_PART,
     DOCUMENT_PART,
@@ -20,15 +28,9 @@ from docgen.docx.paragraphs import paragraph_text
 from docgen.docx.sections import (
     FOOTER_CONTENT_TYPE,
     HEADER_CONTENT_TYPE,
-    NumberingSpec,
     add_section_break,
-    apply_heading_numbering,
     clear_header_footer_references,
     create_header_footer_part,
-    heading_bookmark_name,
-    heading_text,
-    is_unnumbered,
-    iter_headings,
     iter_sections,
     remove_empty_sections,
     remove_unused_header_footer_parts,

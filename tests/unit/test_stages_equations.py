@@ -292,10 +292,13 @@ def test_tab_stop_dan_indentasi(equations_docx: Path, tmp_path: Path) -> None:
     assert ppr.index(tabs) < ppr.index(spacing) < ppr.index(indent)
 
 
-def test_tanpa_sectpr_menimbulkan_page_error(tmp_path: Path) -> None:
+def test_persamaan_tanpa_sectpr_menimbulkan_page_error(tmp_path: Path) -> None:
     document = Document()
     _configure_a4(document)
-    document.add_paragraph("BAB I PENDAHULUAN")
+    heading = document.add_paragraph("BAB I PENDAHULUAN")
+    _set_style(heading, "Heading1")
+    equation = document.add_paragraph()
+    _add_equation(equation, "x = y")
     source = tmp_path / "no-section.docx"
     document.save(source)
 
@@ -308,6 +311,26 @@ def test_tanpa_sectpr_menimbulkan_page_error(tmp_path: Path) -> None:
     with pytest.raises(PageError) as excinfo:
         equations.format_equations(package)
     assert excinfo.value.code == "PAGE-WIDTH"
+
+
+def test_tanpa_persamaan_tanpa_sectpr_tidak_gagal(tmp_path: Path) -> None:
+    document = Document()
+    _configure_a4(document)
+    heading = document.add_paragraph("BAB I PENDAHULUAN")
+    _set_style(heading, "Heading1")
+    source = tmp_path / "no-equation-no-section.docx"
+    document.save(source)
+
+    package = DocumentPackage.load(source)
+    body = package.xml(DOCUMENT_PART).find(W_BODY)
+    assert body is not None
+    for section in body.findall(qn("w:sectPr")):
+        body.remove(section)
+
+    report = equations.format_equations(package)
+
+    assert report.equation_paragraphs == 0
+    assert report.numbered == 0
 
 
 def test_field_dan_bookmark_tetap_aman(equations_docx: Path, tmp_path: Path) -> None:

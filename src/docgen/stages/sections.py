@@ -9,7 +9,8 @@ sebelum stage lain bekerja:
 - seluruh section memakai ukuran halaman dan margin dari ``format.yml``.
 
 TOC, nomor halaman, dan header/footer bukan tanggung jawab stage ini. Nomor
-heading juga belum diimplementasikan di WS6b dan dilaporkan sebagai gap.
+heading body diterapkan sebelum section break agar heading bernomor ikut
+terklasifikasi dengan benar.
 """
 
 import re
@@ -17,6 +18,11 @@ import time
 
 from lxml import etree
 
+from ..docx.heading_numbering import (
+    HeadingError,
+    NumberingSpec,
+    apply_heading_numbering,
+)
 from ..docx.package import DOCUMENT_PART, DocumentPackage
 from ..docx.page import page_size
 from ..docx.paragraphs import (
@@ -27,11 +33,8 @@ from ..docx.paragraphs import (
     paragraph_text,
 )
 from ..docx.sections import (
-    HeadingError,
-    NumberingSpec,
     SectionError,
     add_section_break,
-    apply_heading_numbering,
     iter_sections,
     set_margins,
     set_page_size,

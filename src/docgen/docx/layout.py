@@ -4,7 +4,7 @@ Modul ini adalah satu tempat untuk:
 
 * urutan child ``w:pPr``/``w:rPr`` dan helper ``get_or_add``;
 * traversal paragraf/run yang aman terhadap text box dan tracked changes;
-* parser field kompleks/sederhana;
+* pemakaian scanner field dari ``fields.py``;
 * penghapusan bold langsung dengan pengecualian run field;
 * pembacaan/penulisan ``word/document.xml`` melalui ``DocumentPackage``;
 * deteksi ``ChapterTitle``/Heading1 sebagai paragraf bab.
@@ -15,19 +15,14 @@ Tidak ada I/O ZIP di modul ini. Semua mutasi part dilakukan lewat
 
 import copy
 import re
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterator
 from dataclasses import dataclass
 
 from lxml import etree
 
-from . import DocxError, paragraphs, runs
+from . import DocxError, fields, paragraphs, runs
 from .names import (
     W_DEL,
-    W_FLDCHAR,
-    W_FLDCHARTYPE,
-    W_FLDSIMPLE,
-    W_INSTR,
-    W_INSTRTEXT,
     W_MOVE_TO,
     W_MOVEFROM,
     W_P,
@@ -36,7 +31,6 @@ from .names import (
     W_SDT,
     W_SECTPR,
     W_TBL,
-    W_TXBXCONTENT,
     W_VAL,
     normalize_style_id,
 )
@@ -68,23 +62,16 @@ __all__ = [
     "document_root",
     "ensure_ppr",
     "ensure_rpr",
-    "field_name",
     "get_or_add",
     "has_bold_field",
     "has_deleted_ancestor",
-    "has_exempt_field",
-    "has_field",
     "insert_ordered",
     "is_bold_run",
     "is_chapter_heading",
     "is_exempt",
     "is_exempt_style",
-    "is_field_run",
     "is_on",
     "iter_body_units",
-    "iter_field_instructions",
-    "iter_field_markers",
-    "iter_field_runs",
     "iter_paragraph_runs",
     "iter_paragraphs",
     "iter_runs",
@@ -125,7 +112,7 @@ class LayoutSpec:
     alignment: str = "both"
     preserve_right_alignment: bool = True
     strip_bold: bool = True
-    exempt_fields: frozenset[str] = frozenset({"TOC", "PAGEREF", "SEQ"})
+    exempt_fields: frozenset[str] = fields.EXEMPT_FIELDS
     line_spacing: float | None = None
 
     def __post_init__(self) -> None:
@@ -191,9 +178,6 @@ HEADING_STYLE_RE = re.compile(r"^heading([1-9])$")
 COVER_PREFIX = "cover"
 COVER_TITLE_STYLE = "covertitle"
 TITLE_STYLE = "title"
-EXEMPT_FIELDS = frozenset({"TOC", "PAGEREF", "SEQ"})
-
-FIELD_NAME_RE = re.compile(r"\s*([A-Za-z]+)")
 
 TRACKED_INSERT_TAGS = frozenset({qn("w:ins"), W_MOVE_TO})
 TRACKED_DELETE_TAGS = frozenset({W_DEL, W_MOVEFROM})
@@ -218,100 +202,6 @@ def iter_paragraph_runs(paragraph: etree._Element) -> Iterator[etree._Element]:
     yield from iter_runs(paragraph)
 
 
-# ---------------------------------------------------------------------------
-# Parser field
-# ---------------------------------------------------------------------------
-
-
-def iter_field_markers(
-    paragraph: etree._Element,
-) -> Iterator[etree._Element]:
-    """Iterasi ``w:fldChar``/``w:instrText``/``w:fldSimple`` berurutan.
-
-    Paragraf bersarang dan text box tidak dianggap bagian field paragraf ini.
-    """
-
-    def walk(element: etree._Element) -> Iterator[etree._Element]:
-        for child in element:
-            tag = child.tag
-            if not isinstance(tag, str):
-                continue
-            if tag in (W_P, W_TXBXCONTENT):
-                continue
-            if tag in (W_FLDCHAR, W_INSTRTEXT, W_FLDSIMPLE):
-                yield child
-            yield from walk(child)
-
-    yield from walk(paragraph)
-
-
-def iter_field_instructions(paragraph: etree._Element) -> Iterator[str]:
-    """Hasilkan instruksi field lengkap, termasuk yang terpecah antar-run."""
-
-    stack: list[list[str]] = []
-    for marker in iter_field_markers(paragraph):
-        if marker.tag == W_FLDCHAR:
-            field_type = marker.get(W_FLDCHARTYPE)
-            if field_type == "begin":
-                stack.append([])
-            elif field_type == "end" and stack:
-                yield "".join(stack.pop())
-        elif marker.tag == W_INSTRTEXT:
-            if stack:
-                stack[-1].append(marker.text or "")
-        elif marker.tag == W_FLDSIMPLE:
-            yield marker.get(W_INSTR) or ""
-
-    # Field yang tidak ditutup tetap dianggap milik paragraf ini.
-    for parts in stack:
-        yield "".join(parts)
-
-
-def field_name(instruction: str) -> str | None:
-    """Nama field dari kata pertama instruksi (huruf besar)."""
-
-    match = FIELD_NAME_RE.match(instruction)
-    return match.group(1).upper() if match else None
-
-
-def has_field(paragraph: etree._Element) -> bool:
-    """True bila paragraf memuat field kompleks atau sederhana."""
-
-    return any(element.tag in (W_FLDCHAR, W_INSTRTEXT, W_FLDSIMPLE) for element in paragraph.iter())
-
-
-def has_exempt_field(
-    paragraph: etree._Element,
-    exempt: Iterable[str] = EXEMPT_FIELDS,
-) -> bool:
-    """True bila paragraf memuat field yang membuat layout dikecualikan."""
-
-    names = {name.upper() for name in exempt}
-    return any(
-        field_name(instruction) in names for instruction in iter_field_instructions(paragraph)
-    )
-
-
-def _ancestor(element: etree._Element, tag: str) -> bool:
-    parent = element.getparent()
-    while parent is not None:
-        if parent.tag == tag:
-            return True
-        if parent.tag == W_P:
-            return False
-        parent = parent.getparent()
-    return False
-
-
-def _paragraph_of(element: etree._Element) -> etree._Element | None:
-    parent = element.getparent()
-    while parent is not None:
-        if parent.tag == W_P:
-            return parent
-        parent = parent.getparent()
-    return None
-
-
 def has_deleted_ancestor(element: etree._Element) -> bool:
     """True bila elemen berada di dalam ``w:del``/``w:moveFrom``."""
 
@@ -321,49 +211,6 @@ def has_deleted_ancestor(element: etree._Element) -> bool:
             return True
         parent = parent.getparent()
     return False
-
-
-def iter_field_runs(paragraph: etree._Element) -> Iterator[etree._Element]:
-    """Iterasi run yang menjadi bagian field (begin sampai end).
-
-    Run hasil field ikut dianggap run field. Ini penting agar
-    ``w:fldSimple`` dan field kompleks tidak kehilangan bold langsung.
-    """
-
-    depth = 0
-    simple_runs: set[int] = set()
-    for run in iter_paragraph_runs(paragraph):
-        if _ancestor(run, W_FLDSIMPLE):
-            simple_runs.add(id(run))
-
-    for run in iter_paragraph_runs(paragraph):
-        markers = list(run.iter(W_FLDCHAR))
-        instr = run.find(f".//{W_INSTRTEXT}")
-        if depth > 0 or id(run) in simple_runs or markers or instr is not None:
-            yield run
-        for marker in markers:
-            field_type = marker.get(W_FLDCHARTYPE)
-            if field_type == "begin":
-                depth += 1
-            elif field_type == "end" and depth > 0:
-                depth -= 1
-
-
-def is_field_run(
-    run: etree._Element,
-    paragraph: etree._Element | None = None,
-) -> bool:
-    """True bila ``run`` adalah bagian field pada paragrafnya."""
-
-    if paragraph is None:
-        paragraph = _paragraph_of(run)
-    if paragraph is None:
-        return bool(
-            run.find(f".//{W_FLDCHAR}") is not None
-            or run.find(f".//{W_INSTRTEXT}") is not None
-            or _ancestor(run, W_FLDSIMPLE)
-        )
-    return any(candidate is run for candidate in iter_field_runs(paragraph))
 
 
 # ---------------------------------------------------------------------------
@@ -387,7 +234,7 @@ def is_bold_run(run: etree._Element) -> bool:
 def has_bold_field(paragraph: etree._Element) -> bool:
     """True bila ada run field yang masih bold (bold exempt)."""
 
-    return any(is_bold_run(run) for run in iter_field_runs(paragraph))
+    return any(is_bold_run(run) for run in fields.iter_field_runs(paragraph))
 
 
 def strip_bold_from_run(run: etree._Element) -> int:
@@ -410,7 +257,7 @@ def strip_paragraph_bold(
     """
 
     removed = 0
-    field_elements = tuple(iter_field_runs(paragraph)) if preserve_fields else ()
+    field_elements = tuple(fields.iter_field_runs(paragraph)) if preserve_fields else ()
     field_runs = {id(run) for run in field_elements}
     for run in iter_paragraph_runs(paragraph):
         if has_deleted_ancestor(run):
@@ -446,7 +293,9 @@ def is_exempt_style(style_id: str | None) -> bool:
 def is_exempt(paragraph: etree._Element) -> bool:
     """True bila paragraf dikecualikan dari normalisasi layout."""
 
-    return is_exempt_style(paragraphs.paragraph_style_id(paragraph)) or has_exempt_field(paragraph)
+    return is_exempt_style(paragraphs.paragraph_style_id(paragraph)) or fields.has_exempt_field(
+        paragraph
+    )
 
 
 def _cover_bold_to_strip(style_id: str | None) -> bool:
@@ -685,7 +534,7 @@ def normalize_layout(
         # PENTING: cek field exempt sebelum bold dihapus. Run field
         # TOC/PAGEREF/SEQ/PAGE tidak boleh kehilangan bold, tetapi run body
         # lain pada paragraf yang sama tetap boleh dibersihkan.
-        exempt_field = has_exempt_field(paragraph, spec.exempt_fields)
+        exempt_field = fields.has_exempt_field(paragraph, spec.exempt_fields)
         if exempt_field:
             fields_preserved += 1
 

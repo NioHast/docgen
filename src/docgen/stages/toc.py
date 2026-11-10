@@ -19,7 +19,7 @@ from ..docx.fields import (
 from ..docx.names import W
 from ..docx.package import DOCUMENT_PART, DocumentPackage
 from ..docx.page import PAGE_SIZES, page_size
-from ..docx.sections import iter_sections
+from ..docx.sections import SectionError, iter_sections
 from ..docx.xml import parse_xml, sha256_c14n
 from ..errors import StageError
 from ..pipeline import BaseStage, StageName, StageResult, canonical_prefix
@@ -52,14 +52,22 @@ def tab_position(
 ) -> int:
     """Posisi tab kanan TOC dari geometri section pertama.
 
-    ``fallback`` berisi ``(width, left_margin, right_margin, _)`` dalam twip
-    dan dipakai bila section belum memiliki ``w:pgSz``/``w:pgMar``.
+    Lebar konten dihitung dari ``w:pgSz/@w:w`` dikurangi ``w:pgMar/@w:left``,
+    ``@w:right``, dan ``@w:gutter``. ``w:gutter`` opsional dan dihitung 0 bila
+    tidak ada. ``fallback`` berisi ``(width, left_margin, right_margin, _)``
+    dalam twip dan hanya dipakai bila geometri section tidak lengkap. Tidak ada
+    angka bawaan: geometri tidak lengkap tanpa fallback eksplisit menimbulkan
+    ``TocError`` berkode ``TOC-TAB``, begitu pula posisi tab <= 1000 twip.
     """
 
     try:
         sections = iter_sections(package)
-    except Exception:  # noqa: BLE001 - package tanpa section adalah boundary opsional
+    except SectionError as exc:
         sections = ()
+        section_error: SectionError | None = exc
+    else:
+        section_error = None
+
     if sections:
         sect_pr = sections[0].sect_pr
         pg_sz = sect_pr.find(W + "pgSz")
@@ -67,16 +75,30 @@ def tab_position(
         width = _twips(pg_sz.get(W + "w")) if pg_sz is not None else None
         left = _twips(pg_mar.get(W + "left")) if pg_mar is not None else None
         right = _twips(pg_mar.get(W + "right")) if pg_mar is not None else None
-        if width and left is not None and right is not None:
-            position = width - left - right
-            if position > 1000:
-                return position
+        gutter = _twips(pg_mar.get(W + "gutter")) if pg_mar is not None else None
+        if width is not None and left is not None and right is not None:
+            position = width - left - right - (gutter or 0)
+            if position <= 1000:
+                raise TocError(
+                    f"posisi tab TOC tidak valid: {position} twip",
+                    code="TOC-TAB",
+                )
+            return position
+
     if fallback is not None:
         width, left, right, _unused = fallback
         position = width - left - right
-        if position > 1000:
-            return position
-    return 9072
+        if position <= 1000:
+            raise TocError(
+                f"posisi tab TOC dari fallback tidak valid: {position} twip",
+                code="TOC-TAB",
+            )
+        return position
+
+    message = "geometri section pertama tidak lengkap untuk posisi tab TOC"
+    if section_error is not None:
+        raise TocError(message, code="TOC-TAB") from section_error
+    raise TocError(message, code="TOC-TAB")
 
 
 def _style_fragment(style_id: str, tab_pos: int) -> etree._Element:

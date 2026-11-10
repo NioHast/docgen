@@ -1,16 +1,19 @@
-"""Builder dan parser field WordprocessingML (``w:fldChar``/``w:fldSimple``).
+"""Parser, scanner, dan builder field WordprocessingML.
 
 Field dipakai untuk TOC native, ``PAGEREF``, ``SEQ``, dan nomor halaman.
-Modul ini hanya memutasi ``word/document.xml``; stage TOC memakai
-:func:`insert_toc` dan stage halaman memakai field ``PAGE`` di part
-header/footer.
+Modul ini adalah satu-satunya parser ``w:fldChar``/``w:fldSimple`` dan satu-
+satunya scanner marker field untuk modul DOCX serta stage. Stage TOC memakai
+:func:`insert_toc`; stage halaman memakai :func:`insert_field` untuk field
+``PAGE`` di part header/footer.
 
 Field kompleks selalu ditulis lengkap: ``begin`` -> ``instrText`` ->
 ``separate`` -> hasil -> ``end``. Word/LibreOffice yang mengisi hasil;
-pipeline tidak menulis cache nomor halaman palsu.
+pipeline tidak menulis cache nomor halaman palsu dan tidak menulis
+``w:dirty``.
 """
 
 import re
+from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass
 from dataclasses import field as dataclass_field
 from enum import Enum
@@ -19,12 +22,18 @@ from lxml import etree
 
 from ..errors import DocgenError
 from .names import (
+    W_DEL,
+    W_DELTEXT,
+    W_DRAWING,
     W_FLDCHAR,
     W_FLDCHARTYPE,
     W_FLDSIMPLE,
     W_INSTR,
     W_INSTRTEXT,
+    W_MOVEFROM,
+    W_OBJECT,
     W_P,
+    W_PICT,
     W_PPR,
     W_R,
     W_SDT,
@@ -33,20 +42,36 @@ from .names import (
     W_T,
     W_TAB,
     W_TBL,
+    W_TXBXCONTENT,
     W,
 )
 from .package import DOCUMENT_PART, DocumentPackage
 from .paragraphs import ParagraphError, document_body, paragraph_style_id, paragraph_text
-from .runs import make_run
-from .xml import qn
+from .runs import build_run, make_run
+from .xml import iter_runs, qn
 
 SETTINGS_PART = "word/settings.xml"
 
 _TOC_GALLERY = "Table of Contents"
-_TOC_INSTRUCTION_RE = re.compile(r"^\s*TOC\b", re.IGNORECASE)
 _FIELD_KIND_RE = re.compile(r"^\s*([A-Za-z]+)")
+FIELD_NAME_RE = re.compile(r"\s*([A-Za-z]+)")
+EXEMPT_FIELDS = frozenset({"TOC", "PAGEREF", "SEQ"})
 
-_PAGE_BREAK_TYPE = qn("w:br")
+_RANGE_SKIP_TAGS = frozenset(
+    {
+        W_PPR,
+        W_P,
+        W_TXBXCONTENT,
+        W_DRAWING,
+        W_PICT,
+        W_OBJECT,
+        W_INSTRTEXT,
+        W_FLDCHAR,
+        W_DEL,
+        W_MOVEFROM,
+        W_DELTEXT,
+    }
+)
 
 
 class FieldError(DocgenError):
@@ -66,6 +91,16 @@ class FieldKind(Enum):
     OTHER = "OTHER"
 
 
+class FieldMarkerKind(Enum):
+    """Jenis elemen yang membentuk field kompleks atau sederhana."""
+
+    BEGIN = "begin"
+    SEPARATE = "separate"
+    END = "end"
+    INSTRUCTION = "instrText"
+    SIMPLE = "simple"
+
+
 @dataclass(frozen=True)
 class Field:
     """Satu field kompleks atau ``w:fldSimple``."""
@@ -77,6 +112,24 @@ class Field:
     separate: etree._Element | None
     end: etree._Element
     nested: tuple[Field, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class FieldPosition:
+    """Posisi penulisan field kompleks.
+
+    ``paragraph`` menerima run ``begin``, ``instrText``, ``separate``, dan
+    hasil. ``before`` membatasi penyisipan run awal pada child langsung
+    paragraf tersebut; ``None`` berarti run ditambahkan di akhir paragraf.
+    ``end_paragraph`` memisahkan run ``end`` ke paragraf lain sehingga field
+    dapat membentang dua paragraf seperti TOC. ``rpr`` disalin ke setiap run
+    field.
+    """
+
+    paragraph: etree._Element
+    before: etree._Element | None = None
+    end_paragraph: etree._Element | None = None
+    rpr: etree._Element | None = None
 
 
 @dataclass
@@ -125,6 +178,192 @@ def field_instruction(field: Field) -> str:
     return " ".join((field.instruction or "").split())
 
 
+def field_marker_kind(element: etree._Element) -> FieldMarkerKind | None:
+    """Klasifikasi satu elemen marker field, atau ``None`` bila bukan marker."""
+
+    tag = element.tag
+    if tag == W_FLDCHAR:
+        field_type = (element.get(W_FLDCHARTYPE) or "").casefold()
+        if field_type == "begin":
+            return FieldMarkerKind.BEGIN
+        if field_type == "separate":
+            return FieldMarkerKind.SEPARATE
+        if field_type == "end":
+            return FieldMarkerKind.END
+        return None
+    if tag == W_INSTRTEXT:
+        return FieldMarkerKind.INSTRUCTION
+    if tag == W_FLDSIMPLE:
+        return FieldMarkerKind.SIMPLE
+    return None
+
+
+def iter_field_markers(paragraph: etree._Element) -> Iterator[etree._Element]:
+    """Iterasi ``w:fldChar``/``w:instrText``/``w:fldSimple`` berurutan.
+
+    Paragraf bersarang dan text box tidak dianggap bagian field paragraf ini.
+    """
+
+    def walk(element: etree._Element) -> Iterator[etree._Element]:
+        for child in element:
+            tag = child.tag
+            if not isinstance(tag, str):
+                continue
+            if tag in (W_P, W_TXBXCONTENT):
+                continue
+            if tag in (W_FLDCHAR, W_INSTRTEXT, W_FLDSIMPLE):
+                yield child
+            yield from walk(child)
+
+    yield from walk(paragraph)
+
+
+def iter_field_instructions(paragraph: etree._Element) -> Iterator[str]:
+    """Hasilkan instruksi field lengkap, termasuk yang terpecah antar-run."""
+
+    stack: list[list[str]] = []
+    for marker in iter_field_markers(paragraph):
+        kind = field_marker_kind(marker)
+        if kind is FieldMarkerKind.BEGIN:
+            stack.append([])
+        elif kind is FieldMarkerKind.END and stack:
+            yield "".join(stack.pop())
+        elif kind is FieldMarkerKind.INSTRUCTION:
+            if stack:
+                stack[-1].append(marker.text or "")
+        elif kind is FieldMarkerKind.SIMPLE:
+            yield marker.get(W_INSTR) or ""
+
+    # Field yang tidak ditutup tetap dianggap milik paragraf ini.
+    for parts in stack:
+        yield "".join(parts)
+
+
+def field_name(instruction: str) -> str | None:
+    """Nama field dari kata pertama instruksi (huruf besar)."""
+
+    match = FIELD_NAME_RE.match(instruction)
+    return match.group(1).upper() if match else None
+
+
+def has_field(paragraph: etree._Element) -> bool:
+    """True bila paragraf memuat field kompleks atau sederhana."""
+
+    return any(field_marker_kind(element) is not None for element in paragraph.iter())
+
+
+def has_exempt_field(
+    paragraph: etree._Element,
+    exempt: Iterable[str] = EXEMPT_FIELDS,
+) -> bool:
+    """True bila paragraf memuat field yang membuat layout dikecualikan."""
+
+    names = {name.upper() for name in exempt}
+    return any(
+        field_name(instruction) in names for instruction in iter_field_instructions(paragraph)
+    )
+
+
+def _ancestor(element: etree._Element, tag: str) -> bool:
+    parent = element.getparent()
+    while parent is not None:
+        if parent.tag == tag:
+            return True
+        if parent.tag == W_P:
+            return False
+        parent = parent.getparent()
+    return False
+
+
+def _paragraph_of(element: etree._Element) -> etree._Element | None:
+    parent = element.getparent()
+    while parent is not None:
+        if parent.tag == W_P:
+            return parent
+        parent = parent.getparent()
+    return None
+
+
+def iter_field_runs(paragraph: etree._Element) -> Iterator[etree._Element]:
+    """Iterasi run yang menjadi bagian field (begin sampai end).
+
+    Run hasil field ikut dianggap run field. Ini penting agar
+    ``w:fldSimple`` dan field kompleks tidak kehilangan bold langsung.
+    """
+
+    depth = 0
+    simple_runs: set[int] = set()
+    for run in iter_runs(paragraph):
+        if _ancestor(run, W_FLDSIMPLE):
+            simple_runs.add(id(run))
+
+    for run in iter_runs(paragraph):
+        markers = list(run.iter(W_FLDCHAR))
+        instr = run.find(f".//{W_INSTRTEXT}")
+        if depth > 0 or id(run) in simple_runs or markers or instr is not None:
+            yield run
+        for marker in markers:
+            kind = field_marker_kind(marker)
+            if kind is FieldMarkerKind.BEGIN:
+                depth += 1
+            elif kind is FieldMarkerKind.END and depth > 0:
+                depth -= 1
+
+
+def is_field_run(
+    run: etree._Element,
+    paragraph: etree._Element | None = None,
+) -> bool:
+    """True bila ``run`` adalah bagian field pada paragrafnya."""
+
+    if paragraph is None:
+        paragraph = _paragraph_of(run)
+    if paragraph is None:
+        return bool(
+            run.find(f".//{W_FLDCHAR}") is not None
+            or run.find(f".//{W_INSTRTEXT}") is not None
+            or _ancestor(run, W_FLDSIMPLE)
+        )
+    return any(candidate is run for candidate in iter_field_runs(paragraph))
+
+
+def field_text_ranges(paragraph: etree._Element) -> tuple[tuple[int, int], ...]:
+    """Rentang offset teks yang ditempati field (``fldSimple``/``fldChar``)."""
+
+    ranges: list[tuple[int, int]] = []
+    stack: list[int] = []
+    offset = 0
+    marker_elements = tuple(iter_field_markers(paragraph))
+    markers = {id(marker): field_marker_kind(marker) for marker in marker_elements}
+
+    def walk(element: etree._Element) -> None:
+        nonlocal offset
+        for child in element:
+            kind = markers.get(id(child))
+            if kind is FieldMarkerKind.SIMPLE:
+                start = offset
+                stack.append(start)
+                walk(child)
+                start = stack.pop()
+                if offset > start:
+                    ranges.append((start, offset))
+            elif kind is FieldMarkerKind.BEGIN:
+                stack.append(offset)
+            elif kind is FieldMarkerKind.END and stack:
+                start = stack.pop()
+                if offset > start:
+                    ranges.append((start, offset))
+            elif child.tag == W_T:
+                offset += len(child.text or "")
+            elif child.tag in _RANGE_SKIP_TAGS:
+                continue
+            else:
+                walk(child)
+
+    walk(paragraph)
+    return tuple(ranges)
+
+
 def _element_order(root: etree._Element) -> dict[int, int]:
     return {id(element): index for index, element in enumerate(root.iter())}
 
@@ -133,30 +372,25 @@ def _parse_complex_fields(root: etree._Element) -> list[Field]:
     stack: list[_Builder] = []
     completed: list[Field] = []
     for element in root.iter():
-        tag = element.tag
-        if not isinstance(tag, str):
-            continue
-        if tag == W_INSTRTEXT:
+        marker_kind = field_marker_kind(element)
+        if marker_kind is FieldMarkerKind.INSTRUCTION:
             if stack:
                 stack[-1].instruction.append(element.text or "")
             continue
-        if tag != W_FLDCHAR:
-            continue
-        field_type = (element.get(W_FLDCHARTYPE) or "").casefold()
-        if field_type == "begin":
+        if marker_kind is FieldMarkerKind.BEGIN:
             stack.append(
                 _Builder(
                     begin=element,
                     paragraph=_nearest_paragraph(element),
                 )
             )
-        elif field_type == "separate":
+        elif marker_kind is FieldMarkerKind.SEPARATE:
             if not stack:
                 raise FieldError("w:fldChar separate tanpa field begin")
             if stack[-1].separate is not None:
                 raise FieldError("Field memiliki lebih dari satu separate")
             stack[-1].separate = element
-        elif field_type == "end":
+        elif marker_kind is FieldMarkerKind.END:
             if not stack:
                 raise FieldError("w:fldChar end tanpa field begin")
             builder = stack.pop()
@@ -259,18 +493,17 @@ def field_has_result(field: Field) -> bool:
     return bool(field_result_text(field))
 
 
-def _append_run(
-    paragraph: etree._Element,
+def _field_run(
     *,
+    rpr: etree._Element | None = None,
     text: str | None = None,
     instr: str | None = None,
     fld_char: str | None = None,
-    rpr: etree._Element | None = None,
 ) -> etree._Element:
-    run = make_run(paragraph, rpr=rpr)
+    run = build_run(rpr=rpr)
     if fld_char is not None:
         element = etree.SubElement(run, W_FLDCHAR)
-        element.set(W + "fldCharType", fld_char)
+        element.set(W_FLDCHARTYPE, fld_char)
     if instr is not None:
         element = etree.SubElement(run, W_INSTRTEXT)
         element.set(qn("xml:space"), "preserve")
@@ -281,20 +514,85 @@ def _append_run(
     return run
 
 
-def _field_runs(
+def _instruction_text(switches: Sequence[str]) -> str:
+    if isinstance(switches, str):
+        raise FieldError("Switches field harus sequence token, bukan string tunggal")
+    parts: list[str] = []
+    for switch in switches:
+        if not isinstance(switch, str):
+            raise FieldError("Switch field harus berupa string")
+        value = switch.strip()
+        if value:
+            parts.append(value)
+    if not parts:
+        raise FieldError("Instruksi field tidak boleh kosong")
+    return f" {' '.join(parts)} "
+
+
+def _insert_runs(
     paragraph: etree._Element,
-    instruction: str,
-    *,
+    runs: Sequence[etree._Element],
+    before: etree._Element | None,
+) -> None:
+    if before is None:
+        paragraph.extend(runs)
+        return
+    index = paragraph.index(before)
+    for offset, run in enumerate(runs):
+        paragraph.insert(index + offset, run)
+
+
+def insert_field(
+    switches: Sequence[str],
+    position: FieldPosition,
     result: str = "",
-    end_field: bool = True,
-) -> tuple[etree._Element, etree._Element, etree._Element | None]:
-    begin = _append_run(paragraph, fld_char="begin")
-    _append_run(paragraph, instr=instruction)
-    separate = _append_run(paragraph, fld_char="separate")
+) -> Field:
+    """Sisipkan field kompleks lengkap pada posisi paragraf yang eksplisit.
+
+    ``switches`` adalah token instruksi tanpa spasi pinggir; fungsi menulis
+    tepat satu spasi di awal dan akhir instruksi. ``position`` menentukan
+    paragraf run awal, anchor ``before`` opsional, paragraf run ``end``
+    opsional, dan template ``rPr``. Urutan XML selalu ``begin``,
+    ``instrText``, ``separate``, hasil, lalu ``end``; ``w:dirty`` tidak
+    pernah ditulis. ``FieldError`` dilempar untuk posisi atau switch yang
+    tidak valid.
+    """
+
+    instruction = _instruction_text(switches)
+    paragraph = position.paragraph
+    if paragraph.tag != W_P:
+        raise FieldError("Field hanya boleh disisipkan ke paragraf")
+    end_paragraph = position.end_paragraph if position.end_paragraph is not None else paragraph
+    if end_paragraph.tag != W_P:
+        raise FieldError("Paragraf akhir field harus w:p")
+    if position.before is not None and position.before.getparent() is not paragraph:
+        raise FieldError("Anchor penyisipan field bukan child langsung paragraf")
+    if not isinstance(result, str):
+        raise FieldError("Hasil field harus berupa string")
+
+    begin_run = _field_run(rpr=position.rpr, fld_char="begin")
+    instruction_run = _field_run(rpr=position.rpr, instr=instruction)
+    separate_run = _field_run(rpr=position.rpr, fld_char="separate")
+    head: list[etree._Element] = [begin_run, instruction_run, separate_run]
     if result:
-        _append_run(paragraph, text=result)
-    end = _append_run(paragraph, fld_char="end") if end_field else None
-    return begin, separate, end
+        head.append(_field_run(rpr=position.rpr, text=result))
+    end_run = _field_run(rpr=position.rpr, fld_char="end")
+
+    if end_paragraph is paragraph:
+        _insert_runs(paragraph, [*head, end_run], position.before)
+    else:
+        _insert_runs(paragraph, head, position.before)
+        end_paragraph.append(end_run)
+
+    return Field(
+        kind=field_kind(instruction),
+        instruction=instruction,
+        paragraph=paragraph,
+        begin=begin_run,
+        separate=separate_run,
+        end=end_run,
+        nested=(),
+    )
 
 
 def _new_paragraph(style: str | None = None) -> etree._Element:
@@ -429,8 +727,8 @@ def _remove_existing_toc(root: etree._Element, title: str) -> None:
 
 def _sdt_toc(
     title: str,
-    instruction: str,
-) -> tuple[etree._Element, etree._Element, etree._Element, etree._Element]:
+    switches: Sequence[str],
+) -> tuple[etree._Element, Field]:
     sdt = etree.Element(W_SDT)
     sdt_pr = etree.SubElement(sdt, qn("w:sdtPr"))
     rpr = etree.SubElement(sdt_pr, qn("w:rPr"))
@@ -470,17 +768,14 @@ def _sdt_toc(
     content.append(title_paragraph)
 
     begin_paragraph = _new_paragraph("TOC1")
-    begin, separate, _unused_end = _field_runs(
-        begin_paragraph,
-        instruction,
-        result="",
-        end_field=False,
-    )
     end_paragraph = _new_paragraph("TOC1")
-    end = _append_run(end_paragraph, fld_char="end")
+    field = insert_field(
+        switches,
+        FieldPosition(paragraph=begin_paragraph, end_paragraph=end_paragraph),
+    )
     content.append(begin_paragraph)
     content.append(end_paragraph)
-    return sdt, begin, separate, end
+    return sdt, field
 
 
 def _insert_before(body: etree._Element, before: etree._Element, sdt: etree._Element) -> None:
@@ -554,10 +849,14 @@ def insert_toc(
     levels: tuple[int, int] = (1, 3),
     caption: str | None = None,
     before: etree._Element | None = None,
+    keep_existing: bool = False,
 ) -> Field:
     r"""Tulis field TOC native di dalam ``w:sdt``.
 
-    Field TOC lama diganti, bukan ditambah. ``caption`` mengubah instruksi
+    Secara default field TOC lama diganti, bukan ditambah. Bila
+    ``keep_existing`` benar, TOC lama dipertahankan dan field baru tetap
+    disisipkan; pemanggil bertanggung jawab memilih posisi ``before`` agar
+    tidak ada duplikat yang tidak disengaja. ``caption`` mengubah instruksi
     menjadi ``TOC \c "..."`` untuk daftar gambar/tabel. Bila ``before``
     tidak diberikan, TOC diletakkan sebelum Heading1 ``BAB ...`` pertama,
     atau di akhir body sebelum ``w:sectPr``.
@@ -572,15 +871,16 @@ def insert_toc(
         raise FieldError("Caption TOC tidak boleh kosong")
 
     body = _body(package)
-    _remove_existing_toc(body, title.strip())
+    if not keep_existing:
+        _remove_existing_toc(body, title.strip())
 
     if caption is None:
-        instruction = f' TOC \\o "{low}-{high}" \\h \\z \\u '
+        switches: tuple[str, ...] = ("TOC", f'\\o "{low}-{high}"', "\\h", "\\z", "\\u")
     else:
         escaped = caption.replace('"', '\\"')
-        instruction = f' TOC \\c "{escaped}" \\h \\z '
+        switches = ("TOC", f'\\c "{escaped}"', "\\h", "\\z")
 
-    sdt, begin, separate, end = _sdt_toc(title.strip(), instruction)
+    sdt, field = _sdt_toc(title.strip(), switches)
 
     if before is not None:
         _insert_before(body, before, sdt)
@@ -597,17 +897,7 @@ def insert_toc(
                 body.append(sdt)
 
     _remove_blank_breaks_after(body, sdt)
-    paragraph = begin.getparent()
-    assert paragraph is not None
-    return Field(
-        kind=FieldKind.TOC,
-        instruction=instruction,
-        paragraph=paragraph,
-        begin=begin,
-        separate=separate,
-        end=end,
-        nested=(),
-    )
+    return field
 
 
 def insert_seq(
@@ -620,19 +910,7 @@ def insert_seq(
 
     if not isinstance(label, str) or not label.strip():
         raise FieldError("Label SEQ tidak boleh kosong")
-    if paragraph.tag != W_P:
-        raise FieldError("SEQ hanya boleh disisipkan ke paragraf")
-    instruction = f" SEQ {label.strip()} "
-    begin, separate, end = _field_runs(paragraph, instruction, result="1")
-    return Field(
-        kind=FieldKind.SEQ,
-        instruction=instruction,
-        paragraph=paragraph,
-        begin=begin,
-        separate=separate,
-        end=end,
-        nested=(),
-    )
+    return insert_field(["SEQ", label.strip()], FieldPosition(paragraph=paragraph), "1")
 
 
 def insert_pageref(
@@ -645,18 +923,10 @@ def insert_pageref(
 
     if not isinstance(bookmark, str) or not bookmark.strip():
         raise FieldError("Nama bookmark PAGEREF tidak boleh kosong")
-    if paragraph.tag != W_P:
-        raise FieldError("PAGEREF hanya boleh disisipkan ke paragraf")
-    instruction = f" PAGEREF {bookmark.strip()} \\h "
-    begin, separate, end = _field_runs(paragraph, instruction, result="0")
-    return Field(
-        kind=FieldKind.PAGEREF,
-        instruction=instruction,
-        paragraph=paragraph,
-        begin=begin,
-        separate=separate,
-        end=end,
-        nested=(),
+    return insert_field(
+        ["PAGEREF", bookmark.strip(), "\\h"],
+        FieldPosition(paragraph=paragraph),
+        "0",
     )
 
 
@@ -723,19 +993,32 @@ def ensure_no_blank_page_after_toc(package: DocumentPackage) -> int:
 
 
 __all__ = [
+    "EXEMPT_FIELDS",
     "SETTINGS_PART",
     "Field",
     "FieldError",
     "FieldKind",
+    "FieldMarkerKind",
+    "FieldPosition",
     "ensure_no_blank_page_after_toc",
     "field_has_result",
     "field_instruction",
     "field_kind",
+    "field_marker_kind",
+    "field_name",
     "field_result_text",
+    "field_text_ranges",
+    "has_exempt_field",
+    "has_field",
+    "insert_field",
     "insert_pageref",
     "insert_seq",
     "insert_toc",
     "is_bold_exempt",
+    "is_field_run",
+    "iter_field_instructions",
+    "iter_field_markers",
+    "iter_field_runs",
     "iter_fields",
     "iter_fields_in_paragraph",
     "iter_fields_in_part",

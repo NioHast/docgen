@@ -126,6 +126,11 @@ def test_content_width_mengurangi_gutter() -> None:
     assert content_width(body) == 11906 - 2268 - 1701 - 720
 
 
+def test_content_width_gutter_hilang_dihitung_nol() -> None:
+    body = _body_with(_section(gutter=None))
+    assert content_width(body) == 11906 - 2268 - 1701
+
+
 def test_content_width_landscape() -> None:
     body = _body_with(_section(width="16838"))
     # Landscape menukar lebar A4; margin tidak berubah.
@@ -182,7 +187,7 @@ def _attribute_element(section: etree._Element, attribute: str) -> tuple[etree._
     return element, name
 
 
-@pytest.mark.parametrize("attribute", ["width", "left", "right", "gutter"])
+@pytest.mark.parametrize("attribute", ["width", "left", "right"])
 def test_content_width_atribut_hilang_menimbulkan_page_error(attribute: str) -> None:
     section = _section()
     element, name = _attribute_element(section, attribute)
@@ -190,7 +195,7 @@ def test_content_width_atribut_hilang_menimbulkan_page_error(attribute: str) -> 
     _assert_page_width_error(_body_with(section))
 
 
-@pytest.mark.parametrize("attribute", ["width", "left", "right", "gutter"])
+@pytest.mark.parametrize("attribute", ["width", "left", "right"])
 def test_content_width_atribut_bukan_bilangan_bulat_menimbulkan_page_error(
     attribute: str,
 ) -> None:

@@ -468,26 +468,26 @@ def render_front_matter(
     structure: Structure,
     format: Format,
     *,
-    body: str | None = None,
+    body: str,
     include_logo: bool = True,
     logo: str | Path | None = None,
 ) -> str:
     """Bangun Markdown final sebelum Pandoc.
 
-    ``body`` default adalah ``document.body``. Bila stage menerima Markdown
-    hasil Mermaid, kirimkan lewat parameter ini. Logo default berasal dari
-    ``format.assets.logo``; ``include_logo=False`` mematikan blok logo untuk
-    pengujian atau format tanpa logo.
+    ``body`` wajib diisi oleh pemanggil; tidak ada fallback ke
+    ``document.body``. Stage ``front_matter`` mengirim Markdown hasil Mermaid
+    lewat parameter ini. Logo default berasal dari ``format.assets.logo``;
+    ``include_logo=False`` mematikan blok logo untuk pengujian atau format
+    tanpa logo.
     """
 
-    source_body = document.body if body is None else body
     spec = NumberingSpec(
         body=structure.numbering.body,  # type: ignore[arg-type]
         sub_dot=structure.numbering.sub_dot,
         subsub_dot=structure.numbering.subsub_dot,
     )
     numbered_body = number_markdown_headings(
-        _mark_appendix_unnumbered(source_body),
+        _mark_appendix_unnumbered(body),
         spec,
     )
 

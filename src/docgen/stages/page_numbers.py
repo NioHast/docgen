@@ -10,10 +10,10 @@ import time
 
 from lxml import etree
 
-from ..docx.fields import FieldKind, iter_fields_in_part
+from ..docx.fields import FieldKind, FieldPosition, insert_field, iter_fields_in_part
 from ..docx.names import R_ID, W, local_name
 from ..docx.package import DOCUMENT_PART, DocumentPackage
-from ..docx.runs import copy_rpr, make_run
+from ..docx.runs import copy_rpr
 from ..docx.sections import (
     Section,
     SectionError,
@@ -31,8 +31,6 @@ from ..docx.sections import (
 from ..docx.xml import sha256_c14n
 from ..errors import StageError
 from ..pipeline import BaseStage, StageName, StageResult, canonical_prefix
-
-PAGE_FIELD_INSTRUCTION = " PAGE "
 
 FRONT_FOOTER_SIZE_HALF_POINTS = 24
 BODY_HEADER_SIZE_HALF_POINTS = 20
@@ -60,27 +58,6 @@ def _run_properties(
     sz_cs = etree.SubElement(rpr, W + "szCs")
     sz_cs.set(W + "val", str(size_half_points))
     return rpr
-
-
-def _append_page_run(
-    paragraph: etree._Element,
-    *,
-    text: str | None = None,
-    instr: str | None = None,
-    fld_char: str | None = None,
-    rpr: etree._Element,
-) -> None:
-    run = make_run(paragraph, rpr=rpr)
-    if fld_char is not None:
-        element = etree.SubElement(run, W + "fldChar")
-        element.set(W + "fldCharType", fld_char)
-    if instr is not None:
-        element = etree.SubElement(run, W + "instrText")
-        element.set("{http://www.w3.org/XML/1998/namespace}space", "preserve")
-        element.text = instr
-    if text is not None:
-        element = etree.SubElement(run, W + "t")
-        element.text = text
 
 
 def page_part(
@@ -112,11 +89,7 @@ def page_part(
         size_half_points=size_half_points,
     )
     ppr.append(copy_rpr(rpr))
-    _append_page_run(paragraph, fld_char="begin", rpr=rpr)
-    _append_page_run(paragraph, instr=PAGE_FIELD_INSTRUCTION, rpr=rpr)
-    _append_page_run(paragraph, fld_char="separate", rpr=rpr)
-    _append_page_run(paragraph, text="1", rpr=rpr)
-    _append_page_run(paragraph, fld_char="end", rpr=rpr)
+    insert_field(["PAGE"], FieldPosition(paragraph=paragraph, rpr=rpr), "1")
     return root
 
 

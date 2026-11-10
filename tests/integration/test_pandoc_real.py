@@ -75,6 +75,7 @@ def test_pandoc_nyata_menghasilkan_docx_valid(tmp_path: Path) -> None:
         project.document,
         project.structure,
         project.format,
+        body=project.document.body,
     )
 
     workspace = Workspace(root=document_path.parent / ".laporan-build", keep=True)

@@ -12,7 +12,9 @@ menerjemahkannya menjadi error konfigurasi stage masing-masing.
 
 ``content_width`` adalah satu-satunya sumber lebar area teks. Nilainya dibaca
 dari ``w:sectPr`` terakhir; tidak ada lebar cadangan, sehingga section atau
-atribut yang tidak lengkap menimbulkan ``PageError`` alih-alih angka tebakan.
+atribut wajib yang tidak lengkap menimbulkan ``PageError`` alih-alih angka
+tebakan. ``w:pgMar/@w:gutter`` bersifat opsional dan dihitung 0 bila tidak
+ada.
 """
 
 from collections.abc import Mapping
@@ -29,6 +31,8 @@ PAGE_SIZES: Mapping[str, tuple[int, int]] = {
     "A4": (11906, 16838),
     "Letter": (12240, 15840),
 }
+
+W_GUTTER = qn("w:gutter")
 
 
 class PageError(DocxError):
@@ -61,8 +65,9 @@ def content_width(body: etree._Element) -> int:
     ``@w:right``, dan ``@w:gutter``.
 
     Tidak ada fallback angka. Section hilang, ``w:pgSz``/``w:pgMar`` hilang,
-    atribut hilang atau bukan bilangan bulat, serta lebar tidak positif
-    menimbulkan ``PageError`` berkode ``PAGE-WIDTH``.
+    ``@w:w``/``@w:left``/``@w:right`` hilang atau bukan bilangan bulat, serta
+    lebar tidak positif menimbulkan ``PageError`` berkode ``PAGE-WIDTH``.
+    ``@w:gutter`` opsional dan dihitung 0 bila tidak ada.
     """
 
     section = body.find(W_SECTPR)
@@ -83,10 +88,10 @@ def content_width(body: etree._Element) -> int:
     width = paragraphs.int_attribute(page_size_element, qn("w:w"))
     left = paragraphs.int_attribute(page_margin_element, qn("w:left"))
     right = paragraphs.int_attribute(page_margin_element, qn("w:right"))
-    gutter = paragraphs.int_attribute(page_margin_element, qn("w:gutter"))
-    if width is None or left is None or right is None or gutter is None:
+    gutter = paragraphs.int_attribute(page_margin_element, W_GUTTER) or 0
+    if width is None or left is None or right is None:
         raise PageError(
-            "w:pgSz/@w:w atau w:pgMar/@w:left,@w:right,@w:gutter tidak valid",
+            "w:pgSz/@w:w atau w:pgMar/@w:left,@w:right tidak valid",
             code="PAGE-WIDTH",
         )
 

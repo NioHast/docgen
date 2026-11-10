@@ -24,6 +24,7 @@ from docgen.docx.package import (
 from docgen.docx.paragraphs import paragraph_text
 from docgen.docx.xml import qn, sha256_c14n
 from docgen.pipeline import StageName, canonical_prefix
+from docgen.stages import lists as lists_module
 from docgen.stages.lists import ListsStage
 
 W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
@@ -235,6 +236,42 @@ def test_caption_seq_fields_are_hybrid_chapter(tmp_path: Path) -> None:
     assert "SEQ Gambar \\* ARABIC \\s 1" in field_instruction(figure_fields[0])
     assert paragraph_text(table) == "Tabel 2.1 Judul Tabel Satu"
     assert paragraph_text(figure) == "Gambar 2.1 Diagram Alur"
+
+
+def test_caption_seq_uses_canonical_insert_field(monkeypatch, tmp_path: Path) -> None:
+    package = _build_package(tmp_path)
+    calls: list[tuple[tuple[str, ...], str]] = []
+    real_insert_field = lists_module.insert_field
+
+    def record(switches, position, result=""):
+        calls.append((tuple(switches), result))
+        return real_insert_field(switches, position, result)
+
+    monkeypatch.setattr(lists_module, "insert_field", record)
+    ListsStage().run(_ctx(package))
+
+    assert calls == [
+        (("SEQ", "Tabel", "\\*", "ARABIC", "\\s", "1"), "1"),
+        (("SEQ", "Gambar", "\\*", "ARABIC", "\\s", "1"), "1"),
+    ]
+
+
+def test_list_toc_keeps_main_toc_with_keep_existing(monkeypatch, tmp_path: Path) -> None:
+    package = _build_package(tmp_path)
+    main_toc = _toc_sdts(package)[0]
+    calls: list[dict[str, object]] = []
+    real_insert_toc = lists_module.insert_toc
+
+    def record(pkg, **kwargs):
+        calls.append(kwargs)
+        return real_insert_toc(pkg, **kwargs)
+
+    monkeypatch.setattr(lists_module, "insert_toc", record)
+    ListsStage().run(_ctx(package))
+
+    assert [call["caption"] for call in calls] == ["Tabel", "Gambar"]
+    assert all(call["keep_existing"] is True for call in calls)
+    assert _toc_sdts(package)[0] is main_toc
 
 
 def test_document_scope_uses_plain_seq_arabic(tmp_path: Path) -> None:

@@ -14,11 +14,11 @@ from dataclasses import dataclass, field
 
 from lxml import etree
 
+from ..docx.fields import is_field_run
 from ..docx.layout import (
     PPR_ORDER,
     document_root,
     has_deleted_ancestor,
-    is_field_run,
     iter_paragraph_runs,
     new_element,
     set_document_root,

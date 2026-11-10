@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 from lxml import etree
 
 from . import DocxError, names, numbering
+from .fields import field_text_ranges
 from .paragraphs import (
     ParagraphError,
     document_body,
@@ -159,7 +160,6 @@ W_CR = names.W_CR
 W_NO_BREAK_HYPHEN = names.W_NO_BREAK_HYPHEN
 W_INSTR_TEXT = names.W_INSTRTEXT
 W_FLD_CHAR = names.W_FLDCHAR
-W_FLD_CHAR_TYPE = names.W_FLDCHARTYPE
 W_FLD_SIMPLE = names.W_FLDSIMPLE
 W_DEL = names.W_DEL
 W_MOVE_FROM = names.W_MOVEFROM
@@ -277,43 +277,6 @@ def _caption_text_nodes(paragraph: etree._Element) -> list[etree._Element]:
 
 def _caption_text(paragraph: etree._Element) -> str:
     return "".join(node.text or "" for node in _caption_text_nodes(paragraph))
-
-
-def _field_ranges(paragraph: etree._Element) -> list[tuple[int, int]]:
-    """Rentang offset teks yang ditempati field (``fldSimple``/``fldChar``)."""
-
-    ranges: list[tuple[int, int]] = []
-    stack: list[int] = []
-    offset = 0
-
-    def walk(element: etree._Element) -> None:
-        nonlocal offset
-        for child in element:
-            tag = child.tag
-            if tag == W_FLD_SIMPLE:
-                start = offset
-                stack.append(start)
-                walk(child)
-                start = stack.pop()
-                if offset > start:
-                    ranges.append((start, offset))
-            elif tag == W_FLD_CHAR:
-                field_type = child.get(W_FLD_CHAR_TYPE)
-                if field_type == "begin":
-                    stack.append(offset)
-                elif field_type == "end" and stack:
-                    start = stack.pop()
-                    if offset > start:
-                        ranges.append((start, offset))
-            elif tag == W_T:
-                offset += len(child.text or "")
-            elif tag in TEXT_NODE_SKIP_TAGS:
-                continue
-            else:
-                walk(child)
-
-    walk(paragraph)
-    return ranges
 
 
 def _prefix_overlaps_field(
@@ -956,7 +919,7 @@ def set_caption(
     paragraph = caption.paragraph
     current = _caption_text(paragraph)
     match_end = _prefix_end(current)
-    if _prefix_overlaps_field(match_end, _field_ranges(paragraph)):
+    if _prefix_overlaps_field(match_end, field_text_ranges(paragraph)):
         raise CaptionError(
             "caption memuat field pada prefix; field dibiarkan utuh",
             code="CAPTION-FIELD",
@@ -1016,7 +979,7 @@ def _number_caption(
     number = f"{current_chapter}.{counters[kind]}" if scope == "chapter" else str(counters[kind])
     prefix = f"{caption_spec.label}{caption_spec.separator}{number}"
     match_end = _prefix_end(text)
-    if _prefix_overlaps_field(match_end, _field_ranges(paragraph)):
+    if _prefix_overlaps_field(match_end, field_text_ranges(paragraph)):
         report.skipped_field += 1
         return
     if not _replace_caption_prefix(paragraph, text, match_end, prefix):

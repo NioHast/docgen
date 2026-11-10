@@ -17,11 +17,11 @@ from dataclasses import dataclass, field
 
 from lxml import etree
 
+from ..docx.fields import has_field
 from ..docx.layout import (
     PPR_ORDER,
     document_root,
     has_deleted_ancestor,
-    has_field,
     is_chapter_heading,
     iter_paragraphs,
     new_element,
@@ -285,7 +285,7 @@ def format_equation_paragraph(
 
 
 def _apply_numbers(body: etree._Element, report: EquationReport, spec: EquationSpec) -> None:
-    width = content_width(body)
+    width: int | None = None
     current_chapter: int | None = None
     counter = 0
 
@@ -318,6 +318,10 @@ def _apply_numbers(body: etree._Element, report: EquationReport, spec: EquationS
             report.skipped_field += 1
             continue
 
+        if width is None:
+            # Hindari membaca geometri section untuk dokumen tanpa persamaan:
+            # stage ini tidak boleh gagal hanya karena sectPr tidak ada.
+            width = content_width(body)
         number = f"({current_chapter}.{counter})"
         format_equation_paragraph(
             paragraph,

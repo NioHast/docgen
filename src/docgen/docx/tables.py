@@ -860,13 +860,13 @@ def make_code_table(
     """
 
     code_spec = spec or CodeSpec()
-    body = paragraphs.document_body(package)
-    content_width = page.content_width(body)
     if not items:
         raise TableError(
             "tabel kode membutuhkan minimal satu paragraf",
             code="TABLE-NO-CODE",
         )
+    body = paragraphs.document_body(package)
+    content_width = page.content_width(body)
     style_id = paragraphs.paragraph_style_id(items[0])
 
     lines: list[_Line] = []

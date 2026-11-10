@@ -7,10 +7,9 @@ pencocokan sumber, dan manifest deterministik.
 """
 
 import argparse
-import re
 import sys
 from collections import Counter
-from collections.abc import Iterator, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -18,17 +17,8 @@ from lxml import etree
 
 from ..docx import DOCUMENT_PART
 from ..docx import bookmarks as bookmark_mod
-from ..docx.names import (
-    W_FLDCHAR,
-    W_FLDCHARTYPE,
-    W_FLDSIMPLE,
-    W_INSTR,
-    W_INSTRTEXT,
-    W_P,
-    W_PPR,
-    W_SECTPR,
-    W_TXBXCONTENT,
-)
+from ..docx.fields import FieldMarkerKind, field_marker_kind, field_name, iter_field_markers
+from ..docx.names import W_INSTR, W_P, W_PPR, W_SECTPR
 from ..docx.package import DocumentPackage
 from ..docx.paragraphs import ParagraphError, document_body, heading_level, paragraph_text
 from ..errors import DocgenError
@@ -55,7 +45,6 @@ _PROTECTED_FIELD_ORDER = (
     ("PAGEREF", "pageref_field"),
     ("PAGE", "page_field"),
 )
-_FIELD_NAME_RE = re.compile(r"\s*([A-Za-z]+)")
 _SOURCE_SCAN_EXCLUDED_DIRS = frozenset({"out", "build", "review"})
 
 
@@ -109,24 +98,6 @@ class _FieldFrame:
         self.instruction_parts = []
 
 
-def _field_name(instruction: str) -> str | None:
-    match = _FIELD_NAME_RE.match(instruction)
-    return match.group(1).upper() if match is not None else None
-
-
-def _iter_field_markers(paragraph: etree._Element) -> Iterator[etree._Element]:
-    def walk(element: etree._Element) -> Iterator[etree._Element]:
-        for child in element:
-            tag = child.tag
-            if tag in (W_P, W_TXBXCONTENT):
-                continue
-            if tag in (W_FLDCHAR, W_INSTRTEXT, W_FLDSIMPLE):
-                yield child
-            yield from walk(child)
-
-    yield from walk(paragraph)
-
-
 def _scan_fields(
     paragraphs: Sequence[etree._Element],
 ) -> tuple[set[int], list[set[str]]]:
@@ -140,31 +111,30 @@ def _scan_fields(
     direct_names: list[set[str]] = [set() for _ in paragraphs]
 
     for index, paragraph in enumerate(paragraphs):
-        for marker in _iter_field_markers(paragraph):
-            if marker.tag == W_FLDCHAR:
-                field_type = marker.get(W_FLDCHARTYPE)
-                if field_type == "begin":
-                    stack.append(_FieldFrame(index))
-                elif field_type == "end" and stack:
-                    frame = stack.pop()
-                    name = _field_name("".join(frame.instruction_parts))
-                    if name is not None:
-                        spans.append((name, frame.start_index, index))
-            elif marker.tag == W_INSTRTEXT:
+        for marker in iter_field_markers(paragraph):
+            marker_kind = field_marker_kind(marker)
+            if marker_kind is FieldMarkerKind.BEGIN:
+                stack.append(_FieldFrame(index))
+            elif marker_kind is FieldMarkerKind.END and stack:
+                frame = stack.pop()
+                name = field_name("".join(frame.instruction_parts))
+                if name is not None:
+                    spans.append((name, frame.start_index, index))
+            elif marker_kind is FieldMarkerKind.INSTRUCTION:
                 text = marker.text or ""
                 if stack:
                     stack[-1].instruction_parts.append(text)
-                name = _field_name(text)
+                name = field_name(text)
                 if name is not None:
                     direct_names[index].add(name)
-            elif marker.tag == W_FLDSIMPLE:
-                name = _field_name(marker.get(W_INSTR) or "")
+            elif marker_kind is FieldMarkerKind.SIMPLE:
+                name = field_name(marker.get(W_INSTR) or "")
                 if name is not None:
                     spans.append((name, index, index))
                     direct_names[index].add(name)
 
     for frame in stack:
-        name = _field_name("".join(frame.instruction_parts))
+        name = field_name("".join(frame.instruction_parts))
         if name is not None:
             spans.append((name, frame.start_index, len(paragraphs) - 1))
 

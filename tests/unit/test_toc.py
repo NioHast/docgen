@@ -5,15 +5,22 @@ import zipfile
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
+import docgen.docx.fields as fields_module
 from docgen.docx.fields import (
     Field,
     FieldKind,
+    FieldPosition,
     ensure_no_blank_page_after_toc,
     field_instruction,
     field_result_text,
+    field_text_ranges,
+    insert_field,
     insert_pageref,
     insert_seq,
     insert_toc,
+    iter_field_instructions,
     iter_fields,
     iter_fields_in_paragraph,
 )
@@ -30,6 +37,7 @@ from docgen.docx.xml import qn
 from docgen.pipeline import StageName
 from docgen.stages.toc import (
     TOC_STYLE_IDS,
+    TocError,
     TocStage,
     _format_fallback,
     ensure_toc_styles,
@@ -114,10 +122,15 @@ def _page_break_paragraph() -> str:
     return '<w:p><w:r><w:br w:type="page"/></w:r></w:p>'
 
 
-def _document(body: str, *, styles: bytes = STYLES_XML) -> tuple[bytes, bytes]:
+def _document(
+    body: str,
+    *,
+    styles: bytes = STYLES_XML,
+    sect_pr: str = "<w:sectPr/>",
+) -> tuple[bytes, bytes]:
     document = (
         f'<w:document xmlns:w="{W_NS}" xmlns:r="{R_NS}">'
-        f"<w:body>{body}<w:sectPr/></w:body></w:document>"
+        f"<w:body>{body}{sect_pr}</w:body></w:document>"
     ).encode()
     return document, styles
 
@@ -127,10 +140,11 @@ def _write_package(
     body: str,
     *,
     styles: bytes = STYLES_XML,
+    sect_pr: str = "<w:sectPr/>",
     name: str = "test.docx",
 ) -> Path:
     path = tmp_path / name
-    document, styles_payload = _document(body, styles=styles)
+    document, styles_payload = _document(body, styles=styles, sect_pr=sect_pr)
     entries = {
         CONTENT_TYPES_PART: _content_types(),
         PACKAGE_RELS_PART: _package_rels(),
@@ -364,6 +378,120 @@ def test_insert_pageref_field_is_not_dirty(tmp_path: Path) -> None:
     _assert_complex_field_order(field)
 
 
+def test_insert_toc_keep_existing_preserves_old_field(tmp_path: Path) -> None:
+    path = _write_package(tmp_path, _paragraph("BAB I", style="Heading1"))
+    package = DocumentPackage.load(path)
+    first = insert_toc(package, title="DAFTAR ISI")
+    first_instruction = field_instruction(first)
+    second = insert_toc(
+        package,
+        title="DAFTAR TABEL",
+        caption="Tabel",
+        keep_existing=True,
+    )
+
+    root = package.xml(DOCUMENT_PART)
+    fields = [field for field in iter_fields(package) if field.kind is FieldKind.TOC]
+    assert len(fields) == 2
+    assert len(_sdt_gallery(root)) == 2
+    assert first.begin.getroottree().getroot() is root
+    assert first_instruction in [field_instruction(field) for field in fields]
+    assert 'TOC \\c "Tabel"' in field_instruction(second)
+
+
+def test_insert_toc_before_uses_explicit_anchor(tmp_path: Path) -> None:
+    body_xml = (
+        _paragraph("Sampul", style="CoverTitle")
+        + _paragraph("BAB I", style="Heading1")
+        + _paragraph("Anchor")
+    )
+    path = _write_package(tmp_path, body_xml)
+    package = DocumentPackage.load(path)
+    root = package.xml(DOCUMENT_PART)
+    body = root.find(qn("w:body"))
+    assert body is not None
+    heading = next(
+        child
+        for child in body
+        if child.tag == qn("w:p") and paragraph_text(child).strip() == "BAB I"
+    )
+    anchor = next(
+        child
+        for child in body
+        if child.tag == qn("w:p") and paragraph_text(child).strip() == "Anchor"
+    )
+
+    insert_toc(package, title="DAFTAR ISI", before=anchor)
+
+    sdt = _sdt_gallery(root)[0]
+    assert body.index(sdt) == body.index(anchor) - 1
+    assert body.index(sdt) > body.index(heading)
+
+
+def test_insert_field_inserts_runs_before_anchor(tmp_path: Path) -> None:
+    paragraph_xml = "<w:p><w:r><w:t>Awal</w:t></w:r><w:r><w:t>Akhir</w:t></w:r></w:p>"
+    path = _write_package(tmp_path, paragraph_xml)
+    package = DocumentPackage.load(path)
+    paragraph = next(package.xml(DOCUMENT_PART).iter(qn("w:p")))
+    anchor = paragraph.findall(qn("w:r"))[1]
+
+    field = insert_field(
+        ["SEQ", "Tabel"],
+        FieldPosition(paragraph=paragraph, before=anchor),
+        "1",
+    )
+
+    _assert_no_dirty(package.xml(DOCUMENT_PART))
+    _assert_complex_field_order(field)
+    assert paragraph.index(field.end) == paragraph.index(anchor) - 1
+    assert paragraph.findall(qn("w:r"))[-1] is anchor
+
+
+def test_insert_seq_is_thin_insert_field_wrapper(monkeypatch, tmp_path: Path) -> None:
+    path = _write_package(tmp_path, _paragraph("Tabel 1 Judul", style="TableCaption"))
+    package = DocumentPackage.load(path)
+    paragraph = next(package.xml(DOCUMENT_PART).iter(qn("w:p")))
+    calls: list[tuple[tuple[str, ...], FieldPosition, str]] = []
+    sentinel = object()
+
+    def fake_insert_field(
+        switches,
+        position: FieldPosition,
+        result: str = "",
+    ):
+        calls.append((tuple(switches), position, result))
+        return sentinel
+
+    monkeypatch.setattr(fields_module, "insert_field", fake_insert_field)
+
+    assert insert_seq(package, paragraph=paragraph, label="Tabel") is sentinel
+    assert len(calls) == 1
+    switches, position, result = calls[0]
+    assert switches == ("SEQ", "Tabel")
+    assert position.paragraph is paragraph
+    assert position.before is None
+    assert position.end_paragraph is None
+    assert result == "1"
+
+
+def test_field_scanner_reads_split_instruction_and_simple_field(tmp_path: Path) -> None:
+    extra_runs = (
+        '<w:r><w:fldChar w:fldCharType="begin"/></w:r>'
+        '<w:r><w:instrText xml:space="preserve"> TOC </w:instrText></w:r>'
+        '<w:r><w:instrText xml:space="preserve">\\o "1-3" </w:instrText></w:r>'
+        '<w:r><w:fldChar w:fldCharType="separate"/></w:r>'
+        "<w:r><w:t>X</w:t></w:r>"
+        '<w:r><w:fldChar w:fldCharType="end"/></w:r>'
+        '<w:fldSimple w:instr=" PAGE "><w:r><w:t>3</w:t></w:r></w:fldSimple>'
+    )
+    path = _write_package(tmp_path, _paragraph(extra_runs=extra_runs))
+    package = DocumentPackage.load(path)
+    paragraph = next(package.xml(DOCUMENT_PART).iter(qn("w:p")))
+
+    assert list(iter_field_instructions(paragraph)) == [' TOC \\o "1-3" ', " PAGE "]
+    assert field_text_ranges(paragraph) == ((0, 1), (1, 2))
+
+
 def test_ensure_toc_styles_is_idempotent(tmp_path: Path) -> None:
     path = _write_package(tmp_path, _paragraph("BAB I", style="Heading1"))
     package = DocumentPackage.load(path)
@@ -410,10 +538,57 @@ def test_no_blank_page_between_toc_and_bab_i(tmp_path: Path) -> None:
     )
 
 
-def test_tab_position_uses_page_geometry(tmp_path: Path) -> None:
+def _page_geometry(*, gutter: str | None = None) -> str:
+    gutter_attr = f' w:gutter="{gutter}"' if gutter is not None else ""
+    return (
+        "<w:sectPr>"
+        '<w:pgSz w:w="11906" w:h="16838"/>'
+        '<w:pgMar w:top="1440" w:right="1440" w:bottom="1440" '
+        f'w:left="1440" w:header="720" w:footer="720"{gutter_attr}/>'
+        "</w:sectPr>"
+    )
+
+
+def test_tab_position_uses_first_section_geometry(tmp_path: Path) -> None:
+    path = _write_package(
+        tmp_path,
+        _paragraph("BAB I", style="Heading1"),
+        sect_pr=_page_geometry(),
+    )
+    package = DocumentPackage.load(path)
+    assert tab_position(package) == 9026
+
+
+def test_tab_position_mengurangi_gutter(tmp_path: Path) -> None:
+    path = _write_package(
+        tmp_path,
+        _paragraph("BAB I", style="Heading1"),
+        sect_pr=_page_geometry(gutter="720"),
+    )
+    package = DocumentPackage.load(path)
+    assert tab_position(package) == 8306
+
+
+def test_tab_position_geometry_tidak_lengkap_menimbulkan_toc_tab(tmp_path: Path) -> None:
+    path = _write_package(tmp_path, _paragraph("BAB I", style="Heading1"))
+    package = DocumentPackage.load(path)
+    with pytest.raises(TocError) as excinfo:
+        tab_position(package)
+    assert excinfo.value.code == "TOC-TAB"
+
+
+def test_tab_position_memakai_fallback_eksplisit(tmp_path: Path) -> None:
     path = _write_package(tmp_path, _paragraph("BAB I", style="Heading1"))
     package = DocumentPackage.load(path)
     assert tab_position(package, fallback=(11906, 1440, 1440, 0)) == 9026
+
+
+def test_tab_position_fallback_tidak_valid_menimbulkan_toc_tab(tmp_path: Path) -> None:
+    path = _write_package(tmp_path, _paragraph("BAB I", style="Heading1"))
+    package = DocumentPackage.load(path)
+    with pytest.raises(TocError) as excinfo:
+        tab_position(package, fallback=(11906, 6000, 6000, 0))
+    assert excinfo.value.code == "TOC-TAB"
 
 
 def _format_ctx(size: str, orientation: str) -> SimpleNamespace:

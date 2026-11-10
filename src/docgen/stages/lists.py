@@ -1,18 +1,11 @@
 r"""Stage ``lists``: daftar tabel/gambar native dan field ``SEQ`` caption.
 
-Spike WS11 (Microsoft Word 16.0, Windows) menunjukkan:
-
-- ``STYLEREF 1 \\s`` menghasilkan ``0`` karena heading pipeline memakai nomor
-  literal (``BAB II``), bukan ``w:numPr``.
-- ``STYLEREF "Heading 1"`` menghasilkan seluruh teks heading (``BAB II``).
-- Varian yang benar adalah hybrid: prefix bab Arab literal dari caption WS4
-  (``Tabel 2.``) + ``SEQ Tabel \\* ARABIC \\s 1``; Word menampilkan
-  ``Tabel 2.1`` dan mengisi ``TOC \\c "Tabel"``.
-
 Stage ini tidak menulis caption dari nol. Caption dan nomor bab sudah dibuat
-oleh stage ``captions`` (WS4); stage ini mengganti angka urutan
-terakhir menjadi field ``SEQ`` agar Word dapat memperbarui daftar. Semua field
-daftar ditulis lewat :mod:`docgen.docx.fields`.
+oleh stage ``captions``; stage ini mengganti angka urutan terakhir menjadi
+field ``SEQ`` agar Word dapat memperbarui daftar. Prefix bab literal
+dipertahankan dan switch ``\s 1`` dipakai karena heading pipeline memakai
+nomor literal, bukan ``w:numPr``. Semua field daftar ditulis lewat
+:mod:`docgen.docx.fields`.
 """
 
 import re
@@ -25,23 +18,30 @@ from lxml import etree
 from ..docx.captions import CaptionKind, is_caption_paragraph
 from ..docx.fields import (
     FieldError,
+    FieldKind,
+    FieldPosition,
     ensure_no_blank_page_after_toc,
-    insert_seq,
+    field_instruction,
+    insert_field,
     insert_toc,
     iter_fields_in_paragraph,
+    iter_fields_in_root,
 )
 from ..docx.names import (
     W_HYPERLINK,
-    W_INSTRTEXT,
     W_R,
     W_RPR,
     W_SDT,
-    W_T,
     W_VAL,
 )
 from ..docx.package import DOCUMENT_PART
-from ..docx.paragraphs import ParagraphError, document_body, paragraph_text
-from ..docx.runs import build_run, copy_rpr
+from ..docx.paragraphs import (
+    ParagraphError,
+    document_body,
+    paragraph_text,
+    remove_direct_children,
+)
+from ..docx.runs import build_run
 from ..docx.xml import (
     iter_paragraphs,
     qn,
@@ -53,7 +53,6 @@ from ..pipeline import BaseStage, StageName, StageResult, canonical_prefix
 if TYPE_CHECKING:  # pragma: no cover - hanya anotasi
     from ..docx.package import DocumentPackage
 
-TOC_GALLERY = "Table of Contents"
 CAPTION_LABEL_DEFAULTS = {"table": "Tabel", "figure": "Gambar"}
 LIST_TITLES = {
     "list_of_tables": ("tables", "DAFTAR TABEL"),
@@ -75,30 +74,20 @@ def _body(package: DocumentPackage) -> etree._Element:
         raise FieldError(str(exc)) from exc
 
 
-def _sdt_gallery(sdt: etree._Element) -> str | None:
-    properties = sdt.find(qn("w:sdtPr"))
-    if properties is None:
-        return None
-    gallery = properties.find(".//" + qn("w:docPartGallery"))
-    if gallery is None:
-        return None
-    return gallery.get(qn("w:val"))
+def _list_toc_sdts(body: etree._Element) -> tuple[etree._Element, ...]:
+    r"""SDT TOC daftar (``TOC \c``) yang menjadi child langsung ``w:body``."""
 
-
-def _sdt_instruction(sdt: etree._Element) -> str:
-    return "".join(node.text or "" for node in sdt.iter(W_INSTRTEXT) if isinstance(node.tag, str))
-
-
-def _is_list_sdt(sdt: etree._Element) -> bool:
-    return _LIST_INSTRUCTION_RE.search(_sdt_instruction(sdt)) is not None
-
-
-def _body_toc_sdts(body: etree._Element) -> tuple[etree._Element, ...]:
-    return tuple(
-        child
-        for child in body
-        if isinstance(child.tag, str) and child.tag == W_SDT and _sdt_gallery(child) == TOC_GALLERY
-    )
+    found: list[etree._Element] = []
+    for child in body:
+        if not isinstance(child.tag, str) or child.tag != W_SDT:
+            continue
+        if any(
+            field.kind is FieldKind.TOC
+            and _LIST_INSTRUCTION_RE.search(field_instruction(field)) is not None
+            for field in iter_fields_in_root(child)
+        ):
+            found.append(child)
+    return tuple(found)
 
 
 def _sdt_ancestor(element: etree._Element) -> etree._Element:
@@ -184,21 +173,6 @@ def _caption_pattern(label: str) -> re.Pattern[str]:
     )
 
 
-def _run_of(element: etree._Element) -> etree._Element:
-    """Kembalikan run pemilik elemen field.
-
-    ``insert_seq`` mengembalikan ``Field`` yang menunjuk run, sedangkan
-    parser :func:`iter_fields` menunjuk ``w:fldChar``. Keduanya didukung.
-    """
-
-    if element.tag == W_R:
-        return element
-    parent = element.getparent()
-    if parent is None:
-        raise FieldError("Elemen field tidak memiliki run induk")
-    return parent
-
-
 def _caption_prefix(
     text: str,
     label: str,
@@ -227,7 +201,6 @@ def _caption_prefix(
 
 
 def _ensure_caption_seq(
-    package: DocumentPackage,
     paragraph: etree._Element,
     *,
     label: str,
@@ -235,8 +208,7 @@ def _ensure_caption_seq(
 ) -> bool:
     """Ganti angka urutan caption dengan field ``SEQ`` bila belum ada."""
 
-    existing = iter_fields_in_paragraph(paragraph)
-    if existing:
+    if iter_fields_in_paragraph(paragraph):
         return False
     if paragraph.find(f".//{W_HYPERLINK}") is not None:
         return False
@@ -249,46 +221,20 @@ def _ensure_caption_seq(
 
     runs = list(paragraph.findall(W_R))
     template_rpr = runs[0].find(W_RPR) if runs else None
-    for run in runs:
-        paragraph.remove(run)
+    remove_direct_children(paragraph, W_R)
 
-    instruction = f" SEQ {label} \\* ARABIC"
+    switches = ["SEQ", label, "\\*", "ARABIC"]
     if scope == "chapter":
-        instruction += " \\s 1"
-    field = insert_seq(package, paragraph=paragraph, label=label)
-    for node in paragraph.findall(".//" + W_INSTRTEXT):
-        node.text = instruction + " "
+        switches.extend(("\\s", "1"))
 
-    separate_run = _run_of(field.separate) if field.separate is not None else None
-    result_run = separate_run.getnext() if separate_run is not None else None
-    if result_run is not None:
-        result_text = result_run.find(W_T)
-        if result_text is None:
-            result_text = etree.SubElement(result_run, W_T)
-        result_text.text = counter
-        if counter != counter.strip():
-            result_text.set(qn("xml:space"), "preserve")
-        for extra in result_run.findall(W_T)[1:]:
-            extra.text = ""
-
-    begin_run = _run_of(field.begin)
-    end_run = _run_of(field.end)
-
-    before_run = build_run(text=before, rpr=template_rpr)
-    begin_run.addprevious(before_run)
+    paragraph.append(build_run(text=before, rpr=template_rpr))
+    insert_field(
+        switches,
+        FieldPosition(paragraph=paragraph, rpr=template_rpr),
+        counter,
+    )
     if after:
-        end_run.addnext(build_run(text=after, rpr=template_rpr))
-
-    for run in (
-        before_run,
-        begin_run,
-        begin_run.getnext(),
-        separate_run,
-        result_run,
-        end_run,
-    ):
-        if run is not None and template_rpr is not None and run.find(W_RPR) is None:
-            run.insert(0, copy_rpr(template_rpr))
+        paragraph.append(build_run(text=after, rpr=template_rpr))
     return True
 
 
@@ -301,7 +247,6 @@ def _ensure_caption_seq_fields(
     for paragraph in iter_paragraphs(_body(package)):
         if is_caption_paragraph(paragraph, CaptionKind.TABLE):
             if _ensure_caption_seq(
-                package,
                 paragraph,
                 label=labels["table"],
                 scope=scope,
@@ -309,7 +254,6 @@ def _ensure_caption_seq_fields(
                 count += 1
             continue
         if is_caption_paragraph(paragraph, CaptionKind.FIGURE) and _ensure_caption_seq(
-            package,
             paragraph,
             label=labels["figure"],
             scope=scope,
@@ -326,37 +270,21 @@ def _insert_list_fields(
     """Tulis semua field daftar tanpa menghapus TOC utama yang sudah ada."""
 
     body = _body(package)
-    toc_sdts = list(_body_toc_sdts(body))
-    main_sdts = [sdt for sdt in toc_sdts if not _is_list_sdt(sdt)]
-    for sdt in toc_sdts:
+    for sdt in _list_toc_sdts(body):
         parent = sdt.getparent()
         if parent is not None:
             parent.remove(sdt)
 
     next_id = _next_sdt_id(body)
-    created: list[etree._Element] = []
-    last: etree._Element | None = None
     for index, (key, title) in enumerate(requests):
         caption_label = labels["table" if key == "tables" else "figure"]
-        field = insert_toc(package, title=title, caption=caption_label)
-        sdt = _sdt_ancestor(field.begin)
-        _set_sdt_id(sdt, next_id + index)
-        if index < len(requests) - 1:
-            parent = sdt.getparent()
-            if parent is not None:
-                parent.remove(sdt)
-            created.append(sdt)
-        else:
-            last = sdt
-
-    if last is None:  # pragma: no cover - dijaga oleh caller
-        raise FieldError("Tidak ada field daftar yang dibuat")
-
-    for sdt in created:
-        last.addprevious(sdt)
-    anchor = created[0] if created else last
-    for sdt in main_sdts:
-        anchor.addprevious(sdt)
+        field = insert_toc(
+            package,
+            title=title,
+            caption=caption_label,
+            keep_existing=True,
+        )
+        _set_sdt_id(_sdt_ancestor(field.begin), next_id + index)
 
     ensure_no_blank_page_after_toc(package)
     return len(requests)
@@ -426,7 +354,6 @@ class ListsStage(BaseStage):
 __all__ = [
     "CAPTION_LABEL_DEFAULTS",
     "LIST_TITLES",
-    "TOC_GALLERY",
     "ListsStage",
     "_list_requests",
 ]

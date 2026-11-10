@@ -12,11 +12,14 @@ from docx.shared import Pt, RGBColor
 from lxml import etree
 
 from docgen.docx.package import DOCUMENT_PART, DocumentPackage
+from docgen.docx.page import PageError
 from docgen.docx.tables import (
     CODE_TABLE_BORDERS,
+    TableError,
     TableSpec,
     is_code_table,
     iter_tables,
+    make_code_table,
 )
 from docgen.docx.xml import sha256_c14n
 from docgen.stages.captions import apply_captions
@@ -569,3 +572,40 @@ def test_table_spec_default_tidak_mengubah_tabel_data(tmp_path):
     set_borders(info.element, TableSpec().borders)
     set_table_width(info.element, 100)
     assert is_code_table(info.element) is False
+
+
+# ---------------------------------------------------------------------------
+# 6. Urutan validasi make_code_table
+# ---------------------------------------------------------------------------
+
+
+def _load_without_section(path: Path) -> DocumentPackage:
+    package = DocumentPackage.load(path)
+    body = package.xml(DOCUMENT_PART).find(qn("w:body"))
+    assert body is not None
+    for section in body.findall(qn("w:sectPr")):
+        body.remove(section)
+    return package
+
+
+def test_make_code_table_items_kosong_tanpa_sectpr_menimbulkan_table_no_code(
+    tmp_path: Path,
+) -> None:
+    source = build_docx(tmp_path / "no-section-empty.docx", [("body", "tanpa kode")])
+    package = _load_without_section(source)
+
+    with pytest.raises(TableError) as excinfo:
+        make_code_table(package, [])
+
+    assert excinfo.value.code == "TABLE-NO-CODE"
+
+
+def test_make_code_table_items_ada_tanpa_sectpr_menimbulkan_page_width(tmp_path: Path) -> None:
+    source = build_docx(tmp_path / "no-section-code.docx", [("code", ["print(1)"])])
+    package = _load_without_section(source)
+    paragraph = next(package.xml(DOCUMENT_PART).iter(qn("w:p")))
+
+    with pytest.raises(PageError) as excinfo:
+        make_code_table(package, [paragraph])
+
+    assert excinfo.value.code == "PAGE-WIDTH"

@@ -28,6 +28,16 @@ def test_duplikat_paragraf_hilang_dari_modul_lain() -> None:
     for name in ("document_body", "heading_level", "paragraph_style_id", "paragraph_text"):
         assert not hasattr(layout, name)
     assert not hasattr(layout, "content_width")
+    for name in (
+        "field_name",
+        "has_exempt_field",
+        "has_field",
+        "is_field_run",
+        "iter_field_instructions",
+        "iter_field_markers",
+        "iter_field_runs",
+    ):
+        assert not hasattr(layout, name), f"layout masih mengekspor {name}"
     for name in ("paragraph_style_id", "paragraph_heading_level"):
         assert not hasattr(bookmarks, name)
     assert not hasattr(sections, "heading_level")
@@ -132,6 +142,43 @@ def test_docx_package_level_helper_baru_tersedia() -> None:
         paragraph_text,
         remove_direct_children,
         strip_bold_from_rpr,
+    ):
+        assert helper is not None
+
+
+def test_docx_package_level_field_dan_heading_tersedia() -> None:
+    from docgen.docx import (
+        FieldMarkerKind,
+        FieldPosition,
+        Heading,
+        HeadingError,
+        HeadingReport,
+        NumberingSpec,
+        apply_heading_numbering,
+        field_marker_kind,
+        field_text_ranges,
+        heading_bookmark_name,
+        heading_text,
+        insert_field,
+        is_unnumbered,
+        iter_headings,
+    )
+
+    assert FieldMarkerKind.BEGIN.value == "begin"
+    assert FieldPosition is not None
+    for helper in (
+        Heading,
+        HeadingError,
+        HeadingReport,
+        NumberingSpec,
+        apply_heading_numbering,
+        field_marker_kind,
+        field_text_ranges,
+        heading_bookmark_name,
+        heading_text,
+        insert_field,
+        is_unnumbered,
+        iter_headings,
     ):
         assert helper is not None
 

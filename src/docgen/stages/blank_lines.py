@@ -22,15 +22,14 @@ from dataclasses import dataclass
 
 from lxml import etree
 
+from ..docx.fields import field_name, iter_field_instructions
 from ..docx.layout import (
     COVER_PREFIX,
     TOC_STYLE_RE,
     BodyUnit,
     document_root,
-    field_name,
     is_chapter_heading,
     iter_body_units,
-    iter_field_instructions,
     new_element,
     normalize_style_id,
     set_document_root,
@@ -72,8 +71,6 @@ W_SPACING = qn("w:spacing")
 W_RFONTS = qn("w:rFonts")
 W_SZ = qn("w:sz")
 W_SZCS = qn("w:szCs")
-W_FLDCHARTYPE = qn("w:fldCharType")
-W_INSTR = qn("w:instr")
 W_FOOTNOTE_REFERENCE = qn("w:footnoteReference")
 W_ENDNOTE_REFERENCE = qn("w:endnoteReference")
 M_O_MATH_PARA = qn("m:oMathPara")
