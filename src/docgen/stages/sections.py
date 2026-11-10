@@ -181,6 +181,13 @@ class SectionsStage(BaseStage):
         return not getattr(ctx, "dry_run", False)
 
     def run(self, ctx: object) -> StageResult:
+        """Terapkan penomoran heading, section break, dan geometri halaman.
+
+        Mengembalikan ``StageResult`` berisi metrik section dan heading.
+        Melempar ``StageError`` bila package belum tersedia atau
+        ``SectionError``/``HeadingError`` terjadi saat memutasi package.
+        """
+
         started = time.monotonic()
         if not self.enabled(ctx):
             return StageResult(

@@ -57,8 +57,9 @@ target struktur, dan acceptance tidak bertentangan.
   lolos `compileall` dan full suite minimal 475 pass.
 - `config.py` tetap menjadi satu sumber sampai F5. Jika gate memutuskan split,
   file diganti package `config/__init__.py`, `config/models.py`,
-  `config/parsers.py`, dan `config/validation.py`; API publik tetap. Jika tidak,
-  `config.py` dipertahankan.
+  `config/common.py`, `config/format.py`, `config/structure.py`, dan
+  `config/validation.py`; API publik tetap. Jika tidak, `config.py`
+  dipertahankan.
 - `docs/dev/archive/restructure-plan.md` dan `docs/dev/archive/duplication-map.md`
   tidak lagi menjadi acuan aktif; keduanya berstatus superseded di archive. G4
   wajib memutuskan hapus atau pertahankan dengan status archived yang jelas.

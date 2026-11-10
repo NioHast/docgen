@@ -23,7 +23,7 @@ ROMAN_CASES: tuple[tuple[str, int | None], ...] = (
     ("xiv", 14),
     ("", None),
     ("ABC", None),
-    # Non-kanonis, tetapi sumber lama tetap menjumlahkannya menjadi 4.
+    # Non-kanonis, tetapi simbolnya tetap dijumlahkan menjadi 4.
     ("IIII", 4),
 )
 

@@ -306,6 +306,12 @@ class ListsStage(BaseStage):
         return bool(_list_requests(getattr(ctx, "structure", None)))
 
     def run(self, ctx: object) -> StageResult:
+        """Tulis field daftar tabel/gambar dan field ``SEQ`` pada caption.
+
+        Mengembalikan ``StageResult`` dengan jumlah field yang dibuat. Melempar
+        ``StageError`` bila package belum tersedia atau ``FieldError`` terjadi.
+        """
+
         started = time.monotonic()
         if not self.enabled(ctx):
             return StageResult(

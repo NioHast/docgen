@@ -292,7 +292,7 @@ examples/
 | `scripts/word.ps1` | Ya | Adapter PowerShell untuk Microsoft Word. Bukan modul Python. |
 | `data/` | Ya | Package data: format, structure, template, glosarium, logo, CSL, dan `reference.docx`. |
 
-Catatan F5: tree di atas memakai `config.py` sebagai default. Jika gate F5 memutuskan split, ganti satu file itu dengan `config/__init__.py`, `config/models.py`, `config/parsers.py`, dan `config/validation.py`. Sisa tree tidak berubah.
+Catatan F5: tree di atas memakai `config.py` sebagai default. Jika gate F5 memutuskan split, ganti satu file itu dengan `config/__init__.py`, `config/models.py`, `config/common.py`, `config/format.py`, `config/structure.py`, dan `config/validation.py`. Sisa tree tidak berubah.
 
 ### 2.2 Yang tidak dipakai
 
@@ -509,7 +509,7 @@ Tujuan: satu parser field, satu boundary section, satu package terms, dan keputu
 | F2 | Hapus workaround `stages/lists.py` | `stages/lists.py`, `tests/unit/test_lists.py`, `tests/integration/test_lists_word.py` | F1 | Workaround field dan SDT lama hilang; list memakai API `fields.py`; Word test lulus. | F-B |
 | F3 | Split `docx/sections.py` | `docx/sections.py`, `docx/heading_numbering.py`, `docx/numbering.py`, `stages/front_matter.py`, `stages/sections.py`, tests | R4 | Section hanya berisi section, header, footer, page; heading numbering pindah ke `heading_numbering.py`; `heading_numbering.py` memakai `numbering.py`, tidak menduplikasi Roman; output identik. | F-A |
 | F4 | Split `docx/terms.py` | `docx/terms.py`, `docx/terms/__init__.py`, `docx/terms/glossary.py`, `docx/terms/model.py`, `docx/terms/apply.py`, `docx/terms/verify.py`, tests terms | F1 | Import `docgen.docx.terms` tetap; `apply_terms`, `verify_terms`, `open_docx` tetap publik; alias lama hilang; tidak ada import melingkar. | F-B |
-| F5 | Evaluasi split `config.py` | `config.py`, `config/**` jika dipecah, tests config | F1, F2, F3, F4 | Decision gate dijalankan; jika tetap lebih dari 1.500 LOC atau sulit dites, split menjadi `config/__init__.py`, `models.py`, `parsers.py`, `validation.py`; API publik tetap. | F5 |
+| F5 | Evaluasi split `config.py` | `config.py`, `config/**` jika dipecah, tests config | F1, F2, F3, F4 | Decision gate dijalankan; jika tetap lebih dari 1.500 LOC atau sulit dites, split menjadi `config/__init__.py`, `models.py`, `common.py`, `format.py`, `structure.py`, `validation.py`; API publik tetap. | F5 |
 
 Urutan eksekusi:
 

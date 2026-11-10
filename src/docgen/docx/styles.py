@@ -364,6 +364,12 @@ def _mapping_updates(
 
 
 def _ensure_spec_style(package: object, spec: StyleSpec) -> bool:
+    """Pastikan style sesuai ``spec`` dan kembalikan ``True`` bila dibuat baru.
+
+    ``basedOn`` wajib sudah ada dan tipe style lama tidak boleh berbeda.
+    Pelanggaran melempar ``StyleError``.
+    """
+
     root = _styles_root(package)
     style = _find_style(root, spec.style_id)
     if spec.based_on is not None and _find_style(root, spec.based_on) is None:
@@ -536,6 +542,12 @@ def _verify_updates(
     style_id: str,
     label: str,
 ) -> None:
+    """Verifikasi elemen style terhadap ``mapping`` atribut dan nilai.
+
+    Atribut bernilai ``None`` di dalam mapping berarti harus tidak ada.
+    Ketidakcocokan atau elemen yang hilang melempar ``StyleContractError``.
+    """
+
     for raw_tag, expected in mapping.items():
         tag = _local(raw_tag)
         element = container.find(_qname(tag))
@@ -728,7 +740,7 @@ def apply_page_layout(
 
 
 # ---------------------------------------------------------------------------
-# Port API generator style lama
+# Generator patch style
 # ---------------------------------------------------------------------------
 
 

@@ -2,6 +2,8 @@
 
 ``DocumentPackage`` adalah satu-satunya pemilik ZIP. Stage memutasi part di
 memori dan hanya pipeline yang memanggil ``load()``/``save()``.
+
+Referensi: https://ecma-international.org/publications-and-standards/standards/ecma-376/
 """
 
 import copy

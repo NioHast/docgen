@@ -19,6 +19,8 @@ urutan tetap milik ``docgen.pipeline``.
 
 Setiap diagram di-hash dari isi Mermaid dan opsi render. Berkas PNG yang sudah
 ada dipakai ulang tanpa memanggil ``mmdc`` lagi.
+
+Referensi: https://github.com/mermaid-js/mermaid-cli
 """
 
 import hashlib
@@ -585,6 +587,13 @@ class MermaidStage(BaseStage):
     idempotent = True
 
     def run(self, ctx: object) -> StageResult:
+        """Materialisasi blok Mermaid ke workspace dan artifact Markdown.
+
+        Selalu menulis ``mermaid.md``, termasuk untuk dokumen tanpa blok, agar
+        ``front_matter`` punya sumber body eksplisit. Melempar ``MermaidError``
+        bila workspace tidak tersedia dan ``StageError`` bila rendering gagal.
+        """
+
         started = time.monotonic()
         document = getattr(ctx, "document", None)
         body = getattr(document, "body", "") or ""

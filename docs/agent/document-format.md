@@ -4,6 +4,20 @@ Sumber naskah adalah satu `document.md` berisi YAML front matter dan body
 Markdown. Aturan visual tidak ditulis di naskah. Format dan struktur membacanya
 dari `src/docgen/data/`.
 
+## Daftar isi
+
+- [Front matter](#front-matter)
+- [Heading](#heading)
+- [Caption tabel](#caption-tabel)
+- [Caption gambar](#caption-gambar)
+- [Mermaid](#mermaid)
+- [Blok kode](#blok-kode)
+- [Daftar](#daftar)
+- [Persamaan](#persamaan)
+- [Sitasi dan daftar pustaka](#sitasi-dan-daftar-pustaka)
+- [Lampiran](#lampiran)
+- [Aturan singkat](#aturan-singkat)
+
 ## Front matter
 
 Front matter wajib berada di baris pertama, dibuka dan ditutup `---`. Isinya

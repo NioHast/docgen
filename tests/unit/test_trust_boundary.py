@@ -1,8 +1,7 @@
 """Guard trust boundary: kode pipeline hanya berasal dari package.
 
 Folder input adalah data, bukan sumber kode. Pipeline tidak boleh memuat
-``tools/``, ``scripts/``, ``docx.lua``, atau skrip shell lama dari folder
-dokumen pengguna.
+``tools/``, ``scripts/``, atau skrip dari folder dokumen pengguna.
 """
 
 import ast
@@ -69,7 +68,7 @@ def test_stage_module_berada_di_dalam_package() -> None:
 
 
 def test_tidak_ada_referensi_eksekusi_kode_lama_di_package() -> None:
-    """String kode (bukan docstring) tidak menunjuk skrip lama/folder input."""
+    """String kode (bukan docstring) tidak menunjuk artifact terlarang."""
 
     temuan: list[str] = []
     for path in sorted(PACKAGE.rglob("*.py")):
@@ -83,7 +82,7 @@ def test_tidak_ada_referensi_eksekusi_kode_lama_di_package() -> None:
 def test_data_paket_tidak_fallback_ke_direktori_kerja(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """``data_root`` selalu package, meskipun cwd berisi data lama."""
+    """``data_root`` selalu package, meskipun cwd berisi artifact terlarang."""
 
     monkeypatch.chdir(tmp_path)
     (tmp_path / "tools").mkdir()

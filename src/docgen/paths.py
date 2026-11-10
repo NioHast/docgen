@@ -1,8 +1,12 @@
 """Resolusi path paket dan path relatif yang aman.
 
+API masuk mencakup :func:`data_root`, :func:`format_dir`,
+:func:`structure_dir`, :func:`glossary_file`, dan :func:`safe_relative_path`.
 Semua data bawaan dibaca dari ``src/docgen/data`` di dalam paket. Tidak ada
 fallback ke akar repositori atau direktori kerja: bila data paket hilang,
-``docgen`` harus gagal dengan error yang jelas.
+``docgen`` gagal dengan ``ConfigError``/``AssetError`` yang jelas.
+
+Modul ini tidak menulis berkas dan tidak membuat direktori.
 """
 
 import re
@@ -53,6 +57,8 @@ def data_root() -> Path:
 
 
 def formats_root(*, root: Path | None = None) -> Path:
+    """Direktori ``formats``; melempar ``ConfigError`` bila tidak ada."""
+
     base = (root or data_root()) / "formats"
     if not base.is_dir():
         raise ConfigError(
@@ -64,6 +70,8 @@ def formats_root(*, root: Path | None = None) -> Path:
 
 
 def structures_root(*, root: Path | None = None) -> Path:
+    """Direktori ``structures``; melempar ``ConfigError`` bila tidak ada."""
+
     base = (root or data_root()) / "structures"
     if not base.is_dir():
         raise ConfigError(
@@ -75,6 +83,8 @@ def structures_root(*, root: Path | None = None) -> Path:
 
 
 def format_dir(format_id: str, *, root: Path | None = None) -> Path:
+    """Direktori satu format; validasi ID dan keberadaannya."""
+
     validate_id(format_id, kind="format")
     path = formats_root(root=root) / format_id
     if not path.is_dir():
@@ -87,6 +97,8 @@ def format_dir(format_id: str, *, root: Path | None = None) -> Path:
 
 
 def structure_dir(structure_id: str, *, root: Path | None = None) -> Path:
+    """Direktori satu struktur; validasi ID dan keberadaannya."""
+
     validate_id(structure_id, kind="struktur")
     path = structures_root(root=root) / structure_id
     if not path.is_dir():
@@ -99,10 +111,14 @@ def structure_dir(structure_id: str, *, root: Path | None = None) -> Path:
 
 
 def templates_dir(structure_id: str, *, root: Path | None = None) -> Path:
+    """Direktori template milik satu struktur."""
+
     return structure_dir(structure_id, root=root) / "templates"
 
 
 def glossary_file(*, root: Path | None = None) -> Path:
+    """Path glosarium paket; melempar ``AssetError`` bila berkas tidak ada."""
+
     path = (root or data_root()) / "glossary" / "istilah.tsv"
     if not path.is_file():
         raise AssetError(
@@ -114,6 +130,8 @@ def glossary_file(*, root: Path | None = None) -> Path:
 
 
 def validate_id(value: str, *, kind: str) -> str:
+    """Trim dan validasi ID format/struktur dengan pola ``[a-z0-9][a-z0-9-]*``."""
+
     if not isinstance(value, str) or not value.strip():
         raise ConfigError(
             f"ID {kind} wajib diisi",
@@ -143,7 +161,10 @@ def safe_relative_path(
     """Resolve ``raw`` relatif terhadap ``base`` dan tolak escape.
 
     Kontrak mewajibkan path relatif dengan pemisah ``/``. Path absolut,
-    backslash, ``..``, dan skema URL ditolak sebelum disentuh.
+    backslash, segmen ``..``, dan skema URL ditolak sebelum disentuh.
+    ``must_exist``, ``expect_file``, dan ``expect_dir`` menambahkan pemeriksaan
+    keberadaan. Semua pelanggaran melempar ``ConfigError`` dengan ``key``
+    berisi ``label``; tidak ada berkas yang dibuat.
     """
 
     if not isinstance(raw, str):

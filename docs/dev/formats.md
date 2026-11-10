@@ -5,6 +5,16 @@ penomoran, dan daftar. Keduanya adalah data paket di `src/docgen/data/` dengan
 skema tertutup. Kontrak lengkap ada di
 [contracts/config.md](contracts/config.md).
 
+## Daftar isi
+
+- [Lokasi](#lokasi)
+- [`format.yml`](#formatyml)
+- [`structure.yml`](#structureyml)
+- [Struktur yang tersedia](#struktur-yang-tersedia)
+- [Front matter `document.md`](#front-matter-documentmd)
+- [Validasi](#validasi)
+- [Referensi resmi](#referensi-resmi)
+
 ## Lokasi
 
 ```text
@@ -221,3 +231,8 @@ ditolak dengan pesan migrasi. `toc` diterima hanya bila nilainya sama dengan
 
 Error menyebut path dan key. `check` mengembalikan exit code 1 untuk semua
 error konfigurasi.
+
+## Referensi resmi
+
+Label registry yang dipakai halaman ini: `ruamel.yaml documentation`. URL
+resminya ada di [registry referensi](references.md).

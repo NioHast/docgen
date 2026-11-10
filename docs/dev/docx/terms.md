@@ -1,5 +1,8 @@
 # Istilah dan Glosarium
 
+Halaman ini menjelaskan fitur glosarium, penanda istilah, verifikasi, dan audit
+DOCX. Kontrak API ada di [../contracts/docx-api.md](../contracts/docx-api.md);
+kontrak stage ada di [../contracts/stage-api.md](../contracts/stage-api.md).
 Glosarium menentukan istilah asing yang ditulis miring. Stage `terms`
 menerapkan style, memverifikasi invariant, dan menulis daftar tinjauan. Stage
 ini hanya aktif bila build memakai `--terms`.
@@ -123,6 +126,19 @@ uv run --project <repo> python tools/dev/audit_terms.py \
 Alat ini menulis laporan Markdown dan mengembalikan exit code 2 bila ada
 istilah yang perlu diperbaiki atau diputuskan. Alat tidak mengubah DOCX,
 glosarium, atau naskah.
+
+## API package
+
+`docx/terms/` menyediakan:
+
+- `load_glossary` dan `merge_glossaries`;
+- `apply_terms` untuk style `IstilahAsing` dan `IstilahReview`;
+- `verify_terms` untuk memeriksa invariant;
+- `write_review_file` untuk `.laporan/istilah-baru.txt`.
+
+Stage `terms` memakai API ini; stage tidak memuat atau menyimpan package
+target sendiri. Lihat [../pipeline/stages.md](../pipeline/stages.md) untuk
+posisi stage.
 
 ## Batasan
 

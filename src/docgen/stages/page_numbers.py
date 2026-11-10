@@ -170,6 +170,12 @@ def _configure_body(
     *,
     start: int | None,
 ) -> bool:
+    """Konfigurasi header/footer dan format nomor untuk section body.
+
+    Mengembalikan ``True`` bila part header/footer atau ``sectPr`` berubah.
+    ``SectionError`` dari helper part diteruskan ke pemanggil.
+    """
+
     before = sha256_c14n(section.sect_pr)
     refs = section_header_footer(section)
 
@@ -286,6 +292,13 @@ class PageNumbersStage(BaseStage):
         return not getattr(ctx, "dry_run", False)
 
     def run(self, ctx: object) -> StageResult:
+        """Konfigurasi nomor halaman untuk cover, front matter, dan body.
+
+        Mengembalikan ``StageResult`` dengan metrik section dan field halaman.
+        Melempar ``StageError`` bila package belum tersedia atau ``SectionError``
+        terjadi saat memanipulasi section.
+        """
+
         started = time.monotonic()
         if not self.enabled(ctx):
             return StageResult(

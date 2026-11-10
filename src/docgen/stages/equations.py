@@ -285,6 +285,13 @@ def format_equation_paragraph(
 
 
 def _apply_numbers(body: etree._Element, report: EquationReport, spec: EquationSpec) -> None:
+    """Beri nomor persamaan per bab dan perbarui ``report``.
+
+    Paragraf terhapus dilewati; persamaan sebelum heading bab atau yang sudah
+    memuat field dicatat sebagai skipped. Lebar konten dihitung sekali saat
+    persamaan pertama ditemukan. Tidak mengembalikan nilai.
+    """
+
     width: int | None = None
     current_chapter: int | None = None
     counter = 0

@@ -109,7 +109,7 @@ def _saran(aturan):
     return aturan["saran"]
 
 
-# Bentuk lama tetap tersedia untuk pemanggil yang mengimpor POLA/POLA_C.
+# POLA/POLA_C adalah API publik bagi pemanggil yang mengimpornya.
 POLA = [
     (a["kode"], a["label"], a["pola"], _flag(a.get("flag", "")), _saran(a), a.get("min", 1))
     for a in ATURAN

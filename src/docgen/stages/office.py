@@ -13,6 +13,8 @@ API publik:
 
 ``export_pdf(docx_path, pdf_path, ...)``
     Ekspor DOCX final ke PDF memakai Word, dengan output atomic.
+
+Referensi: https://learn.microsoft.com/en-us/office/vba/api/overview/word
 """
 
 import contextlib
@@ -469,6 +471,12 @@ class WordAdapter:
         pdf_path: str | Path,
         timeout: int | None = None,
     ) -> Path:
+        """Ekspor DOCX ke PDF lewat Word dan kembalikan path PDF final.
+
+        Penulisan memakai berkas sementara lalu ``os.replace``. Melempar
+        ``PdfError`` bila direktori, proses Word, atau pemindahan hasil gagal.
+        """
+
         docx = _resolve_docx_input(docx_path, PdfError)
         pdf = _resolve_pdf_output(pdf_path, docx)
         powershell, script = self._resolve(PdfError, path=docx)
@@ -716,6 +724,13 @@ class OfficeStage(BaseStage):
         return not getattr(ctx, "dry_run", False)
 
     def run(self, ctx: object) -> StageResult:
+        """Perbarui field DOCX memakai Microsoft Word.
+
+        Mengembalikan ``skipped`` untuk target DOCX tanpa Word bila diizinkan;
+        selain itu ``ToolMissingError`` dilempar. ``WordError`` diteruskan bila
+        Word gagal atau hasilnya bukan DOCX valid.
+        """
+
         started = time.monotonic()
         adapter = _word_adapter(ctx, action="update_fields")
 

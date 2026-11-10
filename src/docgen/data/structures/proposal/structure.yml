@@ -1,9 +1,6 @@
 # Struktur proposal tesis UNDIP MSI.
-# Sumber urutan: structures/proposal.yml lama, ditambah halaman persetujuan
-# sesuai docs/dev/proposal.md.
-# Perbedaan dari tesis diambil dari presets/undip-msi-proposal.yml:
-# - heading_chapter_prefix: "" + heading_chapter_num_format: arabic
-# - cover_show_lecturer: false + cover_logo_width: 4.7cm
+# Memuat halaman persetujuan, TOC, empat bab body, dan bibliografi.
+# Penomoran arab bertitik; cover tanpa dosen pembimbing dan logo 4,7 cm.
 format: undip-msi
 
 front_matter:
@@ -31,8 +28,7 @@ lists:
   figures: false
   tables: false
 
-# Override cover khusus proposal. Key ini belum ada di kontrak
-# docs/dev/contracts/config.md bagian structure.yml; lihat laporan WS1.
+# Kunci cover mengikuti kontrak docs/dev/contracts/config.md bagian structure.yml.
 cover:
   show_lecturer: false
   logo_width: 4.7cm

@@ -1,8 +1,13 @@
 """Hierarki error tunggal untuk ``docgen``.
 
 Semua error yang dapat ditampilkan ke pengguna wajib berupa subclass
-``DocgenError``. Stage membungkus exception tak dikenal menjadi
-``StageError`` agar CLI tetap menghasilkan exit code yang stabil.
+``DocgenError``. Setiap error membawa ``code``, ``path``, dan ``key`` opsional;
+``format()`` menyusun pesan CLI yang deterministik dan ``exit_code`` menentukan
+status proses. ``StageError`` menambahkan nama stage dan ``cause`` asli.
+
+Stage membungkus exception tak dikenal menjadi ``StageError`` agar CLI tetap
+menghasilkan exit code yang stabil. Modul ini tidak melakukan I/O dan tidak
+menangkap error.
 """
 
 from pathlib import Path
@@ -47,22 +52,32 @@ class DocgenError(Exception):
 
 
 class ConfigError(DocgenError):
+    """Kesalahan konfigurasi, format, struktur, atau aset."""
+
     default_code = "CFG"
 
 
 class DocumentError(DocgenError):
+    """Kesalahan dokumen Markdown dan validasi silangnya."""
+
     default_code = "DOC"
 
 
 class MetadataError(DocumentError):
+    """Kesalahan metadata front matter."""
+
     default_code = "META"
 
 
 class ValidationError(DocgenError):
+    """Kesalahan validasi input pengguna."""
+
     default_code = "VAL"
 
 
 class StageError(DocgenError):
+    """Kegagalan satu stage; menyimpan nama stage dan cause asli."""
+
     default_code = "STAGE"
 
     def __init__(
@@ -84,10 +99,14 @@ class StageError(DocgenError):
 
 
 class StageOrderError(DocgenError):
+    """Deklarasi stage melanggar urutan atau guard kanonik."""
+
     default_code = "STAGE-ORDER"
 
 
 class ToolMissingError(DocgenError):
+    """Perkakas eksternal wajib tidak tersedia."""
+
     default_code = "TOOL-MISSING"
 
     def __init__(
@@ -109,32 +128,48 @@ class ToolMissingError(DocgenError):
 
 
 class ExternalToolError(DocgenError):
+    """Kegagalan perkakas eksternal."""
+
     default_code = "TOOL"
 
 
 class WordError(ExternalToolError):
+    """Kegagalan Microsoft Word."""
+
     default_code = "WORD"
 
 
 class PdfError(ExternalToolError):
+    """Kegagalan pembuatan PDF."""
+
     default_code = "PDF"
 
 
 class IdempotencyError(DocgenError):
+    """Stage mengubah output saat dijalankan ulang."""
+
     default_code = "IDEMPOTENCY"
 
 
 class OutputError(DocgenError):
+    """Kegagalan workspace atau penulisan output."""
+
     default_code = "OUTPUT"
 
 
 class ManifestError(DocgenError):
+    """Kesalahan manifest Adeu."""
+
     default_code = "MANIFEST"
 
 
 class ReconcileError(DocgenError):
+    """Kesalahan rekonsiliasi paragraf."""
+
     default_code = "RECONCILE"
 
 
 class AssetError(ConfigError):
+    """Aset paket hilang atau tidak valid."""
+
     default_code = "CFG-ASSET"

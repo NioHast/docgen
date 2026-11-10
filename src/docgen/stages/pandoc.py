@@ -1,17 +1,18 @@
 """Stage ``pandoc``: Markdown materialized menjadi DOCX sementara.
 
-Stage ini adalah satu-satunya jembatan Markdown -> DOCX. Semua perilaku yang
-dulu ditulis di ``docx.lua`` (TOC, daftar gambar/tabel, penomoran heading,
-sampul) sudah dipindahkan ke stage post-Pandoc. Karena itu perintah di sini
-**tidak** memakai ``--lua-filter`` dan **tidak** meminta Pandoc menulis TOC.
-Field TOC native ditulis ``stages/toc.py``; daftar gambar/tabel ditulis
-``stages/lists.py``.
+Stage ini adalah satu-satunya jembatan Markdown -> DOCX. TOC, daftar
+gambar/tabel, penomoran heading, dan sampul ditangani stage post-Pandoc.
+Karena itu perintah di sini **tidak** memakai ``--lua-filter`` dan **tidak**
+meminta Pandoc menulis TOC. Field TOC native ditulis ``stages/toc.py``;
+daftar gambar/tabel ditulis ``stages/lists.py``.
 
 Input Markdown diambil dari artifact ``markdown`` milik stage ``front_matter``
 (yang sudah memuat hasil render Mermaid). ``reference.docx`` wajib berasal dari
 artifact derived ``style_reference``, bukan langsung dari aset format. Hasil
 Pandoc ditulis ke workspace agar pipeline dapat memuatnya sebagai satu
 ``DocumentPackage`` tanpa intermediate DOCX di direktori output.
+
+Referensi: https://pandoc.org/MANUAL.html
 """
 
 import hashlib
@@ -540,6 +541,15 @@ class PandocStage(BaseStage):
     idempotent = True
 
     def run(self, ctx: StageContext) -> StageResult:
+        """Konversi Markdown materialized menjadi DOCX di workspace.
+
+        Menulis metadata sementara, menjalankan Pandoc, memuat hasilnya sekali,
+        lalu menyimpan package ke ``ctx.package`` untuk stage berikutnya.
+        Mengembalikan ``StageResult`` berisi path DOCX dan metadata. Melempar
+        ``PandocError`` untuk prasyarat yang hilang dan ``StageError`` untuk
+        kegagalan proses yang tidak dikenal.
+        """
+
         started = time.monotonic()
         try:
             markdown = _markdown_path(ctx)

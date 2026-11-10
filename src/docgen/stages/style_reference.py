@@ -225,6 +225,8 @@ def _caption_spec(
 
 
 def _code_spec(style_id: str, format_spec: Format) -> StyleSpec:
+    """Bangun ``StyleSpec`` code/character dari ``format_spec.code``."""
+
     code = format_spec.code
     style_type = _CODE_STYLE_TYPES.get(style_id, "paragraph")
     ppr: dict[str, object] = {}

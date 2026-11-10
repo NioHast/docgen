@@ -9,6 +9,29 @@ Kontrak ini menetapkan satu pintu untuk membaca, mengubah, dan menulis DOCX.
 Stage tidak boleh memakai `zipfile`, `python-docx`, atau traversal `lxml`
 sendiri. Semua perubahan XML melewati `docgen/docx/`.
 
+## Daftar isi
+
+- [1. Aturan global](#1-aturan-global)
+- [2. Model data](#2-model-data)
+- [3. `docgen/docx/package.py`](#3-docgendocxpackagepy)
+- [4. `docgen/docx/io.py`](#4-docgendocxiopy)
+- [5. `docgen/docx/xml.py`](#5-docgendocxxmlpy)
+- [6. `docgen/docx/names.py`](#6-docgendocxnamespy)
+- [7. `docgen/docx/styles.py`](#7-docgendocxstylespy)
+- [8. `docgen/docx/sections.py`](#8-docgendocxsectionspy)
+- [9. `docgen/docx/heading_numbering.py`](#9-docgendocxheading_numberingpy)
+- [10. `docgen/docx/captions.py`](#10-docgendocxcaptionspy)
+- [11. `docgen/docx/tables.py`](#11-docgendocxtablespy)
+- [12. `docgen/docx/layout.py`](#12-docgendocxlayoutpy)
+- [13. `docgen/docx/fields.py`](#13-docgendocxfieldspy)
+- [14. `docgen/docx/terms.py`](#14-docgendocxtermspy)
+- [15. `docgen/docx/bookmarks.py`](#15-docgendocxbookmarkspy)
+- [16. Modul helper kanonis](#16-modul-helper-kanonis)
+- [17. Matriks part yang boleh berubah](#17-matriks-part-yang-boleh-berubah)
+- [18. Idempotensi](#18-idempotensi)
+- [19. Error dan pemetaan CLI](#19-error-dan-pemetaan-cli)
+- [20. Acceptance](#20-acceptance)
+
 ## 1. Aturan global
 
 ### 1.1 Satu package, satu load, satu save

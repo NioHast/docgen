@@ -10,6 +10,17 @@ uv run --project <repo> docgen <perintah> ...
 Ganti `<repo>` dengan path absolut repo ini. Jika sudah berada di akar repo,
 bentuk yang setara adalah `uv run --project . docgen <perintah> ...`.
 
+## Daftar isi
+
+- [1. Pilih struktur](#1-pilih-struktur)
+- [2. Siapkan berkas](#2-siapkan-berkas)
+- [3. Tulis front matter](#3-tulis-front-matter)
+- [4. Check](#4-check)
+- [5. Build](#5-build)
+- [6. Periksa output](#6-periksa-output)
+- [7. Rekonsiliasi edit Word](#7-rekonsiliasi-edit-word)
+- [Contoh](#contoh)
+
 ## 1. Pilih struktur
 
 Struktur menentukan urutan bab, front matter, penomoran, dan daftar. Format

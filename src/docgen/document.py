@@ -1,8 +1,13 @@
 """Parser ``document.md``, validasi front matter, dan validasi body.
 
-Modul ini tidak menjalankan Pandoc/Word dan tidak menulis berkas. Semua
-validasi yang bisa dilakukan tanpa DOCX berada di sini agar ``docgen check``
-aman dijalankan di lingkungan tanpa Word.
+API masuk adalah :func:`parse_document` untuk membaca front matter dan body
+mentah, serta :func:`load_project` untuk memuat struktur, format, metadata, dan
+aset lalu memvalidasi silang semuanya. Error input dilempar sebagai
+``DocumentError``/``ConfigError``/``MetadataError`` dengan kode stabil.
+
+Modul ini tidak menjalankan Pandoc/Word, tidak menulis berkas, dan tidak
+memvalidasi DOCX. Semua validasi yang bisa dilakukan tanpa DOCX berada di sini
+agar ``docgen check`` aman dijalankan di lingkungan tanpa Word.
 """
 
 import re
@@ -169,7 +174,13 @@ def _split_front_matter(text: str, *, path: Path) -> tuple[str, str]:
 
 
 def parse_document(document: str | Path) -> RawDocument:
-    """Baca satu ``document.md`` dan pisahkan YAML front matter dari body."""
+    """Baca satu ``document.md`` dan pisahkan YAML front matter dari body.
+
+    Mengembalikan ``RawDocument`` dengan front matter read-only dan body
+    mentah. Melempar ``DocumentError`` bila path bukan berkas ``.md``, front
+    matter tidak lengkap, YAML tidak valid, atau body kosong. Tidak menulis
+    berkas.
+    """
 
     path = _resolve_document_path(document)
     try:
@@ -289,6 +300,14 @@ def _plain_heading(text: str) -> str:
 
 
 def _validate_body(body: str, *, structure: Structure, path: Path) -> None:
+    """Validasi urutan heading body terhadap ``structure.body``.
+
+    Heading 1 harus cocok berurutan dengan chapter, heading 2/3 harus berada di
+    bawah level yang tepat, dan ``# Lampiran`` hanya boleh muncul sekali
+    setelah semua bab bila ``back_matter`` memuat ``appendices``. Pelanggaran
+    melempar ``DocumentError`` dengan kode ``CFG-BODY-*``; input tidak dimutasi.
+    """
+
     chapters = structure.body
     appendices = any(item.id == "appendices" for item in structure.back_matter)
     expected_index = 0
@@ -416,7 +435,15 @@ def _validate_structure_document_fields(
 
 
 def load_project(document: str | Path, *, root: Path | None = None) -> Project:
-    """Muat dokumen, format, struktur, aset, dan validasi silang."""
+    """Muat dan validasi silang dokumen, struktur, format, metadata, dan aset.
+
+    ``root`` opsional mengarahkan pencarian data format/struktur ke direktori
+    lain, misalnya fixture pengujian. Mengembalikan ``Project`` siap dipakai
+    pipeline; peringatan non-fatal seperti format override tersedia di
+    ``Project.warnings``. Error input dilempar sebagai ``DocumentError``,
+    ``ConfigError``, atau ``MetadataError`` dan tidak ada berkas output yang
+    ditulis.
+    """
 
     raw = parse_document(document)
     _check_front_matter_keys(raw.front_matter, path=raw.path)

@@ -3,6 +3,8 @@
 Modul ini bergantung pada :mod:`docgen.docx.terms.glossary` dan helper DOCX
 kanonis. Modul ini tidak boleh mengimpor ``apply`` atau ``verify`` agar arah
 dependensi tetap satu arah.
+
+Referensi: https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.wordprocessing?view=openxml-3.0.1
 """
 
 import re
@@ -272,6 +274,12 @@ def build_paragraph_model(
             field_text.clear()
 
     def walk(element: etree._Element, current_run: etree._Element | None = None) -> None:
+        """Telusuri paragraf dan isi ``parts``/``chars`` beserta peta baliknya.
+
+        Teks field dan hyperlink eksternal dicatat terpisah sebagai barrier;
+        karakter di dalam ``w:t`` memetakan ke run dan offset aslinya.
+        """
+
         nonlocal field_depth
 
         for child in element:

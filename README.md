@@ -111,7 +111,7 @@ Untuk dokumen di `examples/<name>/document.md`, output ditulis ke
 | `scripts/word.ps1` | Adaptor Word untuk finalisasi field dan ekspor PDF. |
 
 Detail arsitektur ada di [docs/dev/architecture.md](docs/dev/architecture.md).
-Panduan penulis ada di [docs/agent/quickstart.md](docs/agent/quickstart.md).
+Panduan penulis ada di [docs/agent/quickstart.md](docs/agent/quickstart.md). Indeks lengkap ada di [docs/README.md](docs/README.md).
 
 ## Contoh
 

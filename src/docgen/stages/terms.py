@@ -110,6 +110,13 @@ class TermsStage(BaseStage):
         return bool(getattr(options, "terms", False))
 
     def run(self, ctx: object) -> StageResult:
+        """Terapkan glosarium, verifikasi hasilnya, dan tulis review istilah.
+
+        Hanya berjalan bila ``options.terms`` aktif. Melempar ``TermsError``
+        bila package belum tersedia atau verifikasi menemukan pelanggaran;
+        berkas review tetap ditulis sebelum error verifikasi dilempar.
+        """
+
         started = time.monotonic()
         if not self.enabled(ctx):
             return StageResult(

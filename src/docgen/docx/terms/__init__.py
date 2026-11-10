@@ -1,8 +1,8 @@
 """API publik pengolahan istilah DOCX.
 
-Package ini memecah modul lama menjadi :mod:`glossary`, :mod:`model`,
-:mod:`apply`, dan :mod:`verify`. Hanya nama di ``__all__`` yang dianggap
-kontrak publik; helper internal tetap berada di submodulnya.
+Package ini menyediakan :mod:`glossary`, :mod:`model`, :mod:`apply`, dan
+:mod:`verify`. Hanya nama di ``__all__`` yang dianggap kontrak publik; helper
+internal tetap berada di submodulnya.
 """
 
 from .apply import (

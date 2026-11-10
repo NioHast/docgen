@@ -1,13 +1,12 @@
 """Penomoran heading Markdown sebelum Pandoc.
 
-Modul ini memindahkan perilaku ``Header`` dan ``balance_title`` dari
-``docx.lua`` ke Python tanpa bergantung pada Pandoc. Semua fungsi bersifat
-murni: menerima teks Markdown dan mengembalikan teks Markdown, atau menerima
-level/judul dan mengembalikan nomor. Tidak ada akses ZIP, XML, atau package.
+Modul ini menghasilkan heading Markdown bernomor tanpa bergantung pada Pandoc.
+Semua fungsi bersifat murni: menerima teks Markdown dan mengembalikan teks
+Markdown, atau menerima level/judul dan mengembalikan nomor. Tidak ada akses
+ZIP, XML, atau package.
 
 Nomor yang ditulis ke Markdown memakai raw inline OpenXML untuk line break dan
-tab, sehingga Pandoc menghasilkan ``w:br``/``w:tab`` yang sama seperti filter
-Lua lama:
+tab, sehingga Pandoc menghasilkan ``w:br``/``w:tab``:
 
 - H1 ``BAB_ROMAN``: ``BAB I`` + line break + judul kapital.
 - H1 ``ARABIC_DOTTED``: ``1.`` + spasi + judul kapital.
@@ -53,7 +52,7 @@ _LINK_RE = re.compile(r"(?P<open>!?\[)(?P<label>[^\]]*)(?P<close>\]\([^)]*\))")
 _CODE_SPAN_RE = re.compile(r"(?P<ticks>`+)(?:(?!(?P=ticks)).)*?(?P=ticks)")
 _HTML_TAG_RE = re.compile(r"<[^>]*>")
 
-# Raw inline yang setara dengan pandoc.LineBreak() dan <w:tab/> pada docx.lua.
+# Raw inline OpenXML yang menjadi ``w:br``/``w:tab`` setelah Pandoc.
 LINE_BREAK = "`<w:br/>`{=openxml}"
 TAB = "`<w:tab/>`{=openxml}"
 
@@ -151,11 +150,11 @@ def format_chapter_number(value: int, spec: NumberingSpec) -> str:
 
 
 class HeadingNumberer:
-    """State machine penomoran H1/H2/H3 yang setara dengan ``docx.lua``.
+    """State machine penomoran H1/H2/H3.
 
     Heading H2 sebelum H1 memakai bab implisit 1 sehingga tidak pernah
-    menghasilkan ``0.1.``. Heading H1 unnumbered tidak mereset counter, sesuai
-    perilaku lama: H2 setelahnya melanjutkan nomor subbab bab terakhir.
+    menghasilkan ``0.1.``. Heading H1 unnumbered tidak mereset counter: H2
+    setelahnya melanjutkan nomor subbab bab terakhir.
     """
 
     def __init__(self, spec: NumberingSpec | None = None) -> None:
@@ -231,8 +230,8 @@ def _protect_inline(text: str) -> tuple[str, list[str]]:
 def uppercase_markdown(text: str) -> str:
     """Uppercase teks Markdown tanpa mengubah code span/tujuan link.
 
-    Judul H1 lama di-uppercase setelah inline formatting dipertahankan.
-    Code span, tag HTML, dan URL di dalam link tidak boleh ikut berubah.
+    Judul H1 di-uppercase setelah inline formatting dipertahankan. Code span,
+    tag HTML, dan URL di dalam link tidak boleh ikut berubah.
     """
 
     protected_text, protected = _protect_inline(text)
@@ -452,11 +451,11 @@ def balance_title(
     max_length: int = 55,
     max_line_width: int = 50,
 ) -> tuple[str, ...]:
-    """Pecah judul menjadi baris seimbang, port dari ``balance_title`` Lua.
+    """Pecah judul menjadi baris seimbang.
 
     Guard khusus: judul dua kata yang lebih panjang dari ``max_length``
-    dikembalikan sebagai dua baris, bukan ``None`` seperti perilaku Lua lama
-    yang berakhir dengan crash saat diindeks.
+    dikembalikan sebagai dua baris, bukan ``None``, sehingga pemanggil tidak
+    gagal saat mengindeks hasil.
     """
 
     stripped = text.strip()

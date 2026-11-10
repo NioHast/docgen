@@ -10,6 +10,8 @@ Field kompleks selalu ditulis lengkap: ``begin`` -> ``instrText`` ->
 ``separate`` -> hasil -> ``end``. Word/LibreOffice yang mengisi hasil;
 pipeline tidak menulis cache nomor halaman palsu dan tidak menulis
 ``w:dirty``.
+
+Referensi: https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.wordprocessing?view=openxml-3.0.1
 """
 
 import re
@@ -369,6 +371,13 @@ def _element_order(root: etree._Element) -> dict[int, int]:
 
 
 def _parse_complex_fields(root: etree._Element) -> list[Field]:
+    """Parse field kompleks ``fldChar`` menjadi daftar ``Field`` berurutan.
+
+    Field bersarang dilampirkan ke ``nested`` milik parent. ``FieldError``
+    dilempar bila ada begin/separate/end yang tidak seimbang atau field tanpa
+    separate.
+    """
+
     stack: list[_Builder] = []
     completed: list[Field] = []
     for element in root.iter():
@@ -650,6 +659,8 @@ def _remove_toc_sdts(root: etree._Element) -> int:
 
 
 def _remove_field(field: Field) -> None:
+    """Hapus elemen field beserta run hasil dan cache-nya dari tree."""
+
     if field.begin.tag == W_FLDSIMPLE:
         _remove_element(field.begin)
         return
@@ -729,6 +740,12 @@ def _sdt_toc(
     title: str,
     switches: Sequence[str],
 ) -> tuple[etree._Element, Field]:
+    """Bangun ``w:sdt`` TOC berisi paragraf judul dan field TOC.
+
+    Mengembalikan elemen ``sdt`` dan ``Field`` yang disisipkan agar pemanggil
+    dapat memberi ID atau memverifikasinya.
+    """
+
     sdt = etree.Element(W_SDT)
     sdt_pr = etree.SubElement(sdt, qn("w:sdtPr"))
     rpr = etree.SubElement(sdt_pr, qn("w:rPr"))

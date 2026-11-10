@@ -752,6 +752,8 @@ def _make_code_paragraph(
     style_id: str | None,
     spec: CodeSpec,
 ) -> etree._Element:
+    """Bangun paragraf kode dengan pStyle, spacing, indent, dan run sesuai spec."""
+
     paragraph = _new_element("w:p")
     properties = _new_element("w:pPr")
 

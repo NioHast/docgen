@@ -87,7 +87,7 @@ Urutan stage ditegakkan oleh `pipeline.py`. Stage tidak boleh memanggil
 - `bookmarks.py`: bookmark `pNNNN`.
 - `terms.py`: glosarium dan transformasi istilah.
 
-Dokumen rinci ada di [docx.md](docx.md) dan
+Dokumen rinci ada di [docx/README.md](docx/README.md) dan
 [contracts/docx-api.md](contracts/docx-api.md).
 
 ## CLI dan entry point

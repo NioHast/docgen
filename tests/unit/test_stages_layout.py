@@ -1,4 +1,4 @@
-"""Tes unit stage/layout WS5: normalize, field bold, tab stop, blank lines."""
+"""Tes unit stage/layout: normalize, field bold, tab stop, blank lines."""
 
 import zipfile
 from pathlib import Path

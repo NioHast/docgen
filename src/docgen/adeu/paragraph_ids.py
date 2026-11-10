@@ -381,7 +381,7 @@ def add_paragraph_ids(
     *,
     options: AdeuOptions | None = None,
 ) -> Manifest | None:
-    """Port API lama: baca DOCX, injeksi ID, simpan DOCX, tulis manifest."""
+    """Baca DOCX, injeksi ID paragraf, simpan DOCX, dan tulis manifest."""
 
     resolved = options or AdeuOptions()
     input_path = Path(docx_path)

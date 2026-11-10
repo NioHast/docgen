@@ -102,6 +102,12 @@ def tab_position(
 
 
 def _style_fragment(style_id: str, tab_pos: int) -> etree._Element:
+    """Bangun elemen style TOC dengan tab leader pada ``tab_pos``.
+
+    ``style_id`` harus salah satu ``TOCHeading``/``TOC1``/``TOC2``/``TOC3``;
+    nilai lain melempar ``TocError``.
+    """
+
     tnr = '<w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:cs="Times New Roman"/>'
     definitions = {
         "TOCHeading": f"""<w:style {_W_NS_DECL} w:type="paragraph" w:styleId="TOCHeading">
@@ -285,6 +291,13 @@ class TocStage(BaseStage):
         return bool(getattr(structure, "toc", False))
 
     def run(self, ctx: object) -> StageResult:
+        """Tulis field TOC native, style TOC, dan jaga halaman setelahnya.
+
+        Mengembalikan ``StageResult`` berisi jumlah field TOC dan style yang
+        berubah. Melempar ``StageError`` bila package belum tersedia atau
+        ``FieldError`` terjadi saat menyisipkan field.
+        """
+
         started = time.monotonic()
         if not self.enabled(ctx):
             return StageResult(

@@ -2,7 +2,7 @@
 
 Tes ini memakai contoh nyata ``examples/thesis-single`` yang disalin ke
 direktori sementara. Stage nyata (Mermaid, Pandoc, Word bila tersedia)
-dijalankan, lalu invariant DOCX/PDF kontrak WS15 diperiksa.
+dijalankan, lalu invariant DOCX/PDF pipeline diperiksa.
 """
 
 import re
@@ -177,7 +177,7 @@ def test_build_thesis_example_lewat_pipeline_python(
     assert len([path for path in saves if path.name == f"{report_name}.docx"]) == 1
     assert not any(path.name == f"{report_name}.docx" for path in loads)
 
-    # Trust boundary: tidak ada docx.lua/shell lama yang dieksekusi.
+    # Trust boundary: tidak ada skrip dari folder input yang dieksekusi.
     for command in commands:
         executable = Path(command[0]).name.lower()
         assert executable not in {"build-docx.sh", "build.sh", "docx.lua"}

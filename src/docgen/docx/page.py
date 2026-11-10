@@ -15,6 +15,8 @@ dari ``w:sectPr`` terakhir; tidak ada lebar cadangan, sehingga section atau
 atribut wajib yang tidak lengkap menimbulkan ``PageError`` alih-alih angka
 tebakan. ``w:pgMar/@w:gutter`` bersifat opsional dan dihitung 0 bila tidak
 ada.
+
+Referensi: https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.wordprocessing?view=openxml-3.0.1
 """
 
 from collections.abc import Mapping
@@ -45,9 +47,8 @@ def page_size(name: str, orientation: str = "portrait") -> tuple[int, int]:
     """Kembalikan ukuran halaman ``(lebar, tinggi)`` dalam twip.
 
     ``PAGE_SIZES`` menyimpan dimensi portrait. Orientasi ``landscape`` menukar
-    lebar dan tinggi; orientasi lain diperlakukan sebagai portrait, sama
-    seperti perilaku historis stage ``sections``. Nama yang tidak dikenal
-    tidak memiliki fallback dan menimbulkan ``KeyError``.
+    lebar dan tinggi; orientasi lain diperlakukan sebagai portrait. Nama yang
+    tidak dikenal tidak memiliki fallback dan menimbulkan ``KeyError``.
     """
 
     width, height = PAGE_SIZES[name]

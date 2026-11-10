@@ -1,7 +1,6 @@
 """Helper kanonis nomor bab dan angka Romawi untuk pipeline DOCX.
 
-Modul ini menyatukan logika yang sebelumnya terduplikasi di
-``docgen.docx.layout`` dan ``docgen.docx.captions``:
+Modul ini adalah sumber tunggal untuk:
 
 * konversi token angka Romawi menjadi bilangan bulat;
 * pembacaan nomor bab dari teks ``BAB IV``, ``BAB 4``, atau ``4.``;
@@ -9,6 +8,8 @@ Modul ini menyatukan logika yang sebelumnya terduplikasi di
 
 Modul ini murni dan tidak bergantung pada lapisan Markdown, XML, maupun
 package DOCX.
+
+Referensi: https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.wordprocessing?view=openxml-3.0.1
 """
 
 import re
@@ -60,7 +61,7 @@ def roman_to_int(token: str) -> int | None:
 
     Huruf besar dan kecil diterima. ``None`` dikembalikan bila token kosong
     atau memuat karakter di luar ``I V X L C D M``. Token non-kanonis seperti
-    ``"IIII"`` tetap dijumlahkan sesuai perilaku sumber lama.
+    ``"IIII"`` tetap dijumlahkan sebagai penjumlahan simbol.
     """
 
     total = 0
@@ -80,9 +81,8 @@ def roman_to_int(token: str) -> int | None:
 def chapter_number(text: str | None) -> int | None:
     """Nomor bab dari teks ``BAB <romawi/arab>`` atau ``<arab>.``.
 
-    Format yang didukung sama dengan helper lama di ``layout`` dan
-    ``captions``: ``BAB IV``, ``BAB 4``, dan ``4. Metode``. Teks ``None``
-    atau kosong menghasilkan ``None``.
+    Format yang didukung: ``BAB IV``, ``BAB 4``, dan ``4. Metode``. Teks
+    ``None`` atau kosong menghasilkan ``None``.
     """
 
     if text is None:

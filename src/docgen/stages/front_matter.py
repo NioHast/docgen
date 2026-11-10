@@ -1,7 +1,6 @@
 """Stage ``front_matter``: materialisasi Markdown sebelum Pandoc.
 
-Stage ini memindahkan bagian ``Pandoc`` dari ``docx.lua`` yang berjalan
-sebelum Pandoc:
+Stage ini menyiapkan bagian Markdown yang harus final sebelum Pandoc:
 
 - sampul dari metadata dokumen + ``structure.cover`` + ``format.assets.logo``;
 - template legal ``approval``/``statement`` dari ``structure.front_matter``;
@@ -13,6 +12,8 @@ Output berupa Markdown yang siap dikonsumsi Pandoc. Body hanya dibaca dari
 artifact ``mermaid.markdown`` milik stage mermaid; tidak ada fallback ke
 ``document.body``. TOC dan daftar gambar/tabel **tidak** ditulis di sini;
 keduanya milik stage post-Pandoc.
+
+Referensi: https://pandoc.org/MANUAL.html
 """
 
 import re
@@ -97,17 +98,16 @@ def _raw_openxml(xml: str) -> str:
 
 
 def page_break() -> str:
-    """Raw block page break yang setara dengan ``pagebreak()`` docx.lua."""
+    """Raw block OpenXML berisi satu paragraf dengan page break."""
 
     return _raw_openxml(PAGE_BREAK_XML)
 
 
 def spacer(twips: int) -> str:
-    """Jarak vertikal eksplisit, bukan deretan ``<w:p/>`` kosong.
+    """Jarak vertikal eksplisit dalam twip, bukan deretan ``<w:p/>`` kosong.
 
-    ``docx.lua`` menerjemahkan 640 twip menjadi dua paragraf kosong (360 twip
-    per baris). Stage ini menulis satu paragraf dengan ``w:spacing`` eksplisit
-    agar jumlah jarak tidak bergantung pada ukuran font/style Normal.
+    Satu paragraf dengan ``w:spacing/@w:before`` eksplisit dipakai agar jumlah
+    jarak tidak bergantung pada ukuran font/style Normal.
     """
 
     if twips <= 0:
@@ -138,7 +138,7 @@ def _logo_destination(path: str | Path) -> str:
 
 
 def _lecturer_label(label: str) -> str:
-    """Normalisasi label dosen seperti cabang ``lecturer_label`` docx.lua."""
+    """Normalisasi label dosen: tambahkan titik dua dan spasi bila belum ada."""
 
     text = label.strip()
     if not text:
@@ -217,6 +217,8 @@ def _render_cover(
     include_logo: bool,
     logo: str | Path | None,
 ) -> str:
+    """Bangun blok Markdown sampul dari metadata, struktur, dan logo opsional."""
+
     metadata = document.metadata
     blocks: list[str] = []
 
@@ -273,6 +275,13 @@ def _read_template(
     *,
     document: Document,
 ) -> str:
+    """Baca, render, dan tambahkan page break pada template front matter.
+
+    Path template dibatasi ke ``structure.template_dir``. Melempar
+    ``FrontMatterError`` bila template tidak dideklarasikan, keluar direktori,
+    tidak ada, atau tidak dapat dibaca.
+    """
+
     if not template_name:
         raise FrontMatterError(
             "front_matter source template tidak memiliki key 'template'",
@@ -382,6 +391,8 @@ def _render_item(
     include_logo: bool,
     logo: str | Path | None,
 ) -> str | None:
+    """Render satu item front matter; ``None`` untuk item yang ditulis post-Pandoc."""
+
     item_id = item.id
     source = item.source
 

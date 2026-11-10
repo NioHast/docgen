@@ -1,14 +1,15 @@
 """Helper kanonis paragraf DOCX: body, style, level, teks, dan atribut.
 
-Modul ini menyatukan pembacaan ``w:body`` beserta child langsungnya, style dan
-level heading paragraf, ekstraksi teks paragraf, penghapusan child langsung,
-serta pembacaan atribut bilangan bulat. Implementasi sebelumnya terduplikasi di
-``bookmarks``, ``captions``, ``layout``, ``sections``, ``tables``, ``terms``,
-``xml``, dan beberapa stage.
+Modul ini adalah sumber tunggal pembacaan ``w:body`` beserta child langsungnya,
+style dan level heading paragraf, ekstraksi teks paragraf, penghapusan child
+langsung, serta pembacaan atribut bilangan bulat. Modul DOCX lain dan stage
+memakai helper ini, bukan menduplikasi traversal paragraf.
 
 Semua fungsi bekerja pada elemen ``lxml`` hidup dan tidak melakukan I/O
 package. ``xml.py`` tetap menjadi primitif parse/serialisasi dan tidak boleh
 mengimpor modul ini.
+
+Referensi: https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.wordprocessing?view=openxml-3.0.1
 """
 
 import re

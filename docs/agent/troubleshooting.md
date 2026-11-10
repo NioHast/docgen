@@ -10,6 +10,21 @@ uv run --project <repo> docgen doctor
 Perintah itu memeriksa Python, Pandoc, Word, dan `mmdc`. Exit code 1 berarti
 dependensi wajib belum lengkap.
 
+## Daftar isi
+
+- [Caption tabel atau gambar](#caption-tabel-atau-gambar)
+- [`mmdc` tidak ditemukan atau gagal render](#mmdc-tidak-ditemukan-atau-gagal-render)
+- [Pandoc tidak ditemukan](#pandoc-tidak-ditemukan)
+- [Python terlalu lama](#python-terlalu-lama)
+- [`ruamel.yaml` atau YAML tidak valid](#ruamelyaml-atau-yaml-tidak-valid)
+- [Word atau PDF](#word-atau-pdf)
+- [Debian dan Linux](#debian-dan-linux)
+- [Path dan aset](#path-dan-aset)
+- [Output terkunci atau gagal ditulis](#output-terkunci-atau-gagal-ditulis)
+- [Istilah dan review file](#istilah-dan-review-file)
+- [Reconcile](#reconcile)
+- [Bantuan lanjutan](#bantuan-lanjutan)
+
 ## Caption tabel atau gambar
 
 Gejala:
@@ -214,4 +229,4 @@ manifest, atau Markdown. Terapkan sendiri perubahan yang disetujui ke
 - Gunakan `--keep` untuk mempertahankan `.laporan-build/` dan intermediate
   DOCX.
 - Baca [document-format.md](document-format.md) untuk aturan sumber.
-- Baca [docs/dev/pipeline.md](../dev/pipeline.md) untuk urutan stage.
+- Baca [docs/dev/pipeline/stages.md](../dev/pipeline/stages.md) untuk urutan stage.

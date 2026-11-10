@@ -1,5 +1,10 @@
 """Normalisasi metadata front matter ``document.md``.
 
+API masuk adalah :func:`normalize_metadata`, dengan helper publik
+:func:`normalize_authors` dan :func:`normalize_keywords`. Semua error bentuk,
+nilai wajib, dan kombinasi field dilempar sebagai ``MetadataError`` dengan kode
+``CFG-*``; input tidak dimutasi.
+
 Semua aturan bentuk penulis, NIM, abstrak, dan kata kunci berada di sini agar
 ``document.py`` hanya mengurus potongan front matter/body dan validasi silang
 dengan struktur.
@@ -71,6 +76,8 @@ def _text(
     required: bool = False,
     allow_number: bool = True,
 ) -> str | None:
+    """Ambil teks wajib/opsional; angka boleh dikonversi bila diizinkan."""
+
     if value is None:
         if required:
             raise _error(f"kunci '{key}' wajib diisi", code="CFG-REQUIRED", key=key, source=source)
@@ -220,7 +227,12 @@ def normalize_authors(
     top_level_nim: Any = None,
     source: object,
 ) -> tuple[Author, ...]:
-    """Normalisasi ``author`` scalar/mapping/list dan aturan NIM."""
+    """Normalisasi ``author`` scalar/mapping/list dan aturan NIM.
+
+    Mengembalikan tuple ``Author`` berurutan. NIM tingkat atas hanya boleh
+    dipakai untuk satu author dan tidak boleh bertentangan dengan NIM entri;
+    pelanggaran melempar ``MetadataError``.
+    """
 
     if value is None:
         raise _error(
@@ -296,7 +308,13 @@ def _report_name(value: Any, *, source: object) -> str:
 
 
 def normalize_metadata(front_matter: Mapping[str, Any], *, source: object) -> Metadata:
-    """Bangun ``Metadata`` dari front matter yang sudah lolos skema kunci."""
+    """Bangun ``Metadata`` tervalidasi dari front matter.
+
+    Semua field opsional dinormalisasi; ``report_name`` wajib dan harus aman
+    sebagai nama berkas. ``keywords``/``keywords_en`` mensyaratkan abstrak
+    pasangannya. Melempar ``MetadataError`` dengan kode ``CFG-*`` pada tipe,
+    nilai wajib, atau kombinasi field yang tidak valid; input tidak dimutasi.
+    """
 
     title = _text(
         front_matter.get("title"),

@@ -1,7 +1,5 @@
 # Struktur tugas/laporan mata kuliah UNDIP MSI.
-# Sumber urutan: structures/assignment.yml lama.
-# Penomoran dan cover mengikuti pemetaan lama formats/undip-msi/format.yml:
-# assignment -> preset undip-msi-proposal (Arab bertitik, dosen tidak tampil).
+# Penomoran arab bertitik; cover tanpa dosen pembimbing dan logo 4,7 cm.
 format: undip-msi
 
 front_matter:
@@ -26,8 +24,7 @@ lists:
   figures: false
   tables: false
 
-# Override cover mengikuti preset proposal lama; assignment tidak menampilkan
-# dosen (`show_lecturer: false`).
+# Assignment tidak menampilkan dosen (`show_lecturer: false`).
 cover:
   show_lecturer: false
   logo_width: 4.7cm

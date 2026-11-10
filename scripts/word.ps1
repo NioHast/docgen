@@ -35,6 +35,8 @@
     Mengembalikan exit code 0 hanya bila Word melaporkan sukses, DOCX/PDF
     benar-benar terbentuk, dan ukurannya tidak nol. Kegagalan apa pun
     menghasilkan exit code 1.
+
+    Referensi: https://learn.microsoft.com/en-us/office/vba/api/overview/word
 #>
 [CmdletBinding()]
 param(

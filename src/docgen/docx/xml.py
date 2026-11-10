@@ -2,6 +2,8 @@
 
 Semua parsing dan serialisasi XML untuk package melewati modul ini. Fungsi
 container memutasi elemen yang diberikan; fungsi teks dan canonical murni.
+
+Referensi: https://ecma-international.org/publications-and-standards/standards/ecma-376/
 """
 
 import copy

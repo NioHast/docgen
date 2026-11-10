@@ -1,8 +1,7 @@
 """Titik masuk CLI fitur Adeu.
 
 ``register_reconcile`` mendaftarkan subperintah ``reconcile`` pada parser
-``docgen`` milik WS2 tanpa mengedit ``src/docgen/cli.py``. Pemanggil di
-``docgen.cli`` cukup:
+``docgen`` yang diberikan. Pemanggil di ``docgen.cli`` cukup:
 
 ```python
 from .adeu.cli import register_reconcile

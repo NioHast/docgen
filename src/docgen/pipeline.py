@@ -1,7 +1,25 @@
 """Orkestrasi pipeline ``docgen``.
 
-Satu ``Pipeline`` menjalankan seluruh stage kanonik, satu ``DocumentPackage``
-dimuat oleh stage ``pandoc`` dan disimpan tepat satu kali sebelum ``office``.
+API masuk utama adalah :class:`Pipeline` dan :meth:`Pipeline.run`, yang
+menerima path ``document.md`` serta :class:`BuildOptions` dan mengembalikan
+:class:`BuildResult`. Satu pass memuat dokumen, menjalankan stage sesuai
+``CANONICAL_ORDER``, lalu menyimpan ``DocumentPackage`` hasil stage ``pandoc``
+tepat satu kali sebelum stage ``office`` dan ``pdf``.
+
+Invariant:
+
+- urutan, ``requires``, dan ``mutates`` stage divalidasi oleh
+  :func:`validate_stage_order`;
+- stage sebelum ``office`` hanya memutasi package di memori;
+- manifest Adeu disiapkan sebelum save dan ditulis setelah save;
+- bookmark ``pNNNN`` diverifikasi ulang setelah Word;
+- workspace dihapus di blok ``finally`` kecuali ``keep`` aktif.
+
+Modul ini tidak memuat aturan format dokumen, tidak menjalankan Pandoc/Word
+secara langsung, dan tidak menulis output di luar kontrak stage. Dokumen
+kontrak ada di ``docs/dev/pipeline/overview.md``.
+
+Referensi: https://docs.python.org/3.15/reference/
 """
 
 import logging
@@ -235,7 +253,14 @@ _KNOWN_PARTS = frozenset(
 
 
 def validate_stage_order(stages: Sequence[StageSpec] = CANONICAL_STAGES) -> None:
-    """Tegakkan urutan kanonik dan guard keras dari kontrak stage."""
+    """Validasi daftar stage terhadap urutan dan guard kanonik.
+
+    Melempar :class:`StageOrderError` bila nama duplikat, urutan atau nilai
+    ``order`` tidak sesuai ``CANONICAL_ORDER``, ``requires`` bukan prefix
+    kanonik, ``mutates`` memuat part tidak dikenal, atau deklarasi
+    ``idempotent`` melanggar pengecualian ``office``/``pdf``. Argumen tidak
+    dimutasi.
+    """
 
     names = [spec.name for spec in stages]
     if len(names) != len(set(names)):
@@ -513,8 +538,8 @@ def _platform_name() -> str:
 def _find_word() -> str | None:
     if _platform_name() != "windows":
         return None
-    # Adapter Word milik WS8 juga menghormati DOCGEN_WINWORD; pakai deteksi
-    # yang sama agar keputusan target PDF dan stage office konsisten.
+    # Deteksi memakai find_word_executable (termasuk override DOCGEN_WINWORD)
+    # agar keputusan target PDF dan stage office konsisten.
     try:
         from .stages.office import find_word_executable
 
@@ -550,7 +575,12 @@ def _find_word() -> str | None:
 
 
 def _resolve_target(options: BuildOptions) -> tuple[Literal["docx", "pdf", "both"], list[str]]:
-    """Terapkan aturan target Windows/Debian dari kontrak CLI."""
+    """Turunkan target efektif dan peringatan platform dari kontrak CLI.
+
+    Target ``pdf``/``both`` di non-Windows atau tanpa Word dapat diturunkan
+    menjadi ``docx`` bila ``allow_missing_word`` aktif, atau melempar
+    :class:`ToolMissingError` bila output yang diminta tidak mungkin dibuat.
+    """
 
     warnings: list[str] = []
     if options.target == "docx":
@@ -739,6 +769,15 @@ def _verify_bookmarks(docx_path: Path, expected: tuple[str, ...]) -> None:
 
 
 class Pipeline:
+    """Jalankan rangkaian stage kanonik untuk satu dokumen.
+
+    ``stages`` opsional dipakai untuk injeksi saat pengujian; bila ``None``,
+    daftar stage bawaan dimuat dari :mod:`docgen.stages`. Konstruktor
+    memvalidasi nama, order, ``requires``, ``mutates``, dan ``idempotent``
+    terhadap kontrak kanonik lalu melempar :class:`StageOrderError` bila ada
+    yang tidak cocok.
+    """
+
     def __init__(self, stages: Sequence[type[BaseStage]] | None = None) -> None:
         stage_classes = _default_stage_classes() if stages is None else tuple(stages)
         self.specs: tuple[StageSpec, ...] = _specs_for_classes(stage_classes)
@@ -756,7 +795,13 @@ class Pipeline:
         output_dir: Path,
         workspace: Workspace | None = None,
     ) -> StageContext:
-        """Bangun konteks untuk seluruh stage dalam satu pass."""
+        """Bangun konteks untuk seluruh stage dalam satu pass.
+
+        Workspace default berada di ``.laporan-build`` samping dokumen dan baru
+        dibuat saat ``Workspace.ensure`` dipanggil. Konteks awal belum memiliki
+        package; stage ``pandoc`` mengisinya. Tidak ada berkas output yang
+        ditulis di sini.
+        """
 
         effective_workspace = workspace or Workspace(
             root=(project.document.path.parent / ".laporan-build").resolve(),
@@ -792,6 +837,13 @@ class Pipeline:
         stages: Sequence[BaseStage],
         ctx: StageContext,
     ) -> None:
+        """Jalankan stage berurutan dan catat hasilnya ke report konteks.
+
+        Stage yang dinonaktifkan dicatat sebagai ``skipped``. Exception
+        ``DocgenError`` diteruskan; exception lain dibungkus menjadi
+        :class:`StageError` dengan kode ``STAGE-UNHANDLED``.
+        """
+
         for stage in stages:
             spec = self._spec_by_name[stage.name]
             if not stage.enabled(ctx):
@@ -826,6 +878,22 @@ class Pipeline:
             )
 
     def run(self, document_path: str | Path, options: BuildOptions) -> BuildResult:
+        """Jalankan build penuh untuk ``document_path``.
+
+        Memuat project, menerapkan aturan target platform, menjalankan stage
+        sebelum dan sesudah save, lalu mengembalikan :class:`BuildResult` yang
+        hanya memuat path output benar-benar ada. Target dapat diturunkan
+        (misalnya ``both`` menjadi ``docx``) dan peringatannya diteruskan ke
+        hasil.
+
+        Melempar ``DocumentError``/``ConfigError`` saat input tidak valid,
+        :class:`ToolMissingError` saat Word tidak tersedia untuk target yang
+        meminta PDF, :class:`StageError` saat stage gagal, dan
+        :class:`OutputError` saat workspace atau output tidak dapat ditulis.
+        Workspace selalu dibersihkan di ``finally`` kecuali ``options.keep``
+        bernilai benar.
+        """
+
         project = load_project(document_path)
         target, target_warnings = _resolve_target(options)
         run_options = options if target == options.target else replace(options, target=target)

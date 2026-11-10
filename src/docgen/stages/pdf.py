@@ -33,6 +33,14 @@ class PdfStage(BaseStage):
         return target in {"pdf", "both"}
 
     def run(self, ctx: object) -> StageResult:
+        """Ekspor DOCX final ke PDF memakai Word.
+
+        Mengembalikan ``skipped`` bila target tidak meminta PDF atau Word
+        tidak ada dengan ``--allow-missing-word``. Melempar
+        ``ToolMissingError`` untuk target PDF tanpa Word dan ``PdfError`` bila
+        ekspor atau validasi hasil gagal.
+        """
+
         started = time.monotonic()
         if not self.enabled(ctx):
             return StageResult(

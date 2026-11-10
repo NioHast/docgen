@@ -3,6 +3,20 @@
 Panduan ini merangkum aturan prosa yang dipakai repo. Sumber pola pemeriksa
 ada di `tools/dev/rules.yml`; jangan menyalin regex ke berkas lain.
 
+## Daftar isi
+
+- [Kontrak yang tidak berubah](#kontrak-yang-tidak-berubah)
+- [Nada](#nada)
+- [Kalimat dan paragraf](#kalimat-dan-paragraf)
+- [Klaim dan sitasi](#klaim-dan-sitasi)
+- [Istilah asing](#istilah-asing)
+- [Glosarium](#glosarium)
+- [Menjalankan pemeriksa prosa](#menjalankan-pemeriksa-prosa)
+- [Audit istilah DOCX](#audit-istilah-docx)
+- [Kode temuan](#kode-temuan)
+- [Presedensi](#presedensi)
+- [Contoh](#contoh)
+
 ## Kontrak yang tidak berubah
 
 1. Fakta, angka, satuan, sitasi, kutipan, nama, dan arah hubungan tidak boleh
@@ -89,7 +103,7 @@ tinjauan, bukan kegagalan build. Keputusan tetap di penulis: ganti dengan
 istilah yang benar atau tambahkan entri glosarium, lalu build ulang.
 
 Tanpa `--terms`, tidak ada penerapan istilah dan tidak ada review file.
-Rincian ada di [docs/dev/terms.md](../dev/terms.md).
+Rincian ada di [docs/dev/docx/terms.md](../dev/docx/terms.md).
 
 ## Menjalankan pemeriksa prosa
 

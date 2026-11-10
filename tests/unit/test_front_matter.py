@@ -1,4 +1,4 @@
-"""Tes unit stage ``front_matter`` dan perilaku cover/docx.lua yang diport."""
+"""Tes unit stage ``front_matter`` dan perilaku cover."""
 
 import re
 from collections.abc import Mapping
@@ -132,7 +132,7 @@ def test_cover_identitas_logo_dan_dosen() -> None:
 def test_cover_author_scalar_tidak_dipecah_menjadi_tiga() -> None:
     output = _render({"author": "Nama Mahasiswa"})
 
-    # Bug lama: author scalar menjadi tiga CoverName (Nama, Mahasiswa, ...).
+    # Author scalar harus menjadi satu CoverName, bukan tiga entri.
     assert output.count('custom-style="CoverName"') == 1
     assert output.count("**Nama Mahasiswa**") == 1
     assert "**Nama**" not in output
@@ -168,7 +168,7 @@ def test_cover_title_split_menggunakan_dua_baris() -> None:
     output = _render()
     title_block = _block(output, "CoverTitle")
 
-    # Paritas dengan docx.lua/balance_title untuk judul yang sama.
+    # Judul panjang dipecah seimbang menjadi dua baris.
     assert title_block == (
         "OPTIMASI PIPELINE PEMROSESAN DOKUMEN  \nMARKDOWN UNTUK LAPORAN TUGAS AKHIR"
     )
@@ -248,7 +248,7 @@ def test_section_break_memakai_margin_format_yml() -> None:
     assert 'w:left="2268"' in output
     assert 'w:header="720"' in output
     assert 'w:footer="720"' in output
-    # Default Lua lama tidak boleh dipakai.
+    # Nilai default berasal dari ``format.yml``, bukan bawaan Word.
     assert 'w:top="1134"' not in output
     assert 'w:right="1417"' not in output
 

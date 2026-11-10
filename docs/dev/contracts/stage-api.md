@@ -8,6 +8,21 @@ WS15 (pipeline Fase 3), lane stage masing-masing.
 **Rujukan:** `docs/dev/archive/restructure-plan.md` v0.13, bagian P0.2, 2.2, 2.4, 2.5,
 WS2, WS15, dan 14.
 
+## Daftar isi
+
+- [1. Prinsip](#1-prinsip)
+- [2. Protokol `Stage`](#2-protokol-stage)
+- [3. Urutan kanonik](#3-urutan-kanonik)
+- [4. `StageContext`](#4-stagecontext)
+- [5. Daftar stage dan tanggung jawab](#5-daftar-stage-dan-tanggung-jawab)
+- [6. Pipeline](#6-pipeline)
+- [7. Error](#7-error)
+- [8. Idempotensi](#8-idempotensi)
+- [9. Logging](#9-logging)
+- [10. Side effect](#10-side-effect)
+- [11. CLI contract](#11-cli-contract)
+- [12. Acceptance](#12-acceptance)
+
 ## 1. Prinsip
 
 - Satu orchestrator: `docgen.pipeline.Pipeline`.

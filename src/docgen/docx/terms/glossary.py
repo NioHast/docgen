@@ -65,7 +65,7 @@ class Glossary:
 def load_glossary(path: str | Path) -> Glossary:
     """Baca TSV dengan header wajib ``term<TAB>italic``.
 
-    Setiap baris harus memiliki tepat dua kolom. Header lama dengan kolom
+    Setiap baris harus memiliki tepat dua kolom. Header dengan kolom
     ``gloss_first``/``status`` ditolak agar format glosarium seragam.
     """
 

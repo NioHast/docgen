@@ -10,6 +10,8 @@ Section pada OOXML diakhiri oleh ``w:sectPr``. Section terakhir memakai
 ``w:sectPr`` di akhir ``w:body``; section lain memakai ``w:sectPr`` di dalam
 ``w:pPr`` paragraf pemutus. Model :class:`Section` memakai indeks child
 langsung ``w:body`` agar stabil untuk pembacaan dan penyisipan.
+
+Referensi: https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.wordprocessing?view=openxml-3.0.1
 """
 
 import copy

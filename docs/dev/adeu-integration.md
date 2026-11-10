@@ -5,6 +5,16 @@ bookmark paragraf, menulis manifest, memetakan sumber Markdown, dan
 menyediakan perintah `reconcile`. Bookmark dan manifest dibuat sebagai hook di
 dalam pass package, bukan stage kanonik.
 
+## Daftar isi
+
+- [Bookmark `pNNNN`](#bookmark-pnnnn)
+- [Manifest](#manifest)
+- [Paragraf terlindungi](#paragraf-terlindungi)
+- [Source scan](#source-scan)
+- [Flag build](#flag-build)
+- [Reconcile](#reconcile)
+- [Batasan](#batasan)
+
 ## Bookmark `pNNNN`
 
 Setelah stage `lists` dan sebelum package disimpan, setiap paragraf body

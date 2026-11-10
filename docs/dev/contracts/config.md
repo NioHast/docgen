@@ -9,6 +9,16 @@ Kontrak ini menetapkan satu sumber kebenaran untuk setiap nilai. Tidak ada
 nilai visual di `structure.yml`, tidak ada urutan bab di `format.yml`, dan
 tidak ada nilai format di front matter `document.md`.
 
+## Daftar isi
+
+- [1. Prinsip](#1-prinsip)
+- [2. `format.yml`](#2-formatyml)
+- [3. `structure.yml`](#3-structureyml)
+- [4. Front matter `document.md`](#4-front-matter-documentmd)
+- [5. Validasi lintas berkas](#5-validasi-lintas-berkas)
+- [6. Migrasi dari skema lama](#6-migrasi-dari-skema-lama)
+- [7. Acceptance](#7-acceptance)
+
 ## 1. Prinsip
 
 ### 1.1 Tiga lapis

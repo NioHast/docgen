@@ -203,6 +203,8 @@ def _strip_prefix_from_runs(
     runs: list[etree._Element],
     prefix: str,
 ) -> list[etree._Element]:
+    """Hapus ``prefix`` dari salinan run teks dan buang tab/break kosong di awal."""
+
     remaining = len(prefix)
     result: list[etree._Element] = []
     for run in runs:
