@@ -12,6 +12,7 @@
 - [1. Keputusan final](#1-keputusan-final)
 - [2. Target struktur](#2-target-struktur)
 - [3. Fase dan task](#3-fase-dan-task)
+  - [Fase 3.5 - Zero fallback](#fase-35---zero-fallback)
 - [4. Parallel execution map](#4-parallel-execution-map)
 - [5. Acceptance global](#5-acceptance-global)
 - [6. Keputusan yang telah dikonfirmasi](#6-keputusan-yang-telah-dikonfirmasi)
@@ -481,6 +482,23 @@ Urutan eksekusi:
 
 Acceptance fase: tidak ada perubahan output; golden c14n thesis lulus; unit test lulus; Word test untuk field dan list lulus di Windows.
 
+### Fase 3.5 - Zero fallback
+
+Tujuan: menghapus jalur cadangan diam-diam agar satu input menghasilkan satu output dan error menunjuk penyebab sebenarnya.
+
+| ID | Task | File | Dependency | Acceptance | Lane |
+| --- | --- | --- | --- | --- | --- |
+| Z1 | Pandoc wajib artifact `markdown` | `src/docgen/stages/pandoc.py`, `tests/unit/test_pandoc_stage.py`, tests terkait | N4 | `_markdown_path` hanya menerima artifact `markdown`; fallback `workspace/front_matter.md` hilang; tidak ada file cadangan yang dibaca; `PANDOC-INPUT` dipertahankan. | Z |
+| Z2 | Satu sumber `content_width` | `src/docgen/docx/layout.py`, `src/docgen/docx/tables.py`, `src/docgen/stages/equations.py`, tests | R4 | Hanya satu fungsi/konstanta lebar konten; fallback 9072/9360 dan `DEFAULT_RIGHT_TAB_TWIPS` 9072 dihapus atau diturunkan dari satu sumber; lebar tidak tersedia → error domain, bukan angka tebakan. | Z |
+| Z3 | Path reconcile tunggal | `src/docgen/adeu/reconcile.py`, `src/docgen/adeu/cli.py`, tests | N2 | `_default_docx_path` tidak mencoba `out/` lalu folder dokumen; path dihitung dari aturan output yang sama dengan build atau diberikan eksplisit; DOCX tidak ada → `ReconcileError` jelas. | Z |
+| Z4 | Sumber front matter tunggal | `src/docgen/stages/front_matter.py`, `src/docgen/stages/pandoc.py`, tests | Z1 | `_markdown_source` hanya membaca satu artifact yang dideklarasikan (bukan `markdown` lalu `mermaid.markdown` lalu `ctx.document.body`); tidak ada dual artifact; error `FRONT-MATTER-INPUT` bila sumber tidak ada. | Z |
+
+Catatan:
+
+- `Z5` sudah selesai di N3: loader hanya mencari `scripts/word.ps1`; env override `DOCGEN_WORD_SCRIPT` hanya untuk tes.
+- Urutan eksekusi: Z1 → Z4 berurutan; Z2 dan Z3 boleh paralel dengan Z1 karena file-disjoint (pandoc vs layout/tables/equations vs adeu).
+- Acceptance fase: output thesis identik (38/38 part XML), unit + integration lulus, tidak ada fallback yang tersisa di grep.
+
 ### Fase 4 - Fields dan split module
 
 Tujuan: satu parser field, satu boundary section, satu package terms, dan keputusan config yang terukur.
@@ -691,3 +709,11 @@ Item berikut telah dikonfirmasi pada 2026-11-10 dengan pilihan rekomendasi di ba
 | 5. Naming moves | Semua move atau subset | Lakukan semua: headings, adeu, scripts, captions | Keempatnya memperbaiki lapisan dan menghilangkan nama menyesatkan. Tidak ada alasan kuat untuk menyisakan subset. | Subset membuat struktur target tidak konsisten dan menyisakan tech debt. | **confirmed** |
 
 Kelima keputusan telah dikonfirmasi dan dicatat di P0.2 serta [ADR 0008](decisions/0008-refactor-boundaries.md). Setelah tag baseline, perubahan pilihan harus melalui ADR baru, bukan perubahan di tengah fase.
+
+Keputusan tambahan yang telah dikonfirmasi:
+
+- Zero fallback Z1-Z4 disetujui dan dijadwalkan sebelum Fase 4; Z5 sudah selesai.
+- DOCX tanpa Word memakai Opsi A: TOC kosong + peringatan; docgen tidak menulis `w:updateFields`; helper `update_fields_enabled`/`strip_update_fields` yang tidak dipakai dihapus.
+- Split `config.py` (F5) hanya dilakukan bila >1.500 LOC atau sulit dites; keputusan dan alasan dicatat saat gate.
+- `docs/dev/archive` dihapus pada G4; riwayat tetap tersedia di git.
+- Tidak ada backend PDF baru (LibreOffice/Aspose); Word tetap default karena fidelity pagination. Backend alternatif hanya lewat keputusan baru di luar plan.
