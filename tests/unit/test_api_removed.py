@@ -17,14 +17,14 @@ from docgen.stages import (
 )
 
 
-def test_layout_api_mati_hilang() -> None:
+def test_layout_dead_api_is_removed() -> None:
     for name in ("read_document", "write_document", "is_deleted"):
         assert not hasattr(layout, name)
     for name in ("paragraphs", "skipped_style", "skipped_field"):
         assert not hasattr(layout.LayoutReport, name)
 
 
-def test_duplikat_paragraf_hilang_dari_modul_lain() -> None:
+def test_duplicate_paragraph_is_removed_from_other_modules() -> None:
     for name in ("document_body", "heading_level", "paragraph_style_id", "paragraph_text"):
         assert not hasattr(layout, name)
     assert not hasattr(layout, "content_width")
@@ -46,7 +46,7 @@ def test_duplikat_paragraf_hilang_dari_modul_lain() -> None:
     assert not hasattr(xml, "paragraph_text")
 
 
-def test_terms_api_mati_hilang() -> None:
+def test_terms_dead_api_is_removed() -> None:
     for name in ("term_count", "review_count"):
         assert not hasattr(terms.TermsReport, name)
     for name in ("failures", "direct_formatting"):
@@ -55,7 +55,7 @@ def test_terms_api_mati_hilang() -> None:
         assert not hasattr(terms, name)
 
 
-def test_alias_stage_markdown_dan_adeu_hilang() -> None:
+def test_markdown_and_adeu_stage_aliases_are_removed() -> None:
     removed = {
         equations: (
             "FormatEquationsReport",
@@ -89,11 +89,11 @@ def test_alias_stage_markdown_dan_adeu_hilang() -> None:
             assert not hasattr(module, name), f"{module.__name__} masih punya {name}"
 
 
-def test_stage_spec_tanpa_owner() -> None:
+def test_stage_spec_without_owner() -> None:
     assert "owner" not in {field.name for field in fields(pipeline.StageSpec)}
 
 
-def test_docx_package_level_helper_baru_tersedia() -> None:
+def test_docx_package_level_new_helpers_are_available() -> None:
     from docgen.docx import (
         PAGE_SIZES,
         PageError,
@@ -146,7 +146,7 @@ def test_docx_package_level_helper_baru_tersedia() -> None:
         assert helper is not None
 
 
-def test_docx_package_level_field_dan_heading_tersedia() -> None:
+def test_docx_package_level_field_and_heading_are_available() -> None:
     from docgen.docx import (
         FieldMarkerKind,
         FieldPosition,

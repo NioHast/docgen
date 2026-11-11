@@ -310,7 +310,7 @@ def test_image_escape_rejected(tmp_path: Path) -> None:
     assert error.value.code == "CFG-PATH-ESCAPE"
 
 
-def test_image_in_gambar_accepted(tmp_path: Path) -> None:
+def test_image_in_images_directory_accepted(tmp_path: Path) -> None:
     (tmp_path / "gambar").mkdir()
     (tmp_path / "gambar" / "diagram.png").write_bytes(b"\x89PNG\r\n\x1a\n")
     body = _ASSIGNMENT_BODY.replace(

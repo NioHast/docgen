@@ -146,7 +146,7 @@ def context(
 # ---------------------------------------------------------------------------
 
 
-def test_glossary_hanya_memuat_field_hidup(tmp_path: Path) -> None:
+def test_glossary_only_loads_live_fields(tmp_path: Path) -> None:
     path = write_glossary(tmp_path, [("training data", "yes")])
 
     glossary = load_glossary(path)
@@ -160,7 +160,7 @@ def test_glossary_hanya_memuat_field_hidup(tmp_path: Path) -> None:
     assert entry.italic is True
 
 
-def test_glossary_header_lama_ditolak(tmp_path: Path) -> None:
+def test_glossary_old_header_rejected(tmp_path: Path) -> None:
     path = tmp_path / "istilah.tsv"
     path.write_text(
         "term\titalic\tgloss_first\tstatus\ndata\tno\tno\tconfirmed\n",
@@ -174,7 +174,7 @@ def test_glossary_header_lama_ditolak(tmp_path: Path) -> None:
     assert error.value.code == "GLOSSARY-HEADER"
 
 
-def test_package_glossary_memuat_semua_entri() -> None:
+def test_package_glossary_loads_all_entries() -> None:
     path = paths.glossary_file()
     lines = [
         line
@@ -189,7 +189,7 @@ def test_package_glossary_memuat_semua_entri() -> None:
     assert "data" in glossary.entries
 
 
-def test_glossary_duplikat_dan_nilai_salah(tmp_path: Path) -> None:
+def test_glossary_duplicate_and_invalid_value(tmp_path: Path) -> None:
     path = write_glossary(
         tmp_path,
         [("data", "yes"), ("DATA", "no"), ("salah", "mungkin")],
@@ -203,7 +203,7 @@ def test_glossary_duplikat_dan_nilai_salah(tmp_path: Path) -> None:
     assert "italic harus" in message
 
 
-def test_match_terms_frasa_terpanjang_dan_batas_kata(tmp_path: Path) -> None:
+def test_match_terms_longest_phrase_and_word_boundary(tmp_path: Path) -> None:
     glossary = load_glossary(
         write_glossary(
             tmp_path,
@@ -218,7 +218,7 @@ def test_match_terms_frasa_terpanjang_dan_batas_kata(tmp_path: Path) -> None:
     assert [match.start for match in matches] == [0, 10]
 
 
-def test_merge_glossary_override_menang_per_frasa(tmp_path: Path) -> None:
+def test_merge_glossary_override_wins_per_phrase(tmp_path: Path) -> None:
     base = load_glossary(write_glossary(tmp_path, [("data", "no")], filename="base.tsv"))
     override = load_glossary(write_glossary(tmp_path, [("data", "yes")], filename="override.tsv"))
 
@@ -233,7 +233,7 @@ def test_merge_glossary_override_menang_per_frasa(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_apply_verify_dan_idempoten(tmp_path: Path) -> None:
+def test_apply_verify_and_idempotent(tmp_path: Path) -> None:
     glossary = load_glossary(
         write_glossary(
             tmp_path,
@@ -262,7 +262,7 @@ def test_apply_verify_dan_idempoten(tmp_path: Path) -> None:
     assert first.read_bytes() == second.read_bytes()
 
 
-def test_marker_menjadi_review_dan_teks_utuh(tmp_path: Path) -> None:
+def test_marker_becomes_review_and_text_intact(tmp_path: Path) -> None:
     glossary = load_glossary(write_glossary(tmp_path, []))
     document = Document()
     paragraph = document.add_paragraph()
@@ -287,7 +287,7 @@ def test_marker_menjadi_review_dan_teks_utuh(tmp_path: Path) -> None:
     assert verify_terms(package, glossary).violations == ()
 
 
-def test_verify_gagal_untuk_teks_biasa(tmp_path: Path) -> None:
+def test_verify_fails_for_plain_text(tmp_path: Path) -> None:
     glossary = load_glossary(write_glossary(tmp_path, [("training data", "yes")]))
     package = DocumentPackage.load(make_docx(tmp_path, ["training data"]))
 
@@ -297,7 +297,7 @@ def test_verify_gagal_untuk_teks_biasa(tmp_path: Path) -> None:
     assert "tanpa style IstilahAsing" in report.violations[0]
 
 
-def test_verify_gagal_untuk_penanda_tersisa(tmp_path: Path) -> None:
+def test_verify_fails_for_remaining_marker(tmp_path: Path) -> None:
     glossary = load_glossary(write_glossary(tmp_path, []))
     package = DocumentPackage.load(make_docx(tmp_path, ["Bagian {{?belum diputuskan?}}."]))
 
@@ -307,7 +307,7 @@ def test_verify_gagal_untuk_penanda_tersisa(tmp_path: Path) -> None:
     assert "masih ada penanda" in report.violations[0]
 
 
-def test_verify_gagal_italic_no_yang_miring(tmp_path: Path) -> None:
+def test_verify_fails_when_italic_no_text_is_slanted(tmp_path: Path) -> None:
     glossary = load_glossary(write_glossary(tmp_path, [("data", "no")]))
     document = Document()
     run = document.add_paragraph().add_run("data")
@@ -321,7 +321,7 @@ def test_verify_gagal_italic_no_yang_miring(tmp_path: Path) -> None:
     assert "seharusnya tegak" in report.violations[0]
 
 
-def test_external_hyperlink_dan_field_tidak_disentuh(tmp_path: Path) -> None:
+def test_external_hyperlink_and_field_untouched(tmp_path: Path) -> None:
     glossary = load_glossary(write_glossary(tmp_path, [("training data", "yes")]))
     document = Document()
 
@@ -352,14 +352,14 @@ def test_external_hyperlink_dan_field_tidak_disentuh(tmp_path: Path) -> None:
     assert texts == ["Awal training data akhir", "Awal training data akhir"]
 
 
-def test_marker_validasi() -> None:
+def test_marker_validation() -> None:
     assert [marker.content for marker in iter_markers("{{?satu?}}")] == ["satu"]
     for value in ("{{??}}", "{{? ?}}", "{{?tanpa penutup", "{{?a\nb?}}"):
         with pytest.raises(MarkerError):
             list(iter_markers(value))
 
 
-def test_resolver_style_terpadu(tmp_path: Path) -> None:
+def test_resolver_unified_style(tmp_path: Path) -> None:
     package = DocumentPackage.load(make_docx(tmp_path, ["data"]))
     ensure_styles(package)
 
@@ -375,7 +375,7 @@ def test_resolver_style_terpadu(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_stage_terms_off_tidak_menulis_review(tmp_path: Path) -> None:
+def test_stage_terms_off_does_not_write_review(tmp_path: Path) -> None:
     package = DocumentPackage.load(make_docx(tmp_path, ["training data"]))
     before = package.part("word/document.xml")
     ctx = context(tmp_path, package, terms=False)
@@ -390,7 +390,7 @@ def test_stage_terms_off_tidak_menulis_review(tmp_path: Path) -> None:
     assert not (tmp_path / ".laporan").exists()
 
 
-def test_stage_terms_on_override_user_menang(tmp_path: Path) -> None:
+def test_stage_terms_on_override_user_wins(tmp_path: Path) -> None:
     glossary_path = write_glossary(tmp_path, [("data", "yes")])
     package = DocumentPackage.load(make_docx(tmp_path, ["data dan data lain"]))
     ctx = context(tmp_path, package, terms=True, glossary=glossary_path)
@@ -407,7 +407,7 @@ def test_stage_terms_on_override_user_menang(tmp_path: Path) -> None:
     assert verify_terms(package, load_glossary(glossary_path)).violations == ()
 
 
-def test_stage_terms_gate_verify_gagal(tmp_path: Path, monkeypatch) -> None:
+def test_stage_terms_gate_verify_fails(tmp_path: Path, monkeypatch) -> None:
     glossary_path = write_glossary(tmp_path, [("training data", "yes")])
     package = DocumentPackage.load(make_docx(tmp_path, ["training data"]))
     ctx = context(tmp_path, package, terms=True, glossary=glossary_path)
@@ -427,14 +427,14 @@ def test_stage_terms_gate_verify_gagal(tmp_path: Path, monkeypatch) -> None:
     assert "verifikasi istilah gagal" in str(error.value)
 
 
-def test_stage_terms_tanpa_package(tmp_path: Path) -> None:
+def test_stage_terms_without_package(tmp_path: Path) -> None:
     ctx = context(tmp_path, package=None)  # type: ignore[arg-type]
 
     with pytest.raises(TermsError):
         TermsStage().run(ctx)
 
 
-def test_resolve_glossary_package_dan_user_override(tmp_path: Path) -> None:
+def test_resolve_glossary_package_and_user_override(tmp_path: Path) -> None:
     (tmp_path / "document.md").write_text("---\ntitle: x\n---\n", encoding="utf-8")
     write_glossary(tmp_path, [("data", "yes")])
 

@@ -113,7 +113,7 @@ def _block(output: str, style: str) -> str:
     return match.group(1)
 
 
-def test_cover_identitas_logo_dan_dosen() -> None:
+def test_cover_identity_logo_and_lecturer() -> None:
     output = _render()
 
     assert '::: {custom-style="CoverTitle"}' in output
@@ -129,7 +129,7 @@ def test_cover_identitas_logo_dan_dosen() -> None:
     assert "logo.jpg" in output
 
 
-def test_cover_author_scalar_tidak_dipecah_menjadi_tiga() -> None:
+def test_cover_author_scalar_not_split_into_three() -> None:
     output = _render({"author": "Nama Mahasiswa"})
 
     # Author scalar harus menjadi satu CoverName, bukan tiga entri.
@@ -139,7 +139,7 @@ def test_cover_author_scalar_tidak_dipecah_menjadi_tiga() -> None:
     assert "**Mahasiswa**" not in output
 
 
-def test_cover_author_list_nim_per_entri() -> None:
+def test_cover_author_list_nim_per_entry() -> None:
     output = _render(
         {
             "author": [
@@ -164,7 +164,7 @@ def test_cover_show_lecturer_false() -> None:
     assert "Dr. Nama Dosen Pengampu" not in output
 
 
-def test_cover_title_split_menggunakan_dua_baris() -> None:
+def test_cover_title_split_uses_two_lines() -> None:
     output = _render()
     title_block = _block(output, "CoverTitle")
 
@@ -174,7 +174,7 @@ def test_cover_title_split_menggunakan_dua_baris() -> None:
     )
 
 
-def test_cover_judul_dua_kata_panjang_tidak_crash() -> None:
+def test_cover_long_two_word_title_does_not_crash() -> None:
     long_title = ("A" * 30) + " " + ("B" * 30)
     output = _render({"title": long_title})
     title_block = _block(output, "CoverTitle")
@@ -182,7 +182,7 @@ def test_cover_judul_dua_kata_panjang_tidak_crash() -> None:
     assert title_block == ("A" * 30) + "  \n" + ("B" * 30)
 
 
-def test_approval_dan_statement_dari_template() -> None:
+def test_approval_and_statement_from_template() -> None:
     output = _render()
 
     assert "# LEMBAR PENGESAHAN {-}" in output
@@ -195,7 +195,7 @@ def test_approval_dan_statement_dari_template() -> None:
     assert "{{ title }}" not in output
 
 
-def test_abstract_id_keywords_scalar_dan_paragraf() -> None:
+def test_abstract_id_keywords_scalar_and_paragraph() -> None:
     output = _render()
 
     assert "# ABSTRAK {-}" in output
@@ -214,7 +214,7 @@ def test_abstract_en_keywords_list() -> None:
     assert "**Keywords:** *pipeline, DOCX*" in output
 
 
-def test_abstract_tanpa_judul_dan_memakai_style_khusus() -> None:
+def test_abstract_without_title_uses_custom_style() -> None:
     output = _render()
 
     abstract_id = output[output.index("# ABSTRAK {-}") : output.index("# ABSTRACT {-}")]
@@ -233,7 +233,7 @@ def test_abstract_tanpa_judul_dan_memakai_style_khusus() -> None:
     assert "**Keywords:** *pipeline, DOCX*" in abstract_en
 
 
-def test_urutan_front_matter_dan_tanpa_field_toc() -> None:
+def test_front_matter_order_and_no_toc_field() -> None:
     output = _render()
 
     positions = [
@@ -251,14 +251,14 @@ def test_urutan_front_matter_dan_tanpa_field_toc() -> None:
     assert "TOC \\c" not in output
 
 
-def test_page_break_antar_front_matter() -> None:
+def test_page_break_between_front_matter() -> None:
     output = _render()
 
     # Approval, statement, preface, abstract_id, abstract_en.
     assert output.count(PAGE_BREAK_XML) == 5
 
 
-def test_section_break_memakai_margin_format_yml() -> None:
+def test_section_break_uses_format_yml_margins() -> None:
     output = _render()
 
     assert 'w:top="2268"' in output
@@ -272,7 +272,7 @@ def test_section_break_memakai_margin_format_yml() -> None:
     assert 'w:right="1417"' not in output
 
 
-def test_section_break_menormalisasi_alias_ukuran_lama() -> None:
+def test_section_break_normalizes_legacy_size_alias() -> None:
     portrait = _render_with_page(size="LETTER", orientation="portrait")
     assert 'w:w="12240"' in portrait
     assert 'w:h="15840"' in portrait
@@ -295,7 +295,7 @@ def test_section_break_menormalisasi_alias_ukuran_lama() -> None:
         ("A4", "diagonal"),
     ],
 )
-def test_section_break_menolak_ukuran_atau_orientasi_tidak_valid(
+def test_section_break_rejects_invalid_size_or_orientation(
     size: str,
     orientation: str,
 ) -> None:
@@ -307,7 +307,7 @@ def test_section_break_menolak_ukuran_atau_orientasi_tidak_valid(
     assert orientation in str(excinfo.value)
 
 
-def test_spacer_adalah_spacing_eksplisit() -> None:
+def test_spacer_is_explicit_spacing() -> None:
     output = _render()
 
     assert output.count('w:spacing w:before="640"') == 3
@@ -315,13 +315,13 @@ def test_spacer_adalah_spacing_eksplisit() -> None:
     assert "spacer" not in output.lower()
 
 
-def test_spacer_twips_nol_kosong() -> None:
+def test_spacer_zero_twips_is_empty() -> None:
     assert spacer(0) == ""
     assert spacer(-1) == ""
     assert 'w:before="360"' in spacer(360)
 
 
-def test_heading_body_dinomori_sebelum_pandoc() -> None:
+def test_heading_body_numbered_before_pandoc() -> None:
     output = _render()
 
     assert "# BAB I`<w:br/>`{=openxml}PENDAHULUAN" in output
@@ -329,14 +329,14 @@ def test_heading_body_dinomori_sebelum_pandoc() -> None:
     assert "### 1.1.1.`<w:tab/>`{=openxml}Detail" in output
 
 
-def test_heading_arabic_dotted_untuk_assignment() -> None:
+def test_heading_arabic_dotted_for_assignment() -> None:
     output = _render(structure_id="assignment")
 
     assert "# 1. PENDAHULUAN" in output
     assert "## 1.1.`<w:tab/>`{=openxml}Latar Belakang" in output
 
 
-def test_template_mengganti_placeholder_dan_menolak_yang_tidak_dikenal() -> None:
+def test_template_replaces_placeholder_and_rejects_unknown() -> None:
     rendered = render_template("**Judul:** {{ title }}", {"title": "Contoh"})
     assert rendered == "**Judul:** Contoh"
 
@@ -344,7 +344,7 @@ def test_template_mengganti_placeholder_dan_menolak_yang_tidak_dikenal() -> None
         render_template("{{ tidak_ada }}", {"title": "Contoh"})
 
 
-def test_placeholder_terms_tidak_diubah() -> None:
+def test_placeholder_terms_unchanged() -> None:
     assert render_template("teks {{?istilah?}}", {"title": "x"}) == "teks {{?istilah?}}"
 
 
@@ -373,7 +373,7 @@ def _stage_context(
     )
 
 
-def test_stage_front_matter_menulis_markdown_idempoten(tmp_path: Path) -> None:
+def test_stage_front_matter_writes_markdown_idempotently(tmp_path: Path) -> None:
     stage = FrontMatterStage()
     ctx = _stage_context(tmp_path)
 
@@ -391,7 +391,7 @@ def test_stage_front_matter_menulis_markdown_idempoten(tmp_path: Path) -> None:
     assert path.read_text(encoding="utf-8") == text
 
 
-def test_stage_membaca_artifact_mermaid_bukan_body_dokumen(tmp_path: Path) -> None:
+def test_stage_reads_mermaid_artifact_not_document_body(tmp_path: Path) -> None:
     ctx = _stage_context(
         tmp_path,
         artifact_body="# Pendahuluan\n\nTeks dari artifact.\n",
@@ -405,7 +405,7 @@ def test_stage_membaca_artifact_mermaid_bukan_body_dokumen(tmp_path: Path) -> No
     assert "Teks dari body mentah." not in text
 
 
-def test_stage_menolak_artifact_mermaid_yang_hilang(tmp_path: Path) -> None:
+def test_stage_rejects_missing_mermaid_artifact(tmp_path: Path) -> None:
     ctx = _stage_context(tmp_path, with_mermaid=False)
 
     with pytest.raises(FrontMatterError) as excinfo:
@@ -415,7 +415,7 @@ def test_stage_menolak_artifact_mermaid_yang_hilang(tmp_path: Path) -> None:
     assert not ctx.workspace.path("front_matter.md").exists()
 
 
-def test_stage_menolak_artifact_mermaid_yang_menunjuk_file_tidak_ada(tmp_path: Path) -> None:
+def test_stage_rejects_mermaid_artifact_pointing_to_missing_file(tmp_path: Path) -> None:
     ctx = _stage_context(tmp_path, with_mermaid=False)
     missing = tmp_path / "mermaid-hilang.md"
     ctx.artifacts.put("mermaid.markdown", missing)
@@ -428,7 +428,7 @@ def test_stage_menolak_artifact_mermaid_yang_menunjuk_file_tidak_ada(tmp_path: P
     assert str(missing) in str(excinfo.value)
 
 
-def test_stage_menolak_artifact_mermaid_berupa_direktori(tmp_path: Path) -> None:
+def test_stage_rejects_mermaid_artifact_that_is_a_directory(tmp_path: Path) -> None:
     ctx = _stage_context(tmp_path, with_mermaid=False)
     directory = tmp_path / "mermaid-dir"
     directory.mkdir()
@@ -441,7 +441,7 @@ def test_stage_menolak_artifact_mermaid_berupa_direktori(tmp_path: Path) -> None
     assert excinfo.value.path == directory
 
 
-def test_stage_menolak_artifact_markdown_lama_tanpa_mermaid(tmp_path: Path) -> None:
+def test_stage_rejects_legacy_markdown_artifact_without_mermaid(tmp_path: Path) -> None:
     ctx = _stage_context(tmp_path, with_mermaid=False)
     legacy = tmp_path / "front_matter-lama.md"
     legacy.write_text(_BODY, encoding="utf-8", newline="\n")
@@ -453,7 +453,7 @@ def test_stage_menolak_artifact_markdown_lama_tanpa_mermaid(tmp_path: Path) -> N
     assert excinfo.value.code == "FRONT-MATTER-INPUT"
 
 
-def test_dokumen_tanpa_mermaid_tetap_bisa_melewati_front_matter(tmp_path: Path) -> None:
+def test_document_without_mermaid_can_still_pass_front_matter(tmp_path: Path) -> None:
     ctx = _stage_context(tmp_path, with_mermaid=False)
     ctx.document = replace(
         ctx.document,

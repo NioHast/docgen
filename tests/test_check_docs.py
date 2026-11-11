@@ -13,46 +13,46 @@ REGISTRY_VALID = """# Referensi
 """
 
 
-def _tulis(akar: Path, nama: str, teks: str) -> Path:
-    jalur = akar / nama
-    jalur.parent.mkdir(parents=True, exist_ok=True)
-    jalur.write_text(teks, encoding="utf-8")
-    return jalur
+def _write(root: Path, name: str, text: str) -> Path:
+    path = root / name
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+    return path
 
 
-def _tulis_registry(akar: Path, teks: str = REGISTRY_VALID) -> Path:
-    return _tulis(akar, "docs/dev/references.md", teks)
+def _write_registry(root: Path, text: str = REGISTRY_VALID) -> Path:
+    return _write(root, "docs/dev/references.md", text)
 
 
-def test_tautan_relatif_valid(tmp_path: Path) -> None:
-    _tulis(tmp_path, "docs/panduan.md", "# Panduan\n")
-    _tulis(
+def test_relative_links_valid(tmp_path: Path) -> None:
+    _write(tmp_path, "docs/panduan.md", "# Panduan\n")
+    _write(
         tmp_path,
         "README.md",
         "[Panduan](docs/panduan.md)\n[Bagian](docs/panduan.md#mulai)\n",
     )
 
-    hasil = check_docs.periksa_dokumen(tmp_path)
+    result = check_docs.periksa_dokumen(tmp_path)
 
-    assert hasil.berkas == 2
-    assert hasil.tautan == 2
-    assert hasil.masalah == ()
-
-
-def test_tautan_relatif_rusak_terdeteksi(tmp_path: Path) -> None:
-    _tulis(tmp_path, "README.md", "# Judul\n\n[Hilang](docs/hilang.md)\n")
-
-    hasil = check_docs.periksa_dokumen(tmp_path)
-
-    assert hasil.tautan == 1
-    assert len(hasil.masalah) == 1
-    assert hasil.masalah[0].berkas == "README.md"
-    assert hasil.masalah[0].baris == 3
-    assert "docs/hilang.md" in hasil.masalah[0].pesan
+    assert result.berkas == 2
+    assert result.tautan == 2
+    assert result.masalah == ()
 
 
-def test_url_eksternal_diabaikan(tmp_path: Path) -> None:
-    _tulis(
+def test_broken_relative_links_detected(tmp_path: Path) -> None:
+    _write(tmp_path, "README.md", "# Judul\n\n[Hilang](docs/hilang.md)\n")
+
+    result = check_docs.periksa_dokumen(tmp_path)
+
+    assert result.tautan == 1
+    assert len(result.masalah) == 1
+    assert result.masalah[0].berkas == "README.md"
+    assert result.masalah[0].baris == 3
+    assert "docs/hilang.md" in result.masalah[0].pesan
+
+
+def test_external_urls_ignored(tmp_path: Path) -> None:
+    _write(
         tmp_path,
         "README.md",
         "[Python](https://docs.python.org/3.15/)\n"
@@ -60,23 +60,23 @@ def test_url_eksternal_diabaikan(tmp_path: Path) -> None:
         "[Surel](mailto:contoh@example.com)\n",
     )
 
-    hasil = check_docs.periksa_dokumen(tmp_path)
+    result = check_docs.periksa_dokumen(tmp_path)
 
-    assert hasil.tautan == 0
-    assert hasil.masalah == ()
-
-
-def test_anchor_same_file_diabaikan(tmp_path: Path) -> None:
-    _tulis(tmp_path, "README.md", "[Bagian](#bagian)\n[Atas](#)\n")
-
-    hasil = check_docs.periksa_dokumen(tmp_path)
-
-    assert hasil.tautan == 0
-    assert hasil.masalah == ()
+    assert result.tautan == 0
+    assert result.masalah == ()
 
 
-def test_kode_fence_dan_inline_code_diabaikan(tmp_path: Path) -> None:
-    _tulis(
+def test_same_file_anchor_ignored(tmp_path: Path) -> None:
+    _write(tmp_path, "README.md", "[Bagian](#bagian)\n[Atas](#)\n")
+
+    result = check_docs.periksa_dokumen(tmp_path)
+
+    assert result.tautan == 0
+    assert result.masalah == ()
+
+
+def test_code_fence_and_inline_code_ignored(tmp_path: Path) -> None:
+    _write(
         tmp_path,
         "README.md",
         "`[inline](hilang-inline.md)`\n\n"
@@ -84,99 +84,99 @@ def test_kode_fence_dan_inline_code_diabaikan(tmp_path: Path) -> None:
         "[nyata](hilang-nyata.md)\n",
     )
 
-    hasil = check_docs.periksa_dokumen(tmp_path)
+    result = check_docs.periksa_dokumen(tmp_path)
 
-    assert hasil.tautan == 1
-    assert len(hasil.masalah) == 1
-    assert "hilang-nyata.md" in hasil.masalah[0].pesan
-
-
-def test_readme_di_luar_docs_dipindai(tmp_path: Path) -> None:
-    _tulis(tmp_path, "src/docgen/README.md", "# Modul\n\n[Panduan](panduan.md)\n")
-    _tulis(tmp_path, "src/docgen/panduan.md", "# Panduan\n")
-    _tulis(tmp_path, "src/docgen/docx/README.md", "# DOCX\n")
-    _tulis(tmp_path, "tests/README.md", "# Tes\n")
-    _tulis(tmp_path, "tools/README.md", "# Alat\n")
-    _tulis(tmp_path, "scripts/README.md", "# Skrip\n")
-
-    hasil = check_docs.periksa_dokumen(tmp_path)
-
-    assert hasil.berkas == 5
-    assert hasil.tautan == 1
-    assert hasil.masalah == ()
+    assert result.tautan == 1
+    assert len(result.masalah) == 1
+    assert "hilang-nyata.md" in result.masalah[0].pesan
 
 
-def test_tautan_rusak_di_readme_luar_docs_terdeteksi(tmp_path: Path) -> None:
-    _tulis(tmp_path, "tests/README.md", "# Tes\n\n[Hilang](hilang.md)\n")
+def test_readme_outside_docs_scanned(tmp_path: Path) -> None:
+    _write(tmp_path, "src/docgen/README.md", "# Modul\n\n[Panduan](panduan.md)\n")
+    _write(tmp_path, "src/docgen/panduan.md", "# Panduan\n")
+    _write(tmp_path, "src/docgen/docx/README.md", "# DOCX\n")
+    _write(tmp_path, "tests/README.md", "# Tes\n")
+    _write(tmp_path, "tools/README.md", "# Alat\n")
+    _write(tmp_path, "scripts/README.md", "# Skrip\n")
 
-    hasil = check_docs.periksa_dokumen(tmp_path)
+    result = check_docs.periksa_dokumen(tmp_path)
 
-    assert hasil.tautan == 1
-    assert len(hasil.masalah) == 1
-    assert hasil.masalah[0].berkas == "tests/README.md"
-    assert hasil.masalah[0].baris == 3
-    assert "hilang.md" in hasil.masalah[0].pesan
-
-
-def test_arsip_dikecualikan(tmp_path: Path) -> None:
-    _tulis(tmp_path, "docs/dev/archive/lama.md", "[Hilang](tidak-ada.md)\n")
-    _tulis(tmp_path, "src/docgen/README.md", "# Modul\n")
-
-    hasil = check_docs.periksa_dokumen(tmp_path)
-
-    assert hasil.berkas == 1
-    assert hasil.masalah == ()
+    assert result.berkas == 5
+    assert result.tautan == 1
+    assert result.masalah == ()
 
 
-def test_dokumen_panjang_tanpa_toc_terdeteksi(tmp_path: Path) -> None:
-    _tulis(tmp_path, "docs/panjang.md", "# Panjang\n\n" + "Isi paragraf.\n" * 160)
+def test_broken_links_in_readme_outside_docs_detected(tmp_path: Path) -> None:
+    _write(tmp_path, "tests/README.md", "# Tes\n\n[Hilang](hilang.md)\n")
 
-    hasil = check_docs.periksa_dokumen(tmp_path)
+    result = check_docs.periksa_dokumen(tmp_path)
 
-    assert len(hasil.masalah) == 1
-    assert hasil.masalah[0].berkas == "docs/panjang.md"
-    assert "tanpa daftar isi" in hasil.masalah[0].pesan
+    assert result.tautan == 1
+    assert len(result.masalah) == 1
+    assert result.masalah[0].berkas == "tests/README.md"
+    assert result.masalah[0].baris == 3
+    assert "hilang.md" in result.masalah[0].pesan
 
 
-def test_anchor_toc_tidak_valid_terdeteksi(tmp_path: Path) -> None:
-    _tulis(
+def test_archive_excluded(tmp_path: Path) -> None:
+    _write(tmp_path, "docs/dev/archive/lama.md", "[Hilang](tidak-ada.md)\n")
+    _write(tmp_path, "src/docgen/README.md", "# Modul\n")
+
+    result = check_docs.periksa_dokumen(tmp_path)
+
+    assert result.berkas == 1
+    assert result.masalah == ()
+
+
+def test_long_document_without_toc_detected(tmp_path: Path) -> None:
+    _write(tmp_path, "docs/panjang.md", "# Panjang\n\n" + "Isi paragraf.\n" * 160)
+
+    result = check_docs.periksa_dokumen(tmp_path)
+
+    assert len(result.masalah) == 1
+    assert result.masalah[0].berkas == "docs/panjang.md"
+    assert "tanpa daftar isi" in result.masalah[0].pesan
+
+
+def test_invalid_toc_anchor_detected(tmp_path: Path) -> None:
+    _write(
         tmp_path,
         "docs/panjang.md",
         "# Panjang\n\n## Daftar isi\n\n- [Hilang](#bagian-hilang)\n\n"
         "## Bagian\n\n" + "Isi paragraf.\n" * 160,
     )
 
-    hasil = check_docs.periksa_dokumen(tmp_path)
+    result = check_docs.periksa_dokumen(tmp_path)
 
-    assert len(hasil.masalah) == 1
-    assert "anchor daftar isi tidak valid" in hasil.masalah[0].pesan
+    assert len(result.masalah) == 1
+    assert "anchor daftar isi tidak valid" in result.masalah[0].pesan
 
 
-def test_toc_valid_diterima(tmp_path: Path) -> None:
-    _tulis(
+def test_valid_toc_accepted(tmp_path: Path) -> None:
+    _write(
         tmp_path,
         "docs/panjang.md",
         "# Panjang\n\n## Daftar isi\n\n- [Bagian](#bagian)\n\n"
         "## Bagian\n\n" + "Isi paragraf.\n" * 160,
     )
 
-    hasil = check_docs.periksa_dokumen(tmp_path)
+    result = check_docs.periksa_dokumen(tmp_path)
 
-    assert hasil.toc == 1
-    assert hasil.masalah == ()
+    assert result.toc == 1
+    assert result.masalah == ()
 
 
 def test_registry_valid(tmp_path: Path) -> None:
-    jalur = _tulis_registry(tmp_path)
+    path = _write_registry(tmp_path)
 
-    hasil = check_docs.periksa_registry(jalur)
+    result = check_docs.periksa_registry(path)
 
-    assert hasil.entri == 2
-    assert hasil.masalah == ()
+    assert result.entri == 2
+    assert result.masalah == ()
 
 
-def test_registry_url_duplikat_dan_invalid_terdeteksi(tmp_path: Path) -> None:
-    jalur = _tulis_registry(
+def test_registry_duplicate_and_invalid_url_detected(tmp_path: Path) -> None:
+    path = _write_registry(
         tmp_path,
         """| Label | URL | Dipakai untuk |
 | --- | --- | --- |
@@ -188,17 +188,17 @@ def test_registry_url_duplikat_dan_invalid_terdeteksi(tmp_path: Path) -> None:
 """,
     )
 
-    hasil = check_docs.periksa_registry(jalur)
+    result = check_docs.periksa_registry(path)
 
-    assert hasil.entri == 5
-    assert len(hasil.masalah) == 4
-    pesan = " ".join(masalah.pesan for masalah in hasil.masalah)
-    assert "URL duplikat" in pesan
-    assert pesan.count("URL tidak valid") == 3
+    assert result.entri == 5
+    assert len(result.masalah) == 4
+    message = " ".join(issue.pesan for issue in result.masalah)
+    assert "URL duplikat" in message
+    assert message.count("URL tidak valid") == 3
 
 
-def test_registry_label_duplikat_terdeteksi(tmp_path: Path) -> None:
-    jalur = _tulis_registry(
+def test_registry_duplicate_label_detected(tmp_path: Path) -> None:
+    path = _write_registry(
         tmp_path,
         """| Label | URL | Dipakai untuk |
 | --- | --- | --- |
@@ -207,35 +207,35 @@ def test_registry_label_duplikat_terdeteksi(tmp_path: Path) -> None:
 """,
     )
 
-    hasil = check_docs.periksa_registry(jalur)
+    result = check_docs.periksa_registry(path)
 
-    assert len(hasil.masalah) == 1
-    assert "label duplikat" in hasil.masalah[0].pesan
+    assert len(result.masalah) == 1
+    assert "label duplikat" in result.masalah[0].pesan
 
 
-def test_periksa_menggabungkan_dokumen_dan_registry(tmp_path: Path) -> None:
-    _tulis_registry(tmp_path)
-    _tulis(tmp_path, "docs/panduan.md", "# Panduan\n")
-    _tulis(
+def test_check_combines_documents_and_registry(tmp_path: Path) -> None:
+    _write_registry(tmp_path)
+    _write(tmp_path, "docs/panduan.md", "# Panduan\n")
+    _write(
         tmp_path,
         "README.md",
         "[Panduan](docs/panduan.md)\n[Hilang](docs/hilang.md)\n",
     )
 
-    hasil = check_docs.periksa(tmp_path)
+    result = check_docs.periksa(tmp_path)
 
-    assert hasil.berkas == 3
-    assert hasil.tautan == 2
-    assert hasil.entri == 2
-    assert len(hasil.masalah) == 1
-    assert hasil.masalah[0].berkas == "README.md"
+    assert result.berkas == 3
+    assert result.tautan == 2
+    assert result.entri == 2
+    assert len(result.masalah) == 1
+    assert result.masalah[0].berkas == "README.md"
 
 
-def test_main_mengembalikan_exit_code(tmp_path: Path) -> None:
-    _tulis_registry(tmp_path)
-    _tulis(tmp_path, "README.md", "[Hilang](docs/hilang.md)\n")
+def test_main_returns_exit_code(tmp_path: Path) -> None:
+    _write_registry(tmp_path)
+    _write(tmp_path, "README.md", "[Hilang](docs/hilang.md)\n")
 
     assert check_docs.main([str(tmp_path)]) == 1
 
-    _tulis(tmp_path, "docs/hilang.md", "# Ada\n")
+    _write(tmp_path, "docs/hilang.md", "# Ada\n")
     assert check_docs.main([str(tmp_path)]) == 0

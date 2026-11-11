@@ -29,7 +29,7 @@ def _report_name_error(values: dict[str, Any]) -> MetadataError:
     return error.value
 
 
-def test_report_name_wajib_ada() -> None:
+def test_report_name_required() -> None:
     values = _front_matter()
     del values["report_name"]
 
@@ -40,20 +40,20 @@ def test_report_name_wajib_ada() -> None:
 
 
 @pytest.mark.parametrize("value", ["", "   ", "\t\n"])
-def test_report_name_kosong_atau_whitespace_ditolak(value: str) -> None:
+def test_report_name_empty_or_whitespace_rejected(value: str) -> None:
     error = _report_name_error(_front_matter(report_name=value))
 
     assert error.code == "CFG-REQUIRED"
     assert error.key == "report_name"
 
 
-def test_report_name_dipertahankan_setelah_strip() -> None:
+def test_report_name_preserved_after_strip() -> None:
     normalized = normalize_metadata(_front_matter(report_name="  Laporan Akhir  "), source="test")
 
     assert normalized.report_name == "Laporan Akhir"
 
 
-def test_report_name_menolak_karakter_path() -> None:
+def test_report_name_rejects_path_characters() -> None:
     error = _report_name_error(_front_matter(report_name="a/b"))
 
     assert error.code == "CFG-TYPE"
@@ -61,19 +61,19 @@ def test_report_name_menolak_karakter_path() -> None:
 
 
 @pytest.mark.parametrize("value", [".", "..", "laporan."])
-def test_report_name_menolak_nama_berkas_tidak_aman(value: str) -> None:
+def test_report_name_rejects_unsafe_file_name(value: str) -> None:
     error = _report_name_error(_front_matter(report_name=value))
 
     assert error.code == "CFG-TYPE"
     assert error.key == "report_name"
 
 
-def test_metadata_mewajibkan_report_name_saat_konstruksi() -> None:
+def test_metadata_requires_report_name_on_construction() -> None:
     with pytest.raises(TypeError):
         Metadata(title="Laporan Uji", authors=(Author("Nama Mahasiswa"),))
 
 
-def test_api_lama_report_name_dan_normalize_author_hilang() -> None:
+def test_old_api_report_name_and_normalize_author_missing() -> None:
     assert not hasattr(metadata_module, "DEFAULT_REPORT_NAME")
     assert not hasattr(metadata_module, "normalize_author")
 
@@ -83,7 +83,7 @@ def test_api_lama_report_name_dan_normalize_author_hilang() -> None:
     sorted(_EXAMPLES.glob("*/document.md")),
     ids=lambda path: path.parent.name,
 )
-def test_contoh_menulis_report_name_eksplisit(path: Path) -> None:
+def test_example_writes_explicit_report_name(path: Path) -> None:
     raw = parse_document(path)
 
     assert "report_name" in raw.front_matter

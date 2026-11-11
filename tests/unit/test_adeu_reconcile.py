@@ -16,11 +16,11 @@ from docgen.errors import ReconcileError
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "reconcile"
 MANIFEST = FIXTURES / "manifest.json"
 
-OLD_LANDASAN = (
+OLD_FOUNDATION = (
     "Landasan teori merupakan fondasi utama dalam penyusunan laporan akademik "
     "yang dapat dipertanggungjawabkan."
 )
-NEW_LANDASAN = (
+NEW_FOUNDATION = (
     "Landasan teori merupakan fondasi utama dalam penyusunan laporan akademik "
     "yang telah diperbarui."
 )
@@ -257,7 +257,7 @@ def test_default_paths_follow_document(tmp_path: Path) -> None:
     assert "- Diperiksa: 7 paragraf" in read_report(report_path)
 
 
-def test_default_docx_dokumen_pengguna_tidak_memakai_out(tmp_path: Path) -> None:
+def test_default_docx_user_document_does_not_use_out(tmp_path: Path) -> None:
     document = make_document(tmp_path)
     (tmp_path / "out").mkdir()
     write_docx(tmp_path / "out" / "Laporan.docx")
@@ -270,13 +270,13 @@ def test_default_docx_dokumen_pengguna_tidak_memakai_out(tmp_path: Path) -> None
     assert "--docx" in str(error.value)
 
 
-def test_default_docx_dokumen_pengguna_memakai_folder_dokumen(tmp_path: Path) -> None:
+def test_default_docx_user_document_uses_document_folder(tmp_path: Path) -> None:
     document = make_document(tmp_path)
     write_docx(tmp_path / "Laporan.docx")
     (tmp_path / "out").mkdir()
     write_docx(
         tmp_path / "out" / "Laporan.docx",
-        overrides={"p0006": NEW_LANDASAN},
+        overrides={"p0006": NEW_FOUNDATION},
     )
     (tmp_path / ".laporan").mkdir()
     write_manifest(tmp_path / ".laporan" / "manifest.json", load_fixture_manifest())
@@ -289,7 +289,7 @@ def test_default_docx_dokumen_pengguna_memakai_folder_dokumen(tmp_path: Path) ->
     assert "- Diperiksa: 7 paragraf" in read_report(report_path)
 
 
-def test_default_docx_contoh_memakai_out(tmp_path: Path) -> None:
+def test_default_docx_example_uses_out(tmp_path: Path) -> None:
     document_dir = tmp_path / "examples" / "tugas"
     document_dir.mkdir(parents=True)
     document = make_document(document_dir)
@@ -303,7 +303,7 @@ def test_default_docx_contoh_memakai_out(tmp_path: Path) -> None:
     assert (document_dir / ".laporan" / "reconcile.md").is_file()
 
 
-def test_default_docx_tidak_ada_menghasilkan_reconcile_input(tmp_path: Path) -> None:
+def test_default_docx_missing_returns_reconcile_input(tmp_path: Path) -> None:
     document = make_document(tmp_path)
 
     with pytest.raises(ReconcileError) as error:
@@ -314,7 +314,7 @@ def test_default_docx_tidak_ada_menghasilkan_reconcile_input(tmp_path: Path) -> 
     assert "--docx" in str(error.value)
 
 
-def test_report_name_wajib_tanpa_fallback(
+def test_report_name_required_without_fallback(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
@@ -331,12 +331,12 @@ def test_report_name_wajib_tanpa_fallback(
     assert "report_name" in error
 
 
-def test_docx_eksplisit_menang(tmp_path: Path) -> None:
+def test_explicit_docx_wins(tmp_path: Path) -> None:
     document = make_document(tmp_path)
     write_docx(tmp_path / "Laporan.docx")
     edited = write_docx(
         tmp_path / "suntingan.docx",
-        overrides={"p0006": NEW_LANDASAN},
+        overrides={"p0006": NEW_FOUNDATION},
     )
     report_path = tmp_path / "review" / "manual-edits.md"
 
@@ -344,7 +344,7 @@ def test_docx_eksplisit_menang(tmp_path: Path) -> None:
 
     assert code == 3
     report = read_report(report_path)
-    assert NEW_LANDASAN in report
+    assert NEW_FOUNDATION in report
     assert "- Berubah: 1" in report
 
 
@@ -352,7 +352,7 @@ def test_body_edit_reports_source_and_exit_three(tmp_path: Path) -> None:
     document = make_document(tmp_path)
     docx = write_docx(
         tmp_path / "Laporan.docx",
-        overrides={"p0006": NEW_LANDASAN},
+        overrides={"p0006": NEW_FOUNDATION},
     )
     report_path = tmp_path / "review" / "manual-edits.md"
 
@@ -366,8 +366,8 @@ def test_body_edit_reports_source_and_exit_three(tmp_path: Path) -> None:
     assert code == 3
     report = read_report(report_path)
     assert "## p0006 — BAB II TINJAUAN PUSTAKA / 2.1 Landasan Teori" in report
-    assert OLD_LANDASAN in report
-    assert NEW_LANDASAN in report
+    assert OLD_FOUNDATION in report
+    assert NEW_FOUNDATION in report
     assert "Sumber: document.md (blok 8, kemiripan " in report
     assert "**Saran:** terapkan ke Markdown lalu build ulang." in report
     assert "- Berubah: 1" in report
@@ -460,17 +460,17 @@ def test_tracked_changes_use_accepted_text(tmp_path: Path) -> None:
     document = make_document(tmp_path)
     docx = write_docx(
         tmp_path / "Laporan.docx",
-        tracked={"p0006": (OLD_LANDASAN, NEW_LANDASAN)},
+        tracked={"p0006": (OLD_FOUNDATION, NEW_FOUNDATION)},
     )
     report_path = tmp_path / "review" / "manual-edits.md"
 
     snapshot = extract_bookmarks(docx)
-    assert snapshot.bookmarks["p0006"] == NEW_LANDASAN
+    assert snapshot.bookmarks["p0006"] == NEW_FOUNDATION
 
     code = run_cli(document, docx=docx, manifest=MANIFEST, out=report_path)
     assert code == 3
     report = read_report(report_path)
-    assert NEW_LANDASAN in report
+    assert NEW_FOUNDATION in report
     assert "**Sebelum**" in report
     assert "**Sesudah**" in report
 
@@ -479,7 +479,7 @@ def test_report_is_deterministic(tmp_path: Path) -> None:
     document = make_document(tmp_path)
     docx = write_docx(
         tmp_path / "Laporan.docx",
-        overrides={"p0006": NEW_LANDASAN},
+        overrides={"p0006": NEW_FOUNDATION},
     )
     first = tmp_path / "review" / "pertama.md"
     second = tmp_path / "review" / "kedua.md"
@@ -589,7 +589,7 @@ def test_chapters_and_document_are_never_written(tmp_path: Path) -> None:
     before = hashlib.sha256(document.read_bytes()).hexdigest()
     docx = write_docx(
         tmp_path / "Laporan.docx",
-        overrides={"p0006": NEW_LANDASAN},
+        overrides={"p0006": NEW_FOUNDATION},
     )
 
     code = run_cli(

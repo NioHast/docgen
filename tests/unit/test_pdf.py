@@ -98,7 +98,7 @@ def _windows_tools(monkeypatch: pytest.MonkeyPatch) -> None:
     ("target", "expected"),
     [("docx", False), ("pdf", True), ("both", True)],
 )
-def test_stage_pdf_enabled_mengikuti_target(
+def test_stage_pdf_enabled_follows_target(
     tmp_path: Path,
     target: str,
     expected: bool,
@@ -107,12 +107,12 @@ def test_stage_pdf_enabled_mengikuti_target(
     assert pdf_stage.PdfStage().enabled(ctx) is expected
 
 
-def test_stage_pdf_disabled_saat_dry_run(tmp_path: Path) -> None:
+def test_stage_pdf_disabled_during_dry_run(tmp_path: Path) -> None:
     ctx, _ = _context(tmp_path, target="both", dry_run=True, adapter=FakePdfAdapter())
     assert pdf_stage.PdfStage().enabled(ctx) is False
 
 
-def test_stage_pdf_metadata_urutan() -> None:
+def test_stage_pdf_metadata_order() -> None:
     stage = pdf_stage.PdfStage()
 
     assert stage.name == StageName.PDF
@@ -127,7 +127,7 @@ def test_stage_pdf_metadata_urutan() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_stage_pdf_sukses(tmp_path: Path) -> None:
+def test_stage_pdf_success(tmp_path: Path) -> None:
     adapter = FakePdfAdapter()
     ctx, docx = _context(tmp_path, adapter=adapter)
 
@@ -141,7 +141,7 @@ def test_stage_pdf_sukses(tmp_path: Path) -> None:
     assert (tmp_path / "Tugas.pdf").read_bytes() == _PDF_STUB
 
 
-def test_stage_pdf_meneruskan_error_pdf(tmp_path: Path) -> None:
+def test_stage_pdf_passes_pdf_error(tmp_path: Path) -> None:
     adapter = FakePdfAdapter(error=PdfError("ekspor gagal"))
     ctx, _ = _context(tmp_path, adapter=adapter)
 
@@ -149,7 +149,7 @@ def test_stage_pdf_meneruskan_error_pdf(tmp_path: Path) -> None:
         pdf_stage.PdfStage().run(ctx)
 
 
-def test_stage_pdf_membungkus_error_tak_dikenal(tmp_path: Path) -> None:
+def test_stage_pdf_wraps_unknown_error(tmp_path: Path) -> None:
     adapter = FakePdfAdapter(error=RuntimeError("COM mati"))
     ctx, _ = _context(tmp_path, adapter=adapter)
 
@@ -169,7 +169,7 @@ def test_stage_pdf_skip_target_both_allow_missing_word(tmp_path: Path) -> None:
     assert adapter.calls == []
 
 
-def test_stage_pdf_skip_tidak_butuh_docx(tmp_path: Path) -> None:
+def test_stage_pdf_skip_does_not_need_docx(tmp_path: Path) -> None:
     adapter = FakePdfAdapter(available=False)
     ctx, docx = _context(
         tmp_path,
@@ -185,7 +185,7 @@ def test_stage_pdf_skip_tidak_butuh_docx(tmp_path: Path) -> None:
     assert "PDF dilewati" in result.warnings[0]
 
 
-def test_stage_pdf_error_target_both_tanpa_allow(tmp_path: Path) -> None:
+def test_stage_pdf_error_target_both_without_allow(tmp_path: Path) -> None:
     adapter = FakePdfAdapter(available=False)
     ctx, _ = _context(tmp_path, target="both", adapter=adapter)
 
@@ -193,7 +193,7 @@ def test_stage_pdf_error_target_both_tanpa_allow(tmp_path: Path) -> None:
         pdf_stage.PdfStage().run(ctx)
 
 
-def test_stage_pdf_error_target_pdf_walau_allow(tmp_path: Path) -> None:
+def test_stage_pdf_error_target_pdf_even_allow(tmp_path: Path) -> None:
     adapter = FakePdfAdapter(available=False)
     ctx, _ = _context(
         tmp_path,
@@ -206,7 +206,7 @@ def test_stage_pdf_error_target_pdf_walau_allow(tmp_path: Path) -> None:
         pdf_stage.PdfStage().run(ctx)
 
 
-def test_stage_pdf_run_langsung_saat_disabled_skip(tmp_path: Path) -> None:
+def test_stage_pdf_run_directly_when_disabled_skip(tmp_path: Path) -> None:
     adapter = FakePdfAdapter()
     ctx, _ = _context(tmp_path, target="docx", adapter=adapter)
 
@@ -222,7 +222,7 @@ def test_stage_pdf_run_langsung_saat_disabled_skip(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_adapter_export_pdf_atomic_dan_memeriksa_hasil(
+def test_adapter_export_pdf_atomic_and_checks_result(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -255,7 +255,7 @@ def test_adapter_export_pdf_atomic_dan_memeriksa_hasil(
     assert not seen[0].exists()
 
 
-def test_adapter_export_pdf_menolak_hasil_bukan_pdf(
+def test_adapter_export_pdf_rejects_non_pdf_result(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -282,7 +282,7 @@ def test_adapter_export_pdf_menolak_hasil_bukan_pdf(
     assert not pdf.exists()
 
 
-def test_adapter_export_pdf_gagal_tidak_menimpa_pdf_lama(
+def test_adapter_export_pdf_failure_does_not_overwrite_old_pdf(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -309,7 +309,7 @@ def test_adapter_export_pdf_gagal_tidak_menimpa_pdf_lama(
     assert pdf.read_bytes() == b"%PDF-1.7\nlama\n"
 
 
-def test_adapter_export_pdf_tanpa_word_melempar_tool_missing(
+def test_adapter_export_pdf_without_word_raises_tool_missing(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -326,7 +326,7 @@ def test_adapter_export_pdf_tanpa_word_melempar_tool_missing(
         adapter.export_pdf(docx, tmp_path / "Tugas.pdf")
 
 
-def test_api_modul_export_pdf_memakai_adapter(
+def test_api_module_export_pdf_uses_adapter(
     tmp_path: Path,
 ) -> None:
     adapter = FakePdfAdapter()

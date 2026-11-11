@@ -161,7 +161,7 @@ def test_specialized_command_builders_delegate(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_adapter_update_fields_sukses_tanpa_word_nyata(
+def test_adapter_update_fields_success_without_real_word(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -195,7 +195,7 @@ def test_adapter_update_fields_sukses_tanpa_word_nyata(
     assert "-PdfPath" not in command
 
 
-def test_adapter_update_fields_gagal_nonzero(
+def test_adapter_update_fields_fails_nonzero(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -249,7 +249,7 @@ def test_adapter_update_fields_timeout(
         adapter.update_fields(docx, timeout=5)
 
 
-def test_adapter_timeout_menyertakan_step_dan_ekor_log(
+def test_adapter_timeout_includes_step_and_log_tail(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -284,7 +284,7 @@ def test_adapter_timeout_menyertakan_step_dan_ekor_log(
     assert "log-0" not in message
 
 
-def test_adapter_timeout_menhentikan_pid_word(
+def test_adapter_timeout_stops_word_pid(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -327,7 +327,7 @@ def test_adapter_timeout_menhentikan_pid_word(
     assert not pid_paths[0].exists()
 
 
-def test_adapter_sukses_menhentikan_pid_word_yang_masih_hidup(
+def test_adapter_success_stops_word_pid_still_alive(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -359,7 +359,7 @@ def test_adapter_sukses_menhentikan_pid_word_yang_masih_hidup(
     assert stopped == [777]
 
 
-def test_adapter_sukses_tidak_menhentikan_pid_bukan_word(
+def test_adapter_success_does_not_stop_non_word_pid(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -391,7 +391,7 @@ def test_adapter_sukses_tidak_menhentikan_pid_bukan_word(
     assert stopped == []
 
 
-def test_adapter_sukses_melaporkan_gagal_hentikan_word(
+def test_adapter_success_reports_failed_word_stop(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
@@ -430,7 +430,7 @@ def test_adapter_sukses_melaporkan_gagal_hentikan_word(
         "Call was rejected by callee",
     ],
 )
-def test_adapter_retry_transien(
+def test_adapter_retry_transient(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     marker: str,
@@ -463,7 +463,7 @@ def test_adapter_retry_transien(
     assert sleeps == [1.0]
 
 
-def test_adapter_lock_busy_dipetakan_ke_word_busy(
+def test_adapter_lock_busy_mapped_to_word_busy(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -494,7 +494,7 @@ def test_adapter_lock_busy_dipetakan_ke_word_busy(
     assert "WORD-BUSY" in str(error.value)
 
 
-def test_adapter_runner_none_memakai_lock(
+def test_adapter_runner_none_uses_lock(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -526,7 +526,7 @@ def test_adapter_runner_none_memakai_lock(
     assert acquired == [30]
 
 
-def test_adapter_tidak_memakai_lock_untuk_runner_palsu(
+def test_adapter_does_not_use_lock_for_fake_runner(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -550,7 +550,7 @@ def test_adapter_tidak_memakai_lock_untuk_runner_palsu(
     assert adapter.update_fields(docx) == docx.resolve()
 
 
-def test_run_process_timeout_menyimpan_log_parsial(
+def test_run_process_timeout_saves_partial_log(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     code = (
@@ -573,7 +573,7 @@ def test_run_process_timeout_menyimpan_log_parsial(
     assert "pesan stderr" in str(error.value.stderr)
 
 
-def test_adapter_menolak_hasil_word_yang_bukan_docx(
+def test_adapter_rejects_non_docx_word_output(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -598,7 +598,7 @@ def test_adapter_menolak_hasil_word_yang_bukan_docx(
         adapter.update_fields(docx)
 
 
-def test_adapter_tanpa_powershell_melempar_tool_missing(
+def test_adapter_without_powershell_raises_tool_missing(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -614,7 +614,7 @@ def test_adapter_tanpa_powershell_melempar_tool_missing(
         adapter.update_fields(docx)
 
 
-def test_adapter_script_hilang_melempar_word_error(
+def test_adapter_missing_script_raises_word_error(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -637,7 +637,7 @@ def test_adapter_script_hilang_melempar_word_error(
 # ---------------------------------------------------------------------------
 
 
-def test_stage_office_sukses(tmp_path: Path) -> None:
+def test_stage_office_success(tmp_path: Path) -> None:
     adapter = FakeWordAdapter()
     ctx, docx = _context(tmp_path, adapter=adapter)
 
@@ -650,7 +650,7 @@ def test_stage_office_sukses(tmp_path: Path) -> None:
     assert adapter.calls == [(docx, None)]
 
 
-def test_path_output_memakai_report_name_tanpa_fallback(tmp_path: Path) -> None:
+def test_path_output_uses_report_name_without_fallback(tmp_path: Path) -> None:
     ctx, _ = _context(tmp_path)
     ctx.artifacts = None
     ctx.document.metadata.report_name = "Laporan"
@@ -660,7 +660,7 @@ def test_path_output_memakai_report_name_tanpa_fallback(tmp_path: Path) -> None:
     assert office._pdf_path(ctx) == tmp_path / "Laporan.pdf"
 
 
-def test_stage_office_meneruskan_error_word(tmp_path: Path) -> None:
+def test_stage_office_passes_word_error(tmp_path: Path) -> None:
     adapter = FakeWordAdapter(error=WordError("Word rusak"))
     ctx, _ = _context(tmp_path, adapter=adapter)
 
@@ -668,7 +668,7 @@ def test_stage_office_meneruskan_error_word(tmp_path: Path) -> None:
         office.OfficeStage().run(ctx)
 
 
-def test_stage_office_membungkus_error_tak_dikenal(tmp_path: Path) -> None:
+def test_stage_office_wraps_unknown_error(tmp_path: Path) -> None:
     adapter = FakeWordAdapter(error=RuntimeError("COM meledak"))
     ctx, _ = _context(tmp_path, adapter=adapter)
 
@@ -676,7 +676,7 @@ def test_stage_office_membungkus_error_tak_dikenal(tmp_path: Path) -> None:
         office.OfficeStage().run(ctx)
 
 
-def test_stage_office_skip_tanpa_word_target_docx(tmp_path: Path) -> None:
+def test_stage_office_skip_without_word_target_docx(tmp_path: Path) -> None:
     adapter = FakeWordAdapter(available=False)
     ctx, _ = _context(tmp_path, target="docx", adapter=adapter)
 
@@ -689,7 +689,7 @@ def test_stage_office_skip_tanpa_word_target_docx(tmp_path: Path) -> None:
     assert adapter.calls == []
 
 
-def test_stage_office_skip_tanpa_word_target_both_allow(tmp_path: Path) -> None:
+def test_stage_office_skip_without_word_target_both_allow(tmp_path: Path) -> None:
     adapter = FakeWordAdapter(available=False)
     ctx, _ = _context(
         tmp_path,
@@ -704,7 +704,7 @@ def test_stage_office_skip_tanpa_word_target_both_allow(tmp_path: Path) -> None:
     assert "PDF dilewati" in result.warnings[0]
 
 
-def test_stage_office_skip_tanpa_word_tidak_butuh_docx(tmp_path: Path) -> None:
+def test_stage_office_skip_without_word_does_not_need_docx(tmp_path: Path) -> None:
     adapter = FakeWordAdapter(available=False)
     ctx, docx = _context(tmp_path, target="docx", adapter=adapter)
     docx.unlink()
@@ -715,7 +715,7 @@ def test_stage_office_skip_tanpa_word_tidak_butuh_docx(tmp_path: Path) -> None:
     assert result.warnings
 
 
-def test_stage_office_error_tanpa_word_target_both(tmp_path: Path) -> None:
+def test_stage_office_error_without_word_target_both(tmp_path: Path) -> None:
     adapter = FakeWordAdapter(available=False)
     ctx, _ = _context(tmp_path, target="both", adapter=adapter)
 
@@ -723,7 +723,7 @@ def test_stage_office_error_tanpa_word_target_both(tmp_path: Path) -> None:
         office.OfficeStage().run(ctx)
 
 
-def test_stage_office_error_tanpa_word_target_pdf_walau_allow(tmp_path: Path) -> None:
+def test_stage_office_error_without_word_target_pdf_even_allow(tmp_path: Path) -> None:
     adapter = FakeWordAdapter(available=False)
     ctx, _ = _context(
         tmp_path,
@@ -736,7 +736,7 @@ def test_stage_office_error_tanpa_word_target_pdf_walau_allow(tmp_path: Path) ->
         office.OfficeStage().run(ctx)
 
 
-def test_stage_office_metadata_urutan() -> None:
+def test_stage_office_metadata_order() -> None:
     stage = office.OfficeStage()
 
     assert stage.name == StageName.OFFICE
@@ -751,7 +751,7 @@ def test_stage_office_metadata_urutan() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_scripts_word_ps1_menggabungkan_update_dan_export() -> None:
+def test_scripts_word_ps1_combines_update_and_export() -> None:
     script = _ROOT / "scripts" / "word.ps1"
 
     assert script.is_file()
@@ -764,7 +764,7 @@ def test_scripts_word_ps1_menggabungkan_update_dan_export() -> None:
     assert "ExitCode = 1" in text
 
 
-def test_word_script_path_mencari_scripts_word_ps1(
+def test_word_script_path_finds_scripts_word_ps1(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.delenv("DOCGEN_WORD_SCRIPT", raising=False)

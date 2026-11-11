@@ -197,7 +197,7 @@ def _save(package: DocumentPackage, path: Path) -> Path:
 # ---------------------------------------------------------------------------
 
 
-def test_nomor_per_bab_chapter_title_dan_romawi(equations_docx: Path, tmp_path: Path) -> None:
+def test_number_per_chapter_chapter_title_and_roman(equations_docx: Path, tmp_path: Path) -> None:
     package = DocumentPackage.load(equations_docx)
     report = equations.format_equations(package)
     output = _save(package, tmp_path / "out.docx")
@@ -220,7 +220,7 @@ def test_nomor_per_bab_chapter_title_dan_romawi(equations_docx: Path, tmp_path: 
     assert report.bab_headings == 3
 
 
-def test_heading_arab_bertitik_dikenali_sebagai_bab(tmp_path: Path) -> None:
+def test_heading_arabic_dotted_recognized_as_chapter(tmp_path: Path) -> None:
     source = tmp_path / "arabic.docx"
     document = Document()
     _configure_a4(document)
@@ -239,7 +239,7 @@ def test_heading_arab_bertitik_dikenali_sebagai_bab(tmp_path: Path) -> None:
     assert [_direct_run_text(paragraph) for paragraph in _equation_paragraphs(result)] == ["(4.1)"]
 
 
-def test_nomor_di_run_luar_omml(equations_docx: Path, tmp_path: Path) -> None:
+def test_number_in_run_outside_omml(equations_docx: Path, tmp_path: Path) -> None:
     before = DocumentPackage.load(equations_docx)
     before_equation = _equation_paragraphs(before)[0].find(M_O_MATH_PARA)
 
@@ -262,7 +262,7 @@ def test_nomor_di_run_luar_omml(equations_docx: Path, tmp_path: Path) -> None:
     assert paragraph.index(after_equation) < paragraph.index(runs[0])
 
 
-def test_tab_stop_dan_indentasi(equations_docx: Path, tmp_path: Path) -> None:
+def test_tab_stop_and_indentation(equations_docx: Path, tmp_path: Path) -> None:
     package = DocumentPackage.load(equations_docx)
     equations.format_equations(package)
     result = DocumentPackage.load(_save(package, tmp_path / "out.docx"))
@@ -292,7 +292,7 @@ def test_tab_stop_dan_indentasi(equations_docx: Path, tmp_path: Path) -> None:
     assert ppr.index(tabs) < ppr.index(spacing) < ppr.index(indent)
 
 
-def test_persamaan_tanpa_sectpr_menimbulkan_page_error(tmp_path: Path) -> None:
+def test_equation_without_sectpr_causes_page_error(tmp_path: Path) -> None:
     document = Document()
     _configure_a4(document)
     heading = document.add_paragraph("BAB I PENDAHULUAN")
@@ -313,7 +313,7 @@ def test_persamaan_tanpa_sectpr_menimbulkan_page_error(tmp_path: Path) -> None:
     assert excinfo.value.code == "PAGE-WIDTH"
 
 
-def test_tanpa_persamaan_tanpa_sectpr_tidak_gagal(tmp_path: Path) -> None:
+def test_without_equation_without_sectpr_does_not_fail(tmp_path: Path) -> None:
     document = Document()
     _configure_a4(document)
     heading = document.add_paragraph("BAB I PENDAHULUAN")
@@ -333,7 +333,7 @@ def test_tanpa_persamaan_tanpa_sectpr_tidak_gagal(tmp_path: Path) -> None:
     assert report.numbered == 0
 
 
-def test_field_dan_bookmark_tetap_aman(equations_docx: Path, tmp_path: Path) -> None:
+def test_field_and_bookmark_remain_safe(equations_docx: Path, tmp_path: Path) -> None:
     package = DocumentPackage.load(equations_docx)
     field_paragraph = _equation_paragraphs(package)[1]
     assert field_paragraph.find(f"{W_PPR}/{W_TABS}") is None
@@ -362,7 +362,7 @@ def test_field_dan_bookmark_tetap_aman(equations_docx: Path, tmp_path: Path) -> 
     assert first.find(W_BOOKMARK_END).get(qn("w:id")) == "7"
 
 
-def test_tanpa_bab_tidak_menomori_dan_tidak_mengubah_ppr(
+def test_without_chapter_does_not_number_and_does_not_change_ppr(
     tmp_path: Path,
 ) -> None:
     source = build_no_chapter_fixture(tmp_path / "no-chapter.docx")
@@ -378,7 +378,7 @@ def test_tanpa_bab_tidak_menomori_dan_tidak_mengubah_ppr(
     assert paragraph.find(f"{W_PPR}/{W_SPACING}") is None
 
 
-def test_direct_omath_dengan_nomor_lama_tetap_diformat(
+def test_direct_omath_with_old_number_still_formatted(
     tmp_path: Path,
 ) -> None:
     document = Document()
@@ -401,7 +401,7 @@ def test_direct_omath_dengan_nomor_lama_tetap_diformat(
     assert candidate.find(f"{W_PPR}/{W_IND}").get(W_LEFT) == "1440"
 
 
-def test_idempoten_part_identik_dan_stage(equations_docx: Path, tmp_path: Path) -> None:
+def test_idempotent_part_identical_and_stage(equations_docx: Path, tmp_path: Path) -> None:
     before = {}
     with zipfile.ZipFile(equations_docx) as archive:
         before = {name: archive.read(name) for name in archive.namelist()}

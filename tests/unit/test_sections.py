@@ -327,7 +327,7 @@ def test_golden_header_footer_per_section() -> None:
     assert body_refs.first_page_footer is not None
 
 
-def test_golden_no_blank_page_between_toc_and_bab_i() -> None:
+def test_golden_no_blank_page_between_toc_and_chapter_i() -> None:
     package = DocumentPackage.load(GOLDEN)
     root = package.xml(DOCUMENT_PART)
     body = root.find(qn("w:body"))
@@ -336,7 +336,7 @@ def test_golden_no_blank_page_between_toc_and_bab_i() -> None:
     assert len(sdts) == 3
     toc_index = children.index(sdts[-1])
 
-    bab_index = next(
+    chapter_index = next(
         index
         for index, child in enumerate(children)
         if child.tag == qn("w:p")
@@ -345,15 +345,15 @@ def test_golden_no_blank_page_between_toc_and_bab_i() -> None:
         and child.find(qn("w:pPr")).find(qn("w:pStyle")) is not None
         and child.find(qn("w:pPr")).find(qn("w:pStyle")).get(qn("w:val")) == "Heading1"
     )
-    assert bab_index > toc_index
-    between = children[toc_index + 1 : bab_index]
+    assert chapter_index > toc_index
+    between = children[toc_index + 1 : chapter_index]
     assert len(between) == 1
     carrier = between[0]
     assert carrier.find(qn("w:pPr")) is not None
     assert carrier.find(qn("w:pPr")).find(qn("w:sectPr")) is not None
     assert not _has_page_break(carrier)
-    assert section_at(package, bab_index).start == bab_index
-    assert section_at(package, bab_index).kind == "body"
+    assert section_at(package, chapter_index).start == chapter_index
+    assert section_at(package, chapter_index).kind == "body"
 
 
 # ---------------------------------------------------------------------------
@@ -515,7 +515,7 @@ def test_sections_stage_requires_package() -> None:
         SectionsStage().run(ctx)
 
 
-def test_sections_stage_landscape_menukar_dimensi(tmp_path: Path) -> None:
+def test_sections_stage_landscape_swaps_dimensions(tmp_path: Path) -> None:
     document = _document(_paragraph("BAB I", style="Heading1"))
     package = DocumentPackage.load(_write_package(tmp_path, document))
     ctx = _fake_ctx(package)
@@ -529,7 +529,7 @@ def test_sections_stage_landscape_menukar_dimensi(tmp_path: Path) -> None:
     assert pg_sz.get(qn("w:orient")) == "landscape"
 
 
-def test_sections_stage_menolak_ukuran_tidak_dikenal(tmp_path: Path) -> None:
+def test_sections_stage_rejects_unknown_size(tmp_path: Path) -> None:
     document = _document(_paragraph("BAB I", style="Heading1"))
     package = DocumentPackage.load(_write_package(tmp_path, document))
     ctx = _fake_ctx(package)
@@ -636,7 +636,7 @@ def _heading_runs(*runs: tuple[str, str]) -> str:
     return output
 
 
-def test_apply_heading_numbering_bab_roman_and_inline_formatting(
+def test_apply_heading_numbering_chapter_roman_and_inline_formatting(
     tmp_path: Path,
 ) -> None:
     document = _document(

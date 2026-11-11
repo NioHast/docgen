@@ -21,7 +21,7 @@ from docgen.pipeline import (
 from docgen.stages.pandoc import build_pandoc_command
 
 
-def test_stage_name_memuat_semua_stage_kanonik() -> None:
+def test_stage_name_contains_all_canonical_stages() -> None:
     assert set(CANONICAL_ORDER) == set(StageName)
     assert len(CANONICAL_ORDER) == len(StageName)
     assert StageName.FRONT_MATTER in CANONICAL_ORDER
@@ -36,7 +36,7 @@ def test_stage_name_memuat_semua_stage_kanonik() -> None:
     assert StageName.CAPTIONS.value == "captions"
 
 
-def test_canonical_specs_requires_adalah_prefix() -> None:
+def test_canonical_specs_requires_is_prefix() -> None:
     for index, spec in enumerate(CANONICAL_STAGES):
         assert spec.name is CANONICAL_ORDER[index]
         assert spec.requires == CANONICAL_ORDER[:index]
@@ -58,7 +58,7 @@ def test_canonical_specs_requires_adalah_prefix() -> None:
             assert spec.idempotent is True
 
 
-def test_canonical_orders_unik_dan_naik() -> None:
+def test_canonical_orders_unique_and_increasing() -> None:
     orders = [spec.order for spec in CANONICAL_STAGES]
     assert orders == sorted(orders)
     assert len(orders) == len(set(orders))
@@ -68,19 +68,19 @@ def test_canonical_orders_unik_dan_naik() -> None:
     assert by_name[StageName.PDF] == 170
 
 
-def test_validate_stage_order_menolak_urutan_tertukar() -> None:
+def test_validate_stage_order_rejects_swapped_order() -> None:
     specs = list(CANONICAL_STAGES)
     specs[4], specs[5] = specs[5], specs[4]
     with pytest.raises(StageOrderError):
         validate_stage_order(specs)
 
 
-def test_validate_stage_order_menolak_stage_hilang() -> None:
+def test_validate_stage_order_rejects_missing_stage() -> None:
     with pytest.raises(StageOrderError):
         validate_stage_order(CANONICAL_STAGES[:-1])
 
 
-def test_validate_stage_order_menolak_requires_bukan_prefix() -> None:
+def test_validate_stage_order_rejects_requires_not_prefix() -> None:
     specs = list(CANONICAL_STAGES)
     broken = StageSpec(
         name=specs[5].name,
@@ -95,7 +95,7 @@ def test_validate_stage_order_menolak_requires_bukan_prefix() -> None:
         validate_stage_order(specs)
 
 
-def test_pipeline_mendaftarkan_setiap_stage_tepat_sekali() -> None:
+def test_pipeline_registers_each_stage_exactly_once() -> None:
     pipeline = Pipeline()
     names = [stage.name for stage in pipeline.stages]
     assert names == list(CANONICAL_ORDER)
@@ -103,7 +103,7 @@ def test_pipeline_mendaftarkan_setiap_stage_tepat_sekali() -> None:
     assert [spec.name for spec in pipeline.specs] == list(CANONICAL_ORDER)
 
 
-def test_pipeline_hanya_memakai_modul_stage_dalam_paket() -> None:
+def test_pipeline_only_uses_stage_modules_in_package() -> None:
     for spec in CANONICAL_STAGES:
         assert spec.module.startswith("stages/")
         assert "tools/" not in spec.module
@@ -111,7 +111,7 @@ def test_pipeline_hanya_memakai_modul_stage_dalam_paket() -> None:
         assert not spec.module.endswith("docx.lua")
 
 
-def test_pipeline_tidak_menambahkan_lua_filter_ke_pandoc(tmp_path: Path) -> None:
+def test_pipeline_does_not_add_lua_filter_to_pandoc(tmp_path: Path) -> None:
     command = build_pandoc_command(
         "pandoc",
         markdown=tmp_path / "document.md",
@@ -124,7 +124,7 @@ def test_pipeline_tidak_menambahkan_lua_filter_ke_pandoc(tmp_path: Path) -> None
     assert not any(part.endswith(".sh") for part in lowered)
 
 
-def test_adeu_options_memeta_kan_flag() -> None:
+def test_adeu_options_maps_flags() -> None:
     default = _adeu_options(BuildOptions())
     assert (default.bookmarks, default.manifest, default.source_scan) == (True, True, True)
 
@@ -143,12 +143,12 @@ def test_adeu_options_memeta_kan_flag() -> None:
     )
 
 
-def test_build_options_menolak_target_tidak_dikenal() -> None:
+def test_build_options_rejects_unknown_target() -> None:
     with pytest.raises(ValueError, match="target tidak dikenal: 'rtf'"):
         BuildOptions(target="rtf")  # type: ignore[arg-type]
 
 
-def test_direktori_output_contoh_dan_pengguna(tmp_path: Path) -> None:
+def test_output_directory_example_and_user(tmp_path: Path) -> None:
     example = tmp_path / "examples" / "assignment-single" / "document.md"
     assert output_directory(example) == example.parent / "out"
 
@@ -156,7 +156,7 @@ def test_direktori_output_contoh_dan_pengguna(tmp_path: Path) -> None:
     assert output_directory(user) == user.parent
 
 
-def test_workspace_cleanup_dan_keep(tmp_path: Path) -> None:
+def test_workspace_cleanup_and_keep(tmp_path: Path) -> None:
     workspace = Workspace(root=tmp_path / ".laporan-build", keep=False)
     workspace.ensure()
     (workspace.root / "intermediate.docx").write_bytes(b"x")
@@ -170,7 +170,7 @@ def test_workspace_cleanup_dan_keep(tmp_path: Path) -> None:
     assert (kept.root / "intermediate.docx").is_file()
 
 
-def test_artifact_store_menolak_key_tanpa_prefix_stage() -> None:
+def test_artifact_store_rejects_key_without_stage_prefix() -> None:
     artifacts = ArtifactStore()
     artifacts.put("mermaid.markdown", Path("mermaid.md"))
     assert artifacts.require("mermaid.markdown") == Path("mermaid.md")
@@ -178,7 +178,7 @@ def test_artifact_store_menolak_key_tanpa_prefix_stage() -> None:
         artifacts.put("sembarang", Path("x"))
 
 
-def test_pipeline_menolak_kelas_stage_tidak_lengkap() -> None:
+def test_pipeline_rejects_incomplete_stage_class() -> None:
     pipeline = Pipeline()
     with pytest.raises(StageOrderError):
         Pipeline(stages=[type(stage) for stage in pipeline.stages[:-1]])

@@ -115,7 +115,7 @@ def make_reference(tmp_path: Path, format_spec: Format) -> tuple[Path, Path]:
     return source, output
 
 
-def test_reference_source_tidak_berubah(tmp_path: Path, undip_format: Format) -> None:
+def test_reference_source_unchanged(tmp_path: Path, undip_format: Format) -> None:
     source = Path(undip_format.assets.reference_docx)
     before = hashlib.sha256(source.read_bytes()).hexdigest()
 
@@ -137,7 +137,7 @@ def test_normal_tnr_12_spacing_15(tmp_path: Path, undip_format: Format) -> None:
     assert int(child(normal.find(f"{W}pPr"), "ind").get(f"{W}firstLine", "-1")) == 709
 
 
-def test_heading_tnr_12_dan_margin(tmp_path: Path, undip_format: Format) -> None:
+def test_heading_tnr_12_and_margin(tmp_path: Path, undip_format: Format) -> None:
     _, output = make_reference(tmp_path, undip_format)
     styles = read_xml(output, "word/styles.xml")
 
@@ -158,7 +158,7 @@ def test_heading_tnr_12_dan_margin(tmp_path: Path, undip_format: Format) -> None
     assert page_margin.get(f"{W}left") == "2268"
 
 
-def test_apply_page_layout_memakai_map_kanonis_dan_landscape(
+def test_apply_page_layout_uses_canonical_map_and_landscape(
     undip_format: Format,
 ) -> None:
     package = DocumentPackage.load(Path(undip_format.assets.reference_docx))
@@ -188,7 +188,7 @@ def test_apply_page_layout_memakai_map_kanonis_dan_landscape(
         ("A4", "diagonal", "page.orientation"),
     ],
 )
-def test_apply_page_layout_menolak_input_tidak_valid(
+def test_apply_page_layout_rejects_invalid_input(
     undip_format: Format,
     size: str,
     orientation: str,
@@ -231,7 +231,7 @@ def test_caption_10pt(tmp_path: Path, undip_format: Format) -> None:
     assert table.find(f"{W}pPr/{W}keepNext") is not None
 
 
-def test_abstract_10pt_spacing_10_dan_indent(tmp_path: Path, undip_format: Format) -> None:
+def test_abstract_10pt_spacing_10_and_indent(tmp_path: Path, undip_format: Format) -> None:
     _, output = make_reference(tmp_path, undip_format)
     styles = read_xml(output, "word/styles.xml")
 
@@ -254,7 +254,7 @@ def test_abstract_10pt_spacing_10_dan_indent(tmp_path: Path, undip_format: Forma
     assert_indent(keywords, first_line=0)
 
 
-def test_semua_cover_style_center_dan_tanpa_indent(
+def test_all_cover_styles_centered_and_without_indent(
     tmp_path: Path,
     undip_format: Format,
 ) -> None:
@@ -282,7 +282,7 @@ def test_semua_cover_style_center_dan_tanpa_indent(
     assert on_off(title.find(f"{W}rPr"), "b") is True
 
 
-def test_style_wajib_terpelihara_dan_istilah_ditambahkan(
+def test_required_styles_preserved_and_terms_added(
     tmp_path: Path,
     undip_format: Format,
 ) -> None:
@@ -296,13 +296,13 @@ def test_style_wajib_terpelihara_dan_istilah_ditambahkan(
     assert "IstilahReview" in derived
 
     styles = read_xml(output, "word/styles.xml")
-    asing = get_style(styles, "IstilahAsing")
-    assert asing.get(f"{W}type") == "character"
-    assert child(asing.find(f"{W}rPr"), "i") is not None
-    assert child(asing.find(f"{W}rPr"), "lang").get(f"{W}val") == "en-US"
+    foreign = get_style(styles, "IstilahAsing")
+    assert foreign.get(f"{W}type") == "character"
+    assert child(foreign.find(f"{W}rPr"), "i") is not None
+    assert child(foreign.find(f"{W}rPr"), "lang").get(f"{W}val") == "en-US"
 
 
-def test_reference_deterministik(tmp_path: Path, undip_format: Format) -> None:
+def test_reference_deterministic(tmp_path: Path, undip_format: Format) -> None:
     source = Path(undip_format.assets.reference_docx)
     first = tmp_path / "first.docx"
     second = tmp_path / "second.docx"
@@ -313,7 +313,7 @@ def test_reference_deterministik(tmp_path: Path, undip_format: Format) -> None:
     assert first.read_bytes() == second.read_bytes()
 
 
-def test_build_reference_menolak_menimpa_source(
+def test_build_reference_rejects_overwriting_source(
     tmp_path: Path,
     undip_format: Format,
 ) -> None:
@@ -327,7 +327,7 @@ def test_build_reference_menolak_menimpa_source(
     assert source.read_bytes() == before
 
 
-def test_stage_style_reference_menulis_ke_workspace(
+def test_stage_style_reference_writes_to_workspace(
     tmp_path: Path,
     undip_format: Format,
 ) -> None:
@@ -354,7 +354,7 @@ def test_stage_style_reference_menulis_ke_workspace(
     assert second.changed is False
 
 
-def test_main_dev_cli_tidak_menimpa_source(tmp_path: Path) -> None:
+def test_main_dev_cli_does_not_overwrite_source(tmp_path: Path) -> None:
     from docgen.stages.style_reference import main
 
     source = Path(load_format("undip-msi").assets.reference_docx)
@@ -367,7 +367,7 @@ def test_main_dev_cli_tidak_menimpa_source(tmp_path: Path) -> None:
     assert hashlib.sha256(source.read_bytes()).hexdigest() == before
 
 
-def test_build_style_patch_dipecah_dan_bisa_di_unpack() -> None:
+def test_build_style_patch_split_and_can_be_unpacked() -> None:
     ppr, rpr, ppr_drops, rpr_drops = build_style_patch(
         {
             "space_before": 0,
@@ -393,7 +393,7 @@ def test_build_style_patch_dipecah_dan_bisa_di_unpack() -> None:
     assert rpr_drops == ("shd",)
 
 
-def test_docx_styles_patch_dan_verify(
+def test_docx_styles_patch_and_verify(
     tmp_path: Path,
     undip_format: Format,
 ) -> None:

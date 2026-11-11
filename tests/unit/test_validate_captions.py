@@ -22,7 +22,7 @@ def write_markdown(tmp_path: Path, name: str, text: str) -> Path:
     return path
 
 
-def test_tabel_tanpa_caption_ditolak(tmp_path):
+def test_table_without_caption_rejected(tmp_path):
     path = write_markdown(
         tmp_path,
         "tanpa_caption.md",
@@ -38,23 +38,23 @@ def test_tabel_tanpa_caption_ditolak(tmp_path):
     assert ": Judul tabel" in issues[0].message
 
 
-def test_tabel_dengan_caption_di_atas_dan_bawah_diterima(tmp_path):
-    atas = write_markdown(
+def test_table_with_caption_above_and_below_accepted(tmp_path):
+    above = write_markdown(
         tmp_path,
         "atas.md",
         "# BAB I\n\n: Data responden\n\n| Nama | Nilai |\n| --- | --- |\n| Ahmad | 90 |\n",
     )
-    bawah = write_markdown(
+    below = write_markdown(
         tmp_path,
         "bawah.md",
         "# BAB I\n\n| Nama | Nilai |\n| --- | --- |\n| Ahmad | 90 |\n\n: Data responden\n",
     )
 
-    assert check_markdown(atas) == []
-    assert check_markdown(bawah) == []
+    assert check_markdown(above) == []
+    assert check_markdown(below) == []
 
 
-def test_gambar_tanpa_alt_ditolak(tmp_path):
+def test_image_without_alt_rejected(tmp_path):
     path = write_markdown(
         tmp_path,
         "gambar_tanpa_alt.md",
@@ -69,7 +69,7 @@ def test_gambar_tanpa_alt_ditolak(tmp_path):
     assert "alt text" in issues[0].message
 
 
-def test_gambar_dengan_alt_diterima(tmp_path):
+def test_image_with_alt_accepted(tmp_path):
     path = write_markdown(
         tmp_path,
         "gambar_beralt.md",
@@ -79,7 +79,7 @@ def test_gambar_dengan_alt_diterima(tmp_path):
     assert check_markdown(path) == []
 
 
-def test_reference_image_tanpa_alt_ditolak(tmp_path):
+def test_reference_image_without_alt_rejected(tmp_path):
     path = write_markdown(
         tmp_path,
         "reference.md",
@@ -91,7 +91,7 @@ def test_reference_image_tanpa_alt_ditolak(tmp_path):
     assert [issue.kind for issue in issues] == ["gambar"]
 
 
-def test_contoh_di_dalam_code_span_dan_code_fence_diabaikan(tmp_path):
+def test_example_inside_code_span_and_code_fence_ignored(tmp_path):
     path = write_markdown(
         tmp_path,
         "code.md",
@@ -108,7 +108,7 @@ def test_contoh_di_dalam_code_span_dan_code_fence_diabaikan(tmp_path):
     assert check_markdown(path) == []
 
 
-def test_html_code_dan_pre_diabaikan(tmp_path):
+def test_html_code_and_pre_ignored(tmp_path):
     inline = write_markdown(
         tmp_path,
         "html_inline.md",
@@ -124,7 +124,7 @@ def test_html_code_dan_pre_diabaikan(tmp_path):
     assert check_markdown(block) == []
 
 
-def test_beberapa_temuan_dilaporkan_sekaligus(tmp_path):
+def test_multiple_findings_reported_at_once(tmp_path):
     path = write_markdown(
         tmp_path,
         "banyak.md",
@@ -136,28 +136,28 @@ def test_beberapa_temuan_dilaporkan_sekaligus(tmp_path):
     assert [issue.kind for issue in issues] == ["tabel", "gambar"]
 
 
-def test_cli_sukses_dan_gagal(tmp_path, capsys):
-    baik = write_markdown(
+def test_cli_success_and_failure(tmp_path, capsys):
+    good = write_markdown(
         tmp_path,
         "baik.md",
         "# BAB I\n\n: Data\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n\n![Diagram](x.png)\n",
     )
-    buruk = write_markdown(
+    bad = write_markdown(
         tmp_path,
         "buruk.md",
         "# BAB I\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n",
     )
 
-    assert main([str(baik)]) == 0
+    assert main([str(good)]) == 0
     assert "[OK]" in capsys.readouterr().out
 
-    assert main([str(buruk)]) == 1
+    assert main([str(bad)]) == 1
     captured = capsys.readouterr()
     assert "[ERROR]" in captured.err
     assert "Build DOCX dihentikan" in captured.err
 
 
-def test_direktori_diperiksa_rekursif(tmp_path):
+def test_directory_checked_recursively(tmp_path):
     subdir = tmp_path / "chapters"
     subdir.mkdir()
     (subdir / "bab1.md").write_text("# BAB I\n\n![](gambar.png)\n", encoding="utf-8")
@@ -166,7 +166,7 @@ def test_direktori_diperiksa_rekursif(tmp_path):
     assert expand_paths([tmp_path]) == [subdir / "bab1.md"]
 
 
-def test_check_text_memakai_line_offset():
+def test_check_text_uses_line_offset():
     issues = check_text(
         "| A | B |\n| --- | --- |\n| 1 | 2 |\n",
         path=Path("document.md"),
@@ -176,7 +176,7 @@ def test_check_text_memakai_line_offset():
     assert issues[0].line == 7
 
 
-def test_validate_stage_melaporkan_nomor_baris_berkas_asli(tmp_path):
+def test_validate_stage_reports_original_file_line_number(tmp_path):
     path = write_markdown(
         tmp_path,
         "document.md",

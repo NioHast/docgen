@@ -20,12 +20,12 @@ ORIENTED_SIZES = (
 )
 
 
-def test_page_sizes_hanya_memuat_dua_ukuran_kanonis() -> None:
+def test_page_sizes_contain_only_two_canonical_sizes() -> None:
     assert tuple(PAGE_SIZES) == ("A4", "Letter")
 
 
 @pytest.mark.parametrize(("name", "width", "height"), PORTRAIT_SIZES)
-def test_setiap_ukuran_positif_dan_sesuai_kontrak(
+def test_each_size_is_positive_and_matches_contract(
     name: str,
     width: int,
     height: int,
@@ -35,7 +35,7 @@ def test_setiap_ukuran_positif_dan_sesuai_kontrak(
 
 
 @pytest.mark.parametrize(("name", "orientation", "width", "height"), ORIENTED_SIZES)
-def test_semua_orientasi_kanonis(
+def test_all_orientations_are_canonical(
     name: str,
     orientation: str,
     width: int,
@@ -44,23 +44,23 @@ def test_semua_orientasi_kanonis(
     assert page_size(name, orientation) == (width, height)
 
 
-def test_a4_adalah_11906_kali_16838_twip() -> None:
+def test_a4_is_11906_by_16838_twips() -> None:
     assert PAGE_SIZES["A4"] == (11906, 16838)
     assert page_size("A4") == (11906, 16838)
     assert page_size("A4", "portrait") == (11906, 16838)
 
 
-def test_letter_adalah_12240_kali_15840_twip() -> None:
+def test_letter_is_12240_by_15840_twips() -> None:
     assert PAGE_SIZES["Letter"] == (12240, 15840)
     assert page_size("Letter") == (12240, 15840)
 
 
-def test_landscape_menukar_lebar_dan_tinggi() -> None:
+def test_landscape_swaps_width_and_height() -> None:
     assert page_size("A4", "landscape") == (16838, 11906)
     assert page_size("Letter", "landscape") == (15840, 12240)
 
 
-def test_orientasi_selain_landscape_diperlakukan_sebagai_portrait() -> None:
+def test_orientation_other_than_landscape_is_treated_as_portrait() -> None:
     assert page_size("A4", "portrait") == (11906, 16838)
     assert page_size("A4", "Portrait") == (11906, 16838)
     assert page_size("A4", "sideways") == (11906, 16838)
@@ -69,7 +69,7 @@ def test_orientasi_selain_landscape_diperlakukan_sebagai_portrait() -> None:
 # Nama ukuran bersifat case-sensitive di ``page.py``; normalisasi nama
 # (``LETTER`` uppercase) adalah tanggung jawab masing-masing caller.
 @pytest.mark.parametrize("name", ["F4", "A5", "a4", "LETTER", ""])
-def test_nama_tidak_dikenal_menimbulkan_key_error(name: str) -> None:
+def test_unknown_name_raises_key_error(name: str) -> None:
     with pytest.raises(KeyError) as excinfo:
         page_size(name)
     assert excinfo.value.args == (name,)
@@ -121,12 +121,12 @@ def test_content_width_a4_margin_normal() -> None:
     assert content_width(body) == 7937
 
 
-def test_content_width_mengurangi_gutter() -> None:
+def test_content_width_subtracts_gutter() -> None:
     body = _body_with(_section(gutter="720"))
     assert content_width(body) == 11906 - 2268 - 1701 - 720
 
 
-def test_content_width_gutter_hilang_dihitung_nol() -> None:
+def test_content_width_missing_gutter_counts_as_zero() -> None:
     body = _body_with(_section(gutter=None))
     assert content_width(body) == 11906 - 2268 - 1701
 
@@ -137,7 +137,7 @@ def test_content_width_landscape() -> None:
     assert content_width(body) == 16838 - 2268 - 1701
 
 
-def test_content_width_memakai_sectpr_child_langsung() -> None:
+def test_content_width_uses_direct_sectpr_child() -> None:
     body = etree.Element(qn("w:body"))
     paragraph = etree.SubElement(body, qn("w:p"))
     properties = etree.SubElement(paragraph, qn("w:pPr"))
@@ -146,7 +146,7 @@ def test_content_width_memakai_sectpr_child_langsung() -> None:
     assert content_width(body) == 7937
 
 
-def test_content_width_memakai_sectpr_nested_terakhir() -> None:
+def test_content_width_uses_last_nested_sectpr() -> None:
     body = etree.Element(qn("w:body"))
     for width in ("12240", "11906"):
         paragraph = etree.SubElement(body, qn("w:p"))
@@ -155,7 +155,7 @@ def test_content_width_memakai_sectpr_nested_terakhir() -> None:
     assert content_width(body) == 7937
 
 
-def test_content_width_tanpa_sectpr_menimbulkan_page_error() -> None:
+def test_content_width_without_sectpr_raises_page_error() -> None:
     _assert_page_width_error(etree.Element(qn("w:body")))
 
 
@@ -163,7 +163,7 @@ def test_content_width_tanpa_sectpr_menimbulkan_page_error() -> None:
     ("page_size_element", "page_margin_element"),
     [(False, True), (True, False)],
 )
-def test_content_width_pgsz_atau_pgmar_hilang_menimbulkan_page_error(
+def test_content_width_missing_pgsz_or_pgmar_raises_page_error(
     page_size_element: bool,
     page_margin_element: bool,
 ) -> None:
@@ -188,7 +188,7 @@ def _attribute_element(section: etree._Element, attribute: str) -> tuple[etree._
 
 
 @pytest.mark.parametrize("attribute", ["width", "left", "right"])
-def test_content_width_atribut_hilang_menimbulkan_page_error(attribute: str) -> None:
+def test_content_width_missing_attribute_raises_page_error(attribute: str) -> None:
     section = _section()
     element, name = _attribute_element(section, attribute)
     element.attrib.pop(name, None)
@@ -196,7 +196,7 @@ def test_content_width_atribut_hilang_menimbulkan_page_error(attribute: str) -> 
 
 
 @pytest.mark.parametrize("attribute", ["width", "left", "right"])
-def test_content_width_atribut_bukan_bilangan_bulat_menimbulkan_page_error(
+def test_content_width_non_integer_attribute_raises_page_error(
     attribute: str,
 ) -> None:
     section = _section()
@@ -205,9 +205,9 @@ def test_content_width_atribut_bukan_bilangan_bulat_menimbulkan_page_error(
     _assert_page_width_error(_body_with(section))
 
 
-def test_content_width_tidak_positif_menimbulkan_page_error() -> None:
+def test_content_width_non_positive_raises_page_error() -> None:
     _assert_page_width_error(_body_with(_section(width="3000", left="2000", right="2000")))
 
 
-def test_content_width_nol_menimbulkan_page_error() -> None:
+def test_content_width_zero_raises_page_error() -> None:
     _assert_page_width_error(_body_with(_section(width="4000", left="2000", right="2000")))

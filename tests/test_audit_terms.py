@@ -37,7 +37,7 @@ def write_glossary(tmp_path: Path, rows: list[tuple[str, str]]) -> Path:
     return path
 
 
-def ensure_istilah_style(doc: Document) -> None:
+def ensure_foreign_term_style(doc: Document) -> None:
     """Buat character style IstilahAsing yang italic."""
 
     style = doc.styles.add_style("IstilahAsing", WD_STYLE_TYPE.CHARACTER)
@@ -69,13 +69,13 @@ def groups_by_key(result) -> dict[str, object]:
 # Tes perilaku
 
 
-def test_kategori_dasar_dan_abbreviation(tmp_path: Path) -> None:
+def test_basic_categories_and_abbreviation(tmp_path: Path) -> None:
     """Training data italic, data tegak, Graphical unknown, CNN diabaikan."""
 
     glossary_path = write_glossary(tmp_path, [("training data", "yes"), ("data", "no")])
 
     doc = Document()
-    ensure_istilah_style(doc)
+    ensure_foreign_term_style(doc)
     add_paragraph(
         doc,
         [
@@ -102,7 +102,7 @@ def test_kategori_dasar_dan_abbreviation(tmp_path: Path) -> None:
     assert [group.key for group in result.needs_decision] == ["graphical"]
 
 
-def test_abbreviation_di_glosarium_tetap_diproses(tmp_path: Path) -> None:
+def test_abbreviation_in_glossary_still_processed(tmp_path: Path) -> None:
     """Akronim yang ada di glosarium tidak diabaikan."""
 
     glossary_path = write_glossary(tmp_path, [("CNN", "yes")])
@@ -147,7 +147,7 @@ def test_glossary_plain_but_italic(tmp_path: Path) -> None:
     assert group in result.needs_fix
 
 
-def test_istilah_terpotong_run_dengan_spasi_tegak(tmp_path: Path) -> None:
+def test_term_split_across_runs_with_upright_space(tmp_path: Path) -> None:
     """Spasi di run tegak tidak membuat istilah italic dianggap missing."""
 
     glossary_path = write_glossary(tmp_path, [("training data", "yes")])
@@ -165,7 +165,7 @@ def test_istilah_terpotong_run_dengan_spasi_tegak(tmp_path: Path) -> None:
     assert result.needs_fix == []
 
 
-def test_mixed_case_name_ditandai_name(tmp_path: Path) -> None:
+def test_mixed_case_name_flagged_as_name(tmp_path: Path) -> None:
     """CamelCase menjadi mixed_case_name; Graphical tetap unknown."""
 
     glossary_path = write_glossary(tmp_path, [])
@@ -182,7 +182,7 @@ def test_mixed_case_name_ditandai_name(tmp_path: Path) -> None:
     assert groups["graphical"].is_name is False
 
 
-def test_ekstraksi_body_tabel_header_footer(tmp_path: Path) -> None:
+def test_extracts_body_table_header_footer(tmp_path: Path) -> None:
     """Paragraf body, sel tabel, header, dan footer semuanya dipindai."""
 
     glossary_path = write_glossary(tmp_path, [])
@@ -205,7 +205,7 @@ def test_ekstraksi_body_tabel_header_footer(tmp_path: Path) -> None:
     assert result.abbreviation_count == 1
 
 
-def test_konteks_maksimal_delapan_kata(tmp_path: Path) -> None:
+def test_context_max_eight_words(tmp_path: Path) -> None:
     """Konteks mengambil 8 kata sebelum dan 8 kata sesudah."""
 
     glossary_path = write_glossary(tmp_path, [])
@@ -227,7 +227,7 @@ def test_konteks_maksimal_delapan_kata(tmp_path: Path) -> None:
     assert context.count("kata") == 16
 
 
-def test_laporan_deterministik(tmp_path: Path) -> None:
+def test_report_deterministic(tmp_path: Path) -> None:
     """Dua pemanggilan menghasilkan laporan byte-identik."""
 
     glossary_path = write_glossary(tmp_path, [("training data", "yes"), ("data", "no")])
@@ -271,7 +271,7 @@ def test_laporan_deterministik(tmp_path: Path) -> None:
     )
 
 
-def test_laporan_memuat_bagian_wajib(tmp_path: Path) -> None:
+def test_report_contains_required_sections(tmp_path: Path) -> None:
     """Laporan memuat ringkasan dan kedua tabel tindak lanjut."""
 
     glossary_path = write_glossary(tmp_path, [("training data", "yes"), ("data", "no")])
@@ -292,7 +292,7 @@ def test_laporan_memuat_bagian_wajib(tmp_path: Path) -> None:
     assert "`Graphical`" in report
 
 
-def test_exit_code_dua_dan_nol(tmp_path: Path) -> None:
+def test_exit_code_two_and_zero(tmp_path: Path) -> None:
     """Exit 2 saat ada temuan; exit 0 saat bersih."""
 
     glossary_path = write_glossary(tmp_path, [("data", "no")])

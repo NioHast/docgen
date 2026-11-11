@@ -127,7 +127,7 @@ def source_docx(tmp_path: Path) -> Path:
 # ---------------------------------------------------------------------------
 
 
-def test_tiga_paragraf_source_code_menjadi_satu_tabel(source_docx, tmp_path):
+def test_three_source_code_paragraphs_become_one_table(source_docx, tmp_path):
     package = DocumentPackage.load(source_docx)
     report = apply_code(package)
     output = tmp_path / "out.docx"
@@ -151,7 +151,7 @@ def test_tiga_paragraf_source_code_menjadi_satu_tabel(source_docx, tmp_path):
     assert report.changed is True
 
 
-def test_border_dan_margin_tabel_kode(source_docx, tmp_path):
+def test_code_table_border_and_margin(source_docx, tmp_path):
     package = DocumentPackage.load(source_docx)
     apply_code(package)
     output = tmp_path / "out.docx"
@@ -208,7 +208,7 @@ def code_table_border_constant_matches() -> bool:
     )
 
 
-def test_font_dan_spasi_paragraf_kode(source_docx, tmp_path):
+def test_code_paragraph_font_and_spacing(source_docx, tmp_path):
     package = DocumentPackage.load(source_docx)
     apply_code(package)
     output = tmp_path / "out.docx"
@@ -229,7 +229,7 @@ def test_font_dan_spasi_paragraf_kode(source_docx, tmp_path):
             assert run.italic is False
 
 
-def test_indentasi_spasi_dipertahankan(tmp_path):
+def test_space_indentation_preserved(tmp_path):
     source = build_docx(
         tmp_path / "spasi.docx",
         [("code", ["    if nilai:", "        return nilai"])],
@@ -251,7 +251,7 @@ def test_indentasi_spasi_dipertahankan(tmp_path):
             assert node.get("{http://www.w3.org/XML/1998/namespace}space") == "preserve"
 
 
-def test_dua_blok_kode_terpisah_menjadi_dua_tabel(tmp_path):
+def test_two_separate_code_blocks_become_two_tables(tmp_path):
     source = build_docx(
         tmp_path / "dua_blok.docx",
         [
@@ -277,7 +277,7 @@ def test_dua_blok_kode_terpisah_menjadi_dua_tabel(tmp_path):
 # ---------------------------------------------------------------------------
 
 
-def test_idempoten_dan_normalized_tables_nol(source_docx, tmp_path):
+def test_idempotent_and_zero_normalized_tables(source_docx, tmp_path):
     package = DocumentPackage.load(source_docx)
     first = apply_code(package)
     first_path = tmp_path / "first.docx"
@@ -299,7 +299,7 @@ def test_idempoten_dan_normalized_tables_nol(source_docx, tmp_path):
     )
 
 
-def test_tabel_kode_lama_dinormalisasi(tmp_path):
+def test_old_code_table_normalized(tmp_path):
     document = Document()
     code_style = ensure_style(document, "Source Code", WD_STYLE_TYPE.PARAGRAPH)
     table = document.add_table(rows=1, cols=1)
@@ -356,7 +356,7 @@ def test_tabel_kode_lama_dinormalisasi(tmp_path):
 # ---------------------------------------------------------------------------
 
 
-def test_kode_inline_tidak_diubah(tmp_path):
+def test_inline_code_unchanged(tmp_path):
     source = build_docx(
         tmp_path / "inline.docx",
         [("inline", "Gunakan ", "inline_code()", " di tengah paragraf biasa.")],
@@ -378,7 +378,7 @@ def test_kode_inline_tidak_diubah(tmp_path):
     "style_name",
     ["Verbatim Char", "HTML Code", "HTML Preformatted"],
 )
-def test_style_kode_alternatif_dikenali(tmp_path, style_name):
+def test_alternate_code_style_recognized(tmp_path, style_name):
     source = build_docx(
         tmp_path / "alternatif.docx",
         [("code", ["nilai = 1"])],
@@ -394,7 +394,7 @@ def test_style_kode_alternatif_dikenali(tmp_path, style_name):
     assert document.tables[0].cell(0, 0).text == "nilai = 1"
 
 
-def test_line_break_dalam_satu_paragraf_dipecah(tmp_path):
+def test_line_break_in_one_paragraph_split(tmp_path):
     source = build_docx(
         tmp_path / "linebreak.docx",
         [("code", ["baris 1\n  baris 2\nbaris 3"])],
@@ -412,7 +412,7 @@ def test_line_break_dalam_satu_paragraf_dipecah(tmp_path):
     ]
 
 
-def test_bookmark_di_dalam_blok_kode_dipertahankan(tmp_path):
+def test_bookmark_inside_code_block_preserved(tmp_path):
     document = Document()
     code_style = ensure_style(document, "Source Code", WD_STYLE_TYPE.PARAGRAPH)
     paragraph = document.add_paragraph(style=code_style)
@@ -448,7 +448,7 @@ def test_bookmark_di_dalam_blok_kode_dipertahankan(tmp_path):
     )
 
 
-def test_paragraf_kode_dengan_field_dilewati(tmp_path):
+def test_code_paragraph_with_field_skipped(tmp_path):
     document = Document()
     code_style = ensure_style(document, "Source Code", WD_STYLE_TYPE.PARAGRAPH)
     paragraph = document.add_paragraph(style=code_style)
@@ -478,7 +478,7 @@ def test_paragraf_kode_dengan_field_dilewati(tmp_path):
 # ---------------------------------------------------------------------------
 
 
-def test_code_table_tidak_diberi_caption_tabel(tmp_path):
+def test_code_table_not_given_table_caption(tmp_path):
     source = build_docx(
         tmp_path / "code.docx",
         [("code", ["nilai = 1"])],
@@ -513,7 +513,7 @@ def test_code_table_tidak_diberi_caption_tabel(tmp_path):
     assert border_values(xml_table)["left"] == ("single", "8")
 
 
-def test_tabel_data_tidak_dianggap_tabel_kode(tmp_path):
+def test_data_table_not_considered_code_table(tmp_path):
     document = Document()
     table = document.add_table(rows=2, cols=2)
     table.cell(0, 0).text = "A"
@@ -533,7 +533,7 @@ def test_tabel_data_tidak_dianggap_tabel_kode(tmp_path):
 # ---------------------------------------------------------------------------
 
 
-def test_part_non_target_byte_identik(source_docx, tmp_path):
+def test_non_target_part_bytes_identical(source_docx, tmp_path):
     package = DocumentPackage.load(source_docx)
     original = {name: package.part(name) for name in package.part_names() if name != DOCUMENT_PART}
 
@@ -554,7 +554,7 @@ def test_code_stage_metadata():
     assert stage.idempotent is True
 
 
-def test_table_spec_default_tidak_mengubah_tabel_data(tmp_path):
+def test_table_spec_default_does_not_change_data_table(tmp_path):
     document = Document()
     table = document.add_table(rows=2, cols=2)
     table.cell(0, 0).text = "A"
@@ -588,7 +588,7 @@ def _load_without_section(path: Path) -> DocumentPackage:
     return package
 
 
-def test_make_code_table_items_kosong_tanpa_sectpr_menimbulkan_table_no_code(
+def test_make_code_table_items_empty_without_sectpr_causes_table_no_code(
     tmp_path: Path,
 ) -> None:
     source = build_docx(tmp_path / "no-section-empty.docx", [("body", "tanpa kode")])
@@ -600,7 +600,7 @@ def test_make_code_table_items_kosong_tanpa_sectpr_menimbulkan_table_no_code(
     assert excinfo.value.code == "TABLE-NO-CODE"
 
 
-def test_make_code_table_items_ada_tanpa_sectpr_menimbulkan_page_width(tmp_path: Path) -> None:
+def test_make_code_table_items_present_without_sectpr_causes_page_width(tmp_path: Path) -> None:
     source = build_docx(tmp_path / "no-section-code.docx", [("code", ["print(1)"])])
     package = _load_without_section(source)
     paragraph = next(package.xml(DOCUMENT_PART).iter(qn("w:p")))

@@ -49,11 +49,11 @@ def test_chapter_number(text: str, expected: int | None) -> None:
     assert chapter_number(text) == expected
 
 
-def test_chapter_number_none_menghasilkan_none() -> None:
+def test_chapter_number_none_returns_none() -> None:
     assert chapter_number(None) is None
 
 
-def test_legacy_numbering_tidak_diekspor_lagi() -> None:
+def test_legacy_numbering_not_exported_anymore() -> None:
     """Hanya ``docx.numbering`` yang boleh mendefinisikan helper nomor bab."""
 
     from docgen.docx import captions, layout
@@ -89,6 +89,6 @@ def test_roman_roundtrip() -> None:
 
 
 @pytest.mark.parametrize("value", (1, 4, 9, 14, 40, 1994))
-def test_format_roman_sama_dengan_markdown_headings(value: int) -> None:
+def test_format_roman_matches_markdown_headings(value: int) -> None:
     assert format_roman(value) == roman(value)
     assert format_chapter_number(value, NumberingSpec("BAB_ROMAN")) == f"BAB {format_roman(value)}"

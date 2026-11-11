@@ -56,7 +56,7 @@ def _string_constants(path: Path) -> Iterator[str]:
             yield node.value
 
 
-def test_stage_module_berada_di_dalam_package() -> None:
+def test_stage_module_is_inside_package() -> None:
     """Setiap stage memakai modul package, bukan path dari folder input."""
 
     for spec in CANONICAL_STAGES:
@@ -67,19 +67,19 @@ def test_stage_module_berada_di_dalam_package() -> None:
         assert ".." not in Path(spec.module).parts
 
 
-def test_tidak_ada_referensi_eksekusi_kode_lama_di_package() -> None:
+def test_no_old_code_execution_references_in_package() -> None:
     """String kode (bukan docstring) tidak menunjuk artifact terlarang."""
 
-    temuan: list[str] = []
+    findings: list[str] = []
     for path in sorted(PACKAGE.rglob("*.py")):
         for value in _string_constants(path):
             for needle in FORBIDDEN:
                 if needle in value:
-                    temuan.append(f"{path.relative_to(ROOT)}: {value!r}")
-    assert temuan == []
+                    findings.append(f"{path.relative_to(ROOT)}: {value!r}")
+    assert findings == []
 
 
-def test_data_paket_tidak_fallback_ke_direktori_kerja(
+def test_package_data_does_not_fallback_to_working_directory(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """``data_root`` selalu package, meskipun cwd berisi artifact terlarang."""

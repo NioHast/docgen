@@ -36,7 +36,7 @@ def test_invalid_numbering_spec_rejected() -> None:
         NumberingSpec(body="ROMAN")  # type: ignore[arg-type]
 
 
-def test_numbering_romawi_h1_h2_h3_dan_reset() -> None:
+def test_numbering_roman_h1_h2_h3_and_reset() -> None:
     numberer = HeadingNumberer(NumberingSpec("BAB_ROMAN"))
 
     assert numberer.number(1, "Pendahuluan").number == "BAB I"
@@ -81,7 +81,7 @@ def test_unnumbered_h1_does_not_reset_counters() -> None:
     assert numberer.number(1, "Pembahasan").number == "BAB II"
 
 
-def test_h4_h6_tidak_dinomori_dan_tidak_mengubah_counter() -> None:
+def test_h4_h6_not_numbered_and_do_not_change_counter() -> None:
     numberer = HeadingNumberer(NumberingSpec("BAB_ROMAN"))
     numberer.number(1, "Bab")
     assert numberer.number(2, "Sub").number == "1.1."
@@ -110,12 +110,12 @@ def test_parse_heading_attributes_and_unnumbered() -> None:
     assert parse_heading("Teks # bukan heading") is None
 
 
-def test_uppercase_heading_menjaga_inline_dan_url() -> None:
+def test_uppercase_heading_preserves_inline_and_url() -> None:
     text = "Sub *miring* [tautan](HTTP://EXAMPLE.COM) `kode`"
     assert uppercase_markdown(text) == "SUB *MIRING* [TAUTAN](HTTP://EXAMPLE.COM) `kode`"
 
 
-def test_render_heading_romawi_memakai_line_break() -> None:
+def test_render_heading_roman_uses_line_break() -> None:
     numberer = HeadingNumberer(NumberingSpec("BAB_ROMAN"))
     heading = numberer.number(1, "Pendahuluan")
 
@@ -130,7 +130,7 @@ def test_render_heading_romawi_memakai_line_break() -> None:
     assert output == f"# BAB I{LINE_BREAK}PENDAHULUAN\n"
 
 
-def test_number_markdown_h2_h3_dan_arabic() -> None:
+def test_number_markdown_h2_h3_and_arabic() -> None:
     markdown = "# Pendahuluan\n\n## Latar Belakang\n\n### Detail\n\n# Pembahasan\n\n## Analisis\n"
 
     roman_output = number_markdown(markdown, NumberingSpec("BAB_ROMAN"))
@@ -145,7 +145,7 @@ def test_number_markdown_h2_h3_dan_arabic() -> None:
     assert "## 1.1." in arabic_output
 
 
-def test_number_markdown_unnumbered_dan_atribut() -> None:
+def test_number_markdown_unnumbered_and_attributes() -> None:
     markdown = "# Ringkasan {-}\n\n## Sub {#sub}\n\n# Bab Satu\n\n## Anak\n"
     output = number_markdown(markdown, NumberingSpec("BAB_ROMAN"))
 
@@ -155,7 +155,7 @@ def test_number_markdown_unnumbered_dan_atribut() -> None:
     assert f"## 1.1.{TAB}Anak\n" in output
 
 
-def test_number_markdown_melewati_fenced_code() -> None:
+def test_number_markdown_skips_fenced_code() -> None:
     markdown = "```markdown\n# bukan heading\n## juga bukan\n```\n\n# Pendahuluan\n"
     output = number_markdown(markdown, NumberingSpec("BAB_ROMAN"))
 
@@ -164,13 +164,13 @@ def test_number_markdown_melewati_fenced_code() -> None:
     assert f"# BAB I{LINE_BREAK}PENDAHULUAN\n" in output
 
 
-def test_balance_title_judul_pendek_satu_baris() -> None:
+def test_balance_title_short_title_single_line() -> None:
     assert balance_title("Laporan Tugas") == ("Laporan Tugas",)
     assert balance_title("") == ("",)
     assert balance_title("x" * 80) == ("x" * 80,)
 
 
-def test_balance_title_dua_kata_panjang_tidak_crash() -> None:
+def test_balance_title_two_long_words_does_not_crash() -> None:
     text = ("A" * 30) + " " + ("B" * 30)
     assert len(text) > 55
 
@@ -180,7 +180,7 @@ def test_balance_title_dua_kata_panjang_tidak_crash() -> None:
     assert " ".join(lines) == text
 
 
-def test_balance_title_memecah_judul_panjang() -> None:
+def test_balance_title_splits_long_title() -> None:
     text = "Optimasi Pipeline Pemrosesan Dokumen Markdown untuk Laporan Tugas Akhir"
 
     lines = balance_title(text)
@@ -190,7 +190,7 @@ def test_balance_title_memecah_judul_panjang() -> None:
     assert max(len(line) for line in lines) < len(text)
 
 
-def test_number_markdown_dan_alias_sama() -> None:
+def test_number_markdown_and_alias_same() -> None:
     markdown = "# Pendahuluan\n"
     assert number_markdown(markdown, NumberingSpec()) == number_markdown_headings(
         markdown, NumberingSpec()

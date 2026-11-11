@@ -101,7 +101,7 @@ def assert_option(arguments: list[str], flag: str, value: str) -> None:
     assert arguments[arguments.index(flag) + 1] == value
 
 
-def test_extract_blok_mermaid() -> None:
+def test_extract_mermaid_blocks() -> None:
     source = (
         "# BAB I\n"
         "\n" + mermaid_fence("Diagram pipeline", "flowchart TD\n  A --> B") + "\nSetelah diagram.\n"
@@ -120,7 +120,7 @@ def test_extract_blok_mermaid() -> None:
     assert block.indent == ""
 
 
-def test_extract_mengabaikan_fence_biasa() -> None:
+def test_extract_ignores_regular_fence() -> None:
     source = "```python\nprint('```{.mermaid caption=\"palsu\"}')\n```\n\n" + mermaid_fence(
         "Diagram asli", "graph TD\n  A --> B"
     )
@@ -141,7 +141,7 @@ def test_extract_mengabaikan_fence_biasa() -> None:
         '~~~mermaid caption="Diagram"',
     ],
 )
-def test_extract_varian_info_string(opener: str) -> None:
+def test_extract_info_string_variants(opener: str) -> None:
     fence = "~~~" if opener.startswith("~~~") else "```"
     source = f"{opener}\nflowchart TD\n  A --> B\n{fence}\n"
 
@@ -151,7 +151,7 @@ def test_extract_varian_info_string(opener: str) -> None:
     assert blocks[0].caption == "Diagram"
 
 
-def test_extract_caption_tidak_ada_ditolak() -> None:
+def test_extract_caption_missing_rejected() -> None:
     source = "```{.mermaid}\nflowchart TD\n  A --> B\n```\n"
 
     with pytest.raises(MermaidError) as error:
@@ -163,34 +163,34 @@ def test_extract_caption_tidak_ada_ditolak() -> None:
     assert "caption" in message
 
 
-def test_extract_caption_kosong_ditolak() -> None:
+def test_extract_caption_empty_rejected() -> None:
     source = '```{.mermaid caption=""}\nflowchart TD\n  A --> B\n```\n'
 
     with pytest.raises(MermaidError, match="caption"):
         extract_blocks(source)
 
 
-def test_extract_isi_kosong_ditolak() -> None:
+def test_extract_empty_content_rejected() -> None:
     source = '```{.mermaid caption="Diagram"}\n\n```\n'
 
     with pytest.raises(MermaidError, match="kosong"):
         extract_blocks(source)
 
 
-def test_extract_fence_mermaid_tidak_ditutup_ditolak() -> None:
+def test_extract_mermaid_fence_unclosed_rejected() -> None:
     source = '```{.mermaid caption="Diagram"}\nflowchart TD\n  A --> B\n'
 
     with pytest.raises(MermaidError, match="tidak ditutup"):
         extract_blocks(source)
 
 
-def test_extract_fence_biasa_tidak_ditutup_diabaikan() -> None:
+def test_extract_regular_fence_unclosed_ignored() -> None:
     source = "```python\nprint('x')\n"
 
     assert extract_blocks(source) == []
 
 
-def test_hash_idempoten_dan_bergantung_isi_dan_opsi() -> None:
+def test_hash_idempotent_and_depends_on_content_and_options() -> None:
     code = "flowchart TD\n  A --> B"
 
     assert render_hash(code) == render_hash(code)
@@ -202,7 +202,7 @@ def test_hash_idempoten_dan_bergantung_isi_dan_opsi() -> None:
     assert render_hash(code, {"scale": 1}) == render_hash(code, RenderOptions(scale=1.0))
 
 
-def test_render_blocks_mengganti_blok_dan_menulis_png(
+def test_render_blocks_replaces_blocks_and_writes_png(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     base = tmp_path / "tugas"
@@ -231,7 +231,7 @@ def test_render_blocks_mengganti_blok_dan_menulis_png(
     assert result.endswith("Selesai.\n")
 
 
-def test_render_blocks_cache_tidak_memanggil_mmdc(
+def test_render_blocks_cache_does_not_call_mmdc(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     base = tmp_path / "tugas"
@@ -250,7 +250,7 @@ def test_render_blocks_cache_tidak_memanggil_mmdc(
     assert len(list((base / "gambar").glob("mermaid-*.png"))) == 1
 
 
-def test_render_blocks_diagram_sama_dirender_sekali(
+def test_render_blocks_same_diagram_rendered_once(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     base = tmp_path / "tugas"
@@ -265,7 +265,7 @@ def test_render_blocks_diagram_sama_dirender_sekali(
     assert result.count("](gambar/mermaid-") == 2
 
 
-def test_render_blocks_tanpa_blok_tidak_membuat_folder(
+def test_render_blocks_without_blocks_does_not_create_folder(
     tmp_path: Path,
 ) -> None:
     base = tmp_path / "tugas"
@@ -285,7 +285,7 @@ def _mermaid_context(tmp_path: Path, body: str) -> SimpleNamespace:
     )
 
 
-def test_stage_tanpa_blok_tetap_menulis_mermaid_md_dan_artifact(tmp_path: Path) -> None:
+def test_stage_without_blocks_still_writes_mermaid_md_and_artifact(tmp_path: Path) -> None:
     body = "# BAB I\n\nTidak ada diagram.\n"
     ctx = _mermaid_context(tmp_path, body)
 
@@ -307,7 +307,7 @@ def test_stage_tanpa_blok_tetap_menulis_mermaid_md_dan_artifact(tmp_path: Path) 
     assert ctx.artifacts.get("mermaid.markdown") == output
 
 
-def test_render_blocks_mmdc_hilang_melempar_tool_missing(
+def test_render_blocks_missing_mmdc_raises_tool_missing(
     tmp_path: Path,
 ) -> None:
     base = tmp_path / "tugas"
@@ -325,9 +325,7 @@ def test_render_blocks_mmdc_hilang_melempar_tool_missing(
     assert not (base / "gambar").exists()
 
 
-def test_caption_hilang_tidak_merender_apa_pun(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_missing_caption_renders_nothing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     base = tmp_path / "tugas"
     fake_mmdc, log = make_fake_mmdc(tmp_path, monkeypatch)
     source = "```{.mermaid}\nflowchart TD\n  A --> B\n```\n"
@@ -339,7 +337,7 @@ def test_caption_hilang_tidak_merender_apa_pun(
     assert not (base / "gambar").exists()
 
 
-def test_render_blocks_meneruskan_opsi_dan_mengubah_hash(
+def test_render_blocks_passes_options_and_changes_hash(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     base = tmp_path / "tugas"
@@ -367,9 +365,7 @@ def test_render_blocks_meneruskan_opsi_dan_mengubah_hash(
     assert other != result
 
 
-def test_render_gagal_membersihkan_png_parsial(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_render_failure_cleans_partial_png(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     base = tmp_path / "tugas"
     fake_mmdc, log = make_fake_mmdc(tmp_path, monkeypatch)
     monkeypatch.setenv("FAKE_MMDC_FAIL", "1")
@@ -382,7 +378,7 @@ def test_render_gagal_membersihkan_png_parsial(
     assert list((base / "gambar").glob("mermaid-*.png")) == []
 
 
-def test_render_blocks_meneruskan_path_ke_pesan_error(tmp_path: Path) -> None:
+def test_render_blocks_passes_path_to_error_message(tmp_path: Path) -> None:
     source = "```{.mermaid}\nflowchart TD\n  A --> B\n```\n"
 
     with pytest.raises(MermaidError) as error:
@@ -391,7 +387,7 @@ def test_render_blocks_meneruskan_path_ke_pesan_error(tmp_path: Path) -> None:
     assert "bab1.md:1" in str(error.value)
 
 
-def test_line_ending_crlf_dipertahankan(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_line_ending_crlf_preserved(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     base = tmp_path / "tugas"
     fake_mmdc, _log = make_fake_mmdc(tmp_path, monkeypatch)
     source = (
@@ -411,7 +407,7 @@ def test_line_ending_crlf_dipertahankan(tmp_path: Path, monkeypatch: pytest.Monk
     assert "\n" not in result.replace("\r\n", "")
 
 
-def test_tanpa_newline_akhir_tetap_tanpa_newline(
+def test_without_trailing_newline_stays_without_newline(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     base = tmp_path / "tugas"
@@ -424,7 +420,7 @@ def test_tanpa_newline_akhir_tetap_tanpa_newline(
     assert not result.endswith("\n")
 
 
-def test_indentasi_fence_dipertahankan(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_fence_indentation_preserved(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     base = tmp_path / "tugas"
     fake_mmdc, _log = make_fake_mmdc(tmp_path, monkeypatch)
     source = '  ```{.mermaid caption="Diagram"}\n  flowchart TD\n    A --> B\n  ```\n'
@@ -434,7 +430,7 @@ def test_indentasi_fence_dipertahankan(tmp_path: Path, monkeypatch: pytest.Monke
     assert result.startswith("  ![Diagram](gambar/mermaid-")
 
 
-def test_caption_dengan_kurung_siku_di_escape(
+def test_caption_with_square_brackets_escaped(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     base = tmp_path / "tugas"
@@ -446,7 +442,7 @@ def test_caption_dengan_kurung_siku_di_escape(
     assert result.startswith("![Diagram [utama\\]](gambar/mermaid-")
 
 
-def test_find_mmdc_eksplisit_dan_tidak_ada(tmp_path: Path) -> None:
+def test_find_mmdc_explicit_and_missing(tmp_path: Path) -> None:
     script = tmp_path / "mmdc.py"
     script.write_text("", encoding="utf-8")
 

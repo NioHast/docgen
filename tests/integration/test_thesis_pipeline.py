@@ -152,7 +152,7 @@ def _pdf_texts(path: Path) -> list[str]:
     PANDOC is None or MMDC is None,
     reason=SKIP_REASON,
 )
-def test_build_thesis_example_lewat_pipeline_python(
+def test_build_thesis_example_through_python_pipeline(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -311,16 +311,16 @@ def test_build_thesis_example_lewat_pipeline_python(
             for index, page in enumerate(pdf_pages)
             if _normalized(page).startswith("DAFTAR GAMBAR")
         )
-        bab_index = next(
+        chapter_index = next(
             index
             for index, page in enumerate(pdf_pages)
             if index > figures_index and "BAB I" in page
         )
-        assert toc_index < tables_index < figures_index < bab_index
+        assert toc_index < tables_index < figures_index < chapter_index
         assert "Tabel 2.1" in pdf_pages[tables_index]
         assert "Gambar 3.1" in pdf_pages[figures_index]
 
         # Tidak ada halaman kosong di antara daftar isi dan BAB I.
-        for index in range(toc_index + 1, bab_index):
+        for index in range(toc_index + 1, chapter_index):
             assert len(_normalized(pdf_pages[index])) > 8, f"halaman {index + 1} kosong"
-        assert "BAB I" in pdf_pages[bab_index]
+        assert "BAB I" in pdf_pages[chapter_index]

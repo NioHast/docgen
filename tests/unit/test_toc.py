@@ -682,7 +682,7 @@ def test_toc_style_rpr_children_follow_rpr_order(tmp_path: Path) -> None:
         _assert_rpr_order(_style_by_id(styles, style_id))
 
 
-def test_no_blank_page_between_toc_and_bab_i(tmp_path: Path) -> None:
+def test_no_blank_page_between_toc_and_chapter_i(tmp_path: Path) -> None:
     page_break = _page_break_paragraph()
     path = _write_package(
         tmp_path,
@@ -737,7 +737,7 @@ def test_tab_position_uses_first_section_geometry(tmp_path: Path) -> None:
     assert tab_position(package) == 9026
 
 
-def test_tab_position_mengurangi_gutter(tmp_path: Path) -> None:
+def test_tab_position_subtracts_gutter(tmp_path: Path) -> None:
     path = _write_package(
         tmp_path,
         _paragraph("BAB I", style="Heading1"),
@@ -747,7 +747,7 @@ def test_tab_position_mengurangi_gutter(tmp_path: Path) -> None:
     assert tab_position(package) == 8306
 
 
-def test_tab_position_geometry_tidak_lengkap_menimbulkan_toc_tab(tmp_path: Path) -> None:
+def test_tab_position_incomplete_geometry_causes_toc_tab(tmp_path: Path) -> None:
     path = _write_package(tmp_path, _paragraph("BAB I", style="Heading1"))
     package = DocumentPackage.load(path)
     with pytest.raises(TocError) as excinfo:
@@ -755,13 +755,13 @@ def test_tab_position_geometry_tidak_lengkap_menimbulkan_toc_tab(tmp_path: Path)
     assert excinfo.value.code == "TOC-TAB"
 
 
-def test_tab_position_memakai_fallback_eksplisit(tmp_path: Path) -> None:
+def test_tab_position_uses_explicit_fallback(tmp_path: Path) -> None:
     path = _write_package(tmp_path, _paragraph("BAB I", style="Heading1"))
     package = DocumentPackage.load(path)
     assert tab_position(package, fallback=(11906, 1440, 1440, 0)) == 9026
 
 
-def test_tab_position_fallback_tidak_valid_menimbulkan_toc_tab(tmp_path: Path) -> None:
+def test_tab_position_invalid_fallback_causes_toc_tab(tmp_path: Path) -> None:
     path = _write_package(tmp_path, _paragraph("BAB I", style="Heading1"))
     package = DocumentPackage.load(path)
     with pytest.raises(TocError) as excinfo:
@@ -781,12 +781,12 @@ def _format_ctx(size: str, orientation: str) -> SimpleNamespace:
     )
 
 
-def test_format_fallback_memakai_ukuran_kanonis_dan_landscape() -> None:
+def test_format_fallback_uses_canonical_size_and_landscape() -> None:
     assert format_tab_fallback(_format_ctx("A4", "portrait")) == (11906, 1440, 1440, 0)
     assert format_tab_fallback(_format_ctx("Letter", "landscape")) == (15840, 1440, 1440, 0)
 
 
-def test_format_fallback_mengembalikan_none_untuk_ukuran_tidak_dikenal() -> None:
+def test_format_fallback_returns_none_for_unknown_size() -> None:
     assert format_tab_fallback(_format_ctx("A5", "portrait")) is None
     assert format_tab_fallback(_format_ctx("LETTER", "portrait")) is None
 

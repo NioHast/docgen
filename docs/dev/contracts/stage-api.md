@@ -919,7 +919,7 @@ docgen reconcile <file>
 - `tests/unit/test_pipeline.py`: `StageName` lengkap, urutan kanonik unik dan
   naik, `requires` selalu prefix, guard urutan, dan setiap stage terdaftar
   tepat satu kali.
-- `tests/unit/test_stages_layout.py::test_urutan_stage_normalize_equations_numbering_blank_lines`:
+- `tests/unit/test_stages_layout.py::test_stage_order_normalize_equations_numbering_blank_lines`:
   guard `normalize < equations < numbering < blank_lines`.
 - `tests/unit/test_pipeline.py` juga memeriksa metadata stage, `mutates`
   subset part, dan penolakan kelas stage tidak lengkap.

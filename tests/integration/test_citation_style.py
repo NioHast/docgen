@@ -71,7 +71,7 @@ def _pandoc() -> tuple[str, dict[str, str]]:
     pytest.skip("pandoc tidak tersedia")
 
 
-def test_citation_style_author_date_alfabetis(tmp_path: Path) -> None:
+def test_citation_style_author_date_alphabetical(tmp_path: Path) -> None:
     pandoc, env = _pandoc()
     bibliography = tmp_path / "references.bib"
     bibliography.write_text(BIB, encoding="utf-8")

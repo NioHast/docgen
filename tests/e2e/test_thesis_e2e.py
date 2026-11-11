@@ -152,7 +152,7 @@ def built_example(
     return project, completed
 
 
-def test_build_thesis_menghasilkan_docx_pdf_dan_manifest(
+def test_build_thesis_produces_docx_pdf_and_manifest(
     built_example: tuple[Path, subprocess.CompletedProcess[str]],
 ) -> None:
     project, completed = built_example
@@ -188,13 +188,13 @@ def test_build_thesis_menghasilkan_docx_pdf_dan_manifest(
     assert not any(value.upper().startswith("BAB VI") for value in headings)
 
 
-def test_check_thesis_contoh_valid() -> None:
+def test_check_thesis_example_valid() -> None:
     completed = _run_cli("check", str(EXAMPLE / "document.md"))
     assert completed.returncode == 0, completed.stderr
     assert "[OK]" in completed.stdout
 
 
-def test_check_menolak_tabel_tanpa_caption(tmp_path: Path) -> None:
+def test_check_rejects_table_without_caption(tmp_path: Path) -> None:
     project = _copy_example(tmp_path)
     document = project / "document.md"
     content = document.read_text(encoding="utf-8")
@@ -215,7 +215,7 @@ def test_check_menolak_tabel_tanpa_caption(tmp_path: Path) -> None:
 @pytest.mark.windows
 @pytest.mark.skipif(PANDOC is None, reason="Pandoc diperlukan")
 @pytest.mark.skipif(not WORD, reason="Field TOC perlu diperbarui Microsoft Word")
-def test_fixture_thesis_dua_tabel_gambar_dan_toc_level_tiga(
+def test_fixture_thesis_two_tables_figures_and_toc_level_three(
     tmp_path: Path,
 ) -> None:
     project = tmp_path / "fixture"

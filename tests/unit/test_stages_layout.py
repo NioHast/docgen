@@ -326,7 +326,7 @@ def _save(package: DocumentPackage, path: Path) -> Path:
 # ---------------------------------------------------------------------------
 
 
-def test_normalize_spacing_bold_tab_dan_pengecualian(layout_docx: Path, tmp_path: Path) -> None:
+def test_normalize_spacing_bold_tab_and_exception(layout_docx: Path, tmp_path: Path) -> None:
     package = DocumentPackage.load(layout_docx)
     report = normalize_layout(package)
     assert report.checked > 0
@@ -388,7 +388,7 @@ def test_normalize_spacing_bold_tab_dan_pengecualian(layout_docx: Path, tmp_path
     assert page.find(f"{W_PPR}/{W_SPACING}").get(W_LINE) == "360"
 
 
-def test_normalize_abstract_spacing_exempt_dan_bold(tmp_path: Path) -> None:
+def test_normalize_abstract_spacing_exempt_and_bold(tmp_path: Path) -> None:
     document = Document()
 
     abstract = document.add_paragraph()
@@ -472,7 +472,9 @@ def test_normalize_abstract_spacing_exempt_dan_bold(tmp_path: Path) -> None:
     assert plain_out.find(f"{W_PPR}/{W_JC}") is None
 
 
-def test_normalize_idempoten_dan_part_non_target_identik(layout_docx: Path, tmp_path: Path) -> None:
+def test_normalize_idempotent_and_non_target_part_identical(
+    layout_docx: Path, tmp_path: Path
+) -> None:
     before = _part_hashes(layout_docx)
     package = DocumentPackage.load(layout_docx)
     normalize_layout(package)
@@ -495,7 +497,7 @@ def test_normalize_idempoten_dan_part_non_target_identik(layout_docx: Path, tmp_
     assert first_part == second_part
 
 
-def test_stage_normalize_metadata_dan_run(layout_docx: Path) -> None:
+def test_stage_normalize_metadata_and_run(layout_docx: Path) -> None:
     assert normalize.NormalizeStage.order == 80
     assert normalize.NormalizeStage.name is StageName.NORMALIZE
     package = DocumentPackage.load(layout_docx)
@@ -516,7 +518,7 @@ def test_stage_normalize_metadata_dan_run(layout_docx: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_helper_layout_field_bold_dan_bab() -> None:
+def test_helper_layout_field_bold_and_chapter() -> None:
     document = Document()
     paragraph = document.add_paragraph()
     run = paragraph.add_run("hasil")
@@ -546,7 +548,7 @@ def test_helper_layout_field_bold_dan_bab() -> None:
     assert is_chapter_heading("Heading2") is False
 
 
-def test_heading_level_paragraph_dan_is_chapter_heading() -> None:
+def test_heading_level_paragraph_and_is_chapter_heading() -> None:
     document = Document()
     paragraph = document.add_paragraph("BAB I")
     _set_style(paragraph, "ChapterTitle")
@@ -585,7 +587,7 @@ def _is_blank(child) -> bool:
     return child.tag == W_P and not paragraph_text(child).strip()
 
 
-def test_blank_lines_tracked_changes_dan_heading4(tracked_docx: Path) -> None:
+def test_blank_lines_tracked_changes_and_heading4(tracked_docx: Path) -> None:
     package = DocumentPackage.load(tracked_docx)
     report = blank_lines.insert_blank_lines(package)
     assert report.inserted > 0
@@ -633,7 +635,7 @@ def test_blank_lines_tracked_changes_dan_heading4(tracked_docx: Path) -> None:
     assert report.after_object >= 2
 
 
-def test_blank_lines_idempoten_dan_part_identik(tracked_docx: Path, tmp_path: Path) -> None:
+def test_blank_lines_idempotent_and_part_identical(tracked_docx: Path, tmp_path: Path) -> None:
     before = _part_hashes(tracked_docx)
     package = DocumentPackage.load(tracked_docx)
     blank_lines.insert_blank_lines(package)
@@ -652,7 +654,7 @@ def test_blank_lines_idempoten_dan_part_identik(tracked_docx: Path, tmp_path: Pa
     )
 
 
-def test_urutan_stage_normalize_equations_numbering_blank_lines() -> None:
+def test_stage_order_normalize_equations_numbering_blank_lines() -> None:
     assert (
         normalize.NormalizeStage.order
         < equations.EquationsStage.order

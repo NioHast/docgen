@@ -81,7 +81,7 @@ def test_build_flag_options() -> None:
     assert args.allow_missing_word is True
 
 
-def test_build_menolak_flag_report_name() -> None:
+def test_build_rejects_report_name_flag() -> None:
     with pytest.raises(SystemExit) as error:
         cli.build_parser().parse_args(["build", "document.md", "--report-name", "Laporan"])
 
@@ -136,7 +136,7 @@ def test_check_invalid_document(tmp_path: Path, capsys: pytest.CaptureFixture[st
 
 
 @pytest.mark.parametrize("line", [None, 'report_name: ""\n', 'report_name: "   "\n'])
-def test_check_menolak_report_name_hilang_atau_kosong(
+def test_check_rejects_missing_or_empty_report_name(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
     line: str | None,
@@ -196,7 +196,7 @@ def test_build_maps_flags_to_options(monkeypatch: pytest.MonkeyPatch) -> None:
     assert options.allow_missing_word is True
 
 
-def test_build_hanya_memakai_pipeline_python(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_build_only_uses_python_pipeline(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[str] = []
 
     def fake_run(self: object, document: str | Path, options: object) -> BuildResult:

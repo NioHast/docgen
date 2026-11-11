@@ -68,7 +68,7 @@ def _write_project(root: Path) -> Path:
 
 
 @pytest.mark.skipif(PANDOC is None, reason=SKIP_REASON)
-def test_pandoc_nyata_menghasilkan_docx_valid(tmp_path: Path) -> None:
+def test_real_pandoc_produces_valid_docx(tmp_path: Path) -> None:
     document_path = _write_project(tmp_path)
     project = load_project(document_path)
     markdown_text = render_front_matter(

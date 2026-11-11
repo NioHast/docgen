@@ -66,7 +66,7 @@ def _record_package_io(monkeypatch: pytest.MonkeyPatch) -> tuple[list[Path], lis
     PANDOC is None or MMDC is None,
     reason=SKIP_REASON,
 )
-def test_build_contoh_assignment_lewat_pipeline_python(
+def test_build_example_assignment_through_python_pipeline(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     assert EXAMPLE.is_file()
@@ -130,7 +130,7 @@ def test_build_contoh_assignment_lewat_pipeline_python(
     PANDOC is None or MMDC is None,
     reason=SKIP_REASON,
 )
-def test_build_no_adeu_tidak_menulis_manifest(
+def test_build_no_adeu_does_not_write_manifest(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

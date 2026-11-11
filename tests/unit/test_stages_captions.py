@@ -101,7 +101,7 @@ def assert_caption_style(
 # ---------------------------------------------------------------------------
 
 
-def test_nomor_caption_per_bab_reset(docs, tmp_path):
+def test_caption_number_resets_per_chapter(docs, tmp_path):
     package = DocumentPackage.load(docs.main)
     report = apply_captions(package)
     output = tmp_path / "out.docx"
@@ -124,7 +124,7 @@ def test_nomor_caption_per_bab_reset(docs, tmp_path):
     ]
 
 
-def test_heading_arabic_dotted_memberi_nomor_bab_empat(tmp_path):
+def test_heading_arabic_dotted_gives_chapter_four_number(tmp_path):
     document = Document()
     document.add_paragraph("4. Metode", style="Heading 1")
     document.styles.add_style("TableCaption", WD_STYLE_TYPE.PARAGRAPH)
@@ -145,7 +145,7 @@ def test_heading_arabic_dotted_memberi_nomor_bab_empat(tmp_path):
     assert caption_texts(output, "ImageCaption") == ["Gambar 4.1 Diagram"]
 
 
-def test_prefix_lama_dihapus_dan_idempoten(docs, tmp_path):
+def test_old_prefix_removed_and_idempotent(docs, tmp_path):
     package = DocumentPackage.load(docs.main)
     apply_captions(package)
     first_path = tmp_path / "first.docx"
@@ -178,7 +178,7 @@ def test_prefix_lama_dihapus_dan_idempoten(docs, tmp_path):
     assert formatted.runs[-1].italic is False
 
 
-def test_scope_document_meneruskan_counter(docs, tmp_path):
+def test_document_scope_continues_counter(docs, tmp_path):
     package = DocumentPackage.load(docs.main)
     report = apply_captions(package, scope="document")
     output = tmp_path / "out.docx"
@@ -203,7 +203,7 @@ def test_scope_document_meneruskan_counter(docs, tmp_path):
 # ---------------------------------------------------------------------------
 
 
-def test_caption_dari_tblcaption_paragraf_pandoc_dan_alt(docs, tmp_path):
+def test_caption_from_tblcaption_pandoc_paragraph_and_alt(docs, tmp_path):
     package = DocumentPackage.load(docs.pandoc)
     report = apply_captions(package)
     output = tmp_path / "out.docx"
@@ -253,7 +253,7 @@ def test_caption_dari_tblcaption_paragraf_pandoc_dan_alt(docs, tmp_path):
     )
 
 
-def test_caption_tabel_di_bawah_dipindah_ke_atas(docs, tmp_path):
+def test_table_caption_below_moved_above(docs, tmp_path):
     package = DocumentPackage.load(docs.below_table)
     apply_captions(package)
     output = tmp_path / "out.docx"
@@ -268,7 +268,7 @@ def test_caption_tabel_di_bawah_dipindah_ke_atas(docs, tmp_path):
     assert body_index(document, caption._p) + 1 == body_index(document, table._tbl)
 
 
-def test_tabel_gambar_tanpa_caption_menggagalkan_stage(docs):
+def test_table_image_without_caption_fails_stage(docs):
     package = DocumentPackage.load(docs.missing)
 
     with pytest.raises(CaptionError) as caught:
@@ -305,7 +305,7 @@ def test_caption_generic_style(docs, tmp_path):
     ]
 
 
-def test_caption_dengan_prefix_field_dilewati(docs, tmp_path):
+def test_caption_with_field_prefix_skipped(docs, tmp_path):
     package = DocumentPackage.load(docs.field)
     report = apply_captions(package)
     output = tmp_path / "out.docx"
@@ -329,7 +329,7 @@ def test_caption_dengan_prefix_field_dilewati(docs, tmp_path):
 # ---------------------------------------------------------------------------
 
 
-def test_gambar_besar_di_clamp_proporsional(docs, tmp_path):
+def test_large_image_clamped_proportionally(docs, tmp_path):
     package = DocumentPackage.load(docs.oversized)
     report = apply_captions(package)
     output = tmp_path / "out.docx"
@@ -355,7 +355,7 @@ def test_gambar_besar_di_clamp_proporsional(docs, tmp_path):
         assert paragraph.paragraph_format.space_after == 0
 
 
-def test_gambar_cover_tidak_diwajibkan_caption(docs, tmp_path):
+def test_cover_image_caption_not_required(docs, tmp_path):
     package = DocumentPackage.load(docs.cover_image)
     report = apply_captions(package)
     output = tmp_path / "out.docx"
@@ -372,7 +372,7 @@ def test_gambar_cover_tidak_diwajibkan_caption(docs, tmp_path):
 # ---------------------------------------------------------------------------
 
 
-def test_tabel_gaya_ilmiah(docs, tmp_path):
+def test_scientific_table_style(docs, tmp_path):
     package = DocumentPackage.load(docs.main)
     apply_captions(package)
     output = tmp_path / "out.docx"
@@ -422,7 +422,7 @@ def test_tabel_gaya_ilmiah(docs, tmp_path):
                         assert bold.get(qn("w:val")) == "0"
 
 
-def test_code_table_tidak_diberi_caption(tmp_path):
+def test_code_table_not_given_caption(tmp_path):
     document = Document()
     code_style = document.styles.add_style("Source Code", WD_STYLE_TYPE.PARAGRAPH)
     for text in ("def main():", "    return 1"):
@@ -456,7 +456,7 @@ def test_code_table_tidak_diberi_caption(tmp_path):
 # ---------------------------------------------------------------------------
 
 
-def test_iter_captions_dan_set_caption(docs, tmp_path):
+def test_iter_captions_and_set_caption(docs, tmp_path):
     package = DocumentPackage.load(docs.main)
     apply_captions(package)
 
@@ -476,7 +476,7 @@ def test_iter_captions_dan_set_caption(docs, tmp_path):
     assert first.paragraph.find(".//" + qn("w:t")).text == "Gambar 9.9 Diagram baru"
 
 
-def test_ensure_caption_membuat_dari_alt_text(tmp_path):
+def test_ensure_caption_creates_from_alt_text(tmp_path):
     document = Document()
     heading = document.styles["Heading 1"]
     document.add_paragraph("BAB I PENDAHULUAN", style=heading)
@@ -528,7 +528,7 @@ def test_ensure_caption_membuat_dari_alt_text(tmp_path):
     )
 
 
-def test_part_non_target_byte_identik(docs, tmp_path):
+def test_non_target_part_bytes_identical(docs, tmp_path):
     package = DocumentPackage.load(docs.main)
     original = {name: package.part(name) for name in package.part_names() if name != DOCUMENT_PART}
 

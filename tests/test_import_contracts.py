@@ -14,7 +14,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 @pytest.mark.integration
-def test_kontrak_import_dipatuhi() -> None:
+def test_import_contracts_respected() -> None:
     """Seluruh kontrak import di pyproject.toml harus KEPT."""
     executable = shutil.which("lint-imports")
     assert executable is not None, (

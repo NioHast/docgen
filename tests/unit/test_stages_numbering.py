@@ -211,7 +211,7 @@ def _save(package: DocumentPackage, path: Path) -> Path:
 # ---------------------------------------------------------------------------
 
 
-def test_format_numbering_dipertahankan(numbering_docx: Path, tmp_path: Path) -> None:
+def test_format_numbering_preserved(numbering_docx: Path, tmp_path: Path) -> None:
     package = DocumentPackage.load(numbering_docx)
     before_formats = {}
     for num_id in ("1", "2", "3"):
@@ -249,7 +249,7 @@ def test_format_numbering_dipertahankan(numbering_docx: Path, tmp_path: Path) ->
     assert level.xpath("./w:suff/@w:val", namespaces=NS) == ["tab"]
 
 
-def test_level_dua_dan_bold(numbering_docx: Path, tmp_path: Path) -> None:
+def test_level_two_and_bold(numbering_docx: Path, tmp_path: Path) -> None:
     package = DocumentPackage.load(numbering_docx)
     numbering.format_numbering(package)
     result = DocumentPackage.load(_save(package, tmp_path / "out.docx"))
@@ -276,7 +276,7 @@ def test_level_dua_dan_bold(numbering_docx: Path, tmp_path: Path) -> None:
     assert _level_for(result, "4").xpath("./w:suff", namespaces=NS) == []
 
 
-def test_report_skipped_bullet_unresolved_dan_format_counts(tmp_path: Path) -> None:
+def test_report_skipped_bullet_unresolved_and_format_counts(tmp_path: Path) -> None:
     document = Document()
     bullet = document.add_paragraph("Butir bullet")
     _set_numbering(bullet, 4)
@@ -294,7 +294,7 @@ def test_report_skipped_bullet_unresolved_dan_format_counts(tmp_path: Path) -> N
     assert report.format_counts == {"tidak diketahui": 1}
 
 
-def test_idempoten_part_identik_dan_stage(numbering_docx: Path, tmp_path: Path) -> None:
+def test_idempotent_part_identical_and_stage(numbering_docx: Path, tmp_path: Path) -> None:
     before = {}
     with zipfile.ZipFile(numbering_docx) as archive:
         before = {name: archive.read(name) for name in archive.namelist()}

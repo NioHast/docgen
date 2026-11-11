@@ -127,7 +127,7 @@ def _git_status_unchanged() -> Iterator[None]:
     assert after == before, f"git status repo berubah\nbaris baru: {added}\nbaris hilang: {removed}"
 
 
-def test_version_dari_luar_repo(tmp_path: Path) -> None:
+def test_version_from_outside_repo(tmp_path: Path) -> None:
     _assert_outside_repo(tmp_path)
 
     with _git_status_unchanged():
@@ -137,7 +137,7 @@ def test_version_dari_luar_repo(tmp_path: Path) -> None:
     assert result.stdout.strip() == "docgen 0.1.0"
 
 
-def test_check_dokumen_minimal_dari_luar_repo(tmp_path: Path) -> None:
+def test_check_minimal_document_from_outside_repo(tmp_path: Path) -> None:
     _assert_outside_repo(tmp_path)
     document = _write_minimal_document(tmp_path)
 

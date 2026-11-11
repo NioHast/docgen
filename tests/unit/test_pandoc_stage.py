@@ -141,7 +141,7 @@ def _context(
 # ---------------------------------------------------------------------------
 
 
-def test_stage_metadata_kanonik() -> None:
+def test_stage_metadata_canonical() -> None:
     assert PandocStage.name is StageName.PANDOC
     assert PandocStage.order == 40
     assert PandocStage.requires == canonical_prefix(StageName.PANDOC)
@@ -149,7 +149,7 @@ def test_stage_metadata_kanonik() -> None:
     assert PandocStage.idempotent is True
 
 
-def test_build_command_tanpa_lua_dan_toc_pandoc(tmp_path: Path) -> None:
+def test_build_command_without_lua_and_toc_pandoc(tmp_path: Path) -> None:
     command = build_pandoc_command(
         "pandoc",
         markdown=tmp_path / "input.md",
@@ -179,7 +179,7 @@ def test_build_command_tanpa_lua_dan_toc_pandoc(tmp_path: Path) -> None:
     assert not any("docx.lua" in item for item in command)
 
 
-def test_build_command_resource_path_memakai_separator_platform(
+def test_build_command_resource_path_uses_platform_separator(
     tmp_path: Path,
 ) -> None:
     command = build_pandoc_command(
@@ -192,7 +192,7 @@ def test_build_command_resource_path_memakai_separator_platform(
     assert resource == (f"--resource-path={tmp_path / 'a'}{os.pathsep}{tmp_path / 'b'}")
 
 
-def test_build_command_citeproc_opsional(tmp_path: Path) -> None:
+def test_build_command_citeproc_optional(tmp_path: Path) -> None:
     command = build_pandoc_command(
         "pandoc",
         markdown=tmp_path / "input.md",
@@ -202,7 +202,7 @@ def test_build_command_citeproc_opsional(tmp_path: Path) -> None:
     assert "--citeproc" not in command
 
 
-def test_metadata_front_matter_tidak_mengirim_title_block(
+def test_metadata_front_matter_does_not_send_title_block(
     tmp_path: Path,
     format_spec,
 ) -> None:
@@ -221,7 +221,7 @@ def test_metadata_front_matter_tidak_mengirim_title_block(
     assert "date" not in metadata
 
 
-def test_write_metadata_file_deterministik(tmp_path: Path) -> None:
+def test_write_metadata_file_deterministic(tmp_path: Path) -> None:
     path = tmp_path / "metadata.yml"
     metadata = {"lang": "id-ID", "reference-section-title": "DAFTAR PUSTAKA"}
 
@@ -235,14 +235,14 @@ def test_write_metadata_file_deterministik(tmp_path: Path) -> None:
     assert "\r" not in first
 
 
-def test_find_pandoc_path_eksplisit(tmp_path: Path) -> None:
+def test_find_pandoc_explicit_path(tmp_path: Path) -> None:
     fake = tmp_path / "fake-pandoc.py"
     fake.write_text("print('ok')\n", encoding="utf-8")
     assert find_pandoc(fake) == str(fake)
     assert find_pandoc(tmp_path / "tidak-ada-pandoc") is None
 
 
-def test_resolve_bibliography_dari_dokumen_dan_format(
+def test_resolve_bibliography_from_document_and_format(
     tmp_path: Path,
     format_spec,
 ) -> None:
@@ -285,7 +285,7 @@ def test_resolve_bibliography_dari_dokumen_dan_format(
 # ---------------------------------------------------------------------------
 
 
-def test_stage_output_memakai_report_name(
+def test_stage_output_uses_report_name(
     tmp_path: Path,
     format_spec,
 ) -> None:
@@ -307,7 +307,7 @@ def test_stage_output_memakai_report_name(
     assert ctx.artifacts.require("pandoc_docx") == output
 
 
-def test_stage_menjalankan_fake_pandoc_dan_menghasilkan_docx(
+def test_stage_runs_fake_pandoc_and_produces_docx(
     tmp_path: Path,
     format_spec,
 ) -> None:
@@ -359,7 +359,7 @@ def test_stage_menjalankan_fake_pandoc_dan_menghasilkan_docx(
     assert "author" not in metadata
 
 
-def test_stage_kedua_kali_idempoten(
+def test_stage_second_time_idempotent(
     tmp_path: Path,
     format_spec,
 ) -> None:
@@ -381,7 +381,7 @@ def test_stage_kedua_kali_idempoten(
     assert second.status == "ok"
 
 
-def test_stage_gagal_tanpa_artifact_markdown(
+def test_stage_fails_without_markdown_artifact(
     tmp_path: Path,
     format_spec,
 ) -> None:
@@ -408,7 +408,7 @@ def test_stage_gagal_tanpa_artifact_markdown(
     assert excinfo.value.key == "markdown"
 
 
-def test_stage_gagal_artifact_markdown_bukan_file(
+def test_stage_fails_when_markdown_artifact_not_file(
     tmp_path: Path,
     format_spec,
 ) -> None:
@@ -432,7 +432,7 @@ def test_stage_gagal_artifact_markdown_bukan_file(
     assert excinfo.value.key == "markdown"
 
 
-def test_stage_gagal_tanpa_reference_derived(
+def test_stage_fails_without_derived_reference(
     tmp_path: Path,
     format_spec,
 ) -> None:
@@ -450,7 +450,7 @@ def test_stage_gagal_tanpa_reference_derived(
         PandocStage().run(ctx)
 
 
-def test_stage_gagal_bibliography_hilang(
+def test_stage_fails_when_bibliography_missing(
     tmp_path: Path,
     format_spec,
 ) -> None:
@@ -468,7 +468,7 @@ def test_stage_gagal_bibliography_hilang(
         PandocStage().run(ctx)
 
 
-def test_stage_gagal_pandoc_hilang(
+def test_stage_fails_when_pandoc_missing(
     tmp_path: Path,
     format_spec,
 ) -> None:
@@ -488,7 +488,7 @@ def test_stage_gagal_pandoc_hilang(
         PandocStage().run(ctx)
 
 
-def test_stage_gagal_pandoc_returncode_nonzero(
+def test_stage_fails_when_pandoc_returncode_nonzero(
     tmp_path: Path,
     format_spec,
 ) -> None:
