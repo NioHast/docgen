@@ -4,8 +4,9 @@ Stage ini tidak menulis caption dari nol. Caption dan nomor bab sudah dibuat
 oleh stage ``captions``; stage ini mengganti angka urutan terakhir menjadi
 field ``SEQ`` agar Word dapat memperbarui daftar. Prefix bab literal
 dipertahankan dan switch ``\s 1`` dipakai karena heading pipeline memakai
-nomor literal, bukan ``w:numPr``. Semua field daftar ditulis lewat
-:mod:`docgen.docx.fields`.
+nomor literal, bukan ``w:numPr``. Stage juga memastikan style entri
+``TableofFigures`` flush left dengan tab leader dot selebar konten. Semua
+field daftar ditulis lewat :mod:`docgen.docx.fields`.
 """
 
 import re
@@ -35,6 +36,7 @@ from ..docx.names import (
     W_VAL,
 )
 from ..docx.package import DOCUMENT_PART
+from ..docx.page import PageError, content_width
 from ..docx.paragraphs import (
     ParagraphError,
     document_body,
@@ -49,6 +51,7 @@ from ..docx.xml import (
 )
 from ..errors import StageError
 from ..pipeline import BaseStage, StageName, StageResult, canonical_prefix
+from .toc import STYLES_PART, ensure_list_entry_style, format_tab_fallback
 
 if TYPE_CHECKING:  # pragma: no cover - hanya anotasi
     from ..docx.package import DocumentPackage
@@ -262,10 +265,32 @@ def _ensure_caption_seq_fields(
     return count
 
 
+def _list_tab_position(package: DocumentPackage, ctx: object) -> int | None:
+    """Posisi tab entri daftar dari geometri package atau format.
+
+    Sumber pertama ``content_width(document_body(package))``. Bila section
+    belum memiliki ``w:pgSz``/``w:pgMar`` lengkap, fallback memakai
+    ``format_tab_fallback(ctx)`` dan menghitung ``width - left - right``.
+    ``None`` hanya dikembalikan saat format halaman tidak tersedia/valid
+    (mis. fixture sintetis tanpa ``format.page``).
+    """
+
+    try:
+        return content_width(_body(package))
+    except PageError:
+        fallback = format_tab_fallback(ctx)
+        if fallback is None:
+            return None
+        width, left, right, _unused = fallback
+        return width - left - right
+
+
 def _insert_list_fields(
     package: DocumentPackage,
     requests: Sequence[tuple[str, str]],
     labels: dict[str, str],
+    *,
+    tab_pos: int | None,
 ) -> int:
     """Tulis semua field daftar tanpa menghapus TOC utama yang sudah ada."""
 
@@ -275,6 +300,8 @@ def _insert_list_fields(
         if parent is not None:
             parent.remove(sdt)
 
+    ensure_list_entry_style(package, tab_pos=tab_pos)
+
     next_id = _next_sdt_id(body)
     for index, (key, title) in enumerate(requests):
         caption_label = labels["table" if key == "tables" else "figure"]
@@ -283,6 +310,7 @@ def _insert_list_fields(
             title=title,
             caption=caption_label,
             keep_existing=True,
+            page_break_before=True,
         )
         _set_sdt_id(_sdt_ancestor(field.begin), next_id + index)
 
@@ -297,7 +325,7 @@ class ListsStage(BaseStage):
     # stage-api v0.12: page_numbers (140) -> lists (150) -> office (160).
     order = 150
     requires = canonical_prefix(StageName.LISTS)
-    mutates = frozenset({DOCUMENT_PART})
+    mutates = frozenset({DOCUMENT_PART, STYLES_PART})
     idempotent = True
 
     def enabled(self, ctx: object) -> bool:
@@ -332,11 +360,18 @@ class ListsStage(BaseStage):
                 code="STAGE-PACKAGE",
             )
 
-        before = sha256_c14n(package.xml(DOCUMENT_PART))
+        before_document = sha256_c14n(package.xml(DOCUMENT_PART))
+        before_styles = sha256_c14n(package.xml(STYLES_PART))
         labels, scope = _caption_settings(getattr(ctx, "format", None))
         try:
+            tab_pos = _list_tab_position(package, ctx)
             seq_fields = _ensure_caption_seq_fields(package, labels, scope)
-            list_fields = _insert_list_fields(package, requests, labels)
+            list_fields = _insert_list_fields(
+                package,
+                requests,
+                labels,
+                tab_pos=tab_pos,
+            )
         except FieldError as exc:
             raise StageError(
                 self.name.value,
@@ -344,7 +379,10 @@ class ListsStage(BaseStage):
                 cause=exc,
                 code=exc.code,
             ) from exc
-        changed = sha256_c14n(package.xml(DOCUMENT_PART)) != before
+        changed = (
+            sha256_c14n(package.xml(DOCUMENT_PART)) != before_document
+            or sha256_c14n(package.xml(STYLES_PART)) != before_styles
+        )
         return StageResult(
             stage=self.name.value,
             status="ok",

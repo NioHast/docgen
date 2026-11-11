@@ -1,8 +1,8 @@
 """Stage ``normalize``: spacing 1,5 baris, justify, dan hapus bold body.
 
 Stage ini hanya mengubah ``word/document.xml``. Teks, run field, heading,
-``CoverTitle``, caption, blok kode, daftar isi, dan section tidak diubah.
-Urutan pipeline wajib menjaga stage ini sebelum ``equations`` dan
+``CoverTitle``, abstrak, caption, blok kode, daftar isi, dan section tidak
+diubah. Urutan pipeline wajib menjaga stage ini sebelum ``equations`` dan
 ``blank_lines``.
 """
 

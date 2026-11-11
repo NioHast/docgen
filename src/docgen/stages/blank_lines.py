@@ -30,7 +30,6 @@ from ..docx.layout import (
     document_root,
     is_chapter_heading,
     iter_body_units,
-    new_element,
     normalize_style_id,
     set_document_root,
 )
@@ -56,29 +55,29 @@ from ..docx.names import (
 )
 from ..docx.package import DocumentPackage
 from ..docx.paragraphs import (
+    EMPTY_PARAGRAPH_FONT,
+    EMPTY_PARAGRAPH_HALF_POINTS,
+    EMPTY_PARAGRAPH_LINE_TWIPS,
     document_body,
     heading_level,
     paragraph_style_id,
     paragraph_text,
 )
+from ..docx.paragraphs import (
+    make_empty_paragraph as _canonical_make_empty_paragraph,
+)
 from ..docx.xml import qn, sha256_c14n
 from ..errors import DocgenError
 from ..pipeline import BaseStage, StageName, StageResult, canonical_prefix
 
-W_BEFORE = qn("w:before")
-W_AFTER = qn("w:after")
-W_SPACING = qn("w:spacing")
-W_RFONTS = qn("w:rFonts")
-W_SZ = qn("w:sz")
-W_SZCS = qn("w:szCs")
 W_FOOTNOTE_REFERENCE = qn("w:footnoteReference")
 W_ENDNOTE_REFERENCE = qn("w:endnoteReference")
 M_O_MATH_PARA = qn("m:oMathPara")
 M_O_MATH = qn("m:oMath")
 
-EMPTY_FONT = "Times New Roman"
-EMPTY_HALF_POINTS = 24
-EMPTY_LINE_TWIPS = 360
+EMPTY_FONT = EMPTY_PARAGRAPH_FONT
+EMPTY_HALF_POINTS = EMPTY_PARAGRAPH_HALF_POINTS
+EMPTY_LINE_TWIPS = EMPTY_PARAGRAPH_LINE_TWIPS
 
 HEADING_STYLE_RE = re.compile(r"^heading([1-9])$")
 CAPTION_LABEL_RE = re.compile(r"^\s*(tabel|table|gambar|figure)\b", re.I)
@@ -429,33 +428,19 @@ def _gap_reason(previous: _Block | None, current: _Block) -> str:
 
 
 def make_empty_paragraph(spec: BlankLineSpec | None = None) -> etree._Element:
-    """Buat paragraf kosong TNR 12 pt, line 360, before/after 0."""
+    """Buat paragraf kosong TNR 12 pt, line 360, before/after 0.
 
-    spec = spec or BlankLineSpec()
-    paragraph = new_element("w:p")
-    properties = new_element("w:pPr")
+    Wrapper tipis stage ini: format kanonis dibangun oleh
+    :func:`docgen.docx.paragraphs.make_empty_paragraph` agar spec default dan
+    paragraf gap TOC memakai satu sumber.
+    """
 
-    spacing = new_element("w:spacing")
-    spacing.set(qn("w:before"), "0")
-    spacing.set(qn("w:after"), "0")
-    spacing.set(qn("w:line"), str(spec.line_twips))
-    spacing.set(qn("w:lineRule"), "auto")
-    properties.append(spacing)
-
-    run_properties = new_element("w:rPr")
-    fonts = new_element("w:rFonts")
-    for attribute in ("w:ascii", "w:hAnsi", "w:cs", "w:eastAsia"):
-        fonts.set(qn(attribute), spec.font)
-    run_properties.append(fonts)
-
-    for tag in ("w:sz", "w:szCs"):
-        size = new_element(tag)
-        size.set(W_VAL, str(spec.half_points))
-        run_properties.append(size)
-
-    properties.append(run_properties)
-    paragraph.append(properties)
-    return paragraph
+    resolved = spec or BlankLineSpec()
+    return _canonical_make_empty_paragraph(
+        font=resolved.font,
+        half_points=resolved.half_points,
+        line_twips=resolved.line_twips,
+    )
 
 
 # ---------------------------------------------------------------------------

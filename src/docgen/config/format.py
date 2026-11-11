@@ -1,9 +1,9 @@
 """Parser ``format.yml`` dan validasi aset format.
 
 Modul ini memuat :func:`load_format` dan :func:`format_override_warning`.
-Parser membangun model immutable dari blok ``page``, ``font``, ``headings``,
-``captions``, ``figures``, ``code``, ``bibliography_style``, ``citation``, dan
-``assets``; validasi aset (logo, ``reference.docx``, CSL) khusus format dan
+Parser membangun model immutable dari blok ``page``, ``font``, ``abstract``,
+``headings``, ``captions``, ``figures``, ``code``, ``bibliography_style``,
+``citation``, dan ``assets``; validasi aset (logo, ``reference.docx``, CSL) khusus format dan
 tidak dipakai struktur.
 
 Semua kegagalan input dilempar sebagai ``ConfigError`` dengan kode stabil;
@@ -34,6 +34,7 @@ from .common import (
     load_yaml_mapping,
 )
 from .models import (
+    AbstractStyle,
     AssetsFormat,
     BibliographyStyle,
     BodyFont,
@@ -64,6 +65,7 @@ _FORMAT_KEYS = frozenset(
         "description",
         "page",
         "font",
+        "abstract",
         "headings",
         "toc_heading",
         "captions",
@@ -92,6 +94,9 @@ _BODY_FONT_KEYS = frozenset(
     }
 )
 _MONO_FONT_KEYS = frozenset({"family", "size"})
+_ABSTRACT_KEYS = frozenset(
+    {"font", "size", "line_spacing", "space_before", "space_after", "alignment"}
+)
 _HEADINGS_KEYS = frozenset({"styles"})
 _HEADING_STYLE_KEYS = frozenset(
     {
@@ -324,6 +329,65 @@ def _parse_mono_font(data: Mapping[str, Any], *, path: Path) -> MonoFont:
             path=path,
             key="font.monospace.size",
             default="10pt",
+        ),
+    )
+
+
+def _parse_abstract(
+    data: Mapping[str, Any] | None,
+    *,
+    body: BodyFont,
+    path: Path,
+) -> AbstractStyle:
+    """Bangun ``AbstractStyle`` dari ``abstract``; default mewarisi ``font.body``."""
+
+    raw = data or {}
+    _check_unknown(raw, _ABSTRACT_KEYS, path=path, key="abstract")
+    font_value = raw.get("font")
+    if font_value is not None and not isinstance(font_value, str):
+        raise _err(
+            "'abstract.font' harus berupa teks",
+            code="CFG-TYPE",
+            path=path,
+            key="abstract.font",
+        )
+    return AbstractStyle(
+        font_family=_text(
+            font_value or body.family,
+            path=path,
+            key="abstract.font",
+        ),
+        font_size_half_points=_font_size(
+            raw.get("size"),
+            path=path,
+            key="abstract.size",
+            default=f"{body.size_half_points / 2:g}pt",
+        ),
+        line_spacing=_number(
+            raw.get("line_spacing"),
+            path=path,
+            key="abstract.line_spacing",
+            default=body.line_spacing,
+            minimum=0.5,
+            maximum=3.0,
+        ),
+        space_before=_dimension(
+            raw.get("space_before"),
+            path=path,
+            key="abstract.space_before",
+            default="0pt",
+        ),
+        space_after=_dimension(
+            raw.get("space_after"),
+            path=path,
+            key="abstract.space_after",
+            default="0pt",
+        ),
+        alignment=_alignment(
+            raw.get("alignment"),
+            path=path,
+            key="abstract.alignment",
+            default=body.alignment,
         ),
     )
 
@@ -1143,6 +1207,14 @@ def load_format(format_id: str, *, root: Path | None = None) -> Format:
     )
     font = FontFormat(body=body, monospace=mono)
 
+    abstract = _parse_abstract(
+        _expect_mapping(data["abstract"], path=path, key="abstract")
+        if data.get("abstract") is not None
+        else None,
+        body=body,
+        path=path,
+    )
+
     headings_raw = _expect_mapping(
         _required(data, "headings", path=path, key="format"),
         path=path,
@@ -1243,6 +1315,7 @@ def load_format(format_id: str, *, root: Path | None = None) -> Format:
         data=MappingProxyType(dict(data)),
         page=page,
         font=font,
+        abstract=abstract,
         headings=MappingProxyType(headings),
         toc_heading=toc_heading,
         captions=captions,

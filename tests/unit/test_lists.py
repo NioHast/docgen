@@ -53,6 +53,15 @@ STYLES_XML = (
     "</w:styles>"
 ).encode()
 
+SECT_PR = (
+    "<w:sectPr>"
+    '<w:pgSz w:w="11906" w:h="16838"/>'
+    '<w:pgMar w:top="1440" w:right="1440" w:bottom="1440" '
+    'w:left="1440" w:header="720" w:footer="720"/>'
+    "</w:sectPr>"
+)
+CONTENT_WIDTH = 11906 - 1440 - 1440
+
 
 def _content_types() -> bytes:
     return (
@@ -91,19 +100,25 @@ def _paragraph(text: str = "", *, style: str | None = None) -> str:
     return f"<w:p>{ppr}{runs}</w:p>"
 
 
-def _document(body: str) -> bytes:
+def _document(body: str, *, sect_pr: str = SECT_PR) -> bytes:
     return (
         f'<w:document xmlns:w="{W_NS}" xmlns:r="{R_NS}">'
-        f"<w:body>{body}<w:sectPr/></w:body></w:document>"
+        f"<w:body>{body}{sect_pr}</w:body></w:document>"
     ).encode()
 
 
-def _write_package(tmp_path: Path, body: str, *, name: str = "lists.docx") -> Path:
+def _write_package(
+    tmp_path: Path,
+    body: str,
+    *,
+    name: str = "lists.docx",
+    sect_pr: str = SECT_PR,
+) -> Path:
     path = tmp_path / name
     entries = {
         CONTENT_TYPES_PART: _content_types(),
         PACKAGE_RELS_PART: _package_rels(),
-        DOCUMENT_PART: _document(body),
+        DOCUMENT_PART: _document(body, sect_pr=sect_pr),
         "word/_rels/document.xml.rels": _document_rels(),
         "word/styles.xml": STYLES_XML,
     }
@@ -111,6 +126,14 @@ def _write_package(tmp_path: Path, body: str, *, name: str = "lists.docx") -> Pa
         for entry_name, data in entries.items():
             archive.writestr(entry_name, data)
     return path
+
+
+def _a4_page() -> SimpleNamespace:
+    return SimpleNamespace(
+        size="A4",
+        orientation="portrait",
+        margins=SimpleNamespace(top=1440, right=1440, bottom=1440, left=1440),
+    )
 
 
 def _ctx(
@@ -125,6 +148,7 @@ def _ctx(
     tables: bool = True,
     figures: bool = True,
     numbering: str = "chapter",
+    page: SimpleNamespace | None = None,
 ) -> SimpleNamespace:
     return SimpleNamespace(
         package=package,
@@ -140,6 +164,7 @@ def _ctx(
                 figure=SimpleNamespace(label="Gambar", separator=" "),
             ),
             figures=SimpleNamespace(numbering=numbering),
+            page=page,
         ),
         options=SimpleNamespace(),
         dry_run=False,
@@ -160,6 +185,22 @@ def _toc_sdts(package: DocumentPackage):
 
 def _sdt_title(sdt) -> str:
     return " ".join("".join(paragraph_text(item) for item in sdt.iter(qn("w:p"))).split())
+
+
+def _sdt_heading(sdt):
+    content = sdt.find(qn("w:sdtContent"))
+    assert content is not None
+    return content.find(qn("w:p"))
+
+
+def _has_page_break_before(paragraph) -> bool:
+    ppr = paragraph.find(qn("w:pPr"))
+    return ppr is not None and ppr.find(qn("w:pageBreakBefore")) is not None
+
+
+def _style(package: DocumentPackage, style_id: str):
+    styles = package.xml("word/styles.xml")
+    return next(style for style in styles if style.get(qn("w:styleId")) == style_id)
 
 
 def _caption(package: DocumentPackage, text: str):
@@ -199,7 +240,7 @@ def test_stage_metadata() -> None:
     assert stage.name is StageName.LISTS
     assert stage.order == 150
     assert stage.requires == canonical_prefix(StageName.LISTS)
-    assert stage.mutates == frozenset({"word/document.xml"})
+    assert stage.mutates == frozenset({"word/document.xml", "word/styles.xml"})
     assert stage.idempotent is True
 
 
@@ -216,6 +257,75 @@ def test_inserts_two_list_fields_and_preserves_main_toc(tmp_path: Path) -> None:
 
     titles = [_sdt_title(sdt) for sdt in _toc_sdts(package)]
     assert titles == ["DAFTAR ISI", "DAFTAR TABEL", "DAFTAR GAMBAR"]
+
+
+def test_list_headings_start_on_new_page(tmp_path: Path) -> None:
+    package = _build_package(tmp_path)
+    ListsStage().run(_ctx(package))
+
+    sdts = _toc_sdts(package)
+    assert [_sdt_title(sdt) for sdt in sdts] == ["DAFTAR ISI", "DAFTAR TABEL", "DAFTAR GAMBAR"]
+    assert _has_page_break_before(_sdt_heading(sdts[0])) is False
+    assert _has_page_break_before(_sdt_heading(sdts[1])) is True
+    assert _has_page_break_before(_sdt_heading(sdts[2])) is True
+
+
+def test_list_entry_style_is_flush_left_with_content_width_tab(tmp_path: Path) -> None:
+    package = _build_package(tmp_path)
+    ListsStage().run(_ctx(package))
+
+    style = _style(package, "TableofFigures")
+    assert style.find(qn("w:basedOn")).get(qn("w:val")) == "Normal"
+    assert style.find(qn("w:next")).get(qn("w:val")) == "Normal"
+    assert style.find(qn("w:name")).get(qn("w:val")) == "table of figures"
+
+    ppr = style.find(qn("w:pPr"))
+    assert ppr is not None
+    ind = ppr.find(qn("w:ind"))
+    assert (
+        ind.get(qn("w:left")),
+        ind.get(qn("w:right")),
+        ind.get(qn("w:firstLine")),
+    ) == ("0", "0", "0")
+    tab = ppr.find(f"{qn('w:tabs')}/{qn('w:tab')}")
+    assert tab.get(qn("w:val")) == "right"
+    assert tab.get(qn("w:leader")) == "dot"
+    assert tab.get(qn("w:pos")) == str(CONTENT_WIDTH)
+
+
+def test_list_entry_style_without_page_geometry_has_no_tabs(tmp_path: Path) -> None:
+    body = _paragraph("BAB II", style="Heading1")
+    path = _write_package(tmp_path, body, sect_pr="<w:sectPr/>")
+    package = DocumentPackage.load(path)
+
+    result = ListsStage().run(_ctx(package, front_matter=("cover", "toc", "list_of_tables")))
+    assert result.status == "ok"
+    assert result.changed is True
+
+    style = _style(package, "TableofFigures")
+    assert style.find(f"{qn('w:pPr')}/{qn('w:tabs')}") is None
+
+
+def test_list_entry_style_uses_format_fallback_without_page_geometry(tmp_path: Path) -> None:
+    body = _paragraph("BAB II", style="Heading1")
+    path = _write_package(tmp_path, body, sect_pr="<w:sectPr/>")
+    package = DocumentPackage.load(path)
+
+    result = ListsStage().run(
+        _ctx(
+            package,
+            front_matter=("cover", "toc", "list_of_tables"),
+            page=_a4_page(),
+        )
+    )
+    assert result.status == "ok"
+
+    style = _style(package, "TableofFigures")
+    tab = style.find(f"{qn('w:pPr')}/{qn('w:tabs')}/{qn('w:tab')}")
+    assert tab is not None
+    assert tab.get(qn("w:val")) == "right"
+    assert tab.get(qn("w:leader")) == "dot"
+    assert tab.get(qn("w:pos")) == str(CONTENT_WIDTH)
 
 
 def test_caption_seq_fields_are_hybrid_chapter(tmp_path: Path) -> None:
@@ -333,13 +443,17 @@ def test_stage_is_idempotent(tmp_path: Path) -> None:
     package = _build_package(tmp_path)
     ctx = _ctx(package)
     stage = ListsStage()
+    before_styles = sha256_c14n(package.xml("word/styles.xml"))
     stage.run(ctx)
+    assert sha256_c14n(package.xml("word/styles.xml")) != before_styles
     first = sha256_c14n(package.xml(DOCUMENT_PART))
+    first_styles = sha256_c14n(package.xml("word/styles.xml"))
     result = stage.run(ctx)
     second = sha256_c14n(package.xml(DOCUMENT_PART))
     assert result.changed is False
     assert result.metrics["seq_fields"] == 0
     assert second == first
+    assert sha256_c14n(package.xml("word/styles.xml")) == first_styles
     instructions = _instructions(package)
     assert sum('TOC \\c "Tabel"' in item for item in instructions) == 1
     assert sum('TOC \\c "Gambar"' in item for item in instructions) == 1

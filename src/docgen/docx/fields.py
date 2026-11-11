@@ -37,6 +37,7 @@ from .names import (
     W_P,
     W_PICT,
     W_PPR,
+    W_PSTYLE,
     W_R,
     W_SDT,
     W_SDT_CONTENT,
@@ -48,7 +49,13 @@ from .names import (
     W,
 )
 from .package import DOCUMENT_PART, DocumentPackage
-from .paragraphs import ParagraphError, document_body, paragraph_style_id, paragraph_text
+from .paragraphs import (
+    ParagraphError,
+    document_body,
+    make_empty_paragraph,
+    paragraph_style_id,
+    paragraph_text,
+)
 from .runs import build_run, make_run
 from .xml import iter_runs, qn
 
@@ -739,11 +746,17 @@ def _remove_existing_toc(root: etree._Element, title: str) -> None:
 def _sdt_toc(
     title: str,
     switches: Sequence[str],
+    *,
+    gap_after_title: bool,
+    page_break_before: bool,
 ) -> tuple[etree._Element, Field]:
     """Bangun ``w:sdt`` TOC berisi paragraf judul dan field TOC.
 
-    Mengembalikan elemen ``sdt`` dan ``Field`` yang disisipkan agar pemanggil
-    dapat memberi ID atau memverifikasinya.
+    ``gap_after_title`` menyisipkan satu paragraf kosong kanonis di dalam
+    ``w:sdtContent`` tepat setelah paragraf judul. ``page_break_before``
+    menambahkan ``w:pageBreakBefore`` pada paragraf judul agar daftar dimulai
+    di halaman baru. Mengembalikan elemen ``sdt`` dan ``Field`` yang disisipkan
+    agar pemanggil dapat memberi ID atau memverifikasinya.
     """
 
     sdt = etree.Element(W_SDT)
@@ -769,6 +782,10 @@ def _sdt_toc(
     title_paragraph = _new_paragraph("TOCHeading")
     title_ppr = title_paragraph.find(W + "pPr")
     assert title_ppr is not None
+    if page_break_before:
+        # Urutan child w:pPr: pStyle, pageBreakBefore, ..., jc, outlineLvl.
+        index = 1 if title_ppr.find(W_PSTYLE) is not None else 0
+        title_ppr.insert(index, etree.Element(qn("w:pageBreakBefore")))
     jc = etree.SubElement(title_ppr, qn("w:jc"))
     jc.set(W + "val", "center")
     outline = etree.SubElement(title_ppr, qn("w:outlineLvl"))
@@ -783,6 +800,10 @@ def _sdt_toc(
     title_text = etree.SubElement(title_run, W_T)
     title_text.text = title
     content.append(title_paragraph)
+    if gap_after_title:
+        # Satu paragraf kosong fisik agar jarak judul ke entri sama dengan
+        # jarak setelah Heading1 bab.
+        content.append(make_empty_paragraph())
 
     begin_paragraph = _new_paragraph("TOC1")
     end_paragraph = _new_paragraph("TOC1")
@@ -867,6 +888,8 @@ def insert_toc(
     caption: str | None = None,
     before: etree._Element | None = None,
     keep_existing: bool = False,
+    gap_after_title: bool = True,
+    page_break_before: bool = False,
 ) -> Field:
     r"""Tulis field TOC native di dalam ``w:sdt``.
 
@@ -877,6 +900,13 @@ def insert_toc(
     menjadi ``TOC \c "..."`` untuk daftar gambar/tabel. Bila ``before``
     tidak diberikan, TOC diletakkan sebelum Heading1 ``BAB ...`` pertama,
     atau di akhir body sebelum ``w:sectPr``.
+
+    ``gap_after_title`` (default benar) menambahkan satu paragraf kosong
+    kanonis TNR 12 pt line 360 di dalam ``w:sdtContent`` tepat setelah
+    paragraf judul, sehingga jarak judul ke entri sama dengan jarak setelah
+    Heading1 bab. ``page_break_before`` menambahkan ``w:pageBreakBefore`` pada
+    paragraf judul agar daftar dimulai di halaman baru; tidak ada paragraf
+    page-break tambahan setelah ``w:sdt``.
     """
 
     if not isinstance(title, str) or not title.strip():
@@ -897,7 +927,12 @@ def insert_toc(
         escaped = caption.replace('"', '\\"')
         switches = ("TOC", f'\\c "{escaped}"', "\\h", "\\z")
 
-    sdt, field = _sdt_toc(title.strip(), switches)
+    sdt, field = _sdt_toc(
+        title.strip(),
+        switches,
+        gap_after_title=gap_after_title,
+        page_break_before=page_break_before,
+    )
 
     if before is not None:
         _insert_before(body, before, sdt)

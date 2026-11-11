@@ -12,6 +12,7 @@ from docgen.errors import ConfigError
 
 _EXPECTED_CONFIG_EXPORTS = frozenset(
     {
+        "AbstractStyle",
         "AssetsFormat",
         "BackMatterItem",
         "BibliographyStyle",
@@ -82,7 +83,7 @@ def _minimal_structure(extra: str = "") -> str:
 
 
 def test_config_public_api_complete() -> None:
-    assert len(config.__all__) == 31
+    assert len(config.__all__) == 32
     missing = _EXPECTED_CONFIG_EXPORTS.difference(config.__all__)
     assert not missing, f"nama publik hilang: {sorted(missing)}"
 
@@ -96,6 +97,12 @@ def test_load_builtin_format() -> None:
     assert format_.font.body.size_half_points == 24  # 12 pt
     assert format_.font.body.line_spacing == 1.5
     assert format_.font.body.alignment == "justify"
+    assert format_.abstract.font_family == "Times New Roman"
+    assert format_.abstract.font_size_half_points == 20  # 10 pt
+    assert format_.abstract.line_spacing == 1.0
+    assert format_.abstract.space_before == 0
+    assert format_.abstract.space_after == 0
+    assert format_.abstract.alignment == "justify"
     assert format_.figures.caption_alignment == "center"
     assert format_.figures.image_alignment == "center"
     assert format_.figures.numbering == "chapter"
@@ -174,6 +181,49 @@ def test_legacy_format_key_rejected(tmp_path: Path) -> None:
         load_format("undip-msi", root=data_root)
     assert error.value.code == "CFG-UNKNOWN-KEY"
     assert error.value.key == "format.presets"
+
+
+def test_abstract_unknown_key_rejected(tmp_path: Path) -> None:
+    data_root = _copy_format(tmp_path)
+    format_yml = data_root / "formats" / "undip-msi" / "format.yml"
+    text = format_yml.read_text(encoding="utf-8")
+    format_yml.write_text(
+        text.replace(
+            "  alignment: both\n\nheadings:",
+            "  alignment: both\n  bogus: 1\n\nheadings:",
+        ),
+        encoding="utf-8",
+        newline="\n",
+    )
+
+    with pytest.raises(ConfigError) as error:
+        load_format("undip-msi", root=data_root)
+    assert error.value.code == "CFG-UNKNOWN-KEY"
+    assert error.value.key == "abstract.bogus"
+
+
+def test_abstract_defaults_inherit_body_when_omitted(tmp_path: Path) -> None:
+    data_root = _copy_format(tmp_path)
+    format_yml = data_root / "formats" / "undip-msi" / "format.yml"
+    text = format_yml.read_text(encoding="utf-8")
+    without_abstract = re.sub(
+        r"^abstract:\n(?:[ \t].*\n|\n)*",
+        "",
+        text,
+        count=1,
+        flags=re.MULTILINE,
+    )
+    assert "abstract:" not in without_abstract
+    format_yml.write_text(without_abstract, encoding="utf-8", newline="\n")
+
+    format_ = load_format("undip-msi", root=data_root)
+    body = format_.font.body
+    assert format_.abstract.font_family == body.family
+    assert format_.abstract.font_size_half_points == body.size_half_points
+    assert format_.abstract.line_spacing == body.line_spacing
+    assert format_.abstract.space_before == 0
+    assert format_.abstract.space_after == 0
+    assert format_.abstract.alignment == body.alignment
 
 
 def test_missing_margin_rejected(tmp_path: Path) -> None:

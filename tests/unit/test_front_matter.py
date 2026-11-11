@@ -214,6 +214,25 @@ def test_abstract_en_keywords_list() -> None:
     assert "**Keywords:** *pipeline, DOCX*" in output
 
 
+def test_abstract_tanpa_judul_dan_memakai_style_khusus() -> None:
+    output = _render()
+
+    abstract_id = output[output.index("# ABSTRAK {-}") : output.index("# ABSTRACT {-}")]
+    assert "CoverLine" not in abstract_id
+    assert _TITLE.upper() not in abstract_id
+    assert '::: {custom-style="AbstractBody"}' in abstract_id
+    assert '::: {custom-style="AbstractKeywords"}' in abstract_id
+
+    abstract_en = output[output.index("# ABSTRACT {-}") : output.index("BAB I")]
+    assert "CoverLine" not in abstract_en
+    assert _TITLE.upper() not in abstract_en
+    assert '::: {custom-style="AbstractBody"}' in abstract_en
+    assert '::: {custom-style="AbstractKeywords"}' in abstract_en
+    assert "*First paragraph.*" in abstract_en
+    assert "*Second paragraph.*" in abstract_en
+    assert "**Keywords:** *pipeline, DOCX*" in abstract_en
+
+
 def test_urutan_front_matter_dan_tanpa_field_toc() -> None:
     output = _render()
 

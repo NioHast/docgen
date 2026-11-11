@@ -254,6 +254,7 @@ def test_build_thesis_example_lewat_pipeline_python(
     # Bookmark pNNNN dipertahankan Word dan sama dengan manifest.
     with zipfile.ZipFile(output) as archive:
         final_root = etree.fromstring(archive.read("word/document.xml"))
+        styles_root = etree.fromstring(archive.read("word/styles.xml"))
     bookmarks = [
         element.get(f"{{{W_NS}}}name") or ""
         for element in final_root.xpath("//w:bookmarkStart", namespaces=NS)
@@ -261,18 +262,65 @@ def test_build_thesis_example_lewat_pipeline_python(
     ]
     assert tuple(bookmarks) == tuple(paragraph.id for paragraph in manifest)
 
+    # Aturan abstrak juga harus terlihat di DOCX, bukan hanya teks PDF:
+    # style AbstractBody 10 pt (w:sz=20) dengan line 1,0 (w:line=240), dan
+    # abstrak Inggris italic pada run pertamanya sedangkan Indonesia tidak.
+    abstract_style = styles_root.xpath("//w:style[@w:styleId='AbstractBody']", namespaces=NS)
+    assert len(abstract_style) == 1
+    assert abstract_style[0].xpath("./w:rPr/w:sz/@w:val", namespaces=NS) == ["20"]
+    assert abstract_style[0].xpath("./w:pPr/w:spacing/@w:line", namespaces=NS) == ["240"]
+
+    abstract_bodies = [
+        paragraph
+        for paragraph in final_root.xpath("//w:p", namespaces=NS)
+        if paragraph.xpath("./w:pPr/w:pStyle/@w:val", namespaces=NS) == ["AbstractBody"]
+    ]
+    abstract_id = next(
+        paragraph
+        for paragraph in abstract_bodies
+        if _normalized(_paragraph_text(paragraph)).startswith("Penulisan laporan akademik")
+    )
+    abstract_en = next(
+        paragraph
+        for paragraph in abstract_bodies
+        if _normalized(_paragraph_text(paragraph)).startswith("Academic reports")
+    )
+    assert not abstract_id.xpath("./w:r[1]/w:rPr/w:i", namespaces=NS)
+    assert abstract_en.xpath("./w:r[1]/w:rPr/w:i", namespaces=NS)
+
     if TARGET == "both":
         assert result.pdf is not None
         pdf_pages = _pdf_texts(result.pdf)
         assert len(pdf_pages) >= 2
         assert any("DAFTAR ISI" in page for page in pdf_pages)
         toc_index = next(index for index, page in enumerate(pdf_pages) if "DAFTAR ISI" in page)
-        bab_index = next(
-            index for index, page in enumerate(pdf_pages) if index > toc_index and "BAB I" in page
+        # Halaman DAFTAR ISI memuat entri ABSTRAK dan ABSTRACT.
+        assert "ABSTRAK" in pdf_pages[toc_index]
+        assert "ABSTRACT" in pdf_pages[toc_index]
+
+        # DAFTAR ISI, DAFTAR TABEL, dan DAFTAR GAMBAR masing-masing berada
+        # di halaman terpisah. BAB I dicari setelah DAFTAR GAMBAR agar entri
+        # "BAB I" pada TOC multi-halaman tidak terpilih.
+        tables_index = next(
+            index
+            for index, page in enumerate(pdf_pages)
+            if _normalized(page).startswith("DAFTAR TABEL")
         )
+        figures_index = next(
+            index
+            for index, page in enumerate(pdf_pages)
+            if _normalized(page).startswith("DAFTAR GAMBAR")
+        )
+        bab_index = next(
+            index
+            for index, page in enumerate(pdf_pages)
+            if index > figures_index and "BAB I" in page
+        )
+        assert toc_index < tables_index < figures_index < bab_index
+        assert "Tabel 2.1" in pdf_pages[tables_index]
+        assert "Gambar 3.1" in pdf_pages[figures_index]
+
         # Tidak ada halaman kosong di antara daftar isi dan BAB I.
-        for page in pdf_pages[toc_index + 1 : bab_index]:
-            assert len(_normalized(page)) > 8
+        for index in range(toc_index + 1, bab_index):
+            assert len(_normalized(pdf_pages[index])) > 8, f"halaman {index + 1} kosong"
         assert "BAB I" in pdf_pages[bab_index]
-        assert "DAFTAR TABEL" in pdf_pages[toc_index]
-        assert "DAFTAR GAMBAR" in pdf_pages[toc_index]

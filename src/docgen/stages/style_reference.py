@@ -332,6 +332,37 @@ def _figure_spec(format_spec: Format) -> StyleSpec:
     )
 
 
+def _abstract_spec(style_id: str, format_spec: Format) -> StyleSpec:
+    abstract = format_spec.abstract
+    first_line_indent = format_spec.font.body.first_line_indent if style_id == "AbstractBody" else 0
+    return StyleSpec(
+        style_id=style_id,
+        style_type="paragraph",
+        based_on="Normal",
+        ppr={
+            "spacing": _spacing(
+                before=abstract.space_before,
+                after=abstract.space_after,
+                line_spacing=abstract.line_spacing,
+            ),
+            "ind": {
+                "left": 0,
+                "right": 0,
+                "firstLine": first_line_indent,
+            },
+            "jc": {"val": _alignment(abstract.alignment)},
+        },
+        rpr={
+            "rFonts": _font_attrs(abstract.font_family),
+            "color": {"val": format_spec.font.body.color},
+            "sz": _size_attrs(abstract.font_size_half_points),
+            "szCs": _size_attrs(abstract.font_size_half_points),
+        },
+        name=style_id,
+        ppr_drops=("ind",),
+    )
+
+
 def _cover_spec(style_id: str) -> StyleSpec:
     bold = style_id == "CoverTitle"
     return StyleSpec(
@@ -342,10 +373,13 @@ def _cover_spec(style_id: str) -> StyleSpec:
             "spacing": {
                 "before": 0,
                 "after": 0,
-            }
+            },
+            "ind": {"left": 0, "right": 0, "firstLine": 0},
+            "jc": {"val": "center"},
         },
         rpr=({"b": True, "bCs": True} if bold else {"b": False, "bCs": False}),
         name=style_id,
+        ppr_drops=("ind",),
     )
 
 
@@ -390,6 +424,8 @@ def style_specs_for_format(
     specs["Hyperlink"] = _hyperlink_spec()
     specs["Bibliography"] = _bibliography_spec(format_spec)
     specs["Figure"] = _figure_spec(format_spec)
+    for style_id in ("AbstractBody", "AbstractKeywords"):
+        specs[style_id] = _abstract_spec(style_id, format_spec)
     for style_id in _COVER_STYLES:
         specs[style_id] = _cover_spec(style_id)
     for spec in ISTILAH_STYLES:

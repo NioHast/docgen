@@ -19,6 +19,7 @@ berkas. Kontrak data ada di ``docs/dev/formats.md``.
 from .common import load_yaml_mapping, parse_yaml_mapping
 from .format import format_override_warning, load_format
 from .models import (
+    AbstractStyle,
     AssetsFormat,
     BackMatterItem,
     BibliographyStyle,
@@ -49,6 +50,7 @@ from .models import (
 from .structure import load_structure
 
 __all__ = [
+    "AbstractStyle",
     "AssetsFormat",
     "BackMatterItem",
     "BibliographyStyle",

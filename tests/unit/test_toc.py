@@ -33,14 +33,16 @@ from docgen.docx.package import (
     DocumentPackage,
 )
 from docgen.docx.paragraphs import paragraph_text
-from docgen.docx.xml import qn
+from docgen.docx.xml import RPR_ORDER, qn
 from docgen.pipeline import StageName
 from docgen.stages.toc import (
+    LIST_ENTRY_STYLE_ID,
     TOC_STYLE_IDS,
     TocError,
     TocStage,
-    _format_fallback,
+    ensure_list_entry_style,
     ensure_toc_styles,
+    format_tab_fallback,
     tab_position,
 )
 
@@ -211,6 +213,21 @@ def _has_page_break(paragraph) -> bool:
     return ppr is not None and ppr.find(qn("w:pageBreakBefore")) is not None
 
 
+def _sdt_content_paragraphs(sdt) -> list:
+    content = sdt.find(qn("w:sdtContent"))
+    assert content is not None
+    return [child for child in content if child.tag == qn("w:p")]
+
+
+def _sdt_heading(sdt):
+    return _sdt_content_paragraphs(sdt)[0]
+
+
+def _pstyle_id(paragraph) -> str | None:
+    style = paragraph.find(f"{qn('w:pPr')}/{qn('w:pStyle')}")
+    return None if style is None else style.get(qn("w:val"))
+
+
 def _assert_no_dirty(root) -> None:
     dirty = qn("w:dirty")
     offenders = [element.tag for element in root.iter() if dirty in element.attrib]
@@ -325,6 +342,100 @@ def test_insert_toc_writes_single_field_inside_sdt(tmp_path: Path) -> None:
     assert len(title) == 1
     ppr = title[0].find(qn("w:pPr"))
     assert ppr.find(qn("w:pStyle")).get(qn("w:val")) == "TOCHeading"
+
+
+def test_insert_toc_adds_single_canonical_gap_after_title(tmp_path: Path) -> None:
+    path = _write_package(tmp_path, _paragraph("BAB I", style="Heading1"))
+    package = DocumentPackage.load(path)
+    insert_toc(package, title="DAFTAR ISI")
+
+    sdt = _sdt_gallery(package.xml(DOCUMENT_PART))[0]
+    paragraphs = _sdt_content_paragraphs(sdt)
+    assert len(paragraphs) == 4
+    assert paragraph_text(paragraphs[0]).strip() == "DAFTAR ISI"
+
+    gap = paragraphs[1]
+    assert paragraph_text(gap) == ""
+    assert gap.find(".//" + qn("w:fldChar")) is None
+    assert paragraphs[2].find(".//" + qn("w:fldChar")) is not None
+    assert paragraphs[3].find(".//" + qn("w:fldChar")) is not None
+
+    ppr = gap.find(qn("w:pPr"))
+    assert ppr is not None
+    spacing = ppr.find(qn("w:spacing"))
+    assert spacing.get(qn("w:before")) == "0"
+    assert spacing.get(qn("w:after")) == "0"
+    assert spacing.get(qn("w:line")) == "360"
+    assert spacing.get(qn("w:lineRule")) == "auto"
+    rpr = ppr.find(qn("w:rPr"))
+    assert rpr is not None
+    fonts = rpr.find(qn("w:rFonts"))
+    assert fonts is not None
+    for attribute in ("w:ascii", "w:hAnsi", "w:cs", "w:eastAsia"):
+        assert fonts.get(qn(attribute)) == "Times New Roman"
+    assert rpr.find(qn("w:sz")).get(qn("w:val")) == "24"
+    assert rpr.find(qn("w:szCs")).get(qn("w:val")) == "24"
+
+
+def test_insert_toc_gap_after_title_can_be_disabled(tmp_path: Path) -> None:
+    path = _write_package(tmp_path, _paragraph("BAB I", style="Heading1"))
+    package = DocumentPackage.load(path)
+    insert_toc(package, title="DAFTAR ISI", gap_after_title=False)
+
+    sdt = _sdt_gallery(package.xml(DOCUMENT_PART))[0]
+    paragraphs = _sdt_content_paragraphs(sdt)
+    assert len(paragraphs) == 3
+    assert paragraph_text(paragraphs[0]).strip() == "DAFTAR ISI"
+    assert paragraphs[1].find(".//" + qn("w:fldChar")) is not None
+
+
+def test_insert_toc_page_break_before_on_heading_in_ppr_order(tmp_path: Path) -> None:
+    path = _write_package(tmp_path, _paragraph("BAB I", style="Heading1"))
+    package = DocumentPackage.load(path)
+    insert_toc(
+        package,
+        title="DAFTAR TABEL",
+        caption="Tabel",
+        page_break_before=True,
+    )
+
+    sdt = _sdt_gallery(package.xml(DOCUMENT_PART))[0]
+    heading = _sdt_heading(sdt)
+    assert _pstyle_id(heading) == "TOCHeading"
+    ppr = heading.find(qn("w:pPr"))
+    assert ppr is not None
+    tags = [child.tag for child in ppr if isinstance(child.tag, str)]
+    break_index = tags.index(qn("w:pageBreakBefore"))
+    assert break_index == 1
+    assert break_index < tags.index(qn("w:jc"))
+    assert break_index < tags.index(qn("w:outlineLvl"))
+
+
+def test_insert_toc_page_break_before_default_absent(tmp_path: Path) -> None:
+    path = _write_package(tmp_path, _paragraph("BAB I", style="Heading1"))
+    package = DocumentPackage.load(path)
+    insert_toc(package, title="DAFTAR ISI")
+
+    sdt = _sdt_gallery(package.xml(DOCUMENT_PART))[0]
+    heading = _sdt_heading(sdt)
+    ppr = heading.find(qn("w:pPr"))
+    assert ppr is not None
+    assert ppr.find(qn("w:pageBreakBefore")) is None
+
+
+def test_cleanup_keeps_toc_gap_and_page_break(tmp_path: Path) -> None:
+    path = _write_package(tmp_path, _paragraph("BAB I", style="Heading1"))
+    package = DocumentPackage.load(path)
+    insert_toc(package, title="DAFTAR TABEL", caption="Tabel", page_break_before=True)
+
+    assert ensure_no_blank_page_after_toc(package) == 0
+
+    sdt = _sdt_gallery(package.xml(DOCUMENT_PART))[0]
+    paragraphs = _sdt_content_paragraphs(sdt)
+    assert len(paragraphs) == 4
+    assert paragraph_text(paragraphs[1]) == ""
+    heading = _sdt_heading(sdt)
+    assert heading.find(f"{qn('w:pPr')}/{qn('w:pageBreakBefore')}") is not None
 
 
 def test_insert_toc_caption_uses_c_field(tmp_path: Path) -> None:
@@ -504,6 +615,73 @@ def test_ensure_toc_styles_is_idempotent(tmp_path: Path) -> None:
     assert ensure_toc_styles(package, tab_pos=9026) == 0
 
 
+def _style_by_id(styles_root, style_id: str):
+    return next(style for style in styles_root if style.get(qn("w:styleId")) == style_id)
+
+
+def test_ensure_list_entry_style_is_idempotent(tmp_path: Path) -> None:
+    path = _write_package(tmp_path, _paragraph("BAB I", style="Heading1"))
+    package = DocumentPackage.load(path)
+    assert ensure_list_entry_style(package, tab_pos=9026) == 1
+
+    styles = package.xml("word/styles.xml")
+    style = _style_by_id(styles, LIST_ENTRY_STYLE_ID)
+    assert style.find(qn("w:basedOn")).get(qn("w:val")) == "Normal"
+    assert style.find(qn("w:next")).get(qn("w:val")) == "Normal"
+    assert style.find(qn("w:name")).get(qn("w:val")) == "table of figures"
+
+    ppr = style.find(qn("w:pPr"))
+    assert ppr is not None
+    spacing = ppr.find(qn("w:spacing"))
+    assert spacing.get(qn("w:before")) == "0"
+    assert spacing.get(qn("w:after")) == "0"
+    assert spacing.get(qn("w:line")) == "360"
+    assert spacing.get(qn("w:lineRule")) == "auto"
+    ind = ppr.find(qn("w:ind"))
+    assert ind.get(qn("w:left")) == "0"
+    assert ind.get(qn("w:right")) == "0"
+    assert ind.get(qn("w:firstLine")) == "0"
+    assert ppr.find(qn("w:jc")).get(qn("w:val")) == "left"
+    tab = ppr.find(f"{qn('w:tabs')}/{qn('w:tab')}")
+    assert tab.get(qn("w:val")) == "right"
+    assert tab.get(qn("w:leader")) == "dot"
+    assert tab.get(qn("w:pos")) == "9026"
+
+    assert ensure_list_entry_style(package, tab_pos=9026) == 0
+    assert ensure_list_entry_style(package, tab_pos=8500) == 1
+    updated = _style_by_id(package.xml("word/styles.xml"), LIST_ENTRY_STYLE_ID)
+    assert updated.find(".//" + qn("w:tab")).get(qn("w:pos")) == "8500"
+
+
+def test_ensure_list_entry_style_without_tab_position(tmp_path: Path) -> None:
+    path = _write_package(tmp_path, _paragraph("BAB I", style="Heading1"))
+    package = DocumentPackage.load(path)
+    assert ensure_list_entry_style(package, tab_pos=None) == 1
+
+    style = _style_by_id(package.xml("word/styles.xml"), LIST_ENTRY_STYLE_ID)
+    assert style.find(f"{qn('w:pPr')}/{qn('w:tabs')}") is None
+    assert ensure_list_entry_style(package, tab_pos=None) == 0
+
+
+def _assert_rpr_order(style) -> None:
+    rpr = style.find(qn("w:rPr"))
+    assert rpr is not None
+    names = [child.tag.rsplit("}", 1)[-1] for child in rpr if isinstance(child.tag, str)]
+    indices = [RPR_ORDER.index(name) for name in names]
+    assert indices == sorted(indices), f"urutan rPr tidak sesuai RPR_ORDER: {names}"
+
+
+def test_toc_style_rpr_children_follow_rpr_order(tmp_path: Path) -> None:
+    path = _write_package(tmp_path, _paragraph("BAB I", style="Heading1"))
+    package = DocumentPackage.load(path)
+    ensure_toc_styles(package, tab_pos=9026)
+    ensure_list_entry_style(package, tab_pos=9026)
+
+    styles = package.xml("word/styles.xml")
+    for style_id in (*TOC_STYLE_IDS, LIST_ENTRY_STYLE_ID):
+        _assert_rpr_order(_style_by_id(styles, style_id))
+
+
 def test_no_blank_page_between_toc_and_bab_i(tmp_path: Path) -> None:
     page_break = _page_break_paragraph()
     path = _write_package(
@@ -604,13 +782,13 @@ def _format_ctx(size: str, orientation: str) -> SimpleNamespace:
 
 
 def test_format_fallback_memakai_ukuran_kanonis_dan_landscape() -> None:
-    assert _format_fallback(_format_ctx("A4", "portrait")) == (11906, 1440, 1440, 0)
-    assert _format_fallback(_format_ctx("Letter", "landscape")) == (15840, 1440, 1440, 0)
+    assert format_tab_fallback(_format_ctx("A4", "portrait")) == (11906, 1440, 1440, 0)
+    assert format_tab_fallback(_format_ctx("Letter", "landscape")) == (15840, 1440, 1440, 0)
 
 
 def test_format_fallback_mengembalikan_none_untuk_ukuran_tidak_dikenal() -> None:
-    assert _format_fallback(_format_ctx("A5", "portrait")) is None
-    assert _format_fallback(_format_ctx("LETTER", "portrait")) is None
+    assert format_tab_fallback(_format_ctx("A5", "portrait")) is None
+    assert format_tab_fallback(_format_ctx("LETTER", "portrait")) is None
 
 
 # ---------------------------------------------------------------------------

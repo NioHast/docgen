@@ -118,11 +118,15 @@ from .package import (  # noqa: E402
 )
 from .page import PAGE_SIZES, PageError, content_width, page_size  # noqa: E402
 from .paragraphs import (  # noqa: E402
+    EMPTY_PARAGRAPH_FONT,
+    EMPTY_PARAGRAPH_HALF_POINTS,
+    EMPTY_PARAGRAPH_LINE_TWIPS,
     ParagraphError,
     body_children,
     document_body,
     heading_level,
     int_attribute,
+    make_empty_paragraph,
     paragraph_style_id,
     paragraph_text,
     remove_direct_children,
@@ -164,6 +168,9 @@ __all__ = [
     "DocxError",
     "DocumentPackage",
     "DocxPackage",
+    "EMPTY_PARAGRAPH_FONT",
+    "EMPTY_PARAGRAPH_HALF_POINTS",
+    "EMPTY_PARAGRAPH_LINE_TWIPS",
     "InvalidPackageError",
     "MAIN_DOCUMENT_CONTENT_TYPE",
     "PACKAGE_RELS_PART",
@@ -210,6 +217,7 @@ __all__ = [
     "is_on",
     "iter_paragraphs",
     "iter_runs",
+    "make_empty_paragraph",
     "make_run",
     "page_size",
     "paragraph_style_id",

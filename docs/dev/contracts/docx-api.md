@@ -663,8 +663,9 @@ diubah.
 
 - Spacing before/after 0; line 1.5 (`w:line=360`, `lineRule=auto`);
   alignment justify; right alignment dipertahankan.
-- Bold langsung dihapus dari body/daftar, tetapi **tidak** dari run field
-  (`TOC`, `PAGEREF`, `SEQ`, `PAGE`), heading, atau `CoverTitle`.
+- Bold langsung dihapus dari body/daftar dan `AbstractBody`, tetapi **tidak**
+  dari run field (`TOC`, `PAGEREF`, `SEQ`, `PAGE`), heading, `CoverTitle`, atau
+  `AbstractKeywords`.
 - Tab stop kustom dipertahankan.
 - Text box, header, footer, dan footnote tidak disentuh.
 - H4-H9 tidak mendapat aturan gap baru.
@@ -717,7 +718,9 @@ def insert_toc(package: DocumentPackage, *,
                levels: tuple[int, int] = (1, 3),
                caption: str | None = None,
                before: etree._Element | None = None,
-               keep_existing: bool = False) -> Field: ...
+               keep_existing: bool = False,
+               gap_after_title: bool = True,
+               page_break_before: bool = False) -> Field: ...
 def insert_seq(package: DocumentPackage, *,
                paragraph: etree._Element,
                label: str) -> Field: ...
@@ -736,16 +739,30 @@ menentukan paragraf awal, anchor `before`, paragraf `end`, dan template
 default sebelum Heading1 bab pertama atau di akhir body dan mengganti TOC
 lama kecuali `keep_existing=True`.
 
+`insert_toc(..., gap_after_title=True)` menambahkan tepat satu paragraf kosong
+kanonis dari `paragraphs.make_empty_paragraph` (Times New Roman 12 pt,
+`w:line=360` `lineRule=auto`, before/after 0) di dalam `w:sdtContent` antara
+paragraf `TOCHeading` dan paragraf field, sehingga jarak judul ke entri sama
+dengan jarak setelah Heading1 bab. `gap_after_title=False` menghilangkan
+paragraf itu. `insert_toc(..., page_break_before=True)` menambahkan
+`w:pageBreakBefore` pada paragraf `TOCHeading` (setelah `w:pStyle` dan sebelum
+`w:spacing`/`w:jc`/`w:outlineLvl`) agar daftar dimulai di halaman baru tanpa
+paragraf page-break tambahan setelah `w:sdt`.
+
 ### 13.2 Invariant
 
 - Field kompleks selalu memiliki `begin`, `separate`, dan `end`; field
   bersarang dilacak.
 - `fldSimple` dikenali sebagai field.
 - TOC ditulis di dalam `w:sdt` dengan `docPartGallery "Table of Contents"`.
-- Daftar gambar/tabel memakai `TOC \c "Gambar"`/`TOC \c "Tabel"`.
+- Daftar gambar/tabel memakai `TOC \c "Gambar"`/`TOC \c "Tabel"` dan style
+  entri `TableofFigures` (flush left, tab kanan leader dot selebar konten).
 - Caption memakai `SEQ Gambar`/`SEQ Tabel`.
 - Run field tidak pernah kehilangan bold karena normalisasi layout.
 - Tidak ada TOC ganda; insert ulang mengganti field lama, bukan menambah.
+- Gap setelah judul TOC memakai paragraf kosong kanonis yang sama dengan
+  stage `blank_lines`; gap tidak dihapus oleh pembersihan page-break setelah
+  `w:sdt`.
 - `strip_update_fields` hanya menghapus `w:updateFields`; tidak mengubah
   field.
 
@@ -900,6 +917,10 @@ def body_children(body: etree._Element) -> list[etree._Element]: ...
 def paragraph_style_id(paragraph: etree._Element) -> str | None: ...
 def heading_level(paragraph: etree._Element) -> int | None: ...
 def paragraph_text(paragraph: etree._Element) -> str: ...
+def make_empty_paragraph(*,
+                         font: str = "Times New Roman",
+                         half_points: int = 24,
+                         line_twips: int = 360) -> etree._Element: ...
 def remove_direct_children(parent: etree._Element, tag: str) -> int: ...
 def int_attribute(element: etree._Element, name: str) -> int | None: ...
 ```
@@ -907,6 +928,15 @@ def int_attribute(element: etree._Element, name: str) -> int | None: ...
 `document_body` adalah satu-satunya akses `w:body`. Ia melempar
 `ParagraphError` (kode `PARAGRAPH`) bila argumen bukan `DocumentPackage`, part
 `word/document.xml` tidak ada, atau root tidak memiliki `w:body`.
+
+`make_empty_paragraph` adalah pembangun paragraf kosong kanonis: `w:spacing`
+before/after 0 dengan `w:line` sesuai `line_twips` dan `lineRule=auto`, lalu
+`w:rPr` berisi `w:rFonts` (ascii/hAnsi/cs/eastAsia) serta `w:sz`/`w:szCs`.
+Konstanta default `EMPTY_PARAGRAPH_FONT`, `EMPTY_PARAGRAPH_HALF_POINTS`, dan
+`EMPTY_PARAGRAPH_LINE_TWIPS` diekspor dari `docgen.docx.paragraphs` dan
+di-re-export bersama `make_empty_paragraph` oleh `docgen.docx`. Stage
+`blank_lines` memakai helper ini lewat wrapper `make_empty_paragraph(spec)`,
+dan `fields.insert_toc` memakainya untuk gap setelah judul TOC.
 
 Aturan error domain: modul yang sudah memiliki tipe error domain boleh
 menerjemahkan `ParagraphError` ke tipe itu melalui wrapper tipis, tanpa
@@ -995,7 +1025,7 @@ hilang, nilai bukan bilangan bulat, atau hasilnya tidak positif menimbulkan
 | `terms` | `word/document.xml`, `word/styles.xml` | Style istilah |
 | `toc` | `word/document.xml`, `word/styles.xml` | Field TOC dan style TOC |
 | `page_numbers` | `word/document.xml`, `word/header*.xml`, `word/footer*.xml`, `word/_rels/document.xml.rels`, `[Content_Types].xml` | Nomor halaman |
-| `lists` | `word/document.xml` | Field daftar gambar/tabel |
+| `lists` | `word/document.xml`, `word/styles.xml` | Field daftar gambar/tabel dan style `TableofFigures` |
 | `bookmarks` (Adeu, dalam pass yang sama) | `word/document.xml` | Bookmark `pNNNN` |
 | `office` | seluruh package | Word boleh menyimpan ulang; dikecualikan dari byte identity |
 | `pdf` | tidak ada | Hanya membaca DOCX |
@@ -1029,7 +1059,7 @@ Aturan per stage:
 | `terms` | ya | Span/style stabil |
 | `toc` | ya | Field TOC diganti, bukan ditambah |
 | `page_numbers` | ya | Format section stabil |
-| `lists` | ya | Field daftar diganti, bukan ditambah |
+| `lists` | ya | Field daftar diganti, bukan ditambah; style entri hanya diganti bila berbeda |
 | `bookmarks` | ya | Nama dan ID stabil |
 | `office` | semantik | Word dapat menulis ulang package |
 | `pdf` | semantik | Output PDF tidak dijamin byte-identik |

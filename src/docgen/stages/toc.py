@@ -26,10 +26,14 @@ from ..pipeline import BaseStage, StageName, StageResult, canonical_prefix
 
 STYLES_PART = "word/styles.xml"
 TOC_TITLE = "DAFTAR ISI"
+LIST_ENTRY_STYLE_ID = "TableofFigures"
 
 TOC_STYLE_IDS = ("TOCHeading", "TOC1", "TOC2", "TOC3")
 
 _W_NS_DECL = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"'
+_TNR_FONTS = (
+    '<w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:cs="Times New Roman"/>'
+)
 
 
 class TocError(FieldError):
@@ -108,7 +112,7 @@ def _style_fragment(style_id: str, tab_pos: int) -> etree._Element:
     nilai lain melempar ``TocError``.
     """
 
-    tnr = '<w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:cs="Times New Roman"/>'
+    tnr = _TNR_FONTS
     definitions = {
         "TOCHeading": f"""<w:style {_W_NS_DECL} w:type="paragraph" w:styleId="TOCHeading">
   <w:name w:val="TOC Heading"/>
@@ -124,11 +128,11 @@ def _style_fragment(style_id: str, tab_pos: int) -> etree._Element:
   </w:pPr>
   <w:rPr>
     {tnr}
+    <w:b/>
+    <w:bCs/>
     <w:color w:val="000000"/>
     <w:sz w:val="24"/>
     <w:szCs w:val="24"/>
-    <w:b/>
-    <w:bCs/>
   </w:rPr>
 </w:style>""",
         "TOC1": f"""<w:style {_W_NS_DECL} w:type="paragraph" w:styleId="TOC1">
@@ -146,11 +150,11 @@ def _style_fragment(style_id: str, tab_pos: int) -> etree._Element:
   </w:pPr>
   <w:rPr>
     {tnr}
+    <w:b w:val="0"/>
+    <w:bCs w:val="0"/>
     <w:color w:val="000000"/>
     <w:sz w:val="24"/>
     <w:szCs w:val="24"/>
-    <w:b w:val="0"/>
-    <w:bCs w:val="0"/>
   </w:rPr>
 </w:style>""",
         "TOC2": f"""<w:style {_W_NS_DECL} w:type="paragraph" w:styleId="TOC2">
@@ -169,11 +173,11 @@ def _style_fragment(style_id: str, tab_pos: int) -> etree._Element:
   </w:pPr>
   <w:rPr>
     {tnr}
+    <w:b w:val="0"/>
+    <w:bCs w:val="0"/>
     <w:color w:val="000000"/>
     <w:sz w:val="24"/>
     <w:szCs w:val="24"/>
-    <w:b w:val="0"/>
-    <w:bCs w:val="0"/>
   </w:rPr>
 </w:style>""",
         "TOC3": f"""<w:style {_W_NS_DECL} w:type="paragraph" w:styleId="TOC3">
@@ -192,11 +196,11 @@ def _style_fragment(style_id: str, tab_pos: int) -> etree._Element:
   </w:pPr>
   <w:rPr>
     {tnr}
+    <w:b w:val="0"/>
+    <w:bCs w:val="0"/>
     <w:color w:val="000000"/>
     <w:sz w:val="24"/>
     <w:szCs w:val="24"/>
-    <w:b w:val="0"/>
-    <w:bCs w:val="0"/>
   </w:rPr>
 </w:style>""",
     }
@@ -204,6 +208,59 @@ def _style_fragment(style_id: str, tab_pos: int) -> etree._Element:
         return parse_xml(definitions[style_id])
     except KeyError as exc:  # pragma: no cover - daftar style internal
         raise TocError(f"Style TOC tidak dikenal: {style_id!r}") from exc
+
+
+def _list_entry_style_fragment(tab_pos: int | None) -> etree._Element:
+    """Bangun style ``TableofFigures`` untuk entri daftar tabel/gambar.
+
+    Indentasi kiri/kanan/first-line nol agar entri flush left; satu tab kanan
+    berleader dot ditulis bila ``tab_pos`` diberikan. ``tab_pos=None``
+    menghilangkan elemen ``w:tabs`` sehingga style tetap valid tanpa geometri
+    halaman.
+    """
+
+    tabs = ""
+    if tab_pos is not None:
+        tabs = (
+            "\n    <w:tabs>"
+            f'\n      <w:tab w:val="right" w:leader="dot" w:pos="{tab_pos}"/>'
+            "\n    </w:tabs>"
+        )
+    return parse_xml(f"""<w:style {_W_NS_DECL} w:type="paragraph" w:styleId="{LIST_ENTRY_STYLE_ID}">
+  <w:name w:val="table of figures"/>
+  <w:basedOn w:val="Normal"/>
+  <w:next w:val="Normal"/>
+  <w:pPr>{tabs}
+    <w:spacing w:before="0" w:after="0" w:line="360" w:lineRule="auto"/>
+    <w:ind w:left="0" w:right="0" w:firstLine="0"/>
+    <w:jc w:val="left"/>
+  </w:pPr>
+  <w:rPr>
+    {_TNR_FONTS}
+    <w:b w:val="0"/>
+    <w:bCs w:val="0"/>
+    <w:color w:val="000000"/>
+    <w:sz w:val="24"/>
+    <w:szCs w:val="24"/>
+  </w:rPr>
+</w:style>""")
+
+
+def _upsert_style(root: etree._Element, style: etree._Element) -> bool:
+    """Pasang ``style`` pada ``root``; kembalikan True bila XML berubah."""
+
+    style_id = style.get(W + "styleId")
+    for existing in root:
+        if not isinstance(existing.tag, str):
+            continue
+        if existing.get(W + "styleId") != style_id:
+            continue
+        if sha256_c14n(existing) == sha256_c14n(style):
+            return False
+        root.replace(existing, style)
+        return True
+    root.append(style)
+    return True
 
 
 def _styles_root(package: object) -> etree._Element:
@@ -227,21 +284,22 @@ def ensure_toc_styles(package: DocumentPackage, *, tab_pos: int | None = None) -
     changed = 0
     for style_id in TOC_STYLE_IDS:
         new_style = _style_fragment(style_id, position)
-        existing = None
-        for child in root:
-            if not isinstance(child.tag, str):
-                continue
-            if child.get(W + "styleId") == style_id:
-                existing = child
-                break
-        if existing is not None:
-            if sha256_c14n(existing) == sha256_c14n(new_style):
-                continue
-            root.replace(existing, new_style)
-        else:
-            root.append(new_style)
-        changed += 1
+        changed += int(_upsert_style(root, new_style))
     return changed
+
+
+def ensure_list_entry_style(package: DocumentPackage, *, tab_pos: int | None) -> int:
+    """Pastikan style ``TableofFigures`` entri daftar tabel/gambar ada.
+
+    Style memakai indentasi kiri/kanan/first-line nol (flush left), spacing
+    before/after 0 dengan line 360, dan satu tab kanan berleader dot pada
+    ``tab_pos``. ``tab_pos=None`` menulis style tanpa ``w:tabs``. Style
+    dibuat atau diganti hanya bila XML kanonisnya berbeda; mengembalikan 1
+    saat berubah dan 0 saat sudah identik, sehingga pemanggil dapat idempoten.
+    """
+
+    root = _styles_root(package)
+    return int(_upsert_style(root, _list_entry_style_fragment(tab_pos)))
 
 
 def _document_hash(package: object) -> str:
@@ -256,7 +314,15 @@ def _toc_field_count(package: object) -> int:
     return sum(1 for field in iter_fields(package) if field.kind is FieldKind.TOC)
 
 
-def _format_fallback(ctx: object) -> tuple[int, int, int, int] | None:
+def format_tab_fallback(ctx: object) -> tuple[int, int, int, int] | None:
+    """Geometri halaman dari ``ctx.format.page`` dalam twip, atau ``None``.
+
+    Nilai kembali ``(width, left_margin, right_margin, 0)``; ``None`` bila
+    format tidak tersedia, ukuran halaman tidak dikenal, atau margin tidak
+    ada. Dipakai stage ``toc`` dan ``lists`` sebagai fallback saat geometri
+    package tidak lengkap.
+    """
+
     page = getattr(getattr(ctx, "format", None), "page", None)
     if page is None:
         return None
@@ -317,7 +383,7 @@ class TocStage(BaseStage):
         before_document = _document_hash(package)
         before_styles = _styles_hash(package)
         try:
-            position = tab_position(package, fallback=_format_fallback(ctx))
+            position = tab_position(package, fallback=format_tab_fallback(ctx))
             styles_changed = ensure_toc_styles(package, tab_pos=position)
             insert_toc(package, title=TOC_TITLE)
             ensure_no_blank_page_after_toc(package)
@@ -345,11 +411,14 @@ class TocStage(BaseStage):
 
 
 __all__ = [
+    "LIST_ENTRY_STYLE_ID",
     "STYLES_PART",
     "TOC_STYLE_IDS",
     "TOC_TITLE",
     "TocError",
     "TocStage",
+    "ensure_list_entry_style",
     "ensure_toc_styles",
+    "format_tab_fallback",
     "tab_position",
 ]

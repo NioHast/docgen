@@ -93,6 +93,16 @@ def assert_spacing(
     assert spacing.get(f"{W}lineRule") == "auto"
 
 
+def assert_indent(style: ElementTree.Element, *, first_line: int) -> None:
+    ppr = style.find(f"{W}pPr")
+    assert ppr is not None
+    ind = child(ppr, "ind")
+    assert set(ind.attrib) == {f"{W}left", f"{W}right", f"{W}firstLine"}
+    assert int(ind.get(f"{W}left", "-1")) == 0
+    assert int(ind.get(f"{W}right", "-1")) == 0
+    assert int(ind.get(f"{W}firstLine", "-1")) == first_line
+
+
 @pytest.fixture(scope="module")
 def undip_format() -> Format:
     return load_format("undip-msi")
@@ -219,6 +229,57 @@ def test_caption_10pt(tmp_path: Path, undip_format: Format) -> None:
     assert child(table.find(f"{W}pPr"), "jc").get(f"{W}val") == "left"
     assert_spacing(table, before=0, after=0, line=240)
     assert table.find(f"{W}pPr/{W}keepNext") is not None
+
+
+def test_abstract_10pt_spacing_10_dan_indent(tmp_path: Path, undip_format: Format) -> None:
+    _, output = make_reference(tmp_path, undip_format)
+    styles = read_xml(output, "word/styles.xml")
+
+    body = get_style(styles, "AbstractBody")
+    assert_font(body, "Times New Roman")
+    assert_size(body, 20)
+    assert_spacing(body, before=0, after=0, line=240)
+    body_ppr = body.find(f"{W}pPr")
+    assert body_ppr is not None
+    assert child(body_ppr, "jc").get(f"{W}val") == "both"
+    assert_indent(body, first_line=709)
+
+    keywords = get_style(styles, "AbstractKeywords")
+    assert_font(keywords, "Times New Roman")
+    assert_size(keywords, 20)
+    assert_spacing(keywords, before=0, after=0, line=240)
+    keywords_ppr = keywords.find(f"{W}pPr")
+    assert keywords_ppr is not None
+    assert child(keywords_ppr, "jc").get(f"{W}val") == "both"
+    assert_indent(keywords, first_line=0)
+
+
+def test_semua_cover_style_center_dan_tanpa_indent(
+    tmp_path: Path,
+    undip_format: Format,
+) -> None:
+    _, output = make_reference(tmp_path, undip_format)
+    styles = read_xml(output, "word/styles.xml")
+
+    cover_styles = (
+        "CoverTitle",
+        "CoverSubtitle",
+        "CoverCourse",
+        "CoverLecturer",
+        "CoverName",
+        "CoverLine",
+        "CoverInstitution",
+        "CoverImage",
+    )
+    for style_id in cover_styles:
+        style = get_style(styles, style_id)
+        ppr = style.find(f"{W}pPr")
+        assert ppr is not None, style_id
+        assert child(ppr, "jc").get(f"{W}val") == "center", style_id
+        assert_indent(style, first_line=0)
+
+    title = get_style(styles, "CoverTitle")
+    assert on_off(title.find(f"{W}rPr"), "b") is True
 
 
 def test_style_wajib_terpelihara_dan_istilah_ditambahkan(

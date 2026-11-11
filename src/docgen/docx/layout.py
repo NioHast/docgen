@@ -170,6 +170,8 @@ class LayoutReport:
 
 CODE_STYLES = frozenset({"sourcecode", "verbatimchar", "htmlcode", "htmlpreformatted"})
 CAPTION_STYLES = frozenset({"caption", "imagecaption", "tablecaption"})
+ABSTRACT_STYLES = frozenset({"abstractbody", "abstractkeywords"})
+ABSTRACT_BOLD_STRIP_STYLES = frozenset({"abstractbody"})
 FIGURE_STYLES = frozenset({"figure", "captionedfigure", "figurecaption"})
 CUSTOM_HEADING_STYLES = frozenset({"chaptertitle"})
 CHAPTER_HEADING_STYLES = frozenset({"heading1", "chaptertitle"})
@@ -279,6 +281,8 @@ def is_exempt_style(style_id: str | None) -> bool:
     normalized = normalize_style_id(style_id)
     if not normalized:
         return False
+    if normalized in ABSTRACT_STYLES:
+        return True
     if normalized in CODE_STYLES or normalized in CAPTION_STYLES:
         return True
     if normalized in FIGURE_STYLES or normalized in CUSTOM_HEADING_STYLES:
@@ -523,7 +527,11 @@ def normalize_layout(
         style_id = paragraphs.paragraph_style_id(paragraph)
 
         if is_exempt_style(style_id):
-            if _cover_bold_to_strip(style_id) and spec.strip_bold:
+            normalized_style = normalize_style_id(style_id)
+            bold_to_strip = (
+                _cover_bold_to_strip(style_id) or normalized_style in ABSTRACT_BOLD_STRIP_STYLES
+            )
+            if bold_to_strip and spec.strip_bold:
                 removed = strip_paragraph_bold(paragraph)
                 if removed:
                     bold_paragraphs += 1

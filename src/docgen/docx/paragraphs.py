@@ -1,9 +1,10 @@
-"""Helper kanonis paragraf DOCX: body, style, level, teks, dan atribut.
+"""Helper kanonis paragraf DOCX: body, style, level, teks, atribut, dan kosong.
 
 Modul ini adalah sumber tunggal pembacaan ``w:body`` beserta child langsungnya,
 style dan level heading paragraf, ekstraksi teks paragraf, penghapusan child
-langsung, serta pembacaan atribut bilangan bulat. Modul DOCX lain dan stage
-memakai helper ini, bukan menduplikasi traversal paragraf.
+langsung, pembacaan atribut bilangan bulat, serta pembuatan paragraf kosong
+kanonis. Modul DOCX lain dan stage memakai helper ini, bukan menduplikasi
+traversal paragraf.
 
 Semua fungsi bekerja pada elemen ``lxml`` hidup dan tidak melakukan I/O
 package. ``xml.py`` tetap menjadi primitif parse/serialisasi dan tidak boleh
@@ -42,8 +43,15 @@ from .names import (
     normalize_style_id,
 )
 from .package import DOCUMENT_PART, DocumentPackage
+from .xml import qn
 
 _HEADING_LEVEL_RE = re.compile(r"^heading([1-9])$")
+
+# Format kanonis paragraf kosong: satu sumber untuk stage ``blank_lines`` dan
+# gap setelah judul TOC.
+EMPTY_PARAGRAPH_FONT = "Times New Roman"
+EMPTY_PARAGRAPH_HALF_POINTS = 24
+EMPTY_PARAGRAPH_LINE_TWIPS = 360
 
 # Tag yang tidak ditelusuri saat mengekstrak teks paragraf: properti, field,
 # objek/gambar, text box, paragraf bersarang, dan teks yang dihapus.
@@ -158,6 +166,42 @@ def paragraph_text(paragraph: etree._Element) -> str:
     return "".join(parts)
 
 
+def make_empty_paragraph(
+    *,
+    font: str = EMPTY_PARAGRAPH_FONT,
+    half_points: int = EMPTY_PARAGRAPH_HALF_POINTS,
+    line_twips: int = EMPTY_PARAGRAPH_LINE_TWIPS,
+) -> etree._Element:
+    """Buat paragraf kosong kanonis dengan spacing dan font eksplisit.
+
+    Paragraf memakai ``w:spacing`` before/after 0 dan line ``line_twips``
+    (``lineRule`` auto), lalu ``w:rPr`` berisi ``w:rFonts`` untuk
+    ascii/hAnsi/cs/eastAsia serta ``w:sz``/``w:szCs``. Dipakai stage
+    ``blank_lines`` untuk paragraf kosong fisik dan ``fields`` untuk gap
+    setelah judul TOC.
+    """
+
+    paragraph = etree.Element(W_P)
+    properties = etree.SubElement(paragraph, W_PPR)
+
+    spacing = etree.SubElement(properties, qn("w:spacing"))
+    spacing.set(qn("w:before"), "0")
+    spacing.set(qn("w:after"), "0")
+    spacing.set(qn("w:line"), str(line_twips))
+    spacing.set(qn("w:lineRule"), "auto")
+
+    run_properties = etree.SubElement(properties, W_RPR)
+    fonts = etree.SubElement(run_properties, qn("w:rFonts"))
+    for attribute in ("w:ascii", "w:hAnsi", "w:cs", "w:eastAsia"):
+        fonts.set(qn(attribute), font)
+
+    for tag in ("w:sz", "w:szCs"):
+        size = etree.SubElement(run_properties, qn(tag))
+        size.set(W_VAL, str(half_points))
+
+    return paragraph
+
+
 def remove_direct_children(parent: etree._Element, tag: str) -> int:
     """Hapus semua child langsung ``parent`` bertag ``tag``; kembalikan jumlah.
 
@@ -189,11 +233,15 @@ def int_attribute(element: etree._Element, name: str) -> int | None:
 
 
 __all__ = [
+    "EMPTY_PARAGRAPH_FONT",
+    "EMPTY_PARAGRAPH_HALF_POINTS",
+    "EMPTY_PARAGRAPH_LINE_TWIPS",
     "ParagraphError",
     "body_children",
     "document_body",
     "heading_level",
     "int_attribute",
+    "make_empty_paragraph",
     "paragraph_style_id",
     "paragraph_text",
     "remove_direct_children",

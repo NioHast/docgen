@@ -371,13 +371,11 @@ def _render_abstract(
         )
 
     blocks: list[str] = [f"# {label} {{-}}"]
-    if metadata.title:
-        title = _one_line(metadata.title).upper()
-        blocks.append(_div("CoverLine", f"*{title}*" if english else title))
-    blocks.append(_emphasize_paragraphs(text) if english else text.strip())
+    content = _emphasize_paragraphs(text) if english else text.strip()
+    blocks.append(_div("AbstractBody", content))
     if keywords:
         joined = ", ".join(keywords)
-        blocks.append(f"**{keyword_label}** *{joined}*")
+        blocks.append(_div("AbstractKeywords", f"**{keyword_label}** *{joined}*"))
     blocks.append(page_break())
     return "\n\n".join(blocks)
 

@@ -388,6 +388,90 @@ def test_normalize_spacing_bold_tab_dan_pengecualian(layout_docx: Path, tmp_path
     assert page.find(f"{W_PPR}/{W_SPACING}").get(W_LINE) == "360"
 
 
+def test_normalize_abstract_spacing_exempt_dan_bold(tmp_path: Path) -> None:
+    document = Document()
+
+    abstract = document.add_paragraph()
+    _set_style(abstract, "AbstractBody")
+    _add_bold_run(abstract, "Abstrak penelitian ini.")
+    _conflict(abstract)
+
+    keywords = document.add_paragraph()
+    _set_style(keywords, "AbstractKeywords")
+    _add_bold_run(keywords, "Kata Kunci:")
+    _add_bold_run(keywords, " analisis")
+    _conflict(keywords)
+
+    body = document.add_paragraph("Isi paragraf.")
+    _set_style(body, "Normal")
+    _conflict(body)
+
+    plain_abstract = document.add_paragraph("Abstrak tanpa format langsung.")
+    _set_style(plain_abstract, "AbstractBody")
+
+    source_path = tmp_path / "abstract.docx"
+    document.save(source_path)
+    package = DocumentPackage.load(source_path)
+
+    def spacing_attributes(marker: str) -> dict[str, str | None]:
+        paragraph = _paragraph_by_text(package, marker)
+        spacing = paragraph.find(f"{W_PPR}/{W_SPACING}")
+        assert spacing is not None
+        justification = paragraph.find(f"{W_PPR}/{W_JC}")
+        assert justification is not None
+        return {
+            "line": spacing.get(W_LINE),
+            "before": spacing.get(W_BEFORE),
+            "after": spacing.get(W_AFTER),
+            "jc": justification.get(W_VAL),
+        }
+
+    abstract_before = spacing_attributes("Abstrak penelitian ini.")
+    keywords_before = spacing_attributes("Kata Kunci:")
+    assert abstract_before["line"] == "240"
+    assert abstract_before["jc"] == "left"
+    assert keywords_before["line"] == "240"
+
+    normalize_layout(package)
+    result = DocumentPackage.load(_save(package, tmp_path / "abstract-out.docx"))
+
+    abstract_out = _paragraph_by_text(result, "Abstrak penelitian ini.")
+    abstract_spacing = abstract_out.find(f"{W_PPR}/{W_SPACING}")
+    assert abstract_spacing is not None
+    assert abstract_spacing.get(W_LINE) == "240"
+    assert {
+        "line": abstract_spacing.get(W_LINE),
+        "before": abstract_spacing.get(W_BEFORE),
+        "after": abstract_spacing.get(W_AFTER),
+        "jc": abstract_out.find(f"{W_PPR}/{W_JC}").get(W_VAL),
+    } == abstract_before
+    assert not _has_bold(_run_by_text(abstract_out, "Abstrak penelitian ini."))
+
+    keywords_out = _paragraph_by_text(result, "Kata Kunci:")
+    keywords_spacing = keywords_out.find(f"{W_PPR}/{W_SPACING}")
+    assert keywords_spacing is not None
+    assert keywords_spacing.get(W_LINE) == "240"
+    assert {
+        "line": keywords_spacing.get(W_LINE),
+        "before": keywords_spacing.get(W_BEFORE),
+        "after": keywords_spacing.get(W_AFTER),
+        "jc": keywords_out.find(f"{W_PPR}/{W_JC}").get(W_VAL),
+    } == keywords_before
+    assert _has_bold(_run_by_text(keywords_out, "Kata Kunci:"))
+
+    body_out = _paragraph_by_text(result, "Isi paragraf.")
+    body_spacing = body_out.find(f"{W_PPR}/{W_SPACING}")
+    assert body_spacing is not None
+    assert body_spacing.get(W_LINE) == "360"
+    assert body_spacing.get(W_BEFORE) == "0"
+    assert body_spacing.get(W_AFTER) == "0"
+    assert body_out.find(f"{W_PPR}/{W_JC}").get(W_VAL) == "both"
+
+    plain_out = _paragraph_by_text(result, "Abstrak tanpa format langsung.")
+    assert plain_out.find(f"{W_PPR}/{W_SPACING}") is None
+    assert plain_out.find(f"{W_PPR}/{W_JC}") is None
+
+
 def test_normalize_idempoten_dan_part_non_target_identik(layout_docx: Path, tmp_path: Path) -> None:
     before = _part_hashes(layout_docx)
     package = DocumentPackage.load(layout_docx)

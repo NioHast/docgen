@@ -59,6 +59,16 @@ class FontFormat:
 
 
 @dataclass(frozen=True)
+class AbstractStyle:
+    font_family: str
+    font_size_half_points: int
+    line_spacing: float
+    space_before: int
+    space_after: int
+    alignment: str
+
+
+@dataclass(frozen=True)
 class HeadingStyle:
     font_family: str
     font_size_half_points: int
@@ -195,6 +205,7 @@ class Format:
     data: Mapping[str, Any]
     page: PageFormat
     font: FontFormat
+    abstract: AbstractStyle
     headings: Mapping[str, HeadingStyle]
     toc_heading: TocHeadingStyle
     captions: CaptionsFormat

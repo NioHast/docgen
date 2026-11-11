@@ -135,6 +135,14 @@ font:
     family: "Courier New"
     size: 10pt
 
+abstract:
+  font: "Times New Roman"
+  size: 10pt
+  line_spacing: 1.0
+  space_before: 0pt
+  space_after: 0pt
+  alignment: both
+
 headings:
   styles:
     heading1:
@@ -310,7 +318,24 @@ Margin wajib ditulis keempatnya. Tidak ada fallback ke margin preset lama.
 `FirstParagraph`. `font.monospace` menjadi default untuk inline code dan blok
 kode yang tidak punya override di `code`.
 
-### 2.5 `headings`
+### 2.5 `abstract`
+
+| Key | Tipe | Wajib | Default | Validasi |
+|---|---|---:|---|---|
+| `abstract.font` | teks | tidak | `font.body.family` | Tidak kosong |
+| `abstract.size` | dimensi `pt` | tidak | `font.body.size` | 6-72 pt |
+| `abstract.line_spacing` | angka | tidak | `font.body.line_spacing` | 0.5-3.0 |
+| `abstract.space_before` | dimensi | tidak | `0pt` | >= 0 |
+| `abstract.space_after` | dimensi | tidak | `0pt` | >= 0 |
+| `abstract.alignment` | enum alignment | tidak | `font.body.alignment` | `left`, `right`, `center`, `justify`, `both` |
+
+Nilai ini diterapkan ke style `AbstractBody` dan `AbstractKeywords`. Warna
+teks abstrak mengikuti `font.body.color`; tidak ada key `abstract.color`. Isi
+abstract mempertahankan indent baris pertama `font.body.first_line_indent`,
+sedangkan baris kata kunci selalu tanpa indent. Heading `ABSTRAK`/`ABSTRACT`
+tetap memakai `Heading1` dan tidak diatur blok ini.
+
+### 2.6 `headings`
 
 `headings.styles` wajib memuat `heading1`, `heading2`, dan `heading3`. Semua
 key di bawah boleh ditulis pada ketiga style; default berbeda per level.
@@ -342,7 +367,7 @@ Aturan yang tidak dapat dikonfigurasi:
 - Nomor bab, prefix, dan format angka berasal dari `structure.yml`, bukan dari
   `format.yml`.
 
-### 2.6 `captions`
+### 2.7 `captions`
 
 | Key | Tipe | Wajib | Default | Validasi |
 |---|---|---:|---|---|
@@ -373,7 +398,7 @@ Posisi caption tidak dapat dikonfigurasi:
   menghasilkan error sebelum Pandoc.
 - Tabel kode bukan tabel data dan tidak boleh diberi caption tabel.
 
-### 2.7 `code`
+### 2.8 `code`
 
 | Key | Tipe | Wajib | Default | Validasi |
 |---|---|---:|---|---|
@@ -402,7 +427,7 @@ Aturan kode:
 - Nama style dibandingkan tanpa membedakan kapitalisasi, spasi, garis bawah,
   dan tanda hubung.
 
-### 2.8 `citation`
+### 2.9 `citation`
 
 | Key | Tipe | Wajib | Default | Validasi |
 |---|---|---:|---|---|
@@ -417,7 +442,7 @@ format. Judul bagian daftar pustaka berada di
 `citation.bibliography` tetap berupa path `.bib` dan tidak berubah menjadi
 gaya.
 
-### 2.9 `assets`
+### 2.10 `assets`
 
 | Key | Tipe | Wajib | Default | Validasi |
 |---|---|---:|---|---|
@@ -432,7 +457,7 @@ Ketiganya berada di `structure.cover` (lihat 3.7). Path logo tetap di
 hanya membacanya dan menulis derived reference ke workspace/cache. File
 source tidak boleh ditimpa.
 
-### 2.10 `toc_heading`
+### 2.11 `toc_heading`
 
 | Key | Tipe | Wajib | Default | Validasi |
 |---|---|---:|---|---|
@@ -454,7 +479,7 @@ Keberadaan daftar isi tetap ditentukan `structure.toc` (boolean) dan entri
 `front_matter` `{id: toc}`. `format.toc_heading` tidak boleh dipakai untuk
 menyalakan atau mematikan TOC.
 
-### 2.11 `bibliography_style`
+### 2.12 `bibliography_style`
 
 | Key | Tipe | Wajib | Default | Validasi |
 |---|---|---:|---|---|
@@ -472,7 +497,7 @@ Nilai font/size/line spacing/spacing dan indent kiri/hanging diterapkan ke
 style `Bibliography`. `citation.bibliography` tetap path `.bib`;
 `bibliography_style` tidak menentukan file bibliografi.
 
-### 2.12 `figures`
+### 2.13 `figures`
 
 | Key | Tipe | Wajib | Default | Validasi |
 |---|---|---:|---|---|
@@ -489,9 +514,9 @@ tetap memakai `captions.table.font.alignment`. Spacing dan indentasi gambar
 memakai `figures.space_before`, `figures.space_after`, dan
 `figures.first_line_indent`.
 
-### 2.13 Validasi `format.yml`
+### 2.14 Validasi `format.yml`
 
-- Semua key di luar daftar 2.3-2.12 adalah error `CFG-UNKNOWN-KEY`.
+- Semua key di luar daftar 2.3-2.13 adalah error `CFG-UNKNOWN-KEY`.
 - `format` wajib sama dengan nama direktori; key `id` tidak dikenal.
 - `page.margins` wajib lengkap. `page.size`, `page.orientation`,
   `page.header_distance`, `page.footer_distance`, dan `page.gutter` memakai

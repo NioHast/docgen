@@ -179,7 +179,10 @@ Helper tipis di atasnya:
 - `insert_pageref(package, paragraph=..., bookmark=...)` menulis
   `PAGEREF <bookmark> \h`;
 - `insert_toc(package, title=..., levels=(1, 3), caption=None,
-  before=None, keep_existing=False)` menulis field TOC di dalam `w:sdt`.
+  before=None, keep_existing=False, gap_after_title=True,
+  page_break_before=False)` menulis field TOC di dalam `w:sdt`;
+  `gap_after_title` menyisipkan paragraf kosong setelah judul dan
+  `page_break_before` memulai daftar di halaman baru.
 
 ### Halaman, nomor, dan heading
 

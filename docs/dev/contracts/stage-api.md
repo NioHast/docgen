@@ -140,7 +140,7 @@ class StageResult:
 | 13 | 120 | `terms` | `stages/terms.py` | WS7 | `word/document.xml`, `word/styles.xml` | ya |
 | 14 | 130 | `toc` | `stages/toc.py` | WS6 | `word/document.xml`, `word/styles.xml` | ya |
 | 15 | 140 | `page_numbers` | `stages/page_numbers.py` | WS6 | `word/document.xml`, header/footer, rels, content types | ya |
-| 16 | 150 | `lists` | `stages/lists.py` | WS11 | `word/document.xml` | ya |
+| 16 | 150 | `lists` | `stages/lists.py` | WS11 | `word/document.xml`, `word/styles.xml` | ya |
 | 17 | 160 | `office` | `stages/office.py` | WS8 | seluruh package | semantik |
 | 18 | 170 | `pdf` | `stages/pdf.py` | WS8 | - | semantik |
 
@@ -486,11 +486,16 @@ memakai `mermaid.markdown` sebagai input body `front_matter`.
 
 ### 5.16 `lists` (WS11, `stages/lists.py`)
 
-- Menulis field `TOC \c "Tabel"` dan `TOC \c "Gambar"`.
-- Memakai `docx/fields.py` milik WS6 tanpa mengedit modul tersebut.
+- Menulis field `TOC \c "Tabel"` dan `TOC \c "Gambar"` lewat
+  `fields.insert_toc` dengan opsi gap setelah judul dan `w:pageBreakBefore`
+  pada judul daftar.
+- Memastikan style `TableofFigures` flush left dengan tab leader dot selebar
+  konten package; bila geometri package tidak lengkap, memakai fallback
+  geometri `format.page`.
 - Caption `SEQ` sudah disisipkan `captions`.
 - Gate `SEQ` diputuskan sebelum implementasi; fallback daftar statis harus
   tercatat di ADR.
+- Mutates: `word/document.xml` dan `word/styles.xml`.
 - Error: `FieldError`; exit 1.
 
 ### 5.17 `office` (WS8, `stages/office.py`)
@@ -695,7 +700,7 @@ output tidak berubah.
 | `terms` | ya | Span/style stabil |
 | `toc` | ya | Field diganti, bukan ditambah |
 | `page_numbers` | ya | Format section stabil |
-| `lists` | ya | Field diganti, bukan ditambah |
+| `lists` | ya | Field diganti, bukan ditambah; style `TableofFigures` hanya diganti bila berbeda |
 | Adeu hook | ya | Bookmark/ID stabil |
 | `office` | semantik | Word boleh menulis ulang package |
 | `pdf` | semantik | PDF tidak dijamin byte-identik |
