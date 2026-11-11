@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "source": "examples/thesis-single/document.md",
-  "page_count": 20,
+  "page_count": 21,
   "page_size_points": [
     595.5,
     842.25
@@ -114,7 +114,7 @@
     },
     {
       "label": "4.2. Hasil Pemeriksaan Contoh",
-      "page": "7"
+      "page": "8"
     },
     {
       "label": "4.3. Pembahasan",
@@ -122,31 +122,31 @@
     },
     {
       "label": "4.4. Keterbatasan",
-      "page": "8"
+      "page": "9"
     },
     {
       "label": "BAB V PENUTUP",
-      "page": "9"
+      "page": "10"
     },
     {
       "label": "5.1. Kesimpulan",
-      "page": "9"
+      "page": "10"
     },
     {
       "label": "5.2. Saran",
-      "page": "9"
+      "page": "10"
     },
     {
       "label": "Lampiran",
-      "page": "10"
+      "page": "11"
     },
     {
       "label": "Berkas Contoh",
-      "page": "10"
+      "page": "11"
     },
     {
       "label": "DAFTAR PUSTAKA",
-      "page": "11"
+      "page": "12"
     }
   ]
 }

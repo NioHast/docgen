@@ -189,12 +189,32 @@ Keluaran DOCX memuat naskah, gaya paragraf, penomoran, caption, dan aset
 gambar dalam satu paket. Pembagian tanggung jawab antara naskah dan bagian
 paket ditunjukkan pada gambar berikut.
 
-![Arsitektur pipeline docgen dari Markdown hingga DOCX](gambar/arsitektur-pipeline.png)
+```{.mermaid caption="Arsitektur pipeline docgen dari Markdown hingga DOCX"}
+flowchart TD
+  subgraph SUMBER["Naskah dan aturan"]
+    MD["document.md<br/>front matter, bab, dan aset"]
+    CFG["format.yml + structure.yml<br/>aturan visual dan urutan bab"]
+  end
+  subgraph ASET["Aset dokumen"]
+    IMG["gambar/"]
+    BIB["references.bib"]
+  end
+  DG["docgen<br/>validasi dan orkestrasi stage"]
+  PD["Pandoc<br/>AST, sitasi, reference.docx"]
+  OUT["out/Tugas.docx"]
+
+  MD --> DG
+  CFG --> DG
+  DG --> PD
+  IMG --> PD
+  BIB --> PD
+  PD --> OUT
+```
 
 ## Hasil Pemeriksaan Contoh
 
-Contoh tesis ini memuat lima bab, dua tabel, satu gambar biasa, satu diagram
-Mermaid, satu persamaan display, satu blok kode, dan beberapa sitasi. Hasil
+Contoh tesis ini memuat lima bab, dua tabel, dua diagram Mermaid, satu
+persamaan display, satu blok kode, dan beberapa sitasi. Hasil
 pemeriksaan konfigurasi dirangkum pada tabel berikut.
 
 : Aspek yang diverifikasi pada contoh tesis
@@ -250,6 +270,7 @@ juga perlu menjelaskan secara eksplisit kapan suatu fitur divalidasi oleh
 
 - `document.md` memuat front matter dan seluruh bab.
 - `references.bib` memuat entri BibTeX yang dikutip.
-- `gambar/arsitektur-pipeline.png` adalah gambar biasa yang dirujuk bab hasil.
+- Diagram arsitektur ditulis inline di `document.md`; PNG hasil render berada di
+  workspace build dan tidak dilacak oleh Git.
 - Direktori `out/` dan `.laporan/` digunakan untuk artefak build dan tidak
   dilacak oleh Git.
