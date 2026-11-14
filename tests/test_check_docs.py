@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-import check_docs
+from tools.dev import check_docs
 
 REGISTRY_VALID = """# Referensi
 

@@ -2,16 +2,16 @@
 
 Halaman ini menghubungkan jenis tes di repo dengan cara menelusuri error.
 Setelah membacanya, pembaca bisa memilih tes paling kecil yang relevan,
-membaca kegagalan, dan memakai `--keep` atau fixture tanpa menebak.
+membaca kegagalan, dan memakai `--keep-intermediate` atau fixture tanpa menebak.
 
 ## Tujuan halaman
 
 Setelah halaman ini, pembaca bisa:
 
-1. membedakan tes unit, integration, e2e, dan packaging;
+1. membedakan tes domain, integration, e2e, dan packaging;
 2. memilih perintah pytest yang sesuai dengan perubahan;
 3. membaca kegagalan `DocgenError` dan `StageError`;
-4. men-debug build DOCX memakai `check`, `--keep`, manifest, dan fixture;
+4. men-debug build DOCX memakai `check`, `--keep-intermediate`, manifest, dan fixture;
 5. menjaga tes golden agar tidak berubah hanya untuk membuat suite lulus.
 
 ## Prasyarat
@@ -38,8 +38,8 @@ Setelah halaman ini, pembaca bisa:
 
 Urutan verifikasi yang disarankan:
 
-1. jalankan `docgen check` untuk input dan konfigurasi;
-2. jalankan tes unit untuk modul yang berubah;
+1. jalankan `autooffice check` untuk input dan konfigurasi;
+2. jalankan tes domain untuk modul yang berubah;
 3. jalankan tes integration yang menyentuh pipeline atau tool nyata;
 4. jalankan e2e atau packaging hanya jika perubahan menyentuh CLI, path, atau
    packaging;
@@ -53,7 +53,7 @@ tes berhenti gagal.
 
 | Tingkat | Lokasi | Ciri | Tool eksternal |
 | --- | --- | --- | --- |
-| Unit | `tests/unit/` | Cepat, memakai objek di memori dan fixture kecil. | Tidak menyentuh Word, Pandoc, atau `mmdc`. |
+| Domain | `tests/docx/`, `tests/deck/`, `tests/design/` | Cepat, memakai objek di memori dan fixture kecil. | Tidak menyentuh Word, Pandoc, atau `mmdc`. |
 | Integration | `tests/integration/` | Menyentuh pipeline, Pandoc, golden DOCX, atau Word. | Tergantung tes. |
 | E2E | `tests/e2e/` | Menjalankan CLI dari luar modul pada contoh yang disalin. | Pandoc, `mmdc`, dan Word bila tersedia. |
 | Packaging | `tests/packaging/` | Memeriksa entry point dan perilaku repo-local. | `uv`, build package. |
@@ -72,14 +72,14 @@ Marker di `pytest.ini`:
 Selalu jalankan dari akar repo dan sertakan `--extra dev` agar pytest tersedia:
 
 ```bash
-uv run --extra dev pytest tests/unit -q
+uv run --extra dev pytest tests/docx -q
 ```
 
-Tes unit tertentu:
+Tes domain tertentu:
 
 ```bash
-uv run --extra dev pytest tests/unit/test_docx_page.py -q
-uv run --extra dev pytest tests/unit/test_pipeline.py -q
+uv run --extra dev pytest tests/docx/test_docx_page.py -q
+uv run --extra dev pytest tests/docx/test_pipeline.py -q
 ```
 
 Filter nama tes:
@@ -145,8 +145,8 @@ error, path, dan bagian kontrak yang mengatur input tersebut.
 
 Alur yang disarankan:
 
-1. jalankan `uv run docgen check <document.md>`;
-2. jika check lulus, build dengan `--target docx --keep`;
+1. jalankan `uv run autooffice check <document.md>`;
+2. jika check lulus, build dengan `--target docx --keep-intermediate`;
 3. periksa workspace `.laporan-build/`;
 4. periksa DOCX dengan `DocumentPackage` atau buka di Word untuk melihat
    field;
@@ -155,8 +155,8 @@ Alur yang disarankan:
 Contoh:
 
 ```bash
-uv run docgen check examples/thesis-single/document.md
-uv run docgen build examples/thesis-single/document.md --target docx --keep
+uv run autooffice check examples/thesis-single/document.md
+uv run autooffice build examples/thesis-single/document.md --target docx --keep-intermediate
 ```
 
 Isi workspace antara lain:
@@ -169,29 +169,25 @@ Isi workspace antara lain:
 | `pandoc-metadata.yml` | Metadata yang dikirim ke Pandoc. |
 | `<report_name>.docx` | DOCX antara hasil Pandoc. |
 
-Jika build gagal sebelum save, workspace dengan `--keep` membantu melihat
-tahap terakhir yang berhasil. Tanpa `--keep`, workspace dihapus di blok
+Jika build gagal sebelum save, workspace dengan `--keep-intermediate` membantu melihat
+tahap terakhir yang berhasil. Tanpa `--keep-intermediate`, workspace dihapus di blok
 `finally`.
 
 Untuk memeriksa DOCX hasil build tanpa Word:
 
 ```bash
-uv run python -c "from docgen.docx import DocumentPackage; p = DocumentPackage.load('examples/thesis-single/out/Tugas.docx'); print(len(p.part_names())); print(p.has_part('word/document.xml'))"
+uv run python -c "from autooffice.docx.package import DocumentPackage; p = DocumentPackage.load('examples/thesis-single/out/Tugas.docx'); print(len(p.part_names())); print(p.has_part('word/document.xml'))"
 ```
 
 Ganti path jika `report_name` berbeda. Jika file tidak ada, periksa output
 build dan path output sebelum menyalahkan parser.
 
-Untuk melihat edit manual pada DOCX, gunakan `reconcile`:
-
-```bash
-uv run docgen reconcile examples/thesis-single/document.md
-```
-
-`reconcile` membaca manifest dan DOCX, lalu menulis laporan. Perintah ini
-tidak mengubah DOCX, manifest, atau Markdown. Exit code 3 berarti ada
-perubahan manual; exit code 4 berarti ada pelanggaran paragraf terlindungi.
-Setelah perubahan disetujui, terapkan ke `document.md` dan build ulang.
+Untuk melihat edit manual pada DOCX, gunakan modul rekonsiliasi internal
+`autooffice.docx.adeu.reconcile`. Modul ini tidak diekspos sebagai subperintah
+CLI AutoOffice v1. Modul membaca manifest dan DOCX, lalu menulis laporan tanpa
+mengubah DOCX, manifest, atau Markdown. Exit code 3 berarti ada perubahan
+manual; exit code 4 berarti ada pelanggaran paragraf terlindungi. Setelah
+perubahan disetujui, terapkan ke `document.md` dan build ulang.
 
 ## Tes golden
 
@@ -223,7 +219,7 @@ Aturan golden:
 Aktifkan `--terms`:
 
 ```bash
-uv run docgen build examples/thesis-single/document.md --target docx --terms
+uv run autooffice build examples/thesis-single/document.md --target docx --terms
 ```
 
 Yang diperiksa:
@@ -236,7 +232,7 @@ Yang diperiksa:
 Audit DOCX hasil build:
 
 ```bash
-uv run python tools/dev/audit_terms.py --docx examples/thesis-single/out/Tugas.docx --out .laporan/istilah-audit.md
+uv run python -m tools.dev.audit_terms --docx examples/thesis-single/out/Tugas.docx --out .laporan/istilah-audit.md
 ```
 
 Alat ini menulis laporan audit dan tidak mengubah DOCX. Jika glosarium
@@ -245,12 +241,12 @@ wajib `term<TAB>italic`.
 
 ## Latihan
 
-### 1. Jalankan subset unit
+### 1. Jalankan subset domain
 
 Jalankan:
 
 ```bash
-uv run --extra dev pytest tests/unit/test_docx_page.py tests/unit/test_docx_paragraphs.py -q
+uv run --extra dev pytest tests/docx/test_docx_page.py tests/docx/test_docx_paragraphs.py -q
 ```
 
 Cara memeriksa: semua tes lulus dan ringkasan berakhir dengan `passed`.
@@ -262,7 +258,7 @@ Salin `examples/assignment-single` ke direktori sementara, hapus
 `report_name`, lalu jalankan:
 
 ```bash
-uv run docgen check <path-salinan>/document.md
+uv run autooffice check <path-salinan>/document.md
 ```
 
 Cara memeriksa: exit code 1 dan pesan memuat `report_name` serta
@@ -273,7 +269,7 @@ Cara memeriksa: exit code 1 dan pesan memuat `report_name` serta
 Jalankan:
 
 ```bash
-uv run python -c "from docgen.docx import DocumentPackage; from docgen.docx.fields import FieldKind, iter_fields; p = DocumentPackage.load('tests/fixtures/golden/laporan-baseline.docx'); print(sum(f.kind is FieldKind.TOC for f in iter_fields(p)))"
+uv run python -c "from autooffice.docx.package import DocumentPackage; from autooffice.docx.package.fields import FieldKind, iter_fields; p = DocumentPackage.load('tests/fixtures/golden/laporan-baseline.docx'); print(sum(f.kind is FieldKind.TOC for f in iter_fields(p)))"
 ```
 
 Cara memeriksa: hasilnya `3` pada fixture saat ini. Jika berbeda, periksa
@@ -291,10 +287,10 @@ perubahan kecil dengan urutan kerja yang aman.
 | Testing dan golden baseline | [testing.md](../testing.md) |
 | Error dan exit code | [pipeline/errors.md](../pipeline/errors.md) |
 | Model pipeline | [pipeline/overview.md](../pipeline/overview.md) |
-| Kontrak stage | [contracts/stage-api.md](../contracts/stage-api.md) |
-| Kontrak DOCX | [contracts/docx-api.md](../contracts/docx-api.md) |
+| Kontrak DOCX | [contracts/docx.md](../../contracts/docx.md) |
+| Kontrak CLI | [contracts/cli.md](../../contracts/cli.md) |
 | Kontribusi dan perintah tes | [contributing.md](../contributing.md) |
-| Adeu dan reconcile | [adeu-integration.md](../adeu-integration.md) |
+| Adeu dan modul rekonsiliasi internal | [adeu-integration.md](../adeu-integration.md) |
 | Indeks tes | [tests/README.md](../../../tests/README.md) |
 
 ### Referensi resmi

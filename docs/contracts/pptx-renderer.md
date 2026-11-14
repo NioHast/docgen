@@ -17,6 +17,7 @@ Sumber: AUTO_OFFICE_PLAN.md bagian 8.1 dan 8.3.
 - [Alt text dan key](#alt-text-dan-key)
 - [Font embedding](#font-embedding)
 - [Staging Slides](#staging-slides)
+- [Catatan implementasi F1](#catatan-implementasi-f1)
 - [Invariant](#invariant)
 - [Acceptance](#acceptance)
 
@@ -119,22 +120,62 @@ class DeckRenderer(Protocol):
 
 ## Font embedding
 
-- TTF Plus Jakarta Sans disertakan di package; renderer menambah font parts ke
-  OOXML setelah `python-pptx` menyimpan.
-- Font yang ditanam: Regular, SemiBold, Bold, ExtraBold.
+- TTF Plus Jakarta Sans disertakan di package. Renderer memvalidasi empat aset
+  TTF, tetapi tidak menulis TTF mentah sebagai part `.fntdata`.
+- Embedding final dilakukan setelah renderer menyimpan PPTX: CLI membuka
+  snapshot di PowerPoint COM dan memanggil
+  `Presentation.SaveCopyAs(path, ppSaveAsOpenXMLPresentation=24,
+  EmbedTrueTypeFonts=msoTrue)`. Hasil diverifikasi lalu mengganti berkas asli
+  secara atomik.
+- Aset yang dibundel: Regular, SemiBold, Bold, ExtraBold. PowerPoint menanam
+  face yang dipakai presentasi.
 - Family harus `Plus Jakarta Sans`, sama dengan Google Fonts.
-- Bila embedding gagal atau PPTX tidak valid, build wajib gagal.
+- Embedding wajib untuk target final `pptx` dan `pdf`. Bila PowerPoint tidak
+  tersedia, font belum terpasang, atau hasil COM tidak valid, build gagal dan
+  tidak menerbitkan PPTX tanpa font.
+- Staging `slides` tidak memakai embedding PPTX karena Google Slides memakai
+  Google Fonts.
+- `RenderResult.content_hash` dihitung sebelum embedding COM. Byte dan hash
+  artefak final berubah setelah embedding; hash final harus dihitung ulang dari
+  berkas akhir bila pemanggil membutuhkannya.
 - PPTX harus bisa dibuka PowerPoint tanpa prompt repair.
-- Test memeriksa content type, relationship, dan `embeddedFontLst`.
+- Test memeriksa part `ppt/fonts/*.fntdata`, `p:embeddedFontLst`, pembukaan
+  python-pptx, preservasi sumber saat gagal, dan pemanggilan CLI.
 
 ## Staging Slides
 
 - `--target slides` membuat staging PPTX internal dengan layout dan teks yang
   sama.
-- Chart diganti placeholder shape, bukan native chart.
+- Hanya pada target `slides`, chart diganti placeholder shape, bukan native
+  chart.
 - Placeholder bernama dan beralt `autooffice:chart:<chart_id>`.
 - Staging bukan deliverable kecuali `--keep-intermediate`.
 - Deliverable `pptx` tetap memakai chart native.
+
+## Catatan implementasi F1
+
+Status F1-PPTX: text, bullets, quote, metric, code, table, image, notes,
+divider, spacer, diagram, chart native `bar`/`line`/`donut`, coverage, tema
+OOXML, dan larangan timing/transition sudah diterapkan. Placeholder chart hanya
+dipakai untuk staging target `slides`; target `pptx` dan `pdf` memakai chart
+native, dan warning placeholder hanya dikeluarkan untuk `slides`. Renderer
+memvalidasi aset font dan mendelegasikan embedding final ke CLI melalui
+PowerPoint COM; target Slides memakai Google Fonts.
+
+| Area | Perilaku F1 | Batas kontrak |
+| --- | --- | --- |
+| Shape berkey | Nama `autooffice:key:<key>`, `title` sama dengan key, `descr` berisi teks manusia. | Kontrak shape berkey di atas tetap berlaku. |
+| Chrome | Nama `chrome:<nama>`; tidak dihitung coverage. | Chrome terdaftar saja. |
+| Table | Nama `autooffice:table:<slide>.<block>`; key sel disimpan di `a:tcPr/a:extLst/a:ext` namespace `urn:autooffice:key`. | Table native `shapes.add_table`; key dibaca dari XML tabel. |
+| Image/diagram | Nama `autooffice:image:<slide>.<block>` atau `autooffice:diagram:<slide>.<block>`, alt manusia di `descr`. | Crop native `contain`/`cover`; WebP dinormalisasi ke PNG sebelum embed. Diagram dirender `mmdc` menjadi PNG; lihat [mermaid.md](mermaid.md). |
+| Chart | Chart native `bar`/`line`/`donut` untuk target `pptx` dan `pdf`; staging `slides` memakai placeholder `autooffice:chart:<slide>.<block>` dengan key chart di extension `cNvPr`. | Chart native wajib untuk deliverable; placeholder hanya untuk staging Slides dan diganti linked chart Google. `RenderResult.warnings` menyebut placeholder hanya pada target `slides`. |
+| Font | Empat TTF Plus Jakarta Sans divalidasi renderer; CLI menanam font lewat PowerPoint COM setelah render. | PowerPoint `.fntdata` adalah EOT/MicroType Express, bukan TTF mentah. Renderer tidak menulis TTF mentah; embedding final Windows-only dan wajib untuk `pptx`/`pdf`. `slides` memakai Google Fonts. |
+| Source | `sNN.source.text` dirender di margin bawah karena `LayoutPlan` F1 belum membawa kotak source. | Key dan posisi source tetap milik layout; renderer tidak mengubah teks. |
+| Coverage | Key asing dilaporkan lewat `unkeyed_visible` karena `CoverageReport` F0 tidak punya field `extra`. | Bentuk `CoverageReport` tidak berubah. |
+| Workspace | Path gambar relatif diselesaikan terhadap `RenderRequest.workspace`. | Tidak membaca YAML atau file token. |
+
+Test perilaku F1 ada di `tests/deck/render/pptx/`. Artefak tetap ditulis
+atomik setelah coverage lulus; bila coverage gagal, file final tidak dibuat.
 
 ## Invariant
 
@@ -160,7 +201,8 @@ Catatan F0: test bentuk ada di `tests/contract/test_contract_shapes.py` dan `tes
 | Aturan | Test kontrak |
 | --- | --- |
 | Tidak ada `<p:timing>` dan `<p:transition>` di PPTX. | `tests/contract/test_pptx_renderer.py` (planned) |
-| Font parts, content type, relationship, dan `embeddedFontLst` valid. | `tests/contract/test_pptx_renderer.py` (planned) |
+| Font parts `ppt/fonts/*.fntdata`, `embeddedFontLst`, dan pembukaan python-pptx valid. | `tests/pdf/test_powerpoint.py`; `tests/cli/test_deck_build.py` |
+| Build PPTX/PDF menanam font lewat COM; staging Slides tidak. | `tests/cli/test_deck_build.py`; `tests/cli/test_deck_slides.py` |
 | Table terdeteksi native, bukan gambar atau shape group. | `tests/contract/test_pptx_renderer.py` (planned) |
 | Chart terdeteksi native dan data sama dengan IR. | `tests/contract/test_pptx_renderer.py` (planned) |
 | Shape teks berkey punya `name` dan `title` yang cocok. | `tests/contract/test_pptx_renderer.py` (planned) |

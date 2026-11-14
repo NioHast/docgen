@@ -4,16 +4,14 @@ Jalankan: .venv/Scripts/python.exe -m pytest tests/test_check_prose.py -q
 """
 
 import io
-import sys
 import tempfile
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "tools" / "dev"))
+from tools.dev import check_prose
 
-import check_prose  # noqa: E402
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def findings(text, code):

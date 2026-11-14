@@ -80,7 +80,8 @@ ada di `tools/dev/rules.yml`; jangan menyalin regex ke berkas lain.
 
 ## Glosarium
 
-Glosarium paket berada di `src/docgen/data/glossary/istilah.tsv`. Tambahkan
+Glosarium paket berada di
+`src/autooffice/docx/data/glossary/istilah.tsv`. Tambahkan
 `istilah.tsv` di samping `document.md` untuk menimpa atau menambah entri.
 Format TSV (tab-separated values) memakai header `term` dan `italic`:
 
@@ -93,7 +94,7 @@ data	no
 Aktifkan gate istilah saat build:
 
 ```bash
-uv run --project <repo> docgen build document.md --target docx --terms
+uv run --project <repo> autooffice build document.md --target docx --terms
 ```
 
 Dengan `--terms`, stage `terms` memproses penanda `{{?istilah?}}`, menerapkan
@@ -126,9 +127,9 @@ paragraf dan nomor baris laporan adalah nomor paragraf.
 Untuk memeriksa hasil build:
 
 ```bash
-uv run --project <repo> python tools/dev/audit_terms.py \
+uv run --project <repo> python -m tools.dev.audit_terms \
   --docx Tugas.docx \
-  --glossary src/docgen/data/glossary/istilah.tsv \
+  --glossary src/autooffice/docx/data/glossary/istilah.tsv \
   --out .laporan/istilah-audit.md
 ```
 

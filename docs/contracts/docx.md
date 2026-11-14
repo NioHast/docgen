@@ -31,8 +31,8 @@ nama satu flag, lokasi kode, dan dokumentasi.
    `--terms` hanya berlaku untuk `.md`, bukan `.yaml`.
 9. DOCX tidak memakai design system deck, tidak memakai Plus Jakarta Sans,
    dan tidak menjalankan copy checker atau humanizer.
-10. Flag lama `--no-manifest`, `--no-adeu`, dan `--allow-missing-word` tidak
-    dipertahankan. `--keep` diganti `--keep-intermediate`.
+10. Flag lama DOCX tidak dipertahankan. Opsi workspace lama diganti
+    `--keep-intermediate`; tidak ada alias untuk flag lama.
 11. PDF DOCX memakai Word COM di Windows. File input tidak boleh diubah dan
     Word harus menutup dokumen serta prosesnya.
 
@@ -57,6 +57,15 @@ def build_docx(
 - Return `DocxResult` memuat path DOCX, manifest, istilah, warnings, dan
   workspace yang dipertahankan; field final dibekukan di F1-DOCX.
 
+Output yang berada di dalam `.laporan-build/` hanya diizinkan bila
+`keep_intermediate=True`. Tanpa keep, pipeline menolak dengan
+`OutputError("OUTPUT-WORKSPACE")` karena workspace dibersihkan di blok
+`finally`. Jalur CLI `--target pdf` tanpa `docx` memakai intermediate DOCX di
+dalam `.laporan-build/`, mengonversinya ke PDF, lalu membersihkan workspace
+setelah konversi selesai; `--keep-intermediate` menahan pembersihan tersebut.
+DOCX final yang sudah ada di direktori output tidak ditimpa oleh jalur
+PDF-only ini.
+
 Pemanggil CLI tidak boleh mengimpor modul internal DOCX. `cli` boleh
 memanggil `build_docx`; `docx` tidak boleh mengimpor `deck`, `google`, atau
 `cli`. Import-linter menegakkan aturan ini.
@@ -77,7 +86,7 @@ from pathlib import Path
 from autooffice.docx.command import build_docx
 
 result = build_docx(
-    input=Path("examples/docx/thesis-single/document.md"),
+    input=Path("examples/thesis-single/document.md"),
     out=None,
     terms=True,
     keep_intermediate=False,
@@ -86,9 +95,9 @@ print(result.docx)
 print(result.manifest)
 ```
 
-Hasil yang diharapkan setara dengan `docgen build ... --terms` sebelum
-penghapusan: DOCX, manifest, dan istilah berada di lokasi yang sama dengan
-perilaku lama.
+Hasil yang diharapkan setara dengan perilaku pipeline DOCX lama dengan
+`--terms` sebelum penghapusan: DOCX, manifest, dan istilah berada di lokasi
+yang sama dengan perilaku lama.
 
 ## Pemetaan acceptance
 

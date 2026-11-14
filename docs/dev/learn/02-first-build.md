@@ -12,7 +12,7 @@ Setelah halaman ini, pembaca bisa:
 2. menjelaskan front matter minimum, termasuk `report_name` wajib;
 3. menjalankan `check` dan `build --target docx`;
 4. menemukan DOCX, manifest, dan workspace;
-5. memilih target `docx`, `pdf`, atau `both` sesuai platform dan Word;
+5. memilih target `docx`, `pdf`, atau `all` sesuai platform dan Word;
 6. membaca peringatan saat Word tidak tersedia.
 
 ## Prasyarat
@@ -45,8 +45,8 @@ Jalankan dari akar repo:
 
 ```bash
 uv sync --extra dev
-uv run docgen --version
-uv run docgen doctor
+uv run autooffice --version
+uv run autooffice doctor
 ```
 
 `doctor` mencetak status Python, Pandoc, Word, dan `mmdc`. Exit code 1 berarti
@@ -90,7 +90,7 @@ bibliography: references.bib
 Yang perlu diperhatikan:
 
 - `structure` dan `format` adalah ID, bukan path. ID harus sama dengan nama
-  direktori di `src/docgen/data/`.
+  direktori di `src/autooffice/docx/data/`.
 - `bibliography` relatif terhadap direktori `document.md`. Jika sitasi
   digunakan, berkas `.bib` harus ada.
 - `report_name` harus aman sebagai nama berkas. Nilai yang mengandung `\`,
@@ -120,7 +120,7 @@ Front matter saja tidak cukup. Heading 1 di body harus cocok dengan daftar
 Heading 1 ditulis tanpa nomor. Pipeline yang menambahkan nomor sesuai
 `structure.numbering`. Jika urutan atau ejaan heading tidak cocok, `check`
 gagal dengan `CFG-BODY-ORDER`. Untuk contoh thesis, body harus memuat lima
-bab yang dideklarasikan `src/docgen/data/structures/thesis/structure.yml`.
+bab yang dideklarasikan `src/autooffice/docx/data/structures/thesis/structure.yml`.
 
 ## Langkah build DOCX
 
@@ -128,8 +128,8 @@ Urutan yang disarankan:
 
 ```bash
 uv sync --extra dev
-uv run docgen check examples/assignment-single/document.md
-uv run docgen build examples/assignment-single/document.md --target docx
+uv run autooffice check examples/assignment-single/document.md
+uv run autooffice build examples/assignment-single/document.md --target docx
 ```
 
 Arti tiap langkah:
@@ -142,11 +142,11 @@ Keluaran yang diharapkan dari build:
 
 ```text
 [OK] Keluaran: ...\examples\assignment-single\out\Tugas.docx
-[OK] Manifest: ...\examples\assignment-single\.laporan\manifest.json
+[OK] Keluaran: ...\examples\assignment-single\.laporan\manifest.json
 ```
 
 Jika Word tidak tersedia tetapi target hanya DOCX, build tetap berhasil
-dengan satu peringatan. Peringatan itu bukan kegagalan.
+dengan peringatan. Peringatan itu bukan kegagalan.
 
 ## Apa yang terjadi saat build
 
@@ -179,33 +179,31 @@ Contoh dengan `report_name: "Tugas"`:
 | PDF | `examples/assignment-single/out/Tugas.pdf` jika Word tersedia |
 | Manifest | `examples/assignment-single/.laporan/manifest.json` |
 | Review istilah | `examples/assignment-single/.laporan/istilah-baru.txt` jika `--terms` |
-| Workspace | `examples/assignment-single/.laporan-build/` jika `--keep` |
+| Workspace | `examples/assignment-single/.laporan-build/` jika `--keep-intermediate` |
 
-Manifest berisi bookmark `pNNNN` dan peta paragraf. Manifest ditulis setelah
-DOCX disimpan. `--no-manifest` mematikan manifest dan source scan, tetapi
-bookmark tetap ada. `--no-adeu` mematikan bookmark, manifest, dan source scan.
+Manifest berisi bookmark `pNNNN` dan peta paragraf. Manifest dan bookmark
+selalu ditulis oleh AutoOffice v1; tidak ada flag CLI untuk mematikannya.
 
 ## Target PDF dan peringatan Word
 
 Matriks target:
 
-| Platform dan alat | `--target docx` | `--target pdf` | `--target both` |
+| Platform dan alat | `--target docx` | `--target pdf` | `--target all` |
 | --- | --- | --- | --- |
 | Windows dengan Word | DOCX, field diperbarui | PDF | DOCX dan PDF |
-| Windows tanpa Word | DOCX dengan peringatan | error | error, atau DOCX dengan `--allow-missing-word` |
-| Debian/Linux | DOCX best-effort, field belum final | error | error, atau DOCX dengan `--allow-missing-word` |
+| Windows tanpa Word | DOCX dengan peringatan | error | DOCX dapat tertulis, lalu error |
+| Debian/Linux | DOCX best-effort, field belum final | error | DOCX dapat tertulis, lalu error |
 
-Perintah PDF di Windows dengan Word:
+Perintah DOCX dan PDF di Windows dengan Word:
 
 ```bash
-uv run docgen build examples/thesis-single/document.md --target both
+uv run autooffice build examples/thesis-single/document.md --target docx,pdf
 ```
 
 Perintah yang aman tanpa Word:
 
 ```bash
-uv run docgen build examples/thesis-single/document.md --target docx
-uv run docgen build examples/thesis-single/document.md --target both --allow-missing-word
+uv run autooffice build examples/thesis-single/document.md --target docx
 ```
 
 Tanpa Word, stage `office` tidak berjalan. Pipeline memberi peringatan:
@@ -219,9 +217,9 @@ kosong di DOCX sampai dokumen dibuka di Word dan field diperbarui. Nomor
 halaman juga belum final. Ini bukan bug pipeline: finalisasi field adalah
 tanggung jawab Word.
 
-`--target pdf` selalu membutuhkan Word, bahkan dengan
-`--allow-missing-word`, karena tidak ada output lain yang diminta.
-`--allow-missing-word` hanya menurunkan `both` menjadi DOCX.
+`--target pdf` dan `--target all` selalu membutuhkan Word karena PDF tidak
+dapat dihasilkan tanpa Word. Tidak ada flag yang menurunkan `all` menjadi
+DOCX.
 
 ## Kesalahan umum build pertama
 
@@ -244,7 +242,7 @@ dan kode yang dibutuhkan untuk mencari penyebab.
 Jalankan:
 
 ```bash
-uv run docgen check examples/assignment-single/document.md
+uv run autooffice check examples/assignment-single/document.md
 ```
 
 Cara memeriksa: exit code 0, output `[OK]`, dan ringkasan memuat
@@ -256,7 +254,7 @@ membuat DOCX.
 Jalankan:
 
 ```bash
-uv run docgen build examples/assignment-single/document.md --target docx
+uv run autooffice build examples/assignment-single/document.md --target docx
 ```
 
 Cara memeriksa:
@@ -275,7 +273,7 @@ Salin `examples/assignment-single` ke direktori sementara di luar repo, ubah
 `report_name` menjadi `"Latihan"`, lalu jalankan:
 
 ```bash
-uv run docgen build <path-salinan>/document.md --target docx
+uv run autooffice build <path-salinan>/document.md --target docx
 ```
 
 Cara memeriksa: output harus berada di `<path-salinan>/out/Latihan.docx`.

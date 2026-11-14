@@ -319,11 +319,12 @@ kontrak. Tiga lapisan yang dipakai:
 | --- | --- | --- | --- |
 | Statis | Ruff PT dan `tools/dev/check_tests.py` | Membaca AST dan aturan gaya; tidak menjalankan test. | Dipakai sebelum suite. |
 | Coverage | `pytest-cov` dan `tools/dev/check_coverage.py` | Membaca context per test dari `.coverage`; butuh suite dijalankan. | Dipakai setelah suite unit. |
-| Mutation | `mutmut` atau alat sejenis | Mengubah kode untuk menguji kekuatan assertion. | Belum diimplementasikan; langkah berikutnya. |
+| Mutation | `cosmic-ray` | Mengubah kode untuk menguji kekuatan assertion. | Manual, tidak di gate; lihat [mutation-testing.md](mutation-testing.md). |
 
 Mutation testing belum menjadi bagian gate. Jalankan hanya pada subset modul
 kritis setelah sinyal statis dan coverage stabil; lihat
-[Coverage dan mutation testing](#coverage-dan-mutation-testing).
+[Coverage dan mutation testing](#coverage-dan-mutation-testing) dan
+[mutation-testing.md](mutation-testing.md).
 
 ### Ruff PT
 
@@ -413,9 +414,9 @@ setiap baris. `tools/dev/check_coverage.py` membaca `.coverage` lewat
 
 ```bash
 COVERAGE_CORE=ctrace uv run --extra dev pytest tests/unit \
-  --cov=src/docgen --cov-context=test
+  --cov=src/autooffice --cov-context=test
 python tools/dev/check_coverage.py \
-  --coverage-file .coverage --source src/docgen --format json
+  --coverage-file .coverage --source src/autooffice --format json
 ```
 
 `COVERAGE_CORE=ctrace` wajib dipakai. Core `sysmon` belum mendukung dynamic
@@ -471,7 +472,8 @@ tim menghapus test, bukan memperbaiki mutunya.
 Sinyal deterministik bukan keputusan akhir. `KEEP` tidak membuktikan test kuat,
 dan `KEEP-WEAK`, `TRIM`, atau `REMOVE` tidak membuktikan test harus diubah.
 Keputusan tetap memakai kontrak, riwayat bug, biaya perawatan, dan checklist di
-dokumen ini. Mutation testing tetap langkah berikutnya dan belum menjadi gate.
+dokumen ini. Mutation testing tersedia manual
+(lihat [mutation-testing.md](mutation-testing.md)) dan belum menjadi gate.
 
 ## Hasil audit suite saat ini
 
@@ -539,7 +541,7 @@ Sepuluh pola berikut muncul berulang dan menjadi prioritas perbaikan:
 
 | # | Temuan | Tindakan |
 | ---: | --- | --- |
-| 1 | Error-path reconcile hanya assert exit 1. | Assert kode error domain, lalu exit code sebagai konsekuensinya. |
+| 1 | Error-path modul rekonsiliasi hanya assert exit 1. | Assert kode error domain, lalu exit code sebagai konsekuensinya. |
 | 2 | `check_prose` punya test tautologis/white-box dan snapshot angka. | Ganti dengan assertion perilaku checker; jangan membaca `rules.yml` untuk membuktikan isi `rules.yml`. |
 | 3 | Golden PDF hanya skip platform; perlu skip Word/Pandoc/`mmdc` yang eksplisit. | Tambahkan skip eksplisit per alat dan alasan agar tidak false-green di mesin tanpa fixture. |
 | 4 | `test_pipeline_python` menulis ke `examples/.../out`; harus hermetic `tmp_path`. | Salin fixture ke `tmp_path` dan jalankan pipeline di sana. |
@@ -586,4 +588,5 @@ label dipakai di dokumen ini dan di dokumen developer lain.
 | [coverage.py](references.md#registry) | Pengukuran coverage sebagai diagnostik. |
 | [coverage.py contexts](references.md#registry) | Format context dinamis yang dibaca dari `.coverage`. |
 | [pytest-cov contexts](references.md#registry) | Opsi `--cov-context=test` untuk mencatat context per test. |
-| [mutmut](references.md#registry) | Mutation testing opsional untuk modul kritis. |
+| [mutmut](references.md#registry) | Mutation testing opsional untuk modul kritis; dicoba tetapi belum kompatibel dengan Python 3.15 Windows. |
+| [cosmic-ray](references.md#registry) | Mutation testing manual untuk modul kritis. |

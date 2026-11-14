@@ -8,34 +8,32 @@ Dokumen ini mencatat invariant golden baseline P0.1. Baseline diambil dari
 output lama commit `06bda0b` tanpa build ulang. Tujuannya membekukan perilaku
 output sebelum refactor, bukan menggantikan tes domain yang sudah ada.
 
+## Daftar Isi
+
+- [Gerbang check lokal](#gerbang-check-lokal)
+- [Golden invariant P0.1](#golden-invariant-p01)
+- [Menjalankan tes golden](#menjalankan-tes-golden)
+- [AutoOffice testing](#autooffice-testing)
+- [Hasil verifikasi akhir](#hasil-verifikasi-akhir)
+- [Hasil verifikasi P0.1](#hasil-verifikasi-p01)
+
 ## Gerbang check lokal
 
 Jalankan gate dari root repo sebelum commit:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/check.ps1
+```bash
+uv run python tools/quality/gate.py
 ```
 
-Gate berhenti pada kegagalan pertama dan menjalankan urutan berikut:
-
-1. `uv run --extra dev ruff format --check .`
-2. `uv run --extra dev ruff check .`
-3. `uv run --extra dev mypy`
-4. `uv run --extra dev lint-imports --config pyproject.toml --no-cache`
-5. `uv run --extra dev pytest -q`
-6. `uv run python tools/dev/check_docs.py`
-7. `uv lock --check`
-8. `uv run --extra dev python tools/dev/check_tests.py tests --format json > $null`
+`gate.py` menjalankan ruff format, ruff check, mypy, lint-imports, pytest,
+lock check (`uv lock --check`), docs checker, test-quality checker, dan
+no-legacy list. Gate berhenti pada kegagalan pertama, menulis
+`[gate] GAGAL: <nama>`, dan keluar dengan kode perintah tersebut. Gate tidak
+memakai Microsoft Word dan tidak mengubah berkas.
 
 Langkah `lint-imports` memeriksa kontrak import di `[tool.importlinter]` pada
-`pyproject.toml`. Langkah terakhir bersifat **warning-only**: `check_tests.py`
-belum memakai `--fail-on` karena backlog temuan test belum dibersihkan.
-Keluaran JSON-nya dibuang oleh gate; jalankan perintah yang sama tanpa
-`> $null` untuk membaca temuannya secara manual.
-
-Bila semua langkah lulus, gate menulis `[check] OK`. Bila ada yang gagal, gate
-menulis `[check] GAGAL: <nama>` dan keluar dengan kode perintah tersebut. Gate
-tidak memakai Microsoft Word dan tidak mengubah berkas.
+`pyproject.toml`. Untuk membaca temuan test-quality secara manual, jalankan
+`uv run python tools/quality/check_tests.py`.
 
 ## Golden invariant P0.1
 
@@ -51,8 +49,8 @@ tidak memakai Microsoft Word dan tidak mengubah berkas.
 pribadi di `docProps/core.xml` sudah diganti placeholder:
 
 - `dc:title` = `Laporan Baseline`
-- `dc:creator` = `docgen-golden`
-- `cp:lastModifiedBy` = `docgen-golden`
+- `dc:creator` = `docgen-golden` (metadata fixture historis, tidak diubah)
+- `cp:lastModifiedBy` = `docgen-golden` (metadata fixture historis, tidak diubah)
 
 `Laporan.docx` asli sudah tidak ada di root repo. Fixture DOCX berukuran
 88.020 byte dengan SHA-256
@@ -117,6 +115,36 @@ Perilaku tes:
   menjadi false-green.
 - `pytest.ini` mendaftarkan marker `unit`, `integration`, `packaging`, `e2e`,
   `word`, dan `windows` dengan `--strict-markers`.
+
+## AutoOffice testing
+
+Test AutoOffice memakai fixture bersama di `tests/autooffice/conftest.py`.
+Fixture tersebut deterministik dan offline:
+
+| Fixture | Kegunaan |
+| --- | --- |
+| `temp_workspace` | Direktori `input`, `output`, dan `cache` di bawah `tmp_path`. |
+| `fake_clock` | Waktu tetap 2026-01-01T00:00:00Z; hanya berubah lewat `advance`. |
+| `fake_com` | Urutan respons COM palsu yang mencatat setiap panggilan. |
+| `fake_google` | Skeleton respons Slides/Sheets per method tanpa transport HTTP. |
+| `golden_normalizer` | Normalisasi teks, XML, timestamp, UUID, dan part ZIP. |
+
+Aturan yang ditegakkan checker dan review:
+
+- tidak ada network, `time.sleep`, atau panggilan COM/Google live di unit test;
+- setiap test punya assertion perilaku, bukan `assert True`;
+- penulisan berkas hanya di `tmp_path` atau fixture turunannya;
+- golden membandingkan part yang sudah dinormalisasi, bukan binary mentah.
+
+Jalankan checker kualitas test dan gate lokal:
+
+```bash
+uv run python tools/quality/check_tests.py
+uv run python tools/quality/gate.py --list
+uv run python tools/quality/gate.py --dry-run
+```
+
+Detail urutan gate ada di [quality-gates.md](quality-gates.md).
 
 ## Hasil verifikasi akhir
 

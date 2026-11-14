@@ -1,0 +1,748 @@
+schema: autooffice.deck/v1
+
+meta:
+  title: "Demo Design System AutoOffice"
+  subtitle: "Komponen, diagram, dan gambar dalam satu deck"
+  author: "Tim AutoOffice"
+  organization: "AutoOffice"
+  date: "2026"
+  language: "id-ID"
+  description: "Deck demo penerimaan AutoOffice yang diporting dari demo deck-studio."
+
+# Deck ini juga dibangun dengan --theme hitam.
+# Token warna, font, dan jarak tetap berasal dari design system.
+theme:
+  name: indigo
+
+defaults:
+  layout: content
+  image_fit: contain
+  code_language: text
+
+slides:
+  - id: s01
+    layout: cover
+    notes: |
+      Buka dengan alasan konsolidasi. Satu model isi dipakai untuk semua target.
+      Deck ini menjadi bukti penerimaan AutoOffice.
+    source:
+      text: "Sumber: demo deck-studio AutoOffice, 2026"
+    blocks:
+      - id: kicker
+        type: text
+        role: kicker
+        text: "DEMO AUTOOFFICE 2026"
+      - id: title
+        type: text
+        role: title
+        text: "Komponen Presentasi AutoOffice"
+      - id: subtitle
+        type: text
+        role: lead
+        text: "Dari angka sampai diagram, semua blok tampil dalam satu deck."
+      - id: author
+        type: text
+        role: label
+        text: "Tim AutoOffice"
+      - id: role
+        type: text
+        role: caption
+        text: "Disusun sebagai bukti penerimaan"
+      - id: summary
+        type: metric
+        label: "Block type"
+        value: "11"
+        caption: "tercakup"
+
+  - id: s02
+    layout: toc
+    notes: |
+      Peta ini menghubungkan tiga kelompok dengan nomor slide.
+      Gunakan daftar sebagai navigasi saat presentasi.
+    blocks:
+      - id: title
+        type: text
+        role: title
+        text: "Peta Tiga Bagian"
+      - id: lead
+        type: text
+        role: lead
+        text: "Pilih kelompok untuk melihat komponen yang dibutuhkan."
+      - id: group1
+        type: bullets
+        items:
+          - "Data dan angka: KPI; batang; garis; donat; tabel."
+      - id: group2
+        type: bullets
+        items:
+          - "Struktur dan perbandingan: perbandingan; matriks; alur."
+      - id: group3
+        type: bullets
+        items:
+          - "Proses dan teks: kode; kutipan; diagram; gambar."
+
+  - id: s03
+    layout: content
+    notes: |
+      Kanvas terang menjadi dasar semua layout.
+      Aksen hanya menandai titik yang perlu dibaca lebih dulu.
+    source:
+      text: "Sumber: kit komponen internal AutoOffice, 2026"
+    blocks:
+      - id: title
+        type: text
+        role: title
+        text: "Kanvas Terang"
+      - id: lead
+        type: text
+        role: lead
+        text: "Latar netral dan kartu putih dengan aksen tipis."
+      - id: points
+        type: bullets
+        items:
+          - "Latar #FAFAFA membuat teks tetap tenang."
+          - "Kartu putih memisahkan isi dari bidang latar."
+          - "Aksen muncul di eyebrow dan angka utama."
+          - "Tidak ada pola besar di belakang konten."
+      - id: note
+        type: text
+        role: caption
+        text: "Batas aksen: beberapa titik penting saja."
+
+  - id: s04
+    layout: section
+    notes: |
+      Bagian ini membuka kelompok data dan angka.
+      Setiap layout berikut memakai slot yang sudah ditetapkan.
+    blocks:
+      - id: number
+        type: text
+        role: display
+        text: "01"
+      - id: title
+        type: text
+        role: title
+        text: "Data dan Angka"
+      - id: subtitle
+        type: text
+        role: lead
+        text: "Lima layout untuk angka dan tabel."
+
+  - id: s05
+    layout: kpi
+    notes: |
+      Tekankan bahwa angka hanya contoh. Setiap metrik punya label dan satuan.
+    source:
+      text: "Sumber: kit komponen internal AutoOffice, 2026"
+    blocks:
+      - id: title
+        type: text
+        role: title
+        text: "Ringkasan Angka Kunci"
+      - id: lead
+        type: text
+        role: lead
+        text: "Empat metrik utama dari deck demo."
+      - id: kpi1
+        type: metric
+        label: "Pengguna aktif"
+        value: "1.248"
+        caption: "bulan ini"
+      - id: kpi2
+        type: metric
+        label: "Penyelesaian"
+        value: "87%"
+        caption: "tepat waktu"
+      - id: kpi3
+        type: metric
+        label: "Rata-rata proses"
+        value: "12"
+        caption: "hari"
+      - id: kpi4
+        type: metric
+        label: "Kepuasan"
+        value: "4,8"
+        caption: "dari 5"
+      - id: note
+        type: text
+        role: caption
+        text: "Semua angka adalah data contoh."
+
+  - id: s06
+    layout: bars
+    notes: |
+      Semua batang memakai satu sumbu dari 0 sampai 500.
+      Nilai tertinggi tetap menjadi batang terkuat.
+    source:
+      text: "Sumber: kit komponen internal AutoOffice, 2026"
+    blocks:
+      - id: title
+        type: text
+        role: title
+        text: "Kanal dan Ritme Bulanan"
+      - id: lead
+        type: text
+        role: lead
+        text: "Kunjungan per kanal pada satu sumbu."
+      - id: chart1
+        type: chart
+        kind: bar
+        title: "Kunjungan per kanal"
+        alt: "Diagram batang kunjungan per kanal: Organik 420, Referral 260, Sosial 180, Langsung 120"
+        categories: ["Organik", "Referral", "Sosial", "Langsung"]
+        series:
+          - name: "Kunjungan"
+            values: [420, 260, 180, 120]
+        unit: "kunjungan"
+        caption: "Satu sumbu dari 0 sampai 500."
+      - id: note
+        type: text
+        role: caption
+        text: "Nilai tertinggi tetap menjadi batang terkuat."
+
+  - id: s07
+    layout: line
+    notes: |
+      Grafik ini menunjukkan tren delapan bulan.
+      Penurunan kecil di Maret dan Juni tetap terlihat.
+    source:
+      text: "Sumber: kit komponen internal AutoOffice, 2026"
+    blocks:
+      - id: title
+        type: text
+        role: title
+        text: "Tren yang Terbaca Tanpa Alat Bantu"
+      - id: lead
+        type: text
+        role: lead
+        text: "Delapan bulan penyelesaian tiket."
+      - id: chart1
+        type: chart
+        kind: line
+        title: "Penyelesaian tiket per bulan"
+        alt: "Grafik garis penyelesaian tiket 2025 dan 2026 dari Januari sampai Agustus"
+        categories: ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu"]
+        series:
+          - name: "2025"
+            values: [62, 74, 70, 88, 96, 91, 108, 118]
+          - name: "2026"
+            values: [70, 82, 79, 96, 104, 99, 116, 126]
+        unit: "tiket"
+        caption: "Garis 2026 tetap di atas garis 2025."
+      - id: note
+        type: text
+        role: caption
+        text: "Tren naik dengan dua penurunan kecil."
+
+  - id: s08
+    layout: donut
+    notes: |
+      Donat memakai satu seri dan empat kategori berwarna.
+      Angka di tengah menegaskan total 100 persen.
+    source:
+      text: "Sumber: kit komponen internal AutoOffice, 2026"
+    blocks:
+      - id: title
+        type: text
+        role: title
+        text: "Komposisi Anggaran"
+      - id: lead
+        type: text
+        role: lead
+        text: "Empat pos dengan total 100 persen."
+      - id: chart1
+        type: chart
+        kind: donut
+        title: "Komposisi anggaran"
+        alt: "Diagram donat komposisi anggaran: Operasional 45 persen, SDM 30 persen, Teknologi 15 persen, Lainnya 10 persen"
+        categories: ["Operasional", "SDM", "Teknologi", "Lainnya"]
+        series:
+          - name: "Porsi"
+            values: [45, 30, 15, 10]
+        unit: "persen"
+        caption: "Angka dibulatkan ke persen bulat."
+      - id: legend
+        type: bullets
+        items:
+          - "Operasional 45 persen"
+          - "SDM 30 persen"
+          - "Teknologi 15 persen"
+          - "Lainnya 10 persen untuk dana cadangan"
+  - id: s09
+    layout: table
+    notes: |
+      Status dan angka harus dibaca bersama.
+      Empat modul belum selesai pada contoh ini.
+    source:
+      text: "Sumber: kit komponen internal AutoOffice, 2026"
+    blocks:
+      - id: title
+        type: text
+        role: title
+        text: "Progres Lima Modul"
+      - id: lead
+        type: text
+        role: lead
+        text: "Status dan progres tiap modul."
+      - id: table1
+        type: table
+        columns: ["No", "Modul", "Pemilik", "Status", "Progres"]
+        rows:
+          - ["01", "Onboarding", "Tim Produk", "Selesai", "100%"]
+          - ["02", "Dashboard", "Tim Data", "Berjalan", "72%"]
+          - ["03", "Notifikasi", "Tim Platform", "Berjalan", "45%"]
+          - ["04", "Laporan", "Tim Analitik", "Rencana", "20%"]
+          - ["05", "Pengaturan", "Tim Operasi", "Rencana", "0%"]
+        caption: "Rata-rata progres 47 persen."
+      - id: note
+        type: text
+        role: caption
+        text: "Empat modul belum selesai."
+
+  - id: s10
+    layout: comparison
+    notes: |
+      Kolom Tumbuh menjadi titik tengah yang sering dipilih.
+      Semua nilai pada tabel adalah contoh.
+    source:
+      text: "Sumber: kit komponen internal AutoOffice, 2026"
+    blocks:
+      - id: title
+        type: text
+        role: title
+        text: "Perbandingan Tiga Opsi"
+      - id: lead
+        type: text
+        role: lead
+        text: "Tiga opsi pada kriteria yang sama."
+      - id: table1
+        type: table
+        columns: ["Kriteria", "Dasar", "Tumbuh", "Penuh"]
+        rows:
+          - ["Cakupan", "Modul inti", "Inti dan analitik", "Semua modul"]
+          - ["Biaya", "Rendah", "Sedang", "Tinggi"]
+          - ["Waktu", "6 minggu", "10 minggu", "16 minggu"]
+          - ["Tim", "2 orang", "4 orang", "6 orang"]
+          - ["Risiko", "Rendah", "Sedang", "Tinggi"]
+        emphasis_column: 3
+        caption: "Kolom Tumbuh disorot sebagai titik tengah."
+      - id: note
+        type: text
+        role: caption
+        text: "Pilih opsi sesuai kapasitas tim."
+
+  - id: s11
+    layout: matrix
+    notes: |
+      Matriks memetakan dampak dan upaya.
+      Checklist rilis memakai badge empat dari lima.
+    source:
+      text: "Sumber: kit komponen internal AutoOffice, 2026"
+    blocks:
+      - id: title
+        type: text
+        role: title
+        text: "Prioritas Fitur dan Kesiapan Rilis"
+      - id: lead
+        type: text
+        role: lead
+        text: "Kuadran dampak dan upaya untuk empat fitur."
+      - id: matrix1
+        type: table
+        columns: ["Kuadran", "Dampak", "Upaya", "Tindakan"]
+        rows:
+          - ["Prioritas", "Tinggi", "Rendah", "Kerjakan sekarang"]
+          - ["Rencana", "Tinggi", "Tinggi", "Jadwalkan"]
+          - ["Rutin", "Rendah", "Rendah", "Otomatiskan"]
+          - ["Tunda", "Rendah", "Tinggi", "Tinjau ulang"]
+      - id: legend
+        type: bullets
+        items:
+          - "Prioritas: dampak tinggi dan upaya rendah."
+          - "Rencana: dampak tinggi dan upaya tinggi."
+          - "Rutin: dampak rendah dan upaya rendah."
+          - "Tunda: dampak rendah dan upaya tinggi."
+      - id: note
+        type: text
+        role: caption
+        text: "Posisi kuadran adalah contoh."
+
+  - id: s12
+    layout: background
+    notes: |
+      Tiga poin ini menjadi dasar keputusan desain.
+      Semua nilai visual berasal dari token.
+    blocks:
+      - id: kicker
+        type: text
+        role: kicker
+        text: "LATAR"
+      - id: title
+        type: text
+        role: title
+        text: "Konteks Keputusan"
+      - id: lead
+        type: text
+        role: lead
+        text: "Tiga hal yang membentuk keputusan desain."
+      - id: point1
+        type: text
+        role: body
+        heading: "Fokus"
+        text: "Satu slide membawa satu pesan utama."
+      - id: point2
+        type: text
+        role: body
+        heading: "Kontras"
+        text: "Teks harus terbaca dari jarak proyektor."
+      - id: point3
+        type: text
+        role: body
+        heading: "Ritme"
+        text: "Jarak dan tinggi baris menjaga tempo baca tetap tenang."
+
+  - id: s13
+    layout: flow
+    notes: |
+      Alur ini berhenti pada satu keputusan akhir.
+      Setiap langkah memakai slot step yang terpisah.
+    blocks:
+      - id: title
+        type: text
+        role: title
+        text: "Dari Pengajuan ke Keputusan"
+      - id: lead
+        type: text
+        role: lead
+        text: "Empat langkah dengan satu keputusan akhir."
+      - id: step1
+        type: text
+        role: body
+        heading: "01"
+        text: "Ajukan formulir dan lampiran."
+      - id: step2
+        type: text
+        role: body
+        heading: "02"
+        text: "Verifikasi kelengkapan berkas."
+      - id: step3
+        type: text
+        role: body
+        heading: "03"
+        text: "Tinjau substansi dan dampak."
+      - id: step4
+        type: text
+        role: body
+        heading: "04"
+        text: "Setujui lalu terbitkan keputusan resmi hari ini."
+
+  - id: s14
+    layout: code
+    notes: |
+      Kode memakai bahasa SQL dan nomor baris.
+      Kutipan lengkap ada di slide custom berikutnya.
+    source:
+      text: "Sumber: kit komponen internal AutoOffice, 2026"
+    blocks:
+      - id: title
+        type: text
+        role: title
+        text: "Blok Kode dan Kutipan"
+      - id: lead
+        type: text
+        role: lead
+        text: "Contoh query dan kutipan tim."
+      - id: code1
+        type: code
+        language: sql
+        filename: "proyek_aktif.sql"
+        line_numbers: true
+        code: |
+          -- Proyek aktif terbaru
+          SELECT nama, status, tanggal, COUNT(*) AS jumlah
+          FROM proyek
+          WHERE status = 'aktif'
+            AND pemilik IS NOT NULL
+          GROUP BY nama, status, tanggal
+          ORDER BY tanggal DESC
+          LIMIT 10;
+      - id: note
+        type: text
+        role: caption
+        text: "Kode dan kutipan adalah contoh penggunaan."
+
+  - id: s15
+    layout: diagram
+    notes: |
+      Flowchart memakai notasi standar.
+      Hanya ada satu jalur mundur ke formulir.
+    source:
+      text: "Sumber: contoh internal AutoOffice, 2026"
+    blocks:
+      - id: title
+        type: text
+        role: title
+        text: "Alur Pengajuan Cuti"
+      - id: subtitle
+        type: text
+        role: lead
+        text: "Alur cuti dari formulir sampai keputusan atasan."
+      - id: diagram1
+        type: diagram
+        source: "diagrams/01-flowchart.mmd"
+        alt: "Diagram alur pengajuan cuti dari mulai sampai selesai"
+        caption: "Gambar 1. Flowchart pengajuan cuti."
+
+  - id: s16
+    layout: image-split
+    notes: |
+      Gambar memberi jeda visual pada tempo presentasi.
+      Teks tetap pendek dan terbaca.
+    source:
+      text: "Sumber: demo deck-studio AutoOffice, 2026"
+    blocks:
+      - id: title
+        type: text
+        role: title
+        text: "Ruang Kerja yang Tenang"
+      - id: lead
+        type: text
+        role: lead
+        text: "Satu ruang rapi membantu perhatian tetap pada satu pekerjaan."
+      - id: body
+        type: text
+        role: body
+        text: "Meja kerja rapi dengan cahaya alami."
+      - id: image1
+        type: image
+        path: "assets/workspace.jpg"
+        alt: "Meja kerja dengan laptop, ponsel, buku catatan, dan kopi"
+        caption: "Meja kerja dengan cahaya alami."
+
+  - id: s17
+    layout: image-full
+    notes: |
+      Satu kalimat menjadi inti halaman ini.
+      Gambar memenuhi sisa area konten.
+    source:
+      text: "Sumber: demo deck-studio AutoOffice, 2026"
+    blocks:
+      - id: title
+        type: text
+        role: title
+        text: "Satu Pesan Besar"
+      - id: image1
+        type: image
+        path: "assets/nature.jpg"
+        alt: "Danau dan hutan hijau di bawah langit cerah"
+        caption: "Danau dan hutan hijau di bawah langit cerah."
+
+  - id: s18
+    layout: image-grid
+    notes: |
+      Tiga gambar memakai rasio dan jarak yang sama.
+      Caption pendek menjaga konteks tiap gambar.
+    source:
+      text: "Sumber: demo deck-studio AutoOffice, 2026"
+    blocks:
+      - id: title
+        type: text
+        role: title
+        text: "Tiga Sudut Pandang"
+      - id: lead
+        type: text
+        role: lead
+        text: "Tiga gambar dengan irama grid yang seimbang."
+      - id: image1
+        type: image
+        path: "assets/workspace.jpg"
+        alt: "Meja kerja dengan laptop dan kopi"
+        caption: "Ruang kerja"
+      - id: image2
+        type: image
+        path: "assets/nature.jpg"
+        alt: "Danau dan hutan hijau"
+        caption: "Alam terbuka"
+      - id: image3
+        type: image
+        path: "assets/city.jpg"
+        alt: "Rumah putih di lereng bukit"
+        caption: "Sudut kota"
+
+  - id: s19
+    layout: custom
+    notes: |
+      Bagian ini menunjukkan quote dan divider.
+      Spacer juga muncul di sini.
+    rows:
+      - blocks:
+          - id: title
+            type: text
+            role: title
+            text: "Kutipan dan Catatan"
+            span: 12
+      - blocks:
+          - id: quote1
+            type: quote
+            text: "Rapat yang baik berakhir dengan keputusan."
+            attribution: "Catatan tim AutoOffice"
+            span: 8
+          - id: insight
+            type: text
+            heading: "Catatan"
+            text: "Kutipan menutup satu bagian dengan satu pesan."
+            span: 4
+      - blocks:
+          - id: divider1
+            type: divider
+            span: 12
+      - blocks:
+          - id: spacer1
+            type: spacer
+            size: md
+            span: 12
+
+  - id: s20
+    layout: custom
+    notes: |
+      Grid ini mencampur metrik dan teks.
+      Semua block memakai span.
+    rows:
+      - blocks:
+          - id: title
+            type: text
+            role: title
+            text: "Bukti Cakupan Blok"
+            span: 12
+      - blocks:
+          - id: metric1
+            type: metric
+            label: "Block type"
+            value: "11"
+            caption: "semua hadir"
+            span: 4
+          - id: metric2
+            type: metric
+            label: "Layout"
+            value: "20"
+            caption: "preset dan custom"
+            span: 4
+          - id: metric3
+            type: metric
+            label: "Slide"
+            value: "24"
+            caption: "siap diperiksa"
+            span: 4
+      - blocks:
+          - id: coverage
+            type: text
+            heading: "Cakupan"
+            text: "Deck ini memakai semua block type resmi."
+            span: 7
+          - id: facts
+            type: bullets
+            items:
+              - "Chart native untuk bar dan line."
+              - "Donut juga native. Tabel tetap editable."
+            span: 5
+
+  - id: s21
+    layout: diagram
+    notes: |
+      Sequence membaca pesan dari atas ke bawah.
+      Dua jalur login perlu diuji.
+    source:
+      text: "Sumber: contoh internal AutoOffice, 2026"
+    blocks:
+      - id: title
+        type: text
+        role: title
+        text: "Sequence Login Pengguna"
+      - id: subtitle
+        type: text
+        role: lead
+        text: "Percakapan antarkomponen saat pengguna masuk."
+      - id: diagram1
+        type: diagram
+        source: "diagrams/05-sequence.mmd"
+        alt: "Diagram sequence login pengguna dengan cabang berhasil dan gagal"
+        caption: "Gambar 2. Sequence login pengguna."
+
+  - id: s22
+    layout: image-split
+    notes: |
+      Gambar arsitektur dipakai sebagai jeda visual.
+      Pesan tetap satu kalimat.
+    source:
+      text: "Sumber: demo deck-studio AutoOffice, 2026"
+    blocks:
+      - id: title
+        type: text
+        role: title
+        text: "Arsitektur yang Terbaca"
+      - id: lead
+        type: text
+        role: lead
+        text: "Satu gambar dapat menggantikan paragraf panjang."
+      - id: body
+        type: text
+        role: body
+        text: "Gambar arsitektur dipakai sebagai jeda visual."
+      - id: image1
+        type: image
+        path: "assets/architecture.jpg"
+        alt: "Istana di atas lembah hutan"
+        caption: "Istana di atas lembah hutan."
+
+  - id: s23
+    layout: content
+    notes: |
+      Sebutkan bahwa lane custom dan PPTX diagram belum tersedia.
+      Jangan klaim build penuh sudah lulus.
+    source:
+      text: "Sumber: acceptance AutoOffice, 2026"
+    blocks:
+      - id: title
+        type: text
+        role: title
+        text: "Bukti Penerimaan"
+      - id: lead
+        type: text
+        role: lead
+        text: "Ringkasan hasil check yang diharapkan."
+      - id: points
+        type: bullets
+        items:
+          - "Schema dan key lolos loader serta compiler."
+          - "Layout preset lolos plan tanpa overflow."
+          - "Chart memakai batas seri dan kategori."
+          - "Copy checker dan transkrip harus bersih."
+      - id: note
+        type: text
+        role: caption
+        text: "Custom grid masih menunggu integrasi F2."
+
+  - id: s24
+    layout: closing
+    notes: |
+      Tutup dengan tiga langkah pakai ulang.
+      Semua komponen tetap memakai token yang sama.
+    source:
+      text: "Sumber: demo deck-studio AutoOffice, 2026"
+    blocks:
+      - id: title
+        type: text
+        role: title
+        text: "Pakai Ulang Komponen yang Ada"
+      - id: lead
+        type: text
+        role: lead
+        text: "Setiap blok dapat disalin ke deck lain tanpa mengubah token."
+      - id: contact
+        type: text
+        role: body
+        text: "Tim AutoOffice 2026"
+      - id: note
+        type: text
+        role: caption
+        text: "Demo deck dan diagram tersedia offline."

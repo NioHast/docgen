@@ -2,7 +2,7 @@
 
 Halaman ini menjelaskan helper kanonis untuk membaca `w:body`, child langsung,
 style dan level heading, teks paragraf, penghapusan child, dan atribut integer.
-Kontrak ada di [contracts/docx-api.md](../contracts/docx-api.md).
+Kontrak ada di [contracts/docx.md](../../contracts/docx.md).
 
 `paragraphs.py` adalah satu tempat untuk:
 

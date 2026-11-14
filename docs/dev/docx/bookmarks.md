@@ -1,12 +1,13 @@
 # Bookmark dan Manifest
 
 Halaman ini menjelaskan bookmark `pNNNN` dan manifest Adeu. Kontrak ada di
-[contracts/docx-api.md](../contracts/docx-api.md). Alur Adeu lengkap ada di
+[contracts/docx.md](../../contracts/docx.md). Alur Adeu lengkap ada di
 [../adeu-integration.md](../adeu-integration.md).
 
 Setiap paragraf body mendapat bookmark `pNNNN`, misalnya `p0001`. Bookmark
-dipakai Adeu dan `reconcile` untuk mencocokkan paragraf DOCX dengan manifest.
-Nama bookmark hanya boleh cocok dengan pola `p` diikuti minimal empat digit.
+dipakai Adeu dan modul rekonsiliasi internal untuk mencocokkan paragraf DOCX
+dengan manifest. Nama bookmark hanya boleh cocok dengan pola `p` diikuti
+minimal empat digit.
 
 Manifest menyimpan:
 
@@ -26,7 +27,7 @@ URL resminya ada di [registry referensi](../references.md).
 ## Halaman terkait
 
 - [../adeu-integration.md](../adeu-integration.md) untuk source scan dan
-  reconcile.
+  modul rekonsiliasi internal.
 - [../pipeline/overview.md](../pipeline/overview.md#adeu-hook) untuk posisi
   hook di pipeline.
 - [../pipeline/outputs.md](../pipeline/outputs.md) untuk lokasi

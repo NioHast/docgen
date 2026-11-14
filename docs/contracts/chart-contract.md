@@ -44,6 +44,33 @@ State menyimpan `chart_id`, `tab_name`, `sheet_id`, dan `embedded_chart_id`.
 - Palet `hitam`: `#111827`, `#374151`, `#4B5563`, `#6B7280`.
 - Batas ini menjaga validitas deck saat theme berganti.
 
+## Klarifikasi implementasi F2-CHARTS
+
+Bagian ini hanya memperjelas kontrak yang sudah ada; tidak menambah field YAML
+atau perilaku baru.
+
+- `ChartSpec` memuat `chart_id`, `kind`, `categories`, `series`,
+  `orientation`, `title`, `alt`, dan `unit`. `chart_id` dibentuk dari
+  `<slide_id>.<block_id>`.
+- `orientation` default `vertical` untuk `bar`; `line` dan `donut` tidak
+  membawa orientation.
+- Warna `bar` dan `line` memakai slot `chartSeries` berurutan sesuai jumlah
+  seri. Donut memakai slot berurutan sesuai jumlah kategori. Kode chart tidak
+  memuat warna literal.
+- Legend donut selalu tampil; legend `bar` dan `line` tampil bila jumlah seri
+  lebih dari satu. Gridline value axis memakai `chart.grid`; garis axis dan
+  tick label memakai `chart.axis`; legend memakai `chart.legend`; title
+  memakai `chart.title`; family font memakai `typography.family`.
+- `unit` dirender sebagai title value axis untuk `bar` dan `line`.
+- Chart native memakai nama shape `autooffice:chart:<chart_id>`, metadata
+  `title` berisi `<chart_id>`, dan `descr` berisi alt manusia.
+- Placeholder memakai nama shape dan `title` `autooffice:chart:<chart_id>`
+  pada box block; `descr` berisi alt manusia. Placeholder tidak memuat chart
+  object.
+- Batas divalidasi sebelum render: `bar` dan `line` 1 sampai 4 seri; `donut`
+  tepat satu seri dan 2 sampai 4 kategori; panjang `values` sama dengan
+  `categories`; setiap nilai harus angka finite.
+
 ## Sheets dan preflight
 
 - Satu spreadsheet per deck; satu tab per chart; satu chart object per tab.
@@ -60,8 +87,11 @@ State menyimpan `chart_id`, `tab_name`, `sheet_id`, dan `embedded_chart_id`.
 - Posisi dan ukuran linked chart diambil dari placeholder.
 - Bila linked chart untuk `chart_id` sudah ada, jangan buat duplikat.
 - Rerun harus idempoten; kegagalan di tengah dicatat di state.
-- Bila preflight gagal, tidak ada placeholder dihapus, tidak ada linked chart
-  dibuat, dan state tidak ditulis.
+- Bila preflight gagal, tidak ada placeholder dihapus dan tidak ada linked
+  chart dibuat. Progress workbook, chart Sheets, dan presentasi yang sudah
+  disiapkan boleh tersimpan di state; `last_pushed_at` tidak dimajukan dan
+  tetap pada nilai sebelum push sampai replacement dan push teks berhasil.
+  `deck_sha256` hanya maju setelah presentasi baru berhasil di-upload.
 
 ## Invariant
 
@@ -106,7 +136,7 @@ Catatan F0: test bentuk ada di `tests/contract/test_contract_shapes.py` dan `tes
 | Donut dengan dua seri atau lima kategori ditolak. | `tests/contract/test_chart_contract.py` (planned) |
 | `chartSeries` lolos kontras 3:1 di indigo dan hitam. | `tests/contract/test_chart_contract.py` (planned) |
 | Placeholder memakai marker `autooffice:chart:<chart_id>`. | `tests/contract/test_chart_contract.py` (planned) |
-| Preflight gagal tidak menghapus placeholder dan tidak menulis state. | `tests/contract/test_chart_contract.py` (planned) |
+| Preflight gagal tidak menghapus placeholder dan tidak memajukan `last_pushed_at`; progress state yang sudah tersimpan tetap ada. | `tests/google/test_replacement.py::test_push_deck_table_preflight_failure_persists_workbook_and_presentation` |
 | Satu tab per chart dan satu chart object per tab. | `tests/integration/test_google_charts.py` (planned) |
 | Rerun tidak membuat linked chart duplikat. | `tests/integration/test_google_charts.py` (planned) |
 

@@ -1,15 +1,15 @@
 # Kontribusi
 
 Panduan ini untuk perubahan kode, data format, tes, dan dokumentasi. Baca
-[architecture.md](architecture.md) dan kontrak di [contracts/](contracts/config.md)
+[architecture.md](architecture.md) dan [indeks kontrak AutoOffice](../contracts/)
 sebelum mengubah pipeline atau stage.
 
 ## Setup
 
 ```bash
 uv sync --project <repo> --extra dev
-uv run --project <repo> docgen --version
-uv run --project <repo> pytest tests/unit
+uv run --project <repo> autooffice --version
+uv run --project <repo> pytest tests/cli tests/docx
 ```
 
 `uv.lock` harus ikut berubah bila `pyproject.toml` berubah. Jalankan
@@ -18,17 +18,21 @@ uv run --project <repo> pytest tests/unit
 ## Menjalankan tes
 
 ```bash
-uv run --project <repo> pytest tests/unit
-uv run --project <repo> pytest -m "not integration and not packaging and not e2e and not word and not windows"
+uv run --project <repo> pytest tests/cli tests/docx
+uv run --project <repo> pytest -m "not integration and not packaging and not e2e and not word and not windows and not slow"
 uv run --project <repo> pytest
 ```
 
-Tes yang membutuhkan Word atau Windows memakai marker `word` atau `windows`.
-Tes PDF golden hanya berjalan di Windows. Di Debian, jalankan subset non-Windows
-dan jangan mengklaim PDF lulus.
+Suite AutoOffice berada di `tests/cli`, `tests/docx`, `tests/deck`,
+`tests/design`, `tests/google`, `tests/pdf`, `tests/performance`,
+`tests/property`, `tests/tools`, `tests/visual`, `tests/contract`,
+`tests/autooffice`, dan `tests/packaging`. Tes yang membutuhkan Word
+atau Windows memakai marker `word` atau `windows`. Tes PDF golden hanya
+berjalan di Windows. Di Linux, jalankan subset non-Windows dan jangan
+mengklaim PDF lulus.
 
 Tes packaging dijalankan dari luar repo dan memastikan `git status` tidak
-berubah. Jangan menambahkan build DOCX (Word) ke tes unit.
+berubah. Jangan menambahkan build DOCX (Word) ke tes domain.
 
 ## Aturan kode
 
@@ -44,37 +48,40 @@ berubah. Jangan menambahkan build DOCX (Word) ke tes unit.
 
 ## Aturan stage dan data
 
-- Urutan stage didefinisikan di `pipeline.py`. Mengubah urutan berarti
-  memperbarui kontrak dan tes.
+- Urutan stage didefinisikan di `autooffice/docx/pipeline.py`. Mengubah urutan
+  berarti memperbarui kontrak dan tes.
 - Key `format.yml` dan `structure.yml` memakai skema tertutup. Key baru harus
   memiliki konsumen nyata dan tes positif/negatif.
 - Jangan menambah key yang tidak dibaca kode.
 - Template struktur harus tetap valid dan tidak keluar dari direktori template.
-- Data paket dibaca lewat `src/docgen/paths.py`; jangan menambah fallback ke
+- Data paket dibaca lewat `src/autooffice/docx/paths.py`; jangan menambah fallback ke
   akar repo atau direktori kerja.
 
 ## Aturan dokumentasi
 
-- Semua perintah `docgen` ditulis sebagai
-  `uv run --project <repo> docgen ...`.
-- Output pengguna ditulis di samping `document.md`; contoh ditulis di
-  `examples/<name>/out/`. Jangan mendokumentasikan `build/` atau `review/`.
+- Semua perintah `autooffice` ditulis sebagai
+  `uv run --project <repo> autooffice ...`.
+- Output pengguna ditulis di samping `document.md` atau `deck.yaml`; contoh
+  ditulis di `examples/<name>/out/`. Jangan mendokumentasikan `build/` atau
+  `review/`.
 - Jangan merujuk path atau alat yang sudah dihapus.
 - Jangan memakai em dash atau en dash.
 - Tautan internal harus relatif dan menunjuk berkas yang ada.
-- Jangan mengklaim fitur yang belum ada. TOC (table of contents) dan daftar memakai field native;
-  daftar tabel/gambar memakai hybrid `SEQ`. PDF hanya Word di Windows.
+- Jangan mengklaim fitur yang belum ada. TOC (table of contents) dan daftar
+  DOCX memakai field native; daftar tabel/gambar memakai hybrid `SEQ`. PDF
+  DOCX memakai Word di Windows; PDF dan font presentasi PowerPoint (PPTX)
+  memakai PowerPoint di Windows.
 - Dokumentasi pengguna ada di `docs/user/`; detail implementasi di
   `docs/dev/`. Jangan menduplikasi isi yang sama di dua tempat.
 
 ## Perubahan kontrak
 
-Kontrak ada di `docs/dev/contracts/`. Perubahan yang mengubah perilaku publik
+Kontrak ada di `docs/contracts/`. Perubahan yang mengubah perilaku publik
 harus:
 
 1. memperbarui kontrak;
 2. menambah atau memperbarui tes;
-3. mencatat keputusan di `docs/dev/decisions/` bila keputusan arsitektural;
+3. mencatat keputusan di `docs/decisions/` bila keputusan arsitektural;
 4. memperbarui dokumentasi pengguna bila perilaku terlihat pengguna.
 
 Jangan mengubah kontrak hanya agar tes lama lulus. Perbaiki implementasi atau

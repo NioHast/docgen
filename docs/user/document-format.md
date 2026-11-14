@@ -2,7 +2,7 @@
 
 Sumber naskah adalah satu `document.md` berisi YAML front matter dan body
 Markdown. Aturan visual tidak ditulis di naskah. Format dan struktur membacanya
-dari `src/docgen/data/`.
+dari `src/autooffice/docx/data/`.
 
 ## Daftar isi
 
@@ -105,9 +105,9 @@ author:
 Jangan menambahkan `daftar_gambar`, `daftar_tabel`, `preset`, `margin_preset`,
 `approval`, `statement`, `references`, `csl`, `reference-doc`, `template`, atau
 `cover` ke front matter. Kunci itu sudah dihapus dan menghasilkan error
-migrasi. Kunci `toc` masih diterima hanya bila nilainya sama dengan
-`structure.toc`, tetapi menghasilkan peringatan; hapus kunci itu dan atur
-daftar isi di `structure.yml`.
+migrasi. Kunci `toc` di front matter juga ditolak sebagai kunci tidak dikenal
+(`CFG-UNKNOWN-KEY`); daftar isi dikendalikan oleh `toc` di `structure.yml`,
+bukan oleh naskah.
 
 ## Heading
 

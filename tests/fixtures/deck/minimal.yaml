@@ -1,0 +1,35 @@
+schema: autooffice.deck/v1
+
+meta:
+  title: "Kontrak Deck"
+  author: "Tim AutoOffice"
+  language: "id-ID"
+
+theme:
+  name: indigo
+
+defaults:
+  layout: content
+  image_fit: contain
+  code_language: text
+
+slides:
+  - id: s01
+    layout: content
+    notes: |
+      Catatan pembicara untuk slide pertama.
+      Baris kedua tetap dipertahankan.
+    source:
+      text: "Sumber: data internal, 2026"
+      url: "https://example.com/data"
+    blocks:
+      - id: title
+        type: text
+        role: title
+        heading: "Ringkasan"
+        text: "Satu skema untuk **semua** target."
+      - id: points
+        type: bullets
+        items:
+          - "Satu berkas YAML per deck."
+          - "Key datar dan stabil."

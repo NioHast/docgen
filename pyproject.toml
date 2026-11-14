@@ -12,6 +12,7 @@ license = "MIT"
 license-files = ["LICENSE"]
 dependencies = [
     "lxml==6.1.3",
+    "python-pptx==1.0.2",
     "ruamel.yaml==0.19.1",
 ]
 
@@ -23,7 +24,16 @@ dev = [
     "mypy==2.4.1",
     "ruff==0.17.4",
     "pytest-cov==7.1.0",
+    "hypothesis==6.170.15",
     "import-linter==2.16",
+    "cosmic-ray==8.9.0",
+]
+google = [
+    "google-api-python-client==2.202.0",
+    "google-auth-oauthlib==1.5.0",
+]
+windows = [
+    'pywin32==312; sys_platform == "win32"',
 ]
 
 [project.scripts]
@@ -38,7 +48,12 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 docgen = ["data/**/*"]
-autooffice = ["data/**/*", "assets/**/*"]
+autooffice = [
+    "data/**/*",
+    "assets/**/*",
+    "design/data/**/*",
+    "docx/data/**/*",
+]
 
 [tool.ruff]
 # 100 kolom: cukup untuk ekspresi dan pesan error, tetap nyaman dibaca.

@@ -115,19 +115,33 @@ dictionary yang tidak stabil.
 - Chart data memakai `kind: data`; chart title dan label tidak ikut
   pull/diff/apply teks.
 
+## Catatan implementasi F1-MODEL
+
+- Implementasi ada di `keys.py`, `bindings.py`, dan `compiler.py`.
+  `KeyRegistry` menolak key duplikat dan `yaml_path` duplikat; pesan menyebut
+  kedua path.
+- `yaml_path` memakai indeks array nol-based, misalnya
+  `("slides", 2, "blocks", 1, "value")`.
+- Indeks leaf tetap 1-based; `item0`, `r0.c1`, dan `series0.name` ditolak.
+- Key lebih dari 160 karakter ditolak saat pembentukan, bukan dipotong.
+- Key slide hanya `sNN.notes` dan `sNN.source.text`.
+- Chart values memakai `kind: data` dan `sync: false`; chart title dan label
+  tidak ikut sinkronisasi teks. Caption media memakai `kind: media_text`.
+- Reorder slide dan block diuji tidak mengubah key; `yaml_path` dipakai apply.
+
 ## Acceptance
 
-Catatan F0: test bentuk ada di `tests/contract/test_contract_shapes.py` dan `tests/contract/test_f0_scaffold.py`. Test perilaku yang disebut di tabel ini dijadwalkan di lane implementasi terkait.
+Catatan F1-MODEL: test bentuk tetap di `tests/contract/**`; test perilaku ada di `tests/deck/model/**`.
 
 | Aturan | Test kontrak |
 | --- | --- |
-| Grammar menolak slide ID, block ID, dan leaf yang tidak valid. | `tests/contract/test_key_grammar.py` (planned) |
-| Indeks 0, indeks negatif, dan titik di dalam satu segmen ditolak. | `tests/contract/test_key_grammar.py` (planned) |
-| Key duplikat ditolak dengan kedua lokasi. | `tests/contract/test_key_grammar.py` (planned) |
-| Key lebih dari 160 karakter ditolak tanpa pemotongan. | `tests/contract/test_key_grammar.py` (planned) |
-| Reorder slide dan block tidak mengubah key. | `tests/contract/test_key_grammar.py` (planned) |
-| Mapping nested YAML ke key sesuai tabel. | `tests/contract/test_key_grammar.py` (planned) |
-| `yaml_path` dipakai apply untuk menulis nilai kembali. | `tests/contract/test_key_grammar.py` (planned) |
-| Binding deterministik untuk input yang sama. | `tests/contract/test_key_grammar.py` (planned) |
+| Grammar menolak slide ID, block ID, dan leaf yang tidak valid. | `tests/deck/model/test_keys.py` |
+| Indeks 0, indeks negatif, dan titik di dalam satu segmen ditolak. | `tests/deck/model/test_keys.py` |
+| Key duplikat ditolak dengan kedua lokasi. | `tests/deck/model/test_keys.py` |
+| Key lebih dari 160 karakter ditolak tanpa pemotongan. | `tests/deck/model/test_keys.py` |
+| Reorder slide dan block tidak mengubah key. | `tests/deck/model/test_keys.py` |
+| Mapping nested YAML ke key sesuai tabel. | `tests/deck/model/test_block_types.py` |
+| `yaml_path` dipakai apply untuk menulis nilai kembali. | `tests/deck/model/test_keys.py` |
+| Binding deterministik untuk input yang sama. | `tests/deck/model/test_compiler.py` |
 
 [Rencana AutoOffice](../../AUTO_OFFICE_PLAN.md)

@@ -1,4 +1,4 @@
-# Contoh `docgen`
+# Contoh AutoOffice
 
 Tiga contoh single-file di direktori ini memakai format `undip-msi` dan
 struktur yang berbeda. Setiap contoh berdiri sendiri: front matter, naskah,
@@ -31,9 +31,9 @@ kunci front matter `document.md`. Jangan menulis `toc`, `daftar_gambar`, atau
 Jalankan pemeriksaan konfigurasi tanpa membangun DOCX:
 
 ```bash
-uv run --project <repo> docgen check examples/assignment-single/document.md
-uv run --project <repo> docgen check examples/thesis-single/document.md
-uv run --project <repo> docgen check examples/proposal-single/document.md
+uv run --project <repo> autooffice check examples/assignment-single/document.md
+uv run --project <repo> autooffice check examples/thesis-single/document.md
+uv run --project <repo> autooffice check examples/proposal-single/document.md
 ```
 
 `check` memvalidasi front matter, format, struktur, aset, urutan Heading 1, dan
@@ -44,14 +44,14 @@ caption Markdown. Perintah ini tidak memanggil Pandoc atau Word.
 Build DOCX:
 
 ```bash
-uv run --project <repo> docgen build examples/thesis-single/document.md --target docx
+uv run --project <repo> autooffice build examples/thesis-single/document.md --target docx
 ```
 
-Di Windows dengan Microsoft Word terpasang, `--target both` juga menghasilkan
+Di Windows dengan Microsoft Word terpasang, `--target all` juga menghasilkan
 PDF. Di Debian atau lingkungan tanpa Word, gunakan `--target docx`.
 
 ```bash
-uv run --project <repo> docgen build examples/thesis-single/document.md --target both
+uv run --project <repo> autooffice build examples/thesis-single/document.md --target all
 ```
 
 ## Artefak
@@ -69,7 +69,7 @@ examples/thesis-single/
 |   `-- Tugas.pdf
 |-- .laporan/
 |   `-- manifest.json
-`-- .laporan-build/      # hanya dengan --keep
+`-- .laporan-build/      # hanya dengan --keep-intermediate
 ```
 
 `out/`, `.laporan/`, dan `.laporan-build/` di-ignore Git. Nama berkas

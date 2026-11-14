@@ -6,7 +6,11 @@ build. Glosarium tes ditulis sebagai TSV sementara.
 
 from pathlib import Path
 
-from audit_terms import (
+from docx import Document
+from docx.enum.style import WD_STYLE_TYPE
+
+from docgen.docx.terms import load_glossary
+from tools.dev.audit_terms import (
     CATEGORY_GLOSSARY_ITALIC,
     CATEGORY_GLOSSARY_PLAIN,
     CATEGORY_ITALIC_MISSING,
@@ -17,10 +21,6 @@ from audit_terms import (
     main,
     render_report,
 )
-from docx import Document
-from docx.enum.style import WD_STYLE_TYPE
-
-from docgen.docx.terms import load_glossary
 
 # ---------------------------------------------------------------------------
 # Helper fixture

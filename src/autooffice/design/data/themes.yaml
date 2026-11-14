@@ -1,0 +1,43 @@
+# Dua theme produk AutoOffice. Aksen dan cover berasal dari themes.json deck-studio.
+# chart.series adalah chartSeries empat warna turunan yang lolos kontras 3:1.
+schema: autooffice.design-themes/v1
+default: indigo
+themes:
+  indigo:
+    label: Indigo
+    mode: light
+    colors:
+      accent: "#4F46E5"
+      accent_deep: "#3730A3"
+      accent_soft: "#EEF2FF"
+      accent_line: "#C7D2FE"
+      accent_ink: "#FFFFFF"
+    cover:
+      from: "#4F46E5"
+      mid: "#4338CA"
+      to: "#312E81"
+    chart:
+      series: ["#4F46E5", "#0F766E", "#B45309", "#BE123C"]
+      grid: "#E5E7EB"
+      axis: "#6B7280"
+      legend: "#374151"
+      title: "#0B0B0F"
+  hitam:
+    label: Hitam
+    mode: light
+    colors:
+      accent: "#111827"
+      accent_deep: "#000000"
+      accent_soft: "#F3F4F6"
+      accent_line: "#D1D5DB"
+      accent_ink: "#FFFFFF"
+    cover:
+      from: "#111827"
+      mid: "#0B1220"
+      to: "#000000"
+    chart:
+      series: ["#111827", "#374151", "#4B5563", "#6B7280"]
+      grid: "#E5E7EB"
+      axis: "#6B7280"
+      legend: "#374151"
+      title: "#0B0B0F"

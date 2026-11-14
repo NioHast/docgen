@@ -1,23 +1,26 @@
 # Arsitektur
 
-`docgen` memisahkan naskah, aturan tampilan, urutan struktur, dan orkestrasi.
-Satu `document.md` adalah sumber konten. Format dan struktur adalah data paket
-yang dibaca saat runtime. Pipeline Python mengubah Markdown menjadi DOCX dalam
-satu pass package, lalu opsional mengekspor PDF lewat Word.
+AutoOffice memisahkan naskah, aturan tampilan, urutan struktur, dan orkestrasi
+menjadi dua pipeline: DOCX dari Markdown dan PPTX/Slides dari YAML. Satu
+`document.md` atau satu `deck.yaml` adalah sumber konten. Format, struktur,
+layout, dan theme adalah data paket yang dibaca saat runtime.
 
 ## Lapisan
 
 | Lapisan | Lokasi | Tanggung jawab | Tidak boleh berisi |
 | --- | --- | --- | --- |
-| Konten | `document.md`, `references.bib`, `istilah.tsv`, `gambar/` | Teks, sitasi, glosarium tambahan, dan aset | Aturan margin, urutan bab, field Word |
-| Struktur | `src/docgen/data/structures/<id>/structure.yml` | Urutan front matter, body, back matter, penomoran, TOC, daftar, cover | Nilai margin, font, CSL |
-| Format | `src/docgen/data/formats/<id>/format.yml` | Halaman, font, heading, caption, kode, sitasi, aset visual | Teks naskah, urutan bab |
-| Pipeline | `src/docgen/` | Validasi, orkestrasi stage, mutasi DOCX, output, manifest | Teks naskah, salinan aturan format |
+| Konten DOCX | `document.md`, `references.bib`, `istilah.tsv`, `gambar/` | Teks, sitasi, glosarium tambahan, dan aset | Aturan margin, urutan bab, field Word |
+| Struktur DOCX | `src/autooffice/docx/data/structures/<id>/structure.yml` | Urutan front matter, body, back matter, penomoran, TOC, daftar, cover | Nilai margin, font, CSL |
+| Format DOCX | `src/autooffice/docx/data/formats/<id>/format.yml` | Halaman, font, heading, caption, kode, sitasi, aset visual | Teks naskah, urutan bab |
+| Pipeline DOCX | `src/autooffice/docx/` | Validasi, orkestrasi stage, mutasi DOCX, output, manifest | Teks naskah, salinan aturan format |
+| Konten deck | `deck.yaml`, `transcripts.md`, `assets/`, `diagrams/` | Meta, slide, block, aset, transkrip | Token warna, layout preset, kode renderer |
+| Pipeline deck | `src/autooffice/deck/`, `src/autooffice/design/` | Compiler DeckIR, layout, copy checker, renderer, chart, transkrip | Teks naskah DOCX, aturan format Word |
+| Permukaan CLI | `src/autooffice/cli/` | Target, output, check, doctor, orkestrasi domain | Logika XML atau renderer |
 
 ID format dan struktur adalah nama direktori. Skema keduanya tertutup: kunci
 yang tidak dikenal ditolak dengan pesan error.
 
-## Data flow
+## Alur DOCX
 
 ```text
 document.md
@@ -29,100 +32,102 @@ document.md
   +-- pandoc               Markdown menjadi DOCX
   |
   +-- package DOCX di memori
-  |     +-- sections
-  |     +-- code
-  |     +-- captions
-  |     +-- normalize
-  |     +-- equations
-  |     +-- numbering
-  |     +-- blank_lines
-  |     +-- terms
-  |     +-- toc
-  |     +-- page_numbers
-  |     +-- lists
-  |     +-- Adeu hook
+  |     +-- sections, code, captions, normalize, equations, numbering
+  |     +-- blank_lines, terms, toc, page_numbers, lists
+  |     +-- Adeu hook (bookmark pNNNN dan manifest)
   |
   +-- save satu kali
   +-- office               Word memperbarui field dan menyimpan DOCX
   +-- pdf                  Word mengekspor PDF, Windows only
 ```
 
-Urutan stage ditegakkan oleh `pipeline.py`. Stage tidak boleh memanggil
-`load` atau `save` package target. Detail kontrak ada di
-[contracts/stage-api.md](contracts/stage-api.md).
+Urutan stage ditegakkan oleh `autooffice.docx.pipeline`. Stage tidak boleh
+memanggil `load` atau `save` package target. Kontrak API ada di
+[contracts/docx.md](../contracts/docx.md).
 
-Adeu adalah server MCP (Model Context Protocol) eksternal; hook `Adeu` di
-repo ini hanya menyiapkan bookmark `pNNNN` dan manifest untuk
-[integrasi Adeu](adeu-integration.md), bukan menjalankan server.
+## Alur deck
+
+```text
+deck.yaml + transcripts.md
+  |
+  +-- compile              schema, key, DeckIR, coverage plan
+  +-- design               theme, token, font, kontras
+  +-- layout               preset atau custom rows, overflow, grid 12 kolom
+  +-- copy checker         aturan prosa dan diagnosis
+  +-- render PPTX          native shape, table, chart, image, notes
+  +-- embed font           Plus Jakarta Sans lewat PowerPoint COM
+  +-- pdf                  ekspor PowerPoint COM, Windows only
+  +-- slides               sinkronisasi Google Slides
+```
+
+Target `pptx` dan `pdf` adalah jalur offline di Windows. Target `slides`
+memerlukan extra `google` dan kredensial OAuth; mode sync `pull`, `diff`, dan
+`apply` juga memerlukan state yang valid. Kontrak renderer dan Google ada di
+[contracts/README.md](../contracts/README.md).
 
 ## Invariant utama
 
-1. **Satu sumber konten.** Hanya `document.md` dan asetnya yang menjadi
-   sumber. DOCX dan PDF adalah artefak.
-2. **Satu load dan satu save.** `DocumentPackage` dimuat sekali setelah Pandoc
-   dan disimpan sekali sebelum `office`. Semua stage bekerja pada package di
-   memori.
-3. **Urutan kanonik.** Stage berjalan dengan urutan tetap dan guard keras.
-   Stage yang salah urutan menggagalkan pipeline.
+1. **Satu sumber konten.** Hanya `document.md` atau `deck.yaml` dan asetnya
+   yang menjadi sumber. DOCX, PPTX, PDF, dan Slides adalah artefak.
+2. **Satu load dan satu save DOCX.** `DocumentPackage` dimuat sekali setelah
+   Pandoc dan disimpan sekali sebelum `office`.
+3. **Urutan kanonik.** Stage DOCX berjalan dengan urutan tetap dan guard
+   keras. Stage yang salah urutan menggagalkan pipeline.
 4. **Part non-target byte-identik.** Stage hanya memutasi part yang
    dideklarasikan. Part lain tidak berubah.
-5. **Output di samping dokumen.** Output pengguna ditulis di direktori
-   `document.md`. Contoh repo memakai `examples/<name>/out/`. Tidak ada
-   `build/` atau `review/`.
+5. **Output di samping input.** Output pengguna ditulis di samping
+   `document.md` atau `deck.yaml`; contoh repo memakai `out/`.
 6. **Manifest deterministik.** Manifest Adeu tidak memuat timestamp dan
    diurutkan stabil. `text_sha256` dihitung dari teks final.
-7. **Data paket mandiri.** `src/docgen/paths.py` membaca data dari paket dan
-   tidak memiliki fallback ke direktori kerja.
+7. **Data paket mandiri.** `src/autooffice/docx/paths.py` membaca data dari
+   paket dan tidak memiliki fallback ke direktori kerja.
 
 ## Package DOCX
 
-`src/docgen/docx/` adalah satu-satunya pemilik ZIP dan XML Word:
+`src/autooffice/docx/package/` adalah satu-satunya pemilik ZIP dan XML Word:
 
 - `package.py`: model `DocumentPackage`, load, save, part, relationship.
 - `io.py`: baca dan tulis ZIP secara atomic.
 - `xml.py`: parse, serialisasi, c14n, hash, helper XML.
 - `names.py`: konstanta namespace dan style.
-- `styles.py`: style paragraf, karakter, dan tabel.
-- `sections.py`: section, margin, ukuran halaman, header/footer.
-- `heading_numbering.py`: penomoran heading DOCX, heading unnumbered, nama bookmark.
-- `captions.py`: caption tabel/gambar, numbering, layout gambar.
-- `tables.py`: tabel biasa dan tabel kode.
-- `layout.py`: normalisasi spacing, indentasi, perataan, bold.
-- `fields.py`: TOC, PAGEREF, SEQ, PAGE, NUMPAGES.
-- `bookmarks.py`: bookmark `pNNNN`.
+- `styles.py`, `sections.py`, `layout.py`, `captions.py`, `tables.py`: format
+  dan struktur halaman.
+- `heading_numbering.py`, `numbering.py`, `fields.py`, `bookmarks.py`: nomor,
+  field Word, dan bookmark.
 - `terms/`: glosarium dan transformasi istilah.
 
-Dokumen rinci ada di [docx/README.md](docx/README.md) dan
-[contracts/docx-api.md](contracts/docx-api.md).
+Dokumen rinci ada di [docx/README.md](docx/README.md).
 
 ## CLI dan entry point
 
-`pyproject.toml` mendaftarkan `docgen = "docgen.cli:main"`. Perintah yang
-tersedia:
+`pyproject.toml` mendaftarkan `autooffice = "autooffice.cli.main:main"`.
+Perintah yang tersedia:
 
 ```bash
-uv run --project <repo> docgen check <document.md>
-uv run --project <repo> docgen build <document.md> [opsi]
-uv run --project <repo> docgen doctor
-uv run --project <repo> docgen reconcile <document.md>
+uv run --project <repo> autooffice check <input>
+uv run --project <repo> autooffice build <input> --target <targets> [opsi]
+uv run --project <repo> autooffice doctor [opsi]
 ```
 
-Tidak ada perintah `new` atau `list`. Dokumen baru dibuat dengan menyalin
-contoh atau menulis front matter sendiri.
+Tidak ada perintah `new` atau `list`, dan tidak ada subperintah `reconcile`
+pada permukaan AutoOffice v1. Kontrak CLI ada di
+[contracts/cli.md](../contracts/cli.md).
 
 ## Platform
 
-| Platform | DOCX | PDF | Catatan |
-| --- | --- | --- | --- |
-| Windows | ya | ya dengan Word | Word memperbarui field dan mengekspor PDF. |
-| Debian/Linux | best-effort | tidak | Pandoc dan stage Python berjalan; field tidak difinalkan Word. |
+| Platform | DOCX | PDF DOCX | PPTX | PDF deck | Slides |
+| --- | --- | --- | --- | --- | --- |
+| Windows + Office desktop | ya | ya dengan Word | ya dengan PowerPoint | ya dengan PowerPoint | ya dengan Google OAuth |
+| Linux/macOS | best-effort | tidak | tidak (final butuh PowerPoint) | tidak | ya dengan Google OAuth |
 
-Aturan target dijelaskan di [pdf.md](pdf.md).
+`pptx` dan `pdf` dari deck memerlukan PowerPoint COM untuk embedding font dan
+ekspor. PDF dari Markdown memerlukan Word COM. Aturan lengkap ada di
+[pdf.md](pdf.md) dan [com.md](com.md).
 
 ## Batasan arsitektur
 
-- Tidak ada mode folder atau file bab terpisah.
+- Tidak ada mode folder atau file bab terpisah untuk DOCX.
 - Tidak ada filter Lua. Perilaku lama diport ke stage Python.
-- Tidak ada mesin PDF selain Microsoft Word.
-- Build hanya memakai pipeline Python; tidak ada jalur shell atau fallback lama.
-- TOC dan daftar memakai field native; Word perlu memperbarui field.
+- Tidak ada mesin PDF selain Microsoft Word atau PowerPoint.
+- Build memakai pipeline Python; tidak ada jalur shell atau fallback lama.
+- TOC dan daftar DOCX memakai field native; Word perlu memperbarui field.

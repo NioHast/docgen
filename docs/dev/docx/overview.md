@@ -1,9 +1,9 @@
 # Gambaran Lapisan DOCX
 
 Halaman ini menjelaskan posisi lapisan DOCX dan peta modulnya. Kontrak API
-lengkap ada di [contracts/docx-api.md](../contracts/docx-api.md).
+lengkap ada di [contracts/docx.md](../../contracts/docx.md).
 
-`src/docgen/docx/` adalah satu-satunya lapisan yang membaca dan menulis paket
+`src/autooffice/docx/package/` adalah satu-satunya lapisan yang membaca dan menulis paket
 DOCX. Stage tidak menyentuh ZIP secara langsung. Semua mutasi terjadi pada
 `DocumentPackage` di memori, lalu pipeline menyimpan satu kali.
 
@@ -41,7 +41,7 @@ section, header/footer, atau geometri halaman. Rincian ada di
 [numbering.md](numbering.md).
 
 Penomoran heading Markdown sebelum Pandoc bukan tanggung jawab lapisan DOCX;
-modulnya ada di `src/docgen/markdown/headings.py`.
+modulnya ada di `src/autooffice/docx/markdown/headings.py`.
 
 ## Referensi resmi
 

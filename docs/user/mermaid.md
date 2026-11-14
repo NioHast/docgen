@@ -44,7 +44,7 @@ mmdc --version
 biasanya `%APPDATA%\npm`; pastikan folder itu ada di `PATH`. Periksa dengan:
 
 ```bash
-uv run --project <repo> docgen doctor
+uv run --project <repo> autooffice doctor
 ```
 
 `doctor` menampilkan status `mmdc`. Bila `mmdc` tidak ada tetapi dokumen
@@ -54,7 +54,7 @@ Markdown setengah jadi yang ditulis.
 ## Saat build
 
 ```bash
-uv run --project <repo> docgen build document.md --target docx
+uv run --project <repo> autooffice build document.md --target docx
 ```
 
 Alur stage:
@@ -66,7 +66,7 @@ Alur stage:
 
 PNG sementara ditulis ke `.laporan-build/gambar/mermaid-<hash>.png` di
 samping `document.md`. Workspace dihapus setelah build kecuali memakai
-`--keep`.
+`--keep-intermediate`.
 
 ## Cache dan hash
 
@@ -78,8 +78,9 @@ samping `document.md`. Workspace dihapus setelah build kecuali memakai
 - Perubahan isi atau opsi menghasilkan hash baru dan PNG baru.
 - Blok yang sudah menjadi gambar tidak dianggap Mermaid pada proses berikutnya.
 
-Dengan `--keep`, isi `.laporan-build/` dapat diperiksa. Jangan menyalin PNG
-hasil render menjadi sumber; sumber tetap blok Mermaid di `document.md`.
+Dengan `--keep-intermediate`, isi `.laporan-build/` dapat diperiksa. Jangan
+menyalin PNG hasil render menjadi sumber; sumber tetap blok Mermaid di
+`document.md`.
 
 ## Batasan
 

@@ -2,7 +2,7 @@
 
 Halaman ini menjelaskan style inti yang dipakai pipeline dan asal
 `reference.docx`. Kontrak style ada di
-[contracts/docx-api.md](../contracts/docx-api.md).
+[contracts/docx.md](../../contracts/docx.md).
 
 Style inti yang dipakai pipeline:
 
@@ -16,7 +16,7 @@ Style inti yang dipakai pipeline:
   `CoverInstitution`, dan `CoverImage`.
 
 `style_reference` menghasilkan `reference.docx` turunan dari `format.yml`.
-Sumber `reference.docx` di `src/docgen/data/` tidak pernah ditimpa.
+Sumber `reference.docx` di `src/autooffice/docx/data/` tidak pernah ditimpa.
 
 ## Referensi resmi
 

@@ -2,7 +2,7 @@
 
 Halaman ini menjelaskan `DocumentPackage`, part, relationship, dan aturan
 global yang berlaku untuk semua modul DOCX. Kontrak lengkap ada di
-[contracts/docx-api.md](../contracts/docx-api.md).
+[contracts/docx.md](../../contracts/docx.md).
 
 ## Model package
 
@@ -26,7 +26,7 @@ global yang berlaku untuk semua modul DOCX. Kontrak lengkap ada di
 4. **Save atomic.** Output ditulis ke file sementara di direktori tujuan, lalu
    `os.replace`.
 5. **Tidak ada intermediate DOCX di direktori output.** DOCX antara hanya ada
-   di workspace dan dihapus kecuali `--keep`.
+   di workspace dan dihapus kecuali `--keep-intermediate`.
 
 ## Part yang lazim berubah
 
@@ -40,7 +40,7 @@ global yang berlaku untuk semua modul DOCX. Kontrak lengkap ada di
 | `[Content_Types].xml` | `page_numbers` | Content type part baru. |
 
 Part lain tidak boleh berubah. Matriks lengkap ada di
-[contracts/docx-api.md](../contracts/docx-api.md).
+[contracts/docx.md](../../contracts/docx.md).
 
 ## Idempotensi package
 

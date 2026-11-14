@@ -5,7 +5,7 @@ menulis laporan Markdown untuk ditinjau agent. Alat tidak mengubah DOCX,
 glosarium, atau naskah; keputusan tetap di tangan peninjau.
 
 Pemakaian:
-    python tools/dev/audit_terms.py --docx Laporan.docx \\
+    python -m tools.dev.audit_terms --docx Laporan.docx \\
         --glossary src/docgen/data/glossary/istilah.tsv \\
         --out .laporan/istilah-audit.md
 
@@ -23,7 +23,9 @@ import argparse
 import sys
 from pathlib import Path
 
-from audit_terms_model import (
+from docgen.docx import DocxError
+from docgen.docx.terms import load_glossary
+from tools.dev.audit_terms_model import (
     CATEGORY_ABBREVIATION,
     CATEGORY_GLOSSARY_ITALIC,
     CATEGORY_GLOSSARY_PLAIN,
@@ -40,7 +42,7 @@ from audit_terms_model import (
     Group,
     Occurrence,
 )
-from audit_terms_parser import (
+from tools.dev.audit_terms_parser import (
     DOCUMENT_PART,
     HEADER_FOOTER_RE,
     audit_docx,
@@ -48,8 +50,8 @@ from audit_terms_parser import (
     iter_audit_paragraphs,
     make_context,
 )
-from audit_terms_report import render_report
-from audit_terms_rules import (
+from tools.dev.audit_terms_report import render_report
+from tools.dev.audit_terms_rules import (
     CONTEXT_WORD_RE,
     ENGLISH_STOPWORDS,
     INDONESIAN_NOISE,
@@ -62,9 +64,6 @@ from audit_terms_rules import (
     looks_indonesian,
     normalize_key,
 )
-
-from docgen.docx import DocxError
-from docgen.docx.terms import load_glossary
 
 __all__ = [
     "CATEGORY_ABBREVIATION",

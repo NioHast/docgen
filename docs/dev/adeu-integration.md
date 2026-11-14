@@ -1,9 +1,10 @@
 # Integrasi Adeu
 
-Fitur Adeu berada di `src/docgen/adeu/`. Fitur ini menambahkan
-bookmark paragraf, menulis manifest, memetakan sumber Markdown, dan
-menyediakan perintah `reconcile`. Bookmark dan manifest dibuat sebagai hook di
-dalam pass package, bukan stage kanonik.
+Fitur Adeu berada di `src/autooffice/docx/adeu/`. Fitur ini menambahkan
+bookmark paragraf, menulis manifest, memetakan sumber Markdown, dan menyimpan
+modul rekonsiliasi internal. Bookmark dan manifest dibuat sebagai hook di
+dalam pass package, bukan stage kanonik. Permukaan CLI AutoOffice v1 tidak
+memiliki subperintah `reconcile`.
 
 ## Apa itu Adeu
 
@@ -20,23 +21,24 @@ sebagai **native Word Track Changes** tanpa merusak format. Adeu menyebut
 dirinya "Virtual DOM for Microsoft Word".
 
 Repo ini **bukan** server MCP Adeu dan tidak memanggil atau membungkus server
-tersebut. Yang ada di repo ini adalah lapisan integrasi di `src/docgen/adeu/`:
+tersebut. Yang ada di repo ini adalah lapisan integrasi di `src/autooffice/docx/adeu/`:
 
-| Aspek | Adeu (eksternal) | `src/docgen/adeu/` (repo ini) |
+| Aspek | Adeu (eksternal) | `src/autooffice/docx/adeu/` (repo ini) |
 | --- | --- | --- |
-| Bentuk | MCP server (Python/Node) dan SDK; proyek terpisah. | Kode integrasi Python di dalam pipeline `docgen`; bukan server MCP. |
-| Tugas | Membaca DOCX menjadi Markdown/CriticMarkup, memvalidasi edit, dan menulisnya sebagai native Word Track Changes. | Menambahkan bookmark `pNNNN`, menulis manifest deterministik `.laporan/manifest.json`, memetakan paragraf ke sumber Markdown, dan menyediakan `docgen reconcile`. |
-| Cara pakai | Dipasang dan dijalankan sendiri oleh pengguna atau agent. | Dipanggil lewat `docgen build` dan `docgen reconcile`; tidak memanggil server Adeu. |
+| Bentuk | MCP server (Python/Node) dan SDK; proyek terpisah. | Kode integrasi Python di dalam pipeline `autooffice`; bukan server MCP. |
+| Tugas | Membaca DOCX menjadi Markdown/CriticMarkup, memvalidasi edit, dan menulisnya sebagai native Word Track Changes. | Menambahkan bookmark `pNNNN`, menulis manifest deterministik `.laporan/manifest.json`, memetakan paragraf ke sumber Markdown, dan menyediakan modul rekonsiliasi internal. |
+| Cara pakai | Dipasang dan dijalankan sendiri oleh pengguna atau agent. | Dipanggil lewat `autooffice build`; modul rekonsiliasi hanya dipakai pengembang dan tidak diekspos sebagai perintah publik. |
 
 Alur kerja yang didukung repo ini:
 
-1. `docgen build` menghasilkan DOCX dan manifest. Setiap paragraf body mendapat
+1. `autooffice build` menghasilkan DOCX dan manifest. Setiap paragraf body mendapat
    bookmark `pNNNN` yang menghubungkan DOCX, manifest, dan Markdown.
 2. Adeu atau agent mengedit DOCX. Adeu dapat menulis edit sebagai native Word
    Track Changes.
-3. `docgen reconcile` membandingkan DOCX hasil edit dengan manifest dan sumber
-   Markdown, lalu menulis laporan (default `.laporan/reconcile.md`). Perubahan
-   yang disetujui tetap diterapkan manual ke `document.md`, lalu build ulang.
+3. Modul rekonsiliasi internal membandingkan DOCX hasil edit dengan manifest
+   dan sumber Markdown, lalu menulis laporan (default `.laporan/reconcile.md`).
+   Perubahan yang disetujui tetap diterapkan manual ke `document.md`, lalu
+   build ulang.
 
 Tautan resmi:
 
@@ -49,7 +51,7 @@ Tautan resmi:
 > **Peringatan:** bila yang Anda cari adalah MCP server Adeu, itu proyek
 > terpisah di tautan di atas. Repo ini tidak memanggil, membungkus, atau
 > mendistribusikan server tersebut; repo ini hanya menyediakan bookmark,
-> manifest, source scan, dan `reconcile` untuk alur edit DOCX.
+> manifest, source scan, dan modul rekonsiliasi internal untuk alur edit DOCX.
 
 ## Daftar isi
 
@@ -58,8 +60,8 @@ Tautan resmi:
 - [Manifest](#manifest)
 - [Paragraf terlindungi](#paragraf-terlindungi)
 - [Source scan](#source-scan)
-- [Flag build](#flag-build)
-- [Reconcile](#reconcile)
+- [Manifest dan bookmark](#manifest-dan-bookmark)
+- [Modul rekonsiliasi internal](#modul-rekonsiliasi-internal)
 - [Batasan](#batasan)
 
 ## Bookmark `pNNNN`
@@ -157,7 +159,7 @@ rekonsiliasi:
 | `cover_style` | Paragraf sampul. |
 
 Perubahan pada paragraf terlindungi dilaporkan sebagai pelanggaran dan
-menghasilkan exit code 4 pada `reconcile`.
+menghasilkan exit code 4 pada modul rekonsiliasi internal.
 
 ## Source scan
 
@@ -172,35 +174,30 @@ Source scan memetakan paragraf manifest ke `document.md`:
 Bila pasangan tidak unik, field source dibiarkan `null`. Source scan tidak
 mengubah Markdown.
 
-## Flag build
+## Manifest dan bookmark
 
-| Flag | Bookmark | Manifest | Source scan |
-| --- | --- | --- | --- |
-| default | ya | ya | ya |
-| `--no-manifest` | ya | tidak | tidak |
-| `--no-adeu` | tidak | tidak | tidak |
+AutoOffice v1 selalu menulis bookmark dan manifest untuk setiap build DOCX.
+Tidak ada flag `--no-manifest` atau `--no-adeu` pada CLI. Source scan mengikuti
+manifest yang aktif; tidak ada mode yang mematikan salah satunya.
 
-`--no-adeu` menyiratkan `--no-manifest`. `--no-manifest` tidak mematikan
-bookmark.
+## Modul rekonsiliasi internal
 
-## Reconcile
-
-```bash
-uv run --project <repo> docgen reconcile document.md
-```
+Modul `autooffice.docx.adeu.reconcile` tersedia untuk pengembang dan tes
+parity. Modul ini bukan subperintah CLI AutoOffice v1 dan tidak dijanjikan
+sebagai permukaan publik.
 
 Default:
 
 | Opsi | Default |
 | --- | --- |
-| `--docx` | `docgen.paths.output_directory()`: `examples/<nama>/document.md` -> `<folder>/out/<report_name>.docx`; dokumen lain -> `<folder-dokumen>/<report_name>.docx` |
+| `--docx` | `autooffice.docx.paths.output_directory()`: `examples/<nama>/document.md` -> `<folder>/out/<report_name>.docx`; dokumen lain -> `<folder-dokumen>/<report_name>.docx` |
 | `--manifest` | `.laporan/manifest.json` di samping dokumen |
 | `--out` | `.laporan/reconcile.md` di samping dokumen |
 
-Path `--docx` dihitung oleh `docgen.paths.output_directory()`. Dokumen di
+Path `--docx` dihitung oleh `autooffice.docx.paths.output_directory()`. Dokumen di
 `examples/<nama>/document.md` memakai `<folder>/out/`; dokumen lain memakai
 folder dokumen. Nilai `--docx` eksplisit selalu menang. Bila DOCX tidak ada,
-`reconcile` gagal dengan `ReconcileError` berkode `RECONCILE-INPUT` yang
+modul rekonsiliasi gagal dengan `ReconcileError` berkode `RECONCILE-INPUT` yang
 menyebut path yang diharapkan; tidak ada fallback ke lokasi lain.
 
 Alur:
@@ -235,6 +232,6 @@ ulang. Jangan menyunting DOCX sebagai sumber.
 - Teks yang tidak terlihat atau berada di field dapat dilaporkan sebagai
   paragraf tanpa ID.
 - Perubahan struktur besar dapat membuat pencocokan sumber ambigu.
-- `reconcile` tidak menulis ulang Markdown secara otomatis.
+- Modul rekonsiliasi tidak menulis ulang Markdown secara otomatis.
 - Word dapat menulis ulang package saat finalisasi, sehingga perbandingan
   harus memakai DOCX hasil edit yang masih mempertahankan bookmark.

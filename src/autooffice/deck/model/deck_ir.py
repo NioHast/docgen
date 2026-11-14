@@ -7,6 +7,9 @@ from typing import Literal
 
 KeyKind = Literal["text", "data", "notes", "source", "media_text"]
 
+# Disalin dari layout custom agar model tidak mengimpor layout.
+_CUSTOM_LAYOUT = "custom"
+
 
 @dataclass(frozen=True, slots=True)
 class KeyBinding:
@@ -50,7 +53,7 @@ class BlockIR:
 
 @dataclass(frozen=True, slots=True)
 class SlideIR:
-    """Satu slide tervalidasi beserta block, notes, dan sumbernya."""
+    """Satu slide tervalidasi beserta block, rows custom, notes, dan sumbernya."""
 
     slide_id: str
     layout: str
@@ -58,8 +61,10 @@ class SlideIR:
     blocks: tuple[BlockIR, ...]
     notes: str | None
     source: Mapping[str, str] | None
+    rows: tuple[tuple[str, ...], ...] = ()
 
     def __post_init__(self) -> None:
+        self._validate_rows()
         if self.source is None:
             return
         source = dict(self.source)
@@ -71,6 +76,37 @@ class SlideIR:
                 f"SlideIR.source hanya menerima 'text' dan 'url', bukan {sorted(unexpected)}."
             )
         object.__setattr__(self, "source", MappingProxyType(source))
+
+    def _validate_rows(self) -> None:
+        """Pastikan rows merujuk block slide tanpa duplikat."""
+        if not self.rows:
+            return
+        block_ids = {block.block_id for block in self.blocks}
+        seen: set[str] = set()
+        for row_index, row in enumerate(self.rows):
+            if not row:
+                raise ValueError(
+                    f"SlideIR.rows slide '{self.slide_id}' memuat row {row_index} tanpa block ID."
+                )
+            for block_id in row:
+                if block_id not in block_ids:
+                    raise ValueError(
+                        f"SlideIR.rows slide '{self.slide_id}' memuat block ID '{block_id}' "
+                        "yang tidak ada di blocks."
+                    )
+                if block_id in seen:
+                    raise ValueError(
+                        f"SlideIR.rows slide '{self.slide_id}' menduplikasi block ID '{block_id}'."
+                    )
+                seen.add(block_id)
+        if self.layout != _CUSTOM_LAYOUT:
+            return
+        missing = [block.block_id for block in self.blocks if block.block_id not in seen]
+        if missing:
+            raise ValueError(
+                f"SlideIR.rows slide '{self.slide_id}' layout custom harus memuat setiap block "
+                f"tepat satu kali; hilang: {', '.join(missing)}."
+            )
 
 
 @dataclass(frozen=True, slots=True)

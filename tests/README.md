@@ -34,7 +34,7 @@ repo dengan `uv run --project . pytest`.
 
 Tes alat pengembang berada di `tests/test_check_docs.py`,
 `tests/test_check_prose.py`, dan `tests/test_prose_docx.py`; tes itu mengimpor
-modul dari `tools/dev/` melalui `conftest.py`.
+modul dari paket `tools.dev`.
 
 ## Kapan memakai Word
 

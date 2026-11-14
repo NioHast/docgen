@@ -3,8 +3,9 @@
 import json
 from pathlib import Path
 
-import check_coverage
 from coverage import CoverageData
+
+from tools.dev import check_coverage
 
 SOURCE = "src/docgen"
 UNIT_A = "tests/unit/test_a.py::test_a|run"

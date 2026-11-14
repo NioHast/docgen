@@ -109,19 +109,42 @@ slides:
           - "Key datar dan stabil."
 ```
 
+## Catatan implementasi F1-MODEL
+
+- Implementasi ada di `src/autooffice/deck/model/schema.py` dan `loader.py`.
+  Loader memakai `ruamel.yaml` safe loader dan menolak key mapping duplikat,
+  tag kustom, serta lebih dari satu dokumen YAML.
+- Field geometri (bagian 7.7) dan field style (`font_size`, `color`, `margin`,
+  `padding`, dan sejenisnya) ditolak di semua objek. Ini penegasan invariant
+  yang sudah dibekukan, bukan field baru.
+- Path aset harus relatif, memakai `/`, tanpa segmen kosong, `.`, `..`,
+  backslash, drive letter, UNC, atau URL. `source.url` tetap hanya http/https.
+- `meta.language` dinormalisasi ke `id` atau `en`; nilai lain ditolak.
+- `notes` dan `code` memakai mode preserve-newline; field inline memakai
+  normalisasi inline. `code` tidak diparse sebagai Markdown.
+- Batas chart: `bar`/`line` 1-4 seri; `donut` tepat 1 seri dengan 2-4
+  kategori. `orientation` hanya untuk `bar`.
+- `span` custom wajib 1-12 dan total per row maksimal 12; `span` preset
+  ditolak. Contoh plan 4.13 yang menjumlahkan lebih dari 12 dalam satu row
+  bersifat ilustratif; aturan 7.2 dan layout-spec menang.
+- `divider` dan `spacer` hanya untuk custom. `role` hanya untuk block `text`;
+  kecocokan dengan slot preset ditegakkan lane layout.
+- Keberadaan file aset diperiksa saat check/build; model memvalidasi bentuk
+  path dan symlink escape.
+
 ## Acceptance
 
-Catatan F0: test bentuk ada di `tests/contract/test_contract_shapes.py` dan `tests/contract/test_f0_scaffold.py`. Test perilaku yang disebut di tabel ini dijadwalkan di lane implementasi terkait.
+Catatan F1-MODEL: test bentuk tetap di `tests/contract/**`; test perilaku ada di `tests/deck/model/**`.
 
 | Aturan | Test kontrak |
 | --- | --- |
-| `schema` salah atau field top-level asing ditolak. | `tests/contract/test_deck_schema.py` (planned) |
-| ID slide atau block duplikat ditolak dengan kedua ID. | `tests/contract/test_deck_schema.py` (planned) |
-| `blocks` dan `rows` bersamaan ditolak. | `tests/contract/test_deck_schema.py` (planned) |
-| `span` pada preset atau di luar 1 sampai 12 ditolak. | `tests/contract/test_deck_schema.py` (planned) |
-| Field geometri dan style inline ditolak. | `tests/contract/test_deck_schema.py` (planned) |
-| Path absolut, `..`, dan URL remote ditolak. | `tests/contract/test_deck_schema.py` (planned) |
-| Inline Markdown di luar daftar ditolak. | `tests/contract/test_deck_schema.py` (planned) |
-| Contoh minimal lolos load dan compile. | `tests/contract/test_deck_schema.py` (planned) |
+| `schema` salah atau field top-level asing ditolak. | `tests/deck/model/test_loader.py`, `test_schema.py` |
+| ID slide atau block duplikat ditolak dengan kedua ID. | `tests/deck/model/test_schema.py` |
+| `blocks` dan `rows` bersamaan ditolak. | `tests/deck/model/test_schema.py` |
+| `span` pada preset atau di luar 1 sampai 12 ditolak. | `tests/deck/model/test_schema.py` |
+| Field geometri dan style inline ditolak. | `tests/deck/model/test_schema.py` |
+| Path absolut, `..`, dan URL remote ditolak. | `tests/deck/model/test_schema.py` |
+| Inline Markdown di luar daftar ditolak. | `tests/deck/model/test_markdown.py` |
+| Contoh minimal lolos load dan compile. | `tests/deck/model/test_loader.py`, `test_compiler.py` |
 
 [Rencana AutoOffice](../../AUTO_OFFICE_PLAN.md)

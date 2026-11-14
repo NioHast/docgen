@@ -1,0 +1,23 @@
+# Mutation testing untuk lima modul pure-logic kritis AutoOffice.
+# Jalankan dari akar repo (runtime bisa puluhan menit untuk seluruh scope):
+#   uv run --no-sync cosmic-ray init tools/mutation/cosmic-ray.toml \
+#       .autooffice-build/mutation/critical.sqlite
+#   uv run --no-sync cosmic-ray exec tools/mutation/cosmic-ray.toml \
+#       .autooffice-build/mutation/critical.sqlite
+#
+# Untuk iterasi cepat, pakai tools/mutation/cosmic-ray-keys.toml atau salin
+# berkas ini dan sempitkan module-path/test-command ke satu modul.
+[cosmic-ray]
+module-path = [
+    "src/autooffice/deck/model/keys.py",
+    "src/autooffice/deck/model/bindings.py",
+    "src/autooffice/deck/layout/spec.py",
+    "src/autooffice/deck/copy/rules/title_case.py",
+    "src/autooffice/deck/charts/spec.py",
+]
+timeout = 120.0
+excluded-modules = []
+test-command = "uv run --no-sync python -m pytest -q tests/deck/model tests/deck/layout tests/deck/charts tests/deck/copy"
+
+[cosmic-ray.distributor]
+name = "local"

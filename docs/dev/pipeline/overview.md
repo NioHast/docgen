@@ -2,7 +2,7 @@
 
 Halaman ini menjelaskan model eksekusi `Pipeline.run` dan invariant yang
 berlaku lintas stage. Kontrak lengkap ada di
-[contracts/stage-api.md](../contracts/stage-api.md). Urutan stage ada di
+[contracts/docx.md](../../contracts/docx.md). Urutan stage ada di
 [stages.md](stages.md).
 
 `Pipeline.run(document_path, options)` memuat `document.md`, menjalankan stage
@@ -26,7 +26,7 @@ memuat dan menyimpan `reference.docx` karena objeknya berbeda.
 
 Adeu bukan stage kanonik, tetapi hook di dalam pass package:
 
-1. Setelah `lists` dan sebelum save, `adeu/paragraph_ids.py`
+1. Setelah `lists` dan sebelum save, `autooffice.docx.adeu.paragraph_ids`
    menambahkan bookmark `pNNNN`.
 2. Manifest disiapkan di memori dengan `text_sha256`, `kind`, `heading_path`,
    dan status `protected`.
@@ -47,12 +47,12 @@ Definisi:
 - stage yang tidak memutasi package tidak mengubah artefak.
 
 Stage yang gagal idempotensi adalah bug. Matriks lengkap ada di
-[contracts/stage-api.md](../contracts/stage-api.md).
+[contracts/docx.md](../../contracts/docx.md).
 
 ## Logging
 
-Logger pipeline adalah `docgen.pipeline`; logger stage memakai
-`docgen.stage.<name>`. Stage tidak memakai `print`. CLI memiliki stdout dan
+Logger pipeline dan logger stage memakai namespace internal pipeline.
+Nama logger masih historis sampai F3 dan bukan API publik. Stage tidak memakai `print`. CLI memiliki stdout dan
 stderr. Log tidak memuat seluruh isi dokumen atau data pribadi.
 
 ## Referensi resmi

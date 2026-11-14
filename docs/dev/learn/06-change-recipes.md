@@ -20,7 +20,7 @@ Setelah halaman ini, pembaca bisa:
 
 - [00 - Mulai di Sini](00-start-here.md) sampai
   [05 - Tes dan Debugging](05-testing-and-debugging.md).
-- Bisa menjalankan `uv run docgen` dan `uv run --extra dev pytest`.
+- Bisa menjalankan `uv run autooffice` dan `uv run --extra dev pytest`.
 - Memahami bahwa `document.md` adalah satu sumber dan DOCX adalah artefak.
 
 ## Daftar isi
@@ -51,7 +51,7 @@ Untuk setiap perubahan:
 5. tambahkan atau perbarui tes di tingkat yang tepat;
 6. jalankan tes targeted;
 7. perbarui dokumentasi jika perilaku terlihat pengguna atau kontributor;
-8. jalankan `uv run python tools/dev/check_docs.py` bila dokumentasi berubah;
+8. jalankan `uv run python tools/quality/check_docs.py` bila dokumentasi berubah;
 9. periksa `git diff` sebelum menyerahkan perubahan.
 
 Jangan memulai dari DOCX hasil build. Mulai dari sumber dan kontrak.
@@ -88,13 +88,13 @@ Langkah:
 3. jalankan check:
 
 ```bash
-uv run docgen check examples/assignment-single/document.md
+uv run autooffice check examples/assignment-single/document.md
 ```
 
 4. build DOCX:
 
 ```bash
-uv run docgen build examples/assignment-single/document.md --target docx
+uv run autooffice build examples/assignment-single/document.md --target docx
 ```
 
 Cara memeriksa:
@@ -106,7 +106,7 @@ Cara memeriksa:
 - tidak ada perubahan pada `format.yml` atau `structure.yml`.
 
 Jika perubahan menambah bab, ubah juga `body` di
-`src/docgen/data/structures/<id>/structure.yml`. Jangan hanya menambah
+`src/autooffice/docx/data/structures/<id>/structure.yml`. Jangan hanya menambah
 Heading 1 di `document.md`; `check` akan menolak dengan `CFG-BODY-ORDER`.
 
 ## Resep 2: mengubah format atau struktur
@@ -116,28 +116,28 @@ penomoran.
 
 Berkas yang disentuh:
 
-- `src/docgen/data/formats/<id>/format.yml` untuk nilai visual;
-- `src/docgen/data/structures/<id>/structure.yml` untuk urutan, TOC, daftar,
+- `src/autooffice/docx/data/formats/<id>/format.yml` untuk nilai visual;
+- `src/autooffice/docx/data/structures/<id>/structure.yml` untuk urutan, TOC, daftar,
   dan penomoran;
 - aset format seperti `reference.docx`, `logo.jpg`, atau `citation.csl` bila
   path berubah.
 
 Langkah:
 
-1. baca kontrak [config.md](../contracts/config.md);
+1. baca [formats.md](../formats.md) dan [kontrak DOCX](../../contracts/docx.md);
 2. ubah hanya key yang sudah ada di skema;
 3. jalankan check pada ketiga contoh:
 
 ```bash
-uv run docgen check examples/assignment-single/document.md
-uv run docgen check examples/proposal-single/document.md
-uv run docgen check examples/thesis-single/document.md
+uv run autooffice check examples/assignment-single/document.md
+uv run autooffice check examples/proposal-single/document.md
+uv run autooffice check examples/thesis-single/document.md
 ```
 
 4. build satu contoh untuk melihat hasil:
 
 ```bash
-uv run docgen build examples/thesis-single/document.md --target docx
+uv run autooffice build examples/thesis-single/document.md --target docx
 ```
 
 Cara memeriksa:
@@ -160,15 +160,15 @@ Langkah:
 
 1. tentukan modul pemilik. Untuk helper kanonis, lihat
    [04 - Model DOCX](04-docx-model.md);
-2. baca kontrak [docx-api.md](../contracts/docx-api.md) dan
-   [stage-api.md](../contracts/stage-api.md);
+2. baca [kontrak DOCX](../../contracts/docx.md) dan
+   [urutan stage](../pipeline/stages.md);
 3. ubah satu modul, bukan menyalin helper ke stage;
 4. tambahkan tes unit di file yang sesuai;
 5. jalankan tes targeted:
 
 ```bash
-uv run --extra dev pytest tests/unit/test_docx_paragraphs.py -q
-uv run --extra dev pytest tests/unit/test_pipeline.py -q
+uv run --extra dev pytest tests/docx/test_docx_paragraphs.py -q
+uv run --extra dev pytest tests/docx/test_pipeline.py -q
 ```
 
 6. jika output DOCX berubah, jalankan tes integration terkait:
@@ -203,14 +203,14 @@ Langkah:
 2. untuk TOC, gunakan `insert_toc` dan opsi `before`/`keep_existing` yang
    sudah ada;
 3. untuk `SEQ`, gunakan `insert_seq` atau helper caption;
-4. tambahkan tes di `tests/unit/test_toc.py`, `test_page_numbers.py`, atau
+4. tambahkan tes di `tests/docx/test_toc.py`, `test_page_numbers.py`, atau
    `test_stages_captions.py` sesuai pemilik;
 5. jika menyentuh Word, tambahkan tes dengan marker `word` dan `windows`.
 
 Contoh pemakaian:
 
 ```python
-from docgen.docx.fields import FieldPosition, insert_field
+from autooffice.docx.package.fields import FieldPosition, insert_field
 
 field = insert_field(
     ["PAGE"],
@@ -236,10 +236,10 @@ Contoh perubahan: menambah istilah, mengubah marker, atau memperbaiki review.
 
 Berkas yang disentuh:
 
-- `src/docgen/data/glossary/istilah.tsv` untuk glosarium paket;
+- `src/autooffice/docx/data/glossary/istilah.tsv` untuk glosarium paket;
 - `istilah.tsv` di samping `document.md` untuk override pengguna;
-- `src/docgen/docx/terms/` untuk logika;
-- `src/docgen/stages/terms.py` untuk stage;
+- `src/autooffice/docx/terms/` untuk logika;
+- `src/autooffice/docx/stages/terms.py` untuk stage;
 - `document.md` untuk marker `{{?…?}}`.
 
 Langkah:
@@ -250,14 +250,14 @@ Langkah:
 4. jalankan build dengan `--terms`:
 
 ```bash
-uv run docgen build examples/thesis-single/document.md --target docx --terms
+uv run autooffice build examples/thesis-single/document.md --target docx --terms
 ```
 
 5. periksa `.laporan/istilah-baru.txt`;
 6. audit DOCX bila perlu:
 
 ```bash
-uv run python tools/dev/audit_terms.py --docx examples/thesis-single/out/Tugas.docx --out .laporan/istilah-audit.md
+uv run python -m tools.dev.audit_terms --docx examples/thesis-single/out/Tugas.docx --out .laporan/istilah-audit.md
 ```
 
 Cara memeriksa:
@@ -276,13 +276,13 @@ file dan tidak ada verifikasi.
 Langkah:
 
 1. tentukan halaman pemilik. Materi belajar ada di `docs/dev/learn/`, kontrak
-   di `docs/dev/contracts/`, dan referensi eksternal di
+   di `docs/contracts/`, dan referensi eksternal di
    `docs/dev/references.md`;
 2. gunakan tautan relatif yang menunjuk berkas yang ada;
 3. untuk teknologi, sebut label registry, bukan URL baru;
 
 ```bash
-uv run python tools/dev/check_docs.py
+uv run python tools/quality/check_docs.py
 ```
 
 4. jika menambah halaman lebih dari 150 baris, tambahkan daftar isi dengan
@@ -303,16 +303,11 @@ Adeu adalah server MCP (Model Context Protocol) eksternal yang menghubungkan
 DOCX dengan LLM. Repo ini tidak mengimplementasikan server MCP; repo ini
 menghasilkan bookmark `pNNNN` dan
 manifest `.laporan/manifest.json` saat build. Setelah DOCX diedit lewat Adeu
-atau agent, jalankan:
-
-```bash
-uv run docgen reconcile document.md
-```
-
-`docgen reconcile` membandingkan DOCX hasil edit dengan manifest, menulis
-laporan `.laporan/reconcile.md`, dan tidak mengubah DOCX atau `document.md`.
-Setujui perubahan di laporan, terapkan manual ke `document.md`, lalu build
-ulang. Alur lengkap ada di [Integrasi Adeu](../adeu-integration.md). Label
+atau agent, modul rekonsiliasi internal `autooffice.docx.adeu.reconcile` dapat
+membandingkan DOCX dengan manifest dan menulis laporan `.laporan/reconcile.md`.
+Modul ini bukan subperintah CLI AutoOffice v1 dan tidak mengubah DOCX atau
+`document.md`. Setujui perubahan di laporan, terapkan manual ke `document.md`,
+lalu build ulang. Alur lengkap ada di [Integrasi Adeu](../adeu-integration.md). Label
 registry resminya `Adeu GitHub`, `Adeu PyPI`, `Adeu MCP server npm`,
 `Adeu MCP tools`, dan `Adeu`; URL resminya ada di
 [registry referensi](../references.md).
@@ -331,7 +326,7 @@ registry resminya `Adeu GitHub`, `Adeu PyPI`, `Adeu MCP server npm`,
 | Lebar konten error | `docx/page.py` (`content_width`) |
 | Field rusak | `docx/fields.py` |
 | Istilah tidak miring | `docx/terms/`, `stages/terms.py`, `istilah.tsv` |
-| Manifest atau reconcile gagal | `adeu/`, `paths.output_directory` |
+| Manifest atau rekonsiliasi internal gagal | `autooffice.docx.adeu`, `autooffice.docx.paths.output_directory` |
 
 ## Checklist sebelum selesai
 
@@ -342,7 +337,7 @@ registry resminya `Adeu GitHub`, `Adeu PyPI`, `Adeu MCP server npm`,
 - [ ] Tes integration terkait lulus atau dijelaskan alasannya.
 - [ ] Golden tidak diubah tanpa alasan dan pembaruan invariant.
 - [ ] Dokumentasi dan tautan diperbarui.
-- [ ] `uv run python tools/dev/check_docs.py` menghasilkan `Broken: 0`.
+- [ ] `uv run python tools/quality/check_docs.py` menghasilkan `Broken: 0`.
 - [ ] Tidak ada em dash atau en dash.
 - [ ] `git diff` diperiksa dan tidak memuat artefak build.
 
@@ -354,8 +349,8 @@ Salin `examples/assignment-single` ke direktori sementara, ubah
 `report_name` menjadi `"Latihan"`, lalu jalankan:
 
 ```bash
-uv run docgen check <path-salinan>/document.md
-uv run docgen build <path-salinan>/document.md --target docx
+uv run autooffice check <path-salinan>/document.md
+uv run autooffice build <path-salinan>/document.md --target docx
 ```
 
 Cara memeriksa: `check` lulus, DOCX muncul sebagai `out/Latihan.docx`, dan
@@ -370,7 +365,7 @@ Pemisah kolom adalah tab asli, bukan teks `\t`. Tambahkan marker
 `{{?pipeline?}}` di body, lalu jalankan:
 
 ```bash
-uv run docgen build <path-salinan>/document.md --target docx --terms
+uv run autooffice build <path-salinan>/document.md --target docx --terms
 ```
 
 Cara memeriksa: build berhasil, `.laporan/istilah-baru.txt` memuat
@@ -382,7 +377,7 @@ atau verifikasi gagal, baca pesan `TERMS-VERIFY`.
 Jalankan:
 
 ```bash
-uv run python tools/dev/check_docs.py
+uv run python tools/quality/check_docs.py
 ```
 
 Cara memeriksa: output memuat `Broken: 0`. Jika ada tautan rusak, perbaiki
@@ -400,9 +395,9 @@ perubahan kontrak.
 | --- | --- |
 | Kontribusi dan checklist | [contributing.md](../contributing.md) |
 | Arsitektur | [architecture.md](../architecture.md) |
-| Kontrak konfigurasi | [contracts/config.md](../contracts/config.md) |
-| Kontrak DOCX | [contracts/docx-api.md](../contracts/docx-api.md) |
-| Kontrak stage | [contracts/stage-api.md](../contracts/stage-api.md) |
+| Format dan struktur | [formats.md](../formats.md) |
+| Kontrak DOCX | [contracts/docx.md](../../contracts/docx.md) |
+| Kontrak CLI | [contracts/cli.md](../../contracts/cli.md) |
 | Testing | [testing.md](../testing.md) |
 | Format dan struktur | [formats.md](../formats.md) |
 | Istilah dan glosarium | [docx/terms.md](../docx/terms.md) |

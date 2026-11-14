@@ -1,1 +1,90 @@
-"""Copy checker dan aturan editorial AutoOffice; implementasi diisi pada F1."""
+"""Copy checker, rule deterministik, dan konfigurasi ``copy.yaml`` AutoOffice v1."""
+
+from .checker import check_copy, has_errors
+from .config import (
+    COPY_SCHEMA_VERSION,
+    DEFAULT_COPY_CONFIG,
+    DEFAULT_MAX_WORDS,
+    DEFAULT_RULE_SEVERITIES,
+    DEFAULT_RULES,
+    DEFAULT_SEVERITIES,
+    RULE_NAMES,
+    AllowEntry,
+    CopyConfig,
+    CopyConfigError,
+    CopyTargets,
+    Language,
+    RuleConfig,
+    Severity,
+    SeveritySetting,
+    load_copy_config,
+    loads_copy_config,
+    normalize_language,
+    validate_allowlist,
+)
+from .diagnostics import Diagnostic, RuleViolation
+from .rules.banned_phrases import DEFAULT_BANNED_PHRASES, check_banned_phrases
+from .rules.dash import check_dash
+from .rules.patterns import (
+    ONE_LINE_CLOSER_MAX_WORDS,
+    PAIRED_CLAUSE_MAX_WORDS,
+    CloserGroup,
+    check_contrast_pattern,
+    check_forced_triad,
+    check_negative_parallelism,
+    check_paired_clause_label,
+    is_one_line_closer,
+    paired_clause_fragments,
+    parse_closer_key,
+)
+from .rules.sentence_length import check_sentence_length
+from .rules.title_case import (
+    LOWERCASE_WORDS,
+    LOWERCASE_WORDS_EN,
+    LOWERCASE_WORDS_ID,
+    check_title_case,
+)
+
+__all__ = [
+    "COPY_SCHEMA_VERSION",
+    "DEFAULT_BANNED_PHRASES",
+    "DEFAULT_COPY_CONFIG",
+    "DEFAULT_MAX_WORDS",
+    "DEFAULT_RULES",
+    "DEFAULT_RULE_SEVERITIES",
+    "DEFAULT_SEVERITIES",
+    "LOWERCASE_WORDS",
+    "LOWERCASE_WORDS_EN",
+    "LOWERCASE_WORDS_ID",
+    "ONE_LINE_CLOSER_MAX_WORDS",
+    "PAIRED_CLAUSE_MAX_WORDS",
+    "RULE_NAMES",
+    "AllowEntry",
+    "CloserGroup",
+    "CopyConfig",
+    "CopyConfigError",
+    "CopyTargets",
+    "Diagnostic",
+    "Language",
+    "RuleConfig",
+    "RuleViolation",
+    "Severity",
+    "SeveritySetting",
+    "check_banned_phrases",
+    "check_contrast_pattern",
+    "check_copy",
+    "check_dash",
+    "check_forced_triad",
+    "check_negative_parallelism",
+    "check_paired_clause_label",
+    "check_sentence_length",
+    "check_title_case",
+    "has_errors",
+    "is_one_line_closer",
+    "load_copy_config",
+    "loads_copy_config",
+    "normalize_language",
+    "paired_clause_fragments",
+    "parse_closer_key",
+    "validate_allowlist",
+]

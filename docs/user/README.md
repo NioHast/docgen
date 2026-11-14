@@ -1,14 +1,16 @@
 # Panduan Pengguna dan Penulis
 
-Folder ini berisi panduan untuk pengguna dan penulis `document.md`: memilih
-struktur, menulis naskah, memeriksa, dan membangun DOCX/PDF. Dokumentasi ini
-ditujukan untuk manusia.
+Folder ini berisi panduan untuk pengguna dan penulis `document.md` serta
+`deck.yaml`: memilih struktur atau layout, menulis naskah, memeriksa, dan
+membangun DOCX/PDF atau PPTX/Slides. Dokumentasi ini ditujukan untuk manusia.
 
 ## Daftar panduan
 
 | Dokumen | Isi |
 | --- | --- |
-| [quickstart.md](quickstart.md) | Langkah awal memilih struktur, check, build, dan output. |
+| [quickstart.md](quickstart.md) | Langkah awal DOCX dan deck: struktur atau layout, check, build, dan output. |
+| [cli.md](cli.md) | Perintah `autooffice`, target, output, flag, dan kode keluar. |
+| [deck-authoring.md](deck-authoring.md) | Authoring `deck.yaml`: meta, layout, block, aset, transkrip, copy, dan build. |
 | [document-format.md](document-format.md) | Front matter, heading, caption, gambar, tabel, kode, persamaan, dan sitasi. |
 | [single-file.md](single-file.md) | Alur satu berkas `document.md` dan asetnya. |
 | [mermaid.md](mermaid.md) | Diagram Mermaid, caption wajib, dan `mmdc`. |

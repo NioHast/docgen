@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-import check_tests
+from tools.dev import check_tests
 
 
 def write(root: Path, name: str, text: str) -> Path:

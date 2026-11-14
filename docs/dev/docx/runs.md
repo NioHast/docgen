@@ -2,7 +2,7 @@
 
 Halaman ini menjelaskan helper kanonis pembuatan, penyalinan, dan pembersihan
 run WordprocessingML. Kontrak ada di
-[contracts/docx-api.md](../contracts/docx-api.md).
+[contracts/docx.md](../../contracts/docx.md).
 
 `runs.py` menyatukan:
 

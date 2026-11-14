@@ -1,0 +1,18 @@
+# Scoped mutation session untuk smoke run modul Title Case.
+# Jalankan dari akar repo:
+#   PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 uv run --no-sync cosmic-ray init \
+#       tools/mutation/cosmic-ray-title-case.toml \
+#       .autooffice-build/mutation/title-case.sqlite
+#   PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 uv run --no-sync cosmic-ray exec \
+#       tools/mutation/cosmic-ray-title-case.toml \
+#       .autooffice-build/mutation/title-case.sqlite
+# Nonaktifkan autoload plugin pytest agar tiap mutan tidak membayar import
+# plugin coverage/hypothesis yang tidak dipakai test ini.
+[cosmic-ray]
+module-path = "src/autooffice/deck/copy/rules/title_case.py"
+timeout = 60.0
+excluded-modules = []
+test-command = "uv run --no-sync python -m pytest -q tests/deck/copy/test_rules.py tests/deck/copy/test_checker.py tests/deck/copy/test_checker_branches.py tests/deck/copy/test_language.py"
+
+[cosmic-ray.distributor]
+name = "local"

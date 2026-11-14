@@ -1,0 +1,18 @@
+schema: 1
+
+targets:
+  slides: true
+  notes: true
+  transcript: true
+
+rules:
+  banned_phrases:
+    severity: error
+    extra:
+      id: ["frasa khusus"]
+      en: ["special phrase"]
+  sentence_length:
+    severity: warning
+    max_words: 12
+
+allow: []

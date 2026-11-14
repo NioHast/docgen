@@ -1,6 +1,6 @@
 # 00 - Mulai di Sini
 
-Halaman ini adalah pintu masuk materi belajar `docgen`. Setelah membacanya,
+Halaman ini adalah pintu masuk materi belajar AutoOffice. Setelah membacanya,
 pembaca bisa menjelaskan apa yang dibangun repo ini, menyiapkan environment,
 menjalankan perintah yang aman, dan memilih halaman berikutnya sesuai tujuan.
 
@@ -11,7 +11,7 @@ Setelah halaman ini, pembaca bisa:
 1. menjelaskan alur singkat `document.md` menjadi DOCX dan PDF;
 2. membedakan konten, struktur, format, dan pipeline;
 3. menyiapkan environment dengan `uv`;
-4. menjalankan `docgen --version`, `doctor`, dan `check` tanpa memanggil Word;
+4. menjalankan `autooffice --version`, `doctor`, dan `check` tanpa memanggil Word;
 5. menemukan nama output dari `report_name` di front matter.
 
 ## Prasyarat
@@ -40,8 +40,9 @@ Setelah halaman ini, pembaca bisa:
 
 ## Apa yang dibangun
 
-`docgen` adalah pipeline dokumen akademik. Sumber kebenaran adalah satu berkas
-`document.md` berisi front matter YAML dan body Markdown. Pipeline memvalidasi
+AutoOffice adalah pipeline dokumen dan deck. Halaman belajar ini fokus pada
+pipeline DOCX: sumber kebenaran adalah satu berkas `document.md` berisi front
+matter YAML dan body Markdown. Pipeline memvalidasi
 front matter, merender blok Mermaid bila ada, memanggil Pandoc, lalu merapikan
 DOCX dengan stage Python.
 
@@ -50,11 +51,11 @@ Alur besarnya:
 ```text
 document.md + references.bib + gambar/
         |
-        |  docgen check
+        |  autooffice check
         v
    validasi front matter, struktur, aset, caption
         |
-        |  docgen build
+        |  autooffice build
         v
    Mermaid -> front matter Markdown -> Pandoc -> package DOCX
         |
@@ -94,10 +95,10 @@ Jangan mencampur aturan visual ke naskah. Repo memisahkan tiga lapis:
 | Lapis | Lokasi | Mengatur | Tidak boleh mengatur |
 | --- | --- | --- | --- |
 | Konten | `document.md`, `references.bib`, `istilah.tsv`, `gambar/` | Teks, sitasi, glosarium tambahan, aset | Margin, font, urutan bab |
-| Struktur | `src/docgen/data/structures/<id>/structure.yml` | Front matter, urutan bab, TOC, daftar, penomoran | Margin, font, teks naskah |
-| Format | `src/docgen/data/formats/<id>/format.yml` | Halaman, font, heading, caption, kode, aset visual | Teks naskah, urutan bab |
+| Struktur | `src/autooffice/docx/data/structures/<id>/structure.yml` | Front matter, urutan bab, TOC, daftar, penomoran | Margin, font, teks naskah |
+| Format | `src/autooffice/docx/data/formats/<id>/format.yml` | Halaman, font, heading, caption, kode, aset visual | Teks naskah, urutan bab |
 
-Pipeline berada di `src/docgen/`. Pipeline membaca data paket, bukan menyalin
+Pipeline berada di `src/autooffice/docx/`. Pipeline membaca data paket, bukan menyalin
 aturan format ke setiap dokumen.
 
 `document.md` adalah satu berkas. Tidak ada mode folder bab, tidak ada
@@ -108,16 +109,16 @@ berada di berkas yang sama.
 
 | Path | Isi |
 | --- | --- |
-| `src/docgen/cli.py` | Entry point perintah `docgen`. |
-| `src/docgen/pipeline.py` | Orkestrasi stage, opsi build, output, manifest. |
-| `src/docgen/config/` | Package pembaca dan validator `format.yml` serta `structure.yml`. |
-| `src/docgen/document.py` | Parser `document.md` dan validasi body. |
-| `src/docgen/docx/` | Model package DOCX dan helper XML. |
-| `src/docgen/stages/` | 18 stage kanonik pipeline. |
-| `src/docgen/data/` | Format, struktur, template, glosarium, logo, CSL, `reference.docx`. |
+| `src/autooffice/cli/main.py` | Entry point perintah `autooffice`. |
+| `src/autooffice/docx/pipeline.py` | Orkestrasi stage, opsi build, output, manifest. |
+| `src/autooffice/docx/config/` | Package pembaca dan validator `format.yml` serta `structure.yml`. |
+| `src/autooffice/docx/document.py` | Parser `document.md` dan validasi body. |
+| `src/autooffice/docx/package/` | Model package DOCX dan helper XML. |
+| `src/autooffice/docx/stages/` | 18 stage kanonik pipeline. |
+| `src/autooffice/docx/data/` | Format, struktur, template, glosarium, logo, CSL, `reference.docx`. |
 | `examples/` | Tiga contoh single-file: assignment, proposal, thesis. |
-| `tests/` | Unit, integration, e2e, packaging, dan fixture golden. |
-| `scripts/word.ps1` | Adaptor Word untuk finalisasi field dan ekspor PDF. |
+| `src/autooffice/pdf/` | Adapter COM Word/PowerPoint untuk PDF dan embedding font. |
+| `tests/docx/`, `tests/cli/`, `tests/pdf/` | Suite AutoOffice dan fixture golden. |
 | `docs/dev/` | Dokumentasi developer, kontrak, ADR, dan materi belajar ini. |
 
 ## Menyiapkan environment
@@ -128,18 +129,19 @@ menyiapkan environment, dan menjalankan perintah proyek. Langkah pertama:
 ```bash
 uv --version
 uv sync --extra dev
-uv run docgen --version
+uv run autooffice --version
 ```
 
 Hasil `uv sync --extra dev` adalah environment dengan dependensi runtime dan
 dependensi pengembangan seperti pytest. Setelah itu, periksa perkakas:
 
 ```bash
-uv run docgen doctor
+uv run autooffice doctor
 ```
 
-`doctor` memeriksa Python, Pandoc, Word, dan `mmdc`. Di Windows, Word
-ditampilkan bila ditemukan. Di Linux, Word ditampilkan sebagai tidak berlaku.
+`doctor` memeriksa Python, Pandoc, `mmdc`, COM Word/PowerPoint, `pywin32`,
+aset font, dan status font terpasang. Di Linux, Word dan PowerPoint ditampilkan
+sebagai tidak berlaku.
 Exit code 1 berarti dependensi wajib untuk DOCX belum lengkap, misalnya
 Python di bawah 3.15 atau Pandoc tidak ditemukan. `mmdc` hanya wajib bila
 dokumen memakai blok Mermaid.
@@ -151,21 +153,21 @@ matter, format, struktur, template, aset, urutan Heading 1, dan caption
 Markdown. Contoh:
 
 ```bash
-uv run docgen check examples/assignment-single/document.md
+uv run autooffice check examples/assignment-single/document.md
 ```
 
-Keluaran yang diharapkan diawali `[OK]` dan memuat ringkasan format, struktur,
-jumlah penulis, dan jumlah bab. Jika ada masalah, perintah berhenti dengan
-`[ERROR]` dan menyebut path, key, serta kode error.
+Keluaran yang diharapkan diawali `[OK]` dan berakhir `: bersih`. Jika ada
+masalah, perintah berhenti dengan `[ERROR]` dan menyebut path, key, serta kode
+error.
 
 Untuk melihat perintah yang tersedia:
 
 ```bash
-uv run docgen --help
+uv run autooffice --help
 ```
 
-Subperintah yang ada adalah `check`, `build`, `doctor`, dan `reconcile`.
-Tidak ada perintah `new` atau `list`.
+Subperintah yang ada adalah `check`, `build`, dan `doctor`. Tidak ada perintah
+`new`, `list`, atau `reconcile` pada permukaan AutoOffice v1.
 
 ## report_name dan lokasi output
 
@@ -196,7 +198,7 @@ Aturan lokasi output:
 - Manifest berada di `.laporan/manifest.json` di samping `document.md`.
 - Workspace sementara berada di `.laporan-build/` di samping `document.md`.
 
-Lokasi ini dihitung oleh `docgen.paths.output_directory`. Tidak ada fallback
+Lokasi ini dihitung oleh `autooffice.docx.paths.output_directory`. Tidak ada fallback
 ke direktori kerja saat ini atau ke folder `build/` dan `review/`.
 
 ## Zero-fallback
@@ -233,11 +235,11 @@ konfigurasi. Jangan menambahkan fallback diam-diam agar build lewat.
 Jalankan:
 
 ```bash
-uv run docgen --version
-uv run docgen doctor
+uv run autooffice --version
+uv run autooffice doctor
 ```
 
-Cara memeriksa: `--version` harus mencetak `docgen 0.1.0` atau versi paket
+Cara memeriksa: `--version` harus mencetak `autooffice 0.1.0` atau versi paket
 yang lebih baru. Pada `doctor`, baris Python harus menunjukkan versi 3.15 atau
 lebih baru dan baris Pandoc harus menemukan executable. Jika Word tidak ada,
 baris Word boleh menunjukkan tidak ditemukan selama target yang dipakai hanya
@@ -248,13 +250,13 @@ DOCX.
 Jalankan:
 
 ```bash
-uv run docgen --help
-uv run docgen build --help
+uv run autooffice --help
+uv run autooffice build --help
 ```
 
-Cara memeriksa: output `--help` memuat `check`, `build`, `doctor`, dan
-`reconcile`. Output `build --help` memuat `--target`, `--keep`, `--terms`,
-`--no-manifest`, `--no-adeu`, dan `--allow-missing-word`. Tidak boleh ada flag
+Cara memeriksa: output `--help` memuat `check`, `build`, dan `doctor`.
+Output `build --help` memuat `--target`, `--out`, `--theme`, `--terms`,
+`--dry-run`, `--keep-intermediate`, dan `--sync`. Tidak boleh ada flag
 `--report-name`.
 
 ### 3. Jalankan check pada tiga contoh
@@ -262,14 +264,14 @@ Cara memeriksa: output `--help` memuat `check`, `build`, `doctor`, dan
 Jalankan:
 
 ```bash
-uv run docgen check examples/assignment-single/document.md
-uv run docgen check examples/proposal-single/document.md
-uv run docgen check examples/thesis-single/document.md
+uv run autooffice check examples/assignment-single/document.md
+uv run autooffice check examples/proposal-single/document.md
+uv run autooffice check examples/thesis-single/document.md
 ```
 
 Cara memeriksa: ketiga perintah mengembalikan exit code 0 dan mencetak
-`[OK]`. Contoh assignment menampilkan `struktur=assignment bab=3`, proposal
-menampilkan `bab=4`, dan thesis menampilkan `bab=5`.
+`[OK] check <path>: bersih`. Perintah `check` tidak mencetak ringkasan format
+atau jumlah bab.
 
 ## Halaman berikutnya
 
@@ -282,8 +284,10 @@ alur data sebelum menjalankan build.
 | --- | --- |
 | Gambaran arsitektur dan invariant | [architecture.md](../architecture.md) |
 | Peta folder dan tanggung jawab | [repo-map.md](../repo-map.md) |
-| Kontrak front matter, format, struktur | [contracts/config.md](../contracts/config.md) |
-| Kontrak stage dan CLI | [contracts/stage-api.md](../contracts/stage-api.md) |
+| Format dan struktur | [formats.md](../formats.md) |
+| Opsi build dan target | [pipeline/options.md](../pipeline/options.md) |
+| Kontrak CLI | [contracts/cli.md](../../contracts/cli.md) |
+| Kontrak DOCX | [contracts/docx.md](../../contracts/docx.md) |
 | Indeks dokumentasi developer | [../README.md](../README.md) |
 
 ### Referensi resmi

@@ -6,7 +6,7 @@ tidak membaca DOCX dan tidak menjalankan CLI.
 
 from pathlib import Path
 
-from audit_terms_model import (
+from tools.dev.audit_terms_model import (
     CATEGORY_ABBREVIATION,
     CATEGORY_LABEL,
     CATEGORY_ORDER,

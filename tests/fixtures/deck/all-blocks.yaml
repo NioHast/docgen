@@ -1,0 +1,111 @@
+schema: autooffice.deck/v1
+
+meta:
+  title: "Semua Block"
+  subtitle: "Fixture 11 block type"
+  author: "Tim AutoOffice"
+  organization: "AutoOffice"
+  date: "2026"
+  language: "en-US"
+
+theme:
+  name: hitam
+
+defaults:
+  layout: content
+  image_fit: cover
+  code_language: text
+
+slides:
+  - id: s01
+    layout: custom
+    notes: |
+      Slide custom dengan seluruh block type.
+    source:
+      text: "Sumber: fixture internal"
+      url: "http://example.com/source"
+    rows:
+      - blocks:
+          - id: title
+            type: text
+            role: title
+            text: "Satu deck, sebelas block."
+            span: 12
+      - blocks:
+          - id: points
+            type: bullets
+            items:
+              - "Teks dengan **bold**."
+              - "Teks dengan `inline code`."
+            ordered: true
+            span: 6
+          - id: image1
+            type: image
+            path: "assets/hero.png"
+            alt: "Ilustrasi arsitektur AutoOffice"
+            caption: "Arsitektur, 2026"
+            span: 6
+      - blocks:
+          - id: table1
+            type: table
+            columns: ["Lane", "Status"]
+            rows:
+              - ["Model", "Selesai"]
+              - ["Render", "Berjalan"]
+            caption: "Status lane"
+            span: 12
+      - blocks:
+          - id: chart1
+            type: chart
+            kind: line
+            title: "Adopsi per kuartal"
+            alt: "Grafik garis adopsi 2025 dan 2026 naik setiap kuartal"
+            categories: ["Q1", "Q2", "Q3", "Q4"]
+            series:
+              - name: "2025"
+                values: [12, 18, 27, 35]
+              - name: "2026"
+                values: [20, 29, 41, 52]
+            unit: "persen"
+            caption: "Target internal"
+            span: 12
+      - blocks:
+          - id: snippet
+            type: code
+            language: python
+            filename: "keys.py"
+            line_numbers: true
+            code: |
+              def key(slide_id: str, block_id: str) -> str:
+                  return f"{slide_id}.{block_id}.text"
+            span: 12
+      - blocks:
+          - id: quote1
+            type: quote
+            text: "Kontrak lebih murah daripada perbaikan setelah integrasi."
+            attribution: "Tim AutoOffice"
+            span: 12
+      - blocks:
+          - id: process
+            type: diagram
+            source: "diagrams/process.mmd"
+            alt: "Diagram alur build dari YAML sampai PPTX"
+            caption: "Alur build"
+            span: 12
+      - blocks:
+          - id: line1
+            type: divider
+            span: 12
+      - blocks:
+          - id: gap1
+            type: spacer
+            size: md
+            span: 12
+      - blocks:
+          - id: kpi1
+            type: metric
+            label: "Coverage"
+            value: "100%"
+            caption: "Gate final"
+            status: success
+            span: 12

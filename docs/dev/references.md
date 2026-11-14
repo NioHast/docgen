@@ -9,16 +9,16 @@ bila merujuk dokumentasi eksternal. Label harus unik; URL harus memakai skema
 
 | Label | URL | Dipakai untuk |
 | --- | --- | --- |
-| Python 3.15 language reference | https://docs.python.org/3.15/reference/ | Sintaks, model data, dan semantik bahasa; `docs/dev/code-style.md`, `src/docgen/pipeline.py`, dan docstring modul. |
+| Python 3.15 language reference | https://docs.python.org/3.15/reference/ | Sintaks, model data, dan semantik bahasa; `docs/dev/code-style.md`, `src/autooffice/docx/pipeline.py`, dan docstring modul. |
 | Python 3.15 typing | https://docs.python.org/3.15/library/typing.html | Anotasi tipe, `Protocol`, dan tipe generik; `docs/dev/code-style.md`. |
-| Python 3.15 pathlib | https://docs.python.org/3.15/library/pathlib.html | Operasi path dan berkas; `docs/dev/code-style.md`, `src/docgen/paths.py`. |
+| Python 3.15 pathlib | https://docs.python.org/3.15/library/pathlib.html | Operasi path dan berkas; `docs/dev/code-style.md`, `src/autooffice/docx/paths.py`. |
 | Python 3.15 dataclasses | https://docs.python.org/3.15/library/dataclasses.html | Model data bernama; `docs/dev/code-style.md`. |
 | PEP 649 | https://peps.python.org/pep-0649/ | Evaluasi anotasi secara defer; `docs/dev/code-style.md`. |
-| OOXML ECMA-376 | https://ecma-international.org/publications-and-standards/standards/ecma-376/ | Struktur package dan WordprocessingML; `src/docgen/docx/package.py`, `src/docgen/docx/xml.py`, `docs/dev/docx/README.md`, `docs/dev/contracts/docx-api.md`. |
+| OOXML ECMA-376 | https://ecma-international.org/publications-and-standards/standards/ecma-376/ | Struktur package dan WordprocessingML; `src/autooffice/docx/package/package.py`, `src/autooffice/docx/package/xml.py`, `docs/dev/docx/README.md`, `docs/contracts/docx.md`. |
 | Open XML SDK | https://learn.microsoft.com/en-us/office/open-xml/open-xml-sdk | Pemetaan API OOXML ke elemen Word; `docs/dev/docx/overview.md`. |
-| WordprocessingML API reference | https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.wordprocessing?view=openxml-3.0.1 | Nama elemen dan properti `w:*`; `src/docgen/docx/` (`fields.py`, `sections.py`, `numbering.py`, `page.py`, `paragraphs.py`, `terms/model.py`), `docs/dev/docx/`, `docs/dev/contracts/docx-api.md`. |
-| Word COM object model (VBA reference) | https://learn.microsoft.com/en-us/office/vba/api/overview/word | Otomasi Word melalui COM; `src/docgen/stages/office.py`, `scripts/word.ps1`, `docs/dev/pdf.md`. |
-| Pandoc manual | https://pandoc.org/MANUAL.html | Konversi Markdown ke DOCX dan opsi CLI; `src/docgen/stages/pandoc.py`, `src/docgen/stages/front_matter.py`, `README.md`, `docs/dev/pipeline/overview.md`. |
+| WordprocessingML API reference | https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.wordprocessing?view=openxml-3.0.1 | Nama elemen dan properti `w:*`; `src/autooffice/docx/package/` (`fields.py`, `sections.py`, `numbering.py`, `page.py`, `paragraphs.py`, `terms/model.py`), `docs/dev/docx/`, `docs/contracts/docx.md`. |
+| Word COM object model (VBA reference) | https://learn.microsoft.com/en-us/office/vba/api/overview/word | Otomasi Word melalui COM; `src/autooffice/docx/stages/office.py`, `src/autooffice/pdf/word.py`, `src/autooffice/pdf/powerpoint.py`, `docs/dev/pdf.md`, dan `docs/dev/com.md`. |
+| Pandoc manual | https://pandoc.org/MANUAL.html | Konversi Markdown ke DOCX dan opsi CLI; `src/autooffice/docx/stages/pandoc.py`, `src/autooffice/docx/stages/front_matter.py`, `README.md`, `docs/dev/pipeline/overview.md`. |
 | Pandoc installation | https://pandoc.org/installing.html | Prasyarat pemasangan Pandoc; `README.md`, `docs/user/troubleshooting.md`. |
 | Pandoc Lua filters | https://pandoc.org/lua-filters.html | Referensi filter Lua; pipeline tidak memakai `--lua-filter`, tetapi kontrak historis menyebut paritasnya. |
 | Ruff configuration | https://docs.astral.sh/ruff/configuration/ | Konfigurasi `[tool.ruff]`; `pyproject.toml`, `docs/dev/code-style.md`. |
@@ -45,6 +45,8 @@ bila merujuk dokumentasi eksternal. Label harus unik; URL harus memakai skema
 | pytest documentation | https://docs.pytest.org/en/stable/ | Penulisan dan menjalankan tes; `tests/`, `docs/dev/testing.md`. |
 | pytest markers | https://docs.pytest.org/en/stable/how-to/mark.html | Marker `unit`, `integration`, `word`, dan `windows`; `pytest.ini`, `docs/dev/testing.md`. |
 | Google Testing Blog - Test Behavior | https://testing.googleblog.com/2013/08/testing-on-toilet-test-behavior-not.html | Alasan test berfokus pada perilaku, bukan implementasi; `docs/dev/test-quality.md`. |
+| Google Testing Blog - Code Coverage Best Practices | https://testing.googleblog.com/2020/08/code-coverage-best-practices.html | Coverage sebagai alat risiko, diminishing returns 100%, dan bahaya test tanpa assertion; `docs/contracts/coverage.md`, `docs/decisions/0010-risk-based-coverage.md`. |
+| CMU SEI - Don't Play Developer Testing Roulette | https://www.sei.cmu.edu/blog/dont-play-developer-testing-roulette-how-to-use-test-coverage/ | Partial coverage sebagai risiko dan hubungan coverage dengan test yang efektif; `docs/contracts/coverage.md`, `docs/decisions/0010-risk-based-coverage.md`. |
 | Software Engineering at Google ch12 | https://abseil.io/resources/swe-book/html/ch12.html | Trade-off unit, integration, dan end-to-end test; `docs/dev/test-quality.md`. |
 | Kent Beck Test Desiderata | https://testdesiderata.com/ | Sifat test yang diinginkan dan trade-off antarsifat; `docs/dev/test-quality.md`. |
 | xUnit Test Patterns - Test Smells | http://xunitpatterns.com/TestSmells.html | Katalog gejala test; `docs/dev/test-quality.md`. |
@@ -56,14 +58,15 @@ bila merujuk dokumentasi eksternal. Label harus unik; URL harus memakai skema
 | coverage.py | https://coverage.readthedocs.io/ | Pengukuran coverage sebagai diagnostik; `docs/dev/test-quality.md`. |
 | coverage.py contexts | https://coverage.readthedocs.io/en/latest/contexts.html | Format dan pembacaan context dinamis dari `.coverage`; `docs/dev/test-quality.md`. |
 | pytest-cov contexts | https://pytest-cov.readthedocs.io/en/stable/contexts.html | Opsi `--cov-context=test` untuk mencatat context per test; `docs/dev/test-quality.md`. |
-| mutmut | https://github.com/boxed/mutmut | Mutation testing opsional untuk modul kritis; `docs/dev/test-quality.md`. |
+| mutmut | https://github.com/boxed/mutmut | Mutation testing opsional untuk modul kritis; dicoba tetapi belum kompatibel dengan Python 3.15 Windows; `docs/dev/mutation-testing.md`. |
+| cosmic-ray | https://github.com/sixty-north/cosmic-ray | Mutation testing manual modul kritis; `docs/dev/mutation-testing.md`. |
 | uv documentation | https://docs.astral.sh/uv/ | Environment, `uv run`, dan `uv sync`; `README.md`, `docs/dev/contributing.md`. |
-| Mermaid CLI | https://github.com/mermaid-js/mermaid-cli | Perintah `mmdc` dan opsi render; `src/docgen/stages/mermaid.py`, `README.md`, `docs/user/mermaid.md`. |
+| Mermaid CLI | https://github.com/mermaid-js/mermaid-cli | Perintah `mmdc` dan opsi render; `src/autooffice/docx/stages/mermaid.py`, `README.md`, `docs/user/mermaid.md`. |
 | Mermaid documentation | https://mermaid.js.org/ | Sintaks diagram Mermaid; `docs/user/mermaid.md`. |
-| lxml documentation | https://lxml.de/ | API `lxml.etree`; `src/docgen/docx/`, `docs/dev/contracts/docx-api.md`. |
-| python-docx documentation | https://python-docx.readthedocs.io/ | Referensi pembanding untuk API DOCX; `docs/dev/contracts/docx-api.md`. |
+| lxml documentation | https://lxml.de/ | API `lxml.etree`; `src/autooffice/docx/package/`, `docs/contracts/docx.md`. |
+| python-docx documentation | https://python-docx.readthedocs.io/ | Referensi pembanding untuk API DOCX; `docs/contracts/docx.md`. |
 | pypdf documentation | https://pypdf.readthedocs.io/ | Pemeriksaan PDF pada tes; `tests/integration/test_golden_pdf.py`. |
-| ruamel.yaml documentation | https://yaml.dev/doc/ruamel.yaml/ | Parser YAML dan penanganan duplicate key; `src/docgen/config/common.py`. |
+| ruamel.yaml documentation | https://yaml.dev/doc/ruamel.yaml/ | Parser YAML dan penanganan duplicate key; `src/autooffice/docx/config/common.py`. |
 | Adeu GitHub | https://github.com/dealfluence/adeu | Source resmi SDK/CLI Adeu; `docs/dev/adeu-integration.md`. |
 | Adeu PyPI | https://pypi.org/project/adeu/ | Distribusi paket Python SDK/CLI Adeu; `docs/dev/adeu-integration.md`. |
 | Adeu MCP server npm | https://www.npmjs.com/package/@adeu/mcp-server | Server MCP eksternal untuk alur DOCX-LLM; bukan komponen repo ini; `docs/dev/adeu-integration.md`. |
@@ -78,7 +81,7 @@ bila merujuk dokumentasi eksternal. Label harus unik; URL harus memakai skema
 - Hanya URL resmi atau primary source yang boleh masuk. Blog, forum, mirror,
   dan tautan pencarian tidak dipakai.
 - Label harus unik dan URL tidak boleh duplikat. Perubahan entri wajib lolos
-  `python tools/dev/check_docs.py`.
+  `python tools/quality/check_docs.py`.
 - Checker memeriksa tautan relatif di `README.md` dan `docs/**/*.md`,
   mengecualikan `docs/dev/archive/**`. Arsip dibekukan agar catatan sejarah
   tidak dipaksa berubah hanya karena tautan lama sudah tidak berlaku.

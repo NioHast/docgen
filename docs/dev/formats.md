@@ -1,9 +1,9 @@
 # Format dan Struktur
 
 Format mengatur rupa dokumen. Struktur mengatur urutan bagian, front matter,
-penomoran, dan daftar. Keduanya adalah data paket di `src/docgen/data/` dengan
-skema tertutup. Kontrak lengkap ada di
-[contracts/config.md](contracts/config.md).
+penomoran, dan daftar. Keduanya adalah data paket di `src/autooffice/docx/data/` dengan
+skema tertutup. Kontrak DOCX ada di
+[contracts/docx.md](../contracts/docx.md).
 
 ## Daftar isi
 
@@ -18,7 +18,7 @@ skema tertutup. Kontrak lengkap ada di
 ## Lokasi
 
 ```text
-src/docgen/data/
+src/autooffice/docx/data/
 |-- formats/
 |   `-- undip-msi/
 |       |-- format.yml
@@ -213,8 +213,8 @@ field `SEQ`.
 Kunci wajib: `title`, `author`, `structure`, `format`. Kunci opsional mencakup
 identitas, abstrak, kata pengantar, kata kunci, `bibliography`, `report_name`,
 dan `lang`. Daftar lengkap ada di
-[contracts/config.md](contracts/config.md) bagian 4 dan di
-[docs/user/document-format.md](../user/document-format.md).
+[docs/user/document-format.md](../user/document-format.md) dan
+[kontrak DOCX](../contracts/docx.md).
 
 Kunci lama seperti `preset`, `daftar_gambar`, `daftar_tabel`, `approval`,
 `statement`, `references`, `csl`, `reference-doc`, `template`, dan `cover`

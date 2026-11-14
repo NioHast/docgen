@@ -1,7 +1,7 @@
 # Alur Satu Berkas
 
-`docgen` memakai satu berkas Markdown sebagai sumber: `document.md`. Berkas itu
-memuat YAML front matter dan seluruh body. Tidak ada direktori `chapters/`,
+`autooffice` memakai satu berkas Markdown sebagai sumber: `document.md`.
+Berkas itu memuat YAML front matter dan seluruh body. Tidak ada direktori `chapters/`,
 tidak ada `manifest.yml`, dan tidak ada perintah `build-file` terpisah.
 Perintah `check` dan `build` menerima path `document.md` secara langsung.
 
@@ -77,15 +77,14 @@ luar direktori dokumen ditolak.
 ## Perintah
 
 ```bash
-uv run --project <repo> docgen check document.md
-uv run --project <repo> docgen build document.md --target docx
-uv run --project <repo> docgen build document.md --target both
-uv run --project <repo> docgen reconcile document.md
+uv run --project <repo> autooffice check document.md
+uv run --project <repo> autooffice build document.md --target docx
+uv run --project <repo> autooffice build document.md --target all
 ```
 
-`--target both` membutuhkan Microsoft Word di Windows. Di Debian gunakan
-`--target docx`. `reconcile` hanya membaca DOCX, manifest, dan Markdown, lalu
-menulis laporan ke `.laporan/reconcile.md`.
+`--target all` menghasilkan DOCX dan PDF, dan membutuhkan Microsoft Word di
+Windows. Di Debian gunakan `--target docx`; target PDF memerlukan Word COM dan
+tidak memiliki fallback diam-diam.
 
 ## Output
 
@@ -95,9 +94,8 @@ laporan/
 |-- Tugas.pdf            # hanya Windows dengan Word
 |-- .laporan/
 |   |-- manifest.json
-|   |-- istilah-baru.txt # hanya dengan --terms
-|   `-- reconcile.md     # hanya setelah reconcile
-`-- .laporan-build/      # hanya dengan --keep
+|   `-- istilah-baru.txt # hanya dengan --terms
+`-- .laporan-build/      # hanya dengan --keep-intermediate
 ```
 
 Nama berkas mengikuti `report_name` yang wajib diisi; DOCX dan PDF memakai

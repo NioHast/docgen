@@ -1,7 +1,7 @@
 # Field
 
 Halaman ini menjelaskan field WordprocessingML yang ditulis pipeline.
-Kontrak ada di [contracts/docx-api.md](../contracts/docx-api.md).
+Kontrak ada di [contracts/docx.md](../../contracts/docx.md).
 
 `fields.py` menulis field kompleks lengkap: `begin`, `instrText`, `separate`,
 hasil, dan `end`. Pipeline tidak menulis cache nomor halaman palsu. Word atau

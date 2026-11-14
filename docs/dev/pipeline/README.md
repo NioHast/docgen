@@ -2,7 +2,7 @@
 
 Folder ini menjelaskan cara `Pipeline` menjalankan stage, memilih opsi build,
 menulis output, dan melaporkan error. Kontrak mengikat ada di
-[contracts/stage-api.md](../contracts/stage-api.md).
+[contracts/docx.md](../../contracts/docx.md).
 
 ## Halaman
 
@@ -10,7 +10,7 @@ menulis output, dan melaporkan error. Kontrak mengikat ada di
 | --- | --- |
 | [overview.md](overview.md) | Model eksekusi, satu load dan satu save, Adeu hook, idempotensi, dan logging. |
 | [stages.md](stages.md) | Urutan 18 stage dan guard yang wajib ditegakkan. |
-| [options.md](options.md) | Flag `docgen build` dan matriks target per platform. |
+| [options.md](options.md) | Flag `autooffice build` dan matriks target per platform. |
 | [outputs.md](outputs.md) | `report_name`, lokasi output, dan artefak pengguna. |
 | [artifacts.md](artifacts.md) | Workspace, artefak antara, dan penulisan atomic. |
 | [errors.md](errors.md) | Hierarki error dan exit code. |

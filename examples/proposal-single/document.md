@@ -24,7 +24,7 @@ berubah ketika naskah disunting. Pendekatan berbasis Markdown memisahkan isi
 dari presentasi sehingga naskah dapat diperiksa sebagai teks biasa
 [@gruber2004markdown; @pandoc2024].
 
-Pipeline `docgen` menempatkan aturan visual di `format.yml`, urutan bab di
+Pipeline `autooffice` menempatkan aturan visual di `format.yml`, urutan bab di
 `structure.yml`, dan isi proposal di `document.md`. Sebelum build dijalankan,
 front matter, urutan Heading 1, gambar, dan berkas bibliografi divalidasi.
 Dengan cara ini, kesalahan konfigurasi ditemukan lebih awal dan tidak baru
@@ -84,11 +84,11 @@ Tahapan penelitian disusun sebagai berikut.
 
 1. Menyusun front matter dan struktur bab proposal.
 2. Menulis naskah Markdown beserta tabel, sitasi, dan aset gambar.
-3. Menjalankan `docgen check` untuk memvalidasi konfigurasi dan aset.
+3. Menjalankan `autooffice check` untuk memvalidasi konfigurasi dan aset.
 4. Membangun DOCX dan memeriksa caption, penomoran, serta daftar isi.
 5. Mengevaluasi hasil dan mencatat keterbatasan pipeline.
 
-Kriteria keberhasilan pada tahap ini adalah `docgen check` lulus dan seluruh
+Kriteria keberhasilan pada tahap ini adalah `autooffice check` lulus dan seluruh
 aset yang dirujuk dapat ditemukan. Pemeriksaan tampilan akhir dilakukan
 secara terpisah pada DOCX hasil build.
 

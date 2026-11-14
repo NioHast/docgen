@@ -44,15 +44,15 @@ Setelah halaman ini, pembaca bisa:
    struktur, dan aset;
 2. `_resolve_target(options)` untuk memutuskan target efektif dan warning
    platform;
-3. membuat `output_dir` dengan `paths.output_directory`;
+3. membuat `output_dir` dengan `autooffice.docx.paths.output_directory`;
 4. membuat `Workspace` di `.laporan-build/` di samping dokumen;
 5. menjalankan stage sebelum `office` pada satu `DocumentPackage`;
 6. menyimpan package satu kali;
 7. menulis manifest;
 8. menjalankan `office` dan `pdf`;
-9. membersihkan workspace di blok `finally`, kecuali `--keep`.
+9. membersihkan workspace di blok `finally`, kecuali `--keep-intermediate`.
 
-Kontrak lengkap ada di [contracts/stage-api.md](../contracts/stage-api.md).
+Kontrak lengkap ada di [contracts/docx.md](../../contracts/docx.md).
 
 ## Tiga tahap eksekusi
 
@@ -188,8 +188,8 @@ Key berprefix nama stage juga sah. Key yang sudah ada tidak boleh ditimpa
 tanpa deklarasi.
 
 Workspace default adalah `.laporan-build/` di samping `document.md`. Tanpa
-`--keep`, workspace dihapus di blok `finally`, termasuk saat build gagal.
-Dengan `--keep`, isinya dipertahankan untuk diperiksa, misalnya
+`--keep-intermediate`, workspace dihapus di blok `finally`, termasuk saat build gagal.
+Dengan `--keep-intermediate`, isinya dipertahankan untuk diperiksa, misalnya
 `front_matter.md`, `mermaid.md`, `reference.docx`, `pandoc-metadata.yml`, dan
 DOCX antara.
 
@@ -212,8 +212,8 @@ Langkah diagnosis:
 1. baca nama stage dan kode error;
 2. cari modul stage di tabel 18 stage;
 3. baca deklarasi `mutates` dan guard-nya;
-4. jalankan tes unit stage terkait;
-5. jika perlu, build ulang dengan `--keep` dan periksa workspace.
+4. jalankan tes stage terkait di `tests/docx`;
+5. jika perlu, build ulang dengan `--keep-intermediate` dan periksa workspace.
 
 Jangan mengubah urutan stage atau menambahkan fallback sebelum penyebab
 ditemukan. `validate_stage_order` sengaja keras agar kesalahan urutan tidak
@@ -246,8 +246,9 @@ validate
 ```
 
 Dengan `--terms`, stage `terms` berjalan dan menulis review file. Dengan
-`--target docx`, `pdf` dilewati. Dengan `--target both` di Windows dan Word
-tersedia, `office` dan `pdf` berjalan.
+`--target docx`, PDF dilewati. Dengan `--target all` di Windows dan Word
+tersedia, stage `office` berjalan di pipeline dan CLI mengekspor PDF setelah
+DOCX selesai.
 
 ## Latihan
 
@@ -256,7 +257,7 @@ tersedia, `office` dan `pdf` berjalan.
 Jalankan:
 
 ```bash
-uv run python -c "from docgen.pipeline import CANONICAL_ORDER; print(len(CANONICAL_ORDER)); print(', '.join(item.value for item in CANONICAL_ORDER))"
+uv run python -c "from autooffice.docx.pipeline import CANONICAL_ORDER; print(len(CANONICAL_ORDER)); print(', '.join(item.value for item in CANONICAL_ORDER))"
 ```
 
 Cara memeriksa: angka pertama harus `18`, lalu daftar dimulai `validate` dan
@@ -267,24 +268,24 @@ diakhiri `pdf`. Jika ada stage tambahan atau hilang, kontrak pipeline berubah.
 Jalankan:
 
 ```bash
-grep -RIn "mutates = " src/docgen/stages
+grep -RIn "mutates = " src/autooffice/docx/stages
 ```
 
 Cara memeriksa: `terms` dan `toc` memutasi `word/styles.xml`. Stage
 `numbering` memutasi `word/document.xml` dan `word/numbering.xml`. Stage
 `office` memutasi package. Cocokkan hasil dengan tabel di halaman ini.
 
-### 3. Periksa workspace dengan --keep
+### 3. Periksa workspace dengan --keep-intermediate
 
 Pada salinan contoh di direktori sementara, jalankan:
 
 ```bash
-uv run docgen build <path-salinan>/document.md --target docx --keep
+uv run autooffice build <path-salinan>/document.md --target docx --keep-intermediate
 ```
 
 Cara memeriksa: direktori `.laporan-build/` masih ada dan memuat antara lain
 `front_matter.md`, `mermaid.md`, `reference.docx`, dan DOCX antara. Tanpa
-`--keep`, direktori itu harus hilang setelah build selesai.
+`--keep-intermediate`, direktori itu harus hilang setelah build selesai.
 
 ## Halaman berikutnya
 
@@ -300,8 +301,8 @@ dan helper XML yang dipakai stage.
 | Opsi build | [pipeline/options.md](../pipeline/options.md) |
 | Artefak dan workspace | [pipeline/artifacts.md](../pipeline/artifacts.md) |
 | Error dan exit code | [pipeline/errors.md](../pipeline/errors.md) |
-| Kontrak stage | [contracts/stage-api.md](../contracts/stage-api.md) |
-| Kontrak DOCX | [contracts/docx-api.md](../contracts/docx-api.md) |
+| Kontrak DOCX | [contracts/docx.md](../../contracts/docx.md) |
+| Kontrak CLI | [contracts/cli.md](../../contracts/cli.md) |
 
 ### Referensi resmi
 

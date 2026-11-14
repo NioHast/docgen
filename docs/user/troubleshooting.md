@@ -4,11 +4,11 @@ Jalankan perintah `doctor` lebih dulu untuk memisahkan masalah perkakas dari
 masalah naskah:
 
 ```bash
-uv run --project <repo> docgen doctor
+uv run --project <repo> autooffice doctor
 ```
 
-Perintah itu memeriksa Python, Pandoc, Word, dan `mmdc`. Exit code 1 berarti
-dependensi wajib belum lengkap.
+Perintah itu memeriksa Python, Pandoc, `mmdc`, Word/PowerPoint COM, font, dan
+izin tulis workspace. Exit code 1 berarti dependensi wajib belum lengkap.
 
 ## Daftar isi
 
@@ -22,7 +22,6 @@ dependensi wajib belum lengkap.
 - [Path dan aset](#path-dan-aset)
 - [Output terkunci atau gagal ditulis](#output-terkunci-atau-gagal-ditulis)
 - [Istilah dan review file](#istilah-dan-review-file)
-- [Reconcile](#reconcile)
 - [Bantuan lanjutan](#bantuan-lanjutan)
 
 ## Caption tabel atau gambar
@@ -141,17 +140,16 @@ Tindakan:
 4. Bila field belum diperbarui, buka DOCX di Word, perbarui field, simpan, lalu
    ekspor ulang.
 
-`--target both` membutuhkan Word. Bila Word tidak ada, build berhenti sebelum
-output kecuali memakai `--allow-missing-word`. Opsi itu menghasilkan DOCX dan
-melewati PDF dengan peringatan. `--target pdf` tetap gagal tanpa Word karena
-tidak ada output yang diminta.
+`--target all` atau `--target pdf` membutuhkan Word. Bila Word tidak ada,
+target PDF gagal dan tidak ada PDF yang ditulis; DOCX yang sudah selesai dari
+target `all` tetap ada. Gunakan `--target docx` untuk menghasilkan DOCX saja.
 
 ## Debian dan Linux
 
 Di Debian, PDF tidak didukung. Gunakan:
 
 ```bash
-uv run --project <repo> docgen build document.md --target docx
+uv run --project <repo> autooffice build document.md --target docx
 ```
 
 DOCX di Debian bersifat best-effort. Pandoc dan stage Python berjalan, tetapi
@@ -209,25 +207,10 @@ Kegagalan verifikasi istilah berarti ada pelanggaran style, misalnya istilah
 dengan `italic: no` ditulis miring atau istilah `italic: yes` ditulis tegak.
 Perbaiki naskah atau glosarium, bukan DOCX.
 
-## Reconcile
-
-`reconcile` mengembalikan exit code khusus:
-
-| Exit | Arti |
-| ---: | --- |
-| 0 | Tidak ada perubahan manual. |
-| 1 | Error input, manifest, atau DOCX. |
-| 3 | Ada perubahan manual yang perlu ditinjau. |
-| 4 | Ada pelanggaran paragraf terlindungi. |
-
-Laporan default ada di `.laporan/reconcile.md`. Alat tidak mengubah DOCX,
-manifest, atau Markdown. Terapkan sendiri perubahan yang disetujui ke
-`document.md`, lalu build ulang.
-
 ## Bantuan lanjutan
 
 - Periksa pesan `[ERROR]` lengkap; pesan menyebut path dan kode.
-- Gunakan `--keep` untuk mempertahankan `.laporan-build/` dan intermediate
-  DOCX.
+- Gunakan `--keep-intermediate` untuk mempertahankan `.laporan-build/` dan
+  intermediate DOCX.
 - Baca [document-format.md](document-format.md) untuk aturan sumber.
 - Baca [docs/dev/pipeline/stages.md](../dev/pipeline/stages.md) untuk urutan stage.

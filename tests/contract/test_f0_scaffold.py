@@ -7,7 +7,7 @@ import pytest
 import autooffice
 from autooffice.cli.main import main
 from autooffice.deck.blocks.registry import block_names, block_specs
-from autooffice.deck.layout.registry import layout_names
+from autooffice.deck.layout.registry import discover_layouts, layout_names
 from autooffice.deck.layout.spec import LayoutPlan
 from autooffice.deck.model.deck_ir import DeckIR, KeyManifest
 
@@ -73,11 +73,17 @@ def test_block_registry_has_exact_eleven_names() -> None:
 
 
 def test_layout_registry_has_exact_nineteen_presets_plus_custom() -> None:
+    discovered = {layout.layout_id for layout in discover_layouts()}
     names = layout_names()
-    assert names == EXPECTED_LAYOUTS
+
+    assert discovered == set(EXPECTED_PRESET_LAYOUTS)
     assert len(EXPECTED_PRESET_LAYOUTS) == 19
     assert "custom" not in EXPECTED_PRESET_LAYOUTS
+    assert set(names) == set(EXPECTED_LAYOUTS)
+    assert len(names) == 20
     assert len(set(names)) == 20
+    assert tuple(names[:-1]) == tuple(sorted(discovered))
+    assert names[-1] == "custom"
 
 
 def test_gitignore_ignores_autooffice_workspaces() -> None:

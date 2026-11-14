@@ -1,0 +1,54 @@
+schema: autooffice.deck/v1
+
+meta:
+  title: "Custom Grid"
+  author: "Tim AutoOffice"
+  language: "id"
+
+defaults:
+  layout: custom
+  image_fit: contain
+  code_language: text
+
+slides:
+  - id: s07
+    layout: custom
+    notes: |
+      Layout custom dipakai hanya bila preset tidak cukup.
+    source:
+      text: "Sumber: data internal, 2026"
+    rows:
+      - blocks:
+          - id: eyebrow
+            type: text
+            role: kicker
+            text: "STUDI KASUS"
+            span: 12
+      - blocks:
+          - id: title
+            type: text
+            role: title
+            text: "Komposisi grid 12 kolom"
+            span: 7
+          - id: lead
+            type: text
+            role: lead
+            text: "Tinggi mengikuti isi. Tidak ada koordinat absolut."
+            span: 5
+      - blocks:
+          - id: chart2
+            type: chart
+            kind: bar
+            title: "Waktu build"
+            alt: "Diagram batang waktu build per target"
+            categories: ["DOCX", "PPTX", "Slides"]
+            series:
+              - name: "Detik"
+                values: [4, 9, 14]
+            span: 7
+          - id: insight
+            type: text
+            role: body
+            heading: "Catatan"
+            text: "Chart tetap native di PPTX dan linked di Google Slides."
+            span: 5

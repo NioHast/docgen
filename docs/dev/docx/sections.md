@@ -1,9 +1,9 @@
 # Section, Header, dan Footer
 
 Halaman ini menjelaskan section break, margin, ukuran halaman, header, dan
-footer. Kontrak ada di [contracts/docx-api.md](../contracts/docx-api.md).
+footer. Kontrak ada di [contracts/docx.md](../../contracts/docx.md).
 
-`src/docgen/docx/sections.py` adalah satu-satunya pintu untuk membaca dan
+`src/autooffice/docx/package/sections.py` adalah satu-satunya pintu untuk membaca dan
 mengubah `w:sectPr`, format nomor halaman, serta part header/footer. Stage
 tidak memakai `zipfile` atau regex terhadap `document.xml`; semua perubahan
 melewati helper di modul ini.

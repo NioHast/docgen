@@ -1803,7 +1803,14 @@ Alt text dan key:
 Font embedding:
 
 - TTF Plus Jakarta Sans disertakan dalam package.
-- Renderer menambahkan font parts ke OOXML setelah `python-pptx` menyimpan.
+- Font embedding dilakukan PowerPoint COM `SaveAs`/`SaveCopyAs` dengan
+  `EmbedTrueTypeFonts=msoTrue`, bukan oleh renderer yang menulis `.fntdata`
+  langsung. Renderer hanya menyiapkan nama font dan aset TTF; PowerPoint yang
+  menulis part `ppt/fonts/*.fntdata` dan `p:embeddedFontLst`.
+- Sebelum embedding, Plus Jakarta Sans harus terpasang per-user di Windows.
+  `python tools/install_fonts.py` menyalin empat TTF ke
+  `%LOCALAPPDATA%\Microsoft\Windows\Fonts`, menulis registry HKCU, dan
+  menyiarkan `WM_FONTCHANGE` tanpa admin.
 - Font yang ditanam: Regular, SemiBold, Bold, ExtraBold.
 - Font family harus sama dengan Google Fonts: `Plus Jakarta Sans`.
 - Bila font embedding gagal atau menghasilkan PPTX yang tidak valid, build HARUS gagal. Tidak boleh diam-diam mengirim PPTX tanpa font.

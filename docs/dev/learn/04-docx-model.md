@@ -2,7 +2,7 @@
 
 Halaman ini menjelaskan DOCX sebagai package Open Packaging Conventions
 (OPC), peta modul
-`src/docgen/docx/`, helper kanonis, field Word, dan package `terms`. Setelah
+`src/autooffice/docx/package/`, helper kanonis, field Word, dan package `terms`. Setelah
 membacanya, pembaca bisa memilih modul yang benar sebelum mengubah XML dan
 tidak membuat helper duplikat.
 
@@ -127,10 +127,10 @@ Kalau helper belum ada, cari dulu di modul kanonis di atas.
 ### Paragraf dan run
 
 ```python
-from docgen.docx import DocumentPackage
-from docgen.docx.paragraphs import document_body, paragraph_text
-from docgen.docx.runs import append_text_run
-from docgen.docx.xml import iter_paragraphs
+from autooffice.docx.package import DocumentPackage
+from autooffice.docx.package.paragraphs import document_body, paragraph_text
+from autooffice.docx.package.runs import append_text_run
+from autooffice.docx.package.xml import iter_paragraphs
 
 package = DocumentPackage.load("tests/fixtures/golden/laporan-baseline.docx")
 body = document_body(package)
@@ -160,7 +160,7 @@ insert_field(
 Contoh field `PAGE`:
 
 ```python
-from docgen.docx.fields import FieldPosition, insert_field
+from autooffice.docx.package.fields import FieldPosition, insert_field
 
 field = insert_field(
     ["PAGE"],
@@ -187,8 +187,8 @@ Helper tipis di atasnya:
 ### Halaman, nomor, dan heading
 
 ```python
-from docgen.docx.numbering import chapter_number
-from docgen.docx.page import content_width, page_size
+from autooffice.docx.package.numbering import chapter_number
+from autooffice.docx.package.page import content_width, page_size
 
 print(chapter_number("BAB IV"))
 print(page_size("A4", "portrait"))
@@ -205,7 +205,7 @@ print(content_width(document_body(package)))
 Untuk heading DOCX, gunakan `heading_numbering.py`, bukan `sections.py`:
 
 ```python
-from docgen.docx.heading_numbering import (
+from autooffice.docx.package.heading_numbering import (
     NumberingSpec,
     apply_heading_numbering,
     iter_headings,
@@ -220,7 +220,7 @@ print([heading.text for heading in iter_headings(package)])
 ```
 
 Penomoran heading Markdown sebelum Pandoc ada di
-`src/docgen/markdown/headings.py`, bukan di lapisan DOCX.
+`src/autooffice/docx/markdown/headings.py`, bukan di lapisan DOCX.
 
 ## Field dan siklus Word
 
@@ -250,7 +250,7 @@ regex field baru di stage.
 
 Fitur istilah hanya aktif dengan `--terms`. Alurnya:
 
-1. `load_glossary` membaca `src/docgen/data/glossary/istilah.tsv`;
+1. `load_glossary` membaca `src/autooffice/docx/data/glossary/istilah.tsv`;
 2. `merge_glossaries` menggabungkan `istilah.tsv` pengguna di samping
    `document.md`;
 3. `collect_markdown_terms` memvalidasi marker `{{?…?}}`;
@@ -264,7 +264,7 @@ Header glosarium wajib `term<TAB>italic`. Nilai `italic` hanya `yes` atau
 `open_docx` adalah loader publik untuk alat terms:
 
 ```python
-from docgen.docx.terms import open_docx
+from autooffice.docx.terms import open_docx
 
 package = open_docx("out/Tugas.docx")
 ```
@@ -277,7 +277,7 @@ tetap tidak boleh di-load ulang oleh stage.
 Fixture golden adalah DOCX valid yang bisa diperiksa tanpa build:
 
 ```bash
-uv run python -c "from docgen.docx import DocumentPackage; p = DocumentPackage.load('tests/fixtures/golden/laporan-baseline.docx'); print(len(p.part_names())); print(p.has_part('word/document.xml'))"
+uv run python -c "from autooffice.docx.package import DocumentPackage; p = DocumentPackage.load('tests/fixtures/golden/laporan-baseline.docx'); print(len(p.part_names())); print(p.has_part('word/document.xml'))"
 ```
 
 Hasil yang diharapkan adalah `51` dan `True` pada fixture saat ini. Jumlah
@@ -287,7 +287,7 @@ selalu ada.
 Hitung field TOC pada fixture:
 
 ```bash
-uv run python -c "from docgen.docx import DocumentPackage; from docgen.docx.fields import FieldKind, iter_fields; p = DocumentPackage.load('tests/fixtures/golden/laporan-baseline.docx'); print(sum(f.kind is FieldKind.TOC for f in iter_fields(p)))"
+uv run python -c "from autooffice.docx.package import DocumentPackage; from autooffice.docx.package.fields import FieldKind, iter_fields; p = DocumentPackage.load('tests/fixtures/golden/laporan-baseline.docx'); print(sum(f.kind is FieldKind.TOC for f in iter_fields(p)))"
 ```
 
 Hasil yang diharapkan adalah `3`: TOC utama, daftar tabel, dan daftar gambar.
@@ -315,7 +315,7 @@ hilang.
 Jalankan:
 
 ```bash
-uv run python -c "from docgen.docx import DocumentPackage; p = DocumentPackage.load('tests/fixtures/golden/laporan-baseline.docx'); print('\n'.join(p.part_names()))"
+uv run python -c "from autooffice.docx.package import DocumentPackage; p = DocumentPackage.load('tests/fixtures/golden/laporan-baseline.docx'); print('\n'.join(p.part_names()))"
 ```
 
 Cara memeriksa: output memuat `[Content_Types].xml`, `word/document.xml`,
@@ -339,7 +339,7 @@ memastikan `PageError`, bukan lebar default.
 Jalankan:
 
 ```bash
-grep -n "def insert_field" -A 20 src/docgen/docx/fields.py
+grep -n "def insert_field" -A 20 src/autooffice/docx/package/fields.py
 ```
 
 Cara memeriksa: signature memakai `switches: Sequence[str]`, `position:
@@ -364,8 +364,8 @@ tes yang tepat dan menelusuri error DOCX.
 | Halaman dan margin | [docx/page.md](../docx/page.md) |
 | Field | [docx/fields.md](../docx/fields.md) |
 | Istilah dan glosarium | [docx/terms.md](../docx/terms.md) |
-| Kontrak DOCX | [contracts/docx-api.md](../contracts/docx-api.md) |
-| Kontrak stage | [contracts/stage-api.md](../contracts/stage-api.md) |
+| Kontrak DOCX | [contracts/docx.md](../../contracts/docx.md) |
+| Kontrak CLI | [contracts/cli.md](../../contracts/cli.md) |
 
 ### Referensi resmi
 

@@ -17,7 +17,7 @@ abstract_id: |
   Penulisan laporan akademik menuntut struktur, penomoran, dan sitasi yang
   konsisten. Perubahan kecil pada naskah sering menggeser tata letak ketika
   dokumen disunting langsung di pengolah kata. Contoh ini membahas pipeline
-  docgen yang memisahkan naskah Markdown dari aturan format dan struktur.
+  AutoOffice yang memisahkan naskah Markdown dari aturan format dan struktur.
   Pipeline memvalidasi front matter, merender diagram Mermaid, memanggil
   Pandoc, lalu merapikan caption, persamaan, penomoran, dan daftar isi pada
   berkas DOCX. Pembahasan difokuskan pada rancangan lapisan, mekanisme
@@ -26,7 +26,7 @@ abstract_id: |
 abstract_en: |
   Academic reports require consistent structure, numbering, and citations.
   Small edits often shift the layout when a document is edited directly in a
-  word processor. This example discusses the docgen pipeline, which
+  word processor. This example discusses the AutoOffice pipeline, which
   separates Markdown manuscripts from formatting and structure rules. The
   pipeline validates front matter, renders Mermaid diagrams, invokes Pandoc,
   and then normalizes captions, equations, numbering, and the table of
@@ -64,7 +64,7 @@ dibandingkan [@gruber2004markdown; @pandoc2024].
 
 Pendekatan berbasis Markdown juga memudahkan peninjauan melalui sistem
 kontrol versi. Perubahan naskah tampil sebagai diff baris, bukan sebagai
-berkas biner yang tidak terbaca. Pipeline `docgen` memanfaatkan sifat ini
+berkas biner yang tidak terbaca. Pipeline `autooffice` memanfaatkan sifat ini
 dengan menempatkan aturan visual di berkas format, urutan bab di berkas
 struktur, dan isi laporan di `document.md`.
 
@@ -79,7 +79,7 @@ struktur, dan isi laporan di `document.md`.
 
 ## Tujuan
 
-Tujuan pembahasan ini adalah menjelaskan rancangan pipeline `docgen`,
+Tujuan pembahasan ini adalah menjelaskan rancangan pipeline `autooffice`,
 menunjukkan mekanisme validasi konfigurasi dan aset, serta mendemonstrasikan
 fitur Markdown yang didukung melalui contoh tesis satu berkas.
 
@@ -105,7 +105,7 @@ pipeline ini [@pandoc2024].
 
 Pandoc membaca Markdown menjadi abstract syntax tree, lalu menuliskannya ke
 format tujuan. Filter Lua dapat mengubah AST sebelum writer dijalankan
-[@krewinkel2020pandoc]. Pada `docgen`, sebagian besar pascaproses dilakukan
+[@krewinkel2020pandoc]. Pada `autooffice`, sebagian besar pascaproses dilakukan
 pada DOCX agar aturan Word yang tidak dapat diwakili AST tetap dapat
 diterapkan secara eksplisit.
 
@@ -117,14 +117,14 @@ antarbagian [@iso2021openxml]. Pipeline memanfaatkan struktur ini untuk
 memberi nomor persamaan, mengganti field daftar isi, serta mengatur section
 dan penomoran halaman.
 
-: Pemetaan lapisan pipeline docgen
+: Pemetaan lapisan pipeline AutoOffice
 
 | Lapisan | Berkas | Tanggung jawab |
 | --- | --- | --- |
 | Format | `format.yml` | Margin, font, caption, CSL, dan aset visual |
 | Struktur | `structure.yml` | Urutan bab, front matter, TOC, dan penomoran |
 | Konten | `document.md` | Judul, abstrak, bab, tabel, gambar, dan sitasi |
-| Pipeline | `src/docgen` | Validasi, orkestrasi stage, dan penulisan DOCX |
+| Pipeline | `src/autooffice/docx` | Validasi, orkestrasi stage, dan penulisan DOCX |
 
 # Metodologi
 
@@ -137,7 +137,7 @@ ditunjukkan pada diagram berikut.
 
 ```{.mermaid caption="Alur validasi dan build dokumen"}
 flowchart LR
-  A[document.md] --> B[docgen check]
+  A[document.md] --> B[autooffice check]
   B --> C{Valid?}
   C -- Ya --> D[Pandoc]
   C -- Tidak --> E[Perbaiki front matter]
@@ -153,14 +153,14 @@ Pandoc menulis DOCX, stage `code`, `captions`, `normalize`,
 
 ## Validasi dan Pemeriksaan Awal
 
-Perintah `docgen check` memuat front matter, mencari berkas format dan
+Perintah `autooffice check` memuat front matter, mencari berkas format dan
 struktur, memvalidasi urutan Heading 1, lalu memeriksa keberadaan gambar dan
 bibliografi. Perintah ini tidak memanggil Word sehingga aman dijalankan di
 lingkungan integrasi.
 
 ```bash
-uv run docgen check examples/thesis-single/document.md
-uv run docgen build examples/thesis-single/document.md --target docx
+uv run autooffice check examples/thesis-single/document.md
+uv run autooffice build examples/thesis-single/document.md --target docx
 ```
 
 ## Penomoran Persamaan
@@ -189,7 +189,7 @@ Keluaran DOCX memuat naskah, gaya paragraf, penomoran, caption, dan aset
 gambar dalam satu paket. Pembagian tanggung jawab antara naskah dan bagian
 paket ditunjukkan pada gambar berikut.
 
-```{.mermaid caption="Arsitektur pipeline docgen dari Markdown hingga DOCX"}
+```{.mermaid caption="Arsitektur pipeline AutoOffice dari Markdown hingga DOCX"}
 flowchart TD
   subgraph SUMBER["Naskah dan aturan"]
     MD["document.md<br/>front matter, bab, dan aset"]
@@ -199,7 +199,7 @@ flowchart TD
     IMG["gambar/"]
     BIB["references.bib"]
   end
-  DG["docgen<br/>validasi dan orkestrasi stage"]
+  DG["autooffice<br/>validasi dan orkestrasi stage"]
   PD["Pandoc<br/>AST, sitasi, reference.docx"]
   OUT["out/Tugas.docx"]
 
@@ -242,7 +242,7 @@ ini lebih murah daripada memperbaiki DOCX yang sudah terbentuk.
 ## Keterbatasan
 
 Contoh ini tidak membuktikan paritas visual penuh dengan pedoman kampus.
-Pemeriksaan `docgen check` hanya memvalidasi konfigurasi dan aset, bukan
+Pemeriksaan `autooffice check` hanya memvalidasi konfigurasi dan aset, bukan
 tampilan akhir. PDF juga bergantung pada Microsoft Word yang tersedia di
 Windows, sehingga lingkungan tanpa Word hanya dapat menghasilkan DOCX.
 
@@ -250,7 +250,7 @@ Windows, sehingga lingkungan tanpa Word hanya dapat menghasilkan DOCX.
 
 ## Kesimpulan
 
-Pipeline `docgen` memisahkan naskah Markdown, aturan format, dan urutan
+Pipeline `autooffice` memisahkan naskah Markdown, aturan format, dan urutan
 struktur ke dalam tiga lapisan yang berbeda. Validasi awal menangkap
 kesalahan konfigurasi sebelum proses konversi, sedangkan stage pascaproses
 menangani caption, persamaan, penomoran, dan daftar isi pada DOCX. Contoh
@@ -262,7 +262,7 @@ menyisipkan field Word manual.
 Pengembangan berikutnya dapat menambah pemeriksaan paritas visual terhadap
 pedoman kampus dan memperluas contoh ke format institusi lain. Dokumentasi
 juga perlu menjelaskan secara eksplisit kapan suatu fitur divalidasi oleh
-`docgen check` dan kapan fitur tersebut baru diuji saat build DOCX.
+`autooffice check` dan kapan fitur tersebut baru diuji saat build DOCX.
 
 # Lampiran
 

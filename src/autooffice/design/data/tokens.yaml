@@ -1,0 +1,72 @@
+# Token dasar AutoOffice. Nilai warna dan geometri hanya hidup di data package.
+schema: autooffice.design-tokens/v1
+
+colors:
+  background: "#FAFAFA"
+  surface: "#FFFFFF"
+  surface_alt: "#F9FAFB"
+  ink: "#0B0B0F"
+  ink_secondary: "#374151"
+  muted: "#6B7280"
+  border: "#E5E7EB"
+  accent: "#4F46E5"
+  accent_deep: "#3730A3"
+  accent_soft: "#EEF2FF"
+  accent_line: "#C7D2FE"
+  accent_ink: "#FFFFFF"
+  status:
+    neutral: "#374151"
+    success: "#0F766E"
+    warning: "#B45309"
+    danger: "#BE123C"
+
+# Ukuran px sumber deck-studio: judul 40 px, body 22 px.
+typography:
+  family: "Plus Jakarta Sans"
+  weights: [400, 600, 700, 800]
+  title_pt: 30.0
+  body_pt: 16.5
+  minimum_pt: 10.0
+  line_height: 1.2
+  tracking_em: -0.01
+
+# Kanvas 16:9 1280 x 720 px; 1 px = 9525 EMU.
+grid:
+  columns: 12
+  gutter_emu: 91440
+  margin_left_emu: 914400
+  margin_right_emu: 914400
+  margin_top_emu: 609600
+  margin_bottom_emu: 609600
+  row_gap_emu: 182880
+  slide_width_emu: 12192000
+  slide_height_emu: 6858000
+
+spacing:
+  sm_emu: 45720
+  md_emu: 91440
+  lg_emu: 137160
+  card_padding_emu: 182880
+  divider_emu: 12700
+
+radius:
+  sm_emu: 45720
+  md_emu: 91440
+  lg_emu: 182880
+
+shadow:
+  card: "0 1 2 0 rgba(17, 24, 39, 0.08)"
+  overlay: "0 8 24 0 rgba(17, 24, 39, 0.16)"
+  none: "none"
+
+chart:
+  series: ["#4F46E5", "#0F766E", "#B45309", "#BE123C"]
+  grid: "#E5E7EB"
+  axis: "#6B7280"
+  legend: "#374151"
+  title: "#0B0B0F"
+
+code:
+  family: "ui-monospace, 'Cascadia Mono', Consolas, monospace"
+  size_pt: 10.5
+  line_height: 1.35

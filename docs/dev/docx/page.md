@@ -1,7 +1,7 @@
 # Halaman dan Margin
 
 Halaman ini menjelaskan konstanta dan helper ukuran halaman. Kontrak ada di
-[contracts/docx-api.md](../contracts/docx-api.md).
+[contracts/docx.md](../../contracts/docx.md).
 
 `page.py` menyatukan:
 

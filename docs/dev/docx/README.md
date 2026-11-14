@@ -1,8 +1,8 @@
 # Lapisan DOCX
 
-Folder ini menjelaskan lapisan `src/docgen/docx/`, model package, modul internal,
+Folder ini menjelaskan lapisan `src/autooffice/docx/package/`, model package, modul internal,
 dan batas tanggung jawab setiap helper. Kontrak API lengkap ada di
-[contracts/docx-api.md](../contracts/docx-api.md).
+[contracts/docx.md](../../contracts/docx.md).
 
 ## Halaman
 
@@ -31,4 +31,4 @@ dan batas tanggung jawab setiap helper. Kontrak API lengkap ada di
 
 Dokumen terkait: [pipeline](../pipeline/README.md),
 [integrasi Adeu](../adeu-integration.md), dan
-[kontrak konfigurasi](../contracts/config.md).
+[kontrak DOCX](../../contracts/docx.md).

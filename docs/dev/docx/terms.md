@@ -1,8 +1,8 @@
 # Istilah dan Glosarium
 
 Halaman ini menjelaskan fitur glosarium, penanda istilah, verifikasi, dan audit
-DOCX. Kontrak API ada di [../contracts/docx-api.md](../contracts/docx-api.md);
-kontrak stage ada di [../contracts/stage-api.md](../contracts/stage-api.md).
+DOCX. Kontrak API ada di [../contracts/docx.md](../../contracts/docx.md);
+kontrak stage ada di [pipeline/stages.md](../pipeline/stages.md).
 Glosarium menentukan istilah asing yang ditulis miring. Stage `terms`
 menerapkan style, memverifikasi invariant, dan menulis daftar tinjauan. Stage
 ini hanya aktif bila build memakai `--terms`.
@@ -12,7 +12,7 @@ ini hanya aktif bila build memakai `--terms`.
 Glosarium paket berada di:
 
 ```text
-src/docgen/data/glossary/istilah.tsv
+src/autooffice/docx/data/glossary/istilah.tsv
 ```
 
 Glosarium pengguna opsional berada di samping `document.md`:
@@ -117,9 +117,9 @@ adalah daftar keputusan, bukan output dokumen. Setelah istilah diputuskan:
 `tools/dev/audit_terms.py` memeriksa DOCX hasil build tanpa mengubahnya:
 
 ```bash
-uv run --project <repo> python tools/dev/audit_terms.py \
+uv run --project <repo> python -m tools.dev.audit_terms \
   --docx Tugas.docx \
-  --glossary src/docgen/data/glossary/istilah.tsv \
+  --glossary src/autooffice/docx/data/glossary/istilah.tsv \
   --out .laporan/istilah-audit.md
 ```
 

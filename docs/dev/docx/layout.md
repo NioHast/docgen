@@ -1,7 +1,7 @@
 # Layout Paragraf
 
 Halaman ini menjelaskan helper layout untuk stage `normalize` dan stage DOCX
-lain. Kontrak ada di [contracts/docx-api.md](../contracts/docx-api.md).
+lain. Kontrak ada di [contracts/docx.md](../../contracts/docx.md).
 
 `layout.py` adalah satu tempat untuk:
 

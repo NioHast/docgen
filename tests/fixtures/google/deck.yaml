@@ -1,0 +1,61 @@
+schema: autooffice.deck/v1
+
+meta:
+  title: "F2 Google"
+  author: "Tim AutoOffice"
+  language: "id-ID"
+
+theme:
+  name: indigo
+
+defaults:
+  layout: content
+  image_fit: contain
+  code_language: text
+
+slides:
+  - id: s01
+    layout: content
+    notes: |
+      Catatan awal untuk slide pertama.
+      Baris kedua tetap dipertahankan.
+    source:
+      text: "Sumber: data internal, 2026"
+      url: "https://example.com/data"
+    blocks:
+      - id: title
+        type: text
+        role: title
+        text: "Judul awal"
+      - id: body
+        type: text
+        role: body
+        text: "Isi **awal** untuk sinkronisasi."
+      - id: table1
+        type: table
+        columns: ["Metrik", "Nilai"]
+        rows:
+          - ["Peserta", "12"]
+          - ["Selesai", "10"]
+        caption: "Tabel awal"
+  - id: s02
+    layout: line
+    source:
+      text: "Sumber: metrik internal, 2026"
+    blocks:
+      - id: title
+        type: text
+        role: title
+        text: "Adopsi"
+      - id: chart1
+        type: chart
+        kind: line
+        title: "Pengguna aktif"
+        alt: "Grafik garis pengguna aktif 2025 dan 2026 naik setiap kuartal"
+        categories: ["Q1", "Q2", "Q3", "Q4"]
+        series:
+          - name: "2025"
+            values: [12, 18, 27, 35]
+          - name: "2026"
+            values: [20, 29, 41, 52]
+        unit: "persen"

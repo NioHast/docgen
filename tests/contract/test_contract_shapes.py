@@ -106,6 +106,7 @@ EXACT_FIELDS: tuple[tuple[type, dict[str, object]], ...] = (
             "blocks": tuple[BlockIR, ...],
             "notes": str | None,
             "source": Mapping[str, str] | None,
+            "rows": tuple[tuple[str, ...], ...],
         },
     ),
     (
@@ -135,6 +136,8 @@ EXACT_FIELDS: tuple[tuple[type, dict[str, object]], ...] = (
             "required": bool,
             "block_types": tuple[str, ...],
             "role": str | None,
+            "span": int,
+            "chart_kind": str | None,
         },
     ),
     (
@@ -144,6 +147,7 @@ EXACT_FIELDS: tuple[tuple[type, dict[str, object]], ...] = (
             "slots": tuple[SlotSpec, ...],
             "rows": tuple[tuple[str, ...], ...],
             "accepts_source": bool,
+            "min_one_of": tuple[tuple[str, ...], ...],
         },
     ),
     (
@@ -661,6 +665,66 @@ def test_slide_source_rejects_unknown_fields() -> None:
             notes=None,
             source={"text": "Sumber", "url": "https://example.com", "credit": "Tim"},
         )
+
+
+def test_slide_rows_are_empty_by_default() -> None:
+    assert _slide().rows == ()
+
+
+def test_custom_slide_rows_must_cover_every_block() -> None:
+    body = BlockIR("body", "text", 12, "body", {"text": "Isi"})
+
+    with pytest.raises(ValueError, match="hilang: body"):
+        SlideIR(
+            slide_id="s01",
+            layout="custom",
+            order=0,
+            blocks=(_block(), body),
+            notes=None,
+            source=None,
+            rows=(("title",),),
+        )
+
+
+def test_slide_rows_reject_unknown_block_id() -> None:
+    with pytest.raises(ValueError, match="tidak ada di blocks"):
+        SlideIR(
+            slide_id="s01",
+            layout="custom",
+            order=0,
+            blocks=(_block(),),
+            notes=None,
+            source=None,
+            rows=(("ghost",),),
+        )
+
+
+def test_slide_rows_reject_duplicate_block_id() -> None:
+    with pytest.raises(ValueError, match="menduplikasi"):
+        SlideIR(
+            slide_id="s01",
+            layout="custom",
+            order=0,
+            blocks=(_block(),),
+            notes=None,
+            source=None,
+            rows=(("title",), ("title",)),
+        )
+
+
+def test_preset_slide_rows_may_omit_blocks() -> None:
+    body = BlockIR("body", "text", 6, "body", {"text": "Isi"})
+    slide = SlideIR(
+        slide_id="s01",
+        layout="content",
+        order=0,
+        blocks=(_block(), body),
+        notes=None,
+        source=None,
+        rows=(("title",),),
+    )
+
+    assert slide.rows == (("title",),)
 
 
 def test_chart_palette_has_exactly_four_series_colors() -> None:

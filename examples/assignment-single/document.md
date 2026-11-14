@@ -32,24 +32,24 @@ Pendekatan ini juga memudahkan peninjauan melalui Git. Perubahan teks tampil seb
 
 ## Tujuan
 
-Tujuan tugas ini adalah menghasilkan contoh laporan yang dibangun dari struktur `assignment`, format `undip-msi`, dan pipeline Python `docgen`.
+Tujuan tugas ini adalah menghasilkan contoh laporan yang dibangun dari struktur `assignment`, format `undip-msi`, dan pipeline Python `autooffice`.
 
 # Pembahasan
 
 ## Lapisan Format
 
-Format menyimpan aturan visual yang tidak bergantung pada isi, misalnya margin, tipografi, dan gaya caption. Pada contoh ini format `undip-msi` dibaca dari `src/docgen/data/formats/undip-msi/format.yml`; berkas itu juga menunjuk CSL `citation.csl`. Path bibliografi ditulis di front matter `document.md`, sedangkan nilai visual tetap berada di `format.yml`.
+Format menyimpan aturan visual yang tidak bergantung pada isi, misalnya margin, tipografi, dan gaya caption. Pada contoh ini format `undip-msi` dibaca dari `src/autooffice/docx/data/formats/undip-msi/format.yml`; berkas itu juga menunjuk CSL `citation.csl`. Path bibliografi ditulis di front matter `document.md`, sedangkan nilai visual tetap berada di `format.yml`.
 
 ## Lapisan Struktur
 
-Struktur menentukan urutan bagian dan aturan penomoran. Struktur `assignment` dibaca dari `src/docgen/data/structures/assignment/structure.yml` dan memakai penomoran Arab bertitik dengan tiga bab:
+Struktur menentukan urutan bagian dan aturan penomoran. Struktur `assignment` dibaca dari `src/autooffice/docx/data/structures/assignment/structure.yml` dan memakai penomoran Arab bertitik dengan tiga bab:
 
 : Peran berkas dalam pipeline satu berkas
 
 | Lapisan | Berkas | Peran |
 | --- | --- | --- |
-| Format | `src/docgen/data/formats/undip-msi/format.yml` | Margin, tipografi, caption, dan `citation.csl` |
-| Struktur | `src/docgen/data/structures/assignment/structure.yml` | Urutan bab, TOC, dan penomoran |
+| Format | `src/autooffice/docx/data/formats/undip-msi/format.yml` | Margin, tipografi, caption, dan `citation.csl` |
+| Struktur | `src/autooffice/docx/data/structures/assignment/structure.yml` | Urutan bab, TOC, dan penomoran |
 | Konten | `document.md` | Front matter, naskah, tabel, gambar, dan sitasi |
 | Aset | `references.bib`, `gambar/` | Entri BibTeX dan gambar lokal |
 
@@ -57,17 +57,17 @@ Struktur tidak menyimpan teks naskah. Dengan begitu, struktur yang sama dapat di
 
 ## Lapisan Konten dan Pipeline
 
-Konten berisi front matter, bab Markdown, gambar, dan bibliografi. Perintah `docgen check` memvalidasi front matter, format, struktur, template, aset, dan urutan bab. Perintah `docgen build` menjalankan pipeline Python: render Mermaid, materialisasi front matter, konversi Pandoc, lalu stage DOCX untuk caption, persamaan, penomoran, daftar isi, dan nomor halaman.
+Konten berisi front matter, bab Markdown, gambar, dan bibliografi. Perintah `autooffice check` memvalidasi front matter, format, struktur, template, aset, dan urutan bab. Perintah `autooffice build` menjalankan pipeline Python: render Mermaid, materialisasi front matter, konversi Pandoc, lalu stage DOCX untuk caption, persamaan, penomoran, daftar isi, dan nomor halaman.
 
 ```bash
-uv run --project . docgen check examples/assignment-single/document.md
-uv run --project . docgen build examples/assignment-single/document.md --target docx
+uv run --project . autooffice check examples/assignment-single/document.md
+uv run --project . autooffice build examples/assignment-single/document.md --target docx
 ```
 
 ```{.mermaid caption="Alur check dan build satu berkas"}
 flowchart LR
-  A[document.md] --> B[docgen check]
-  B --> C[docgen build]
+  A[document.md] --> B[autooffice check]
+  B --> C[autooffice build]
   C --> D[Pandoc]
   D --> E[Stage Python DOCX]
   E --> F[DOCX]
@@ -80,7 +80,7 @@ Pandoc menangani konversi dokumen [@pandoc2024], sedangkan stage Python bekerja 
 
 ## Kesimpulan
 
-Pemisahan format, struktur, dan konten membuat laporan lebih mudah diperiksa dan dibangun ulang. Naskah tetap berupa Markdown, sedangkan aturan visual serta urutan bab disimpan di berkas YAML yang dapat dipakai ulang. Pipeline Python `docgen` menjalankan validasi dan seluruh stage DOCX tanpa memerlukan skrip build terpisah.
+Pemisahan format, struktur, dan konten membuat laporan lebih mudah diperiksa dan dibangun ulang. Naskah tetap berupa Markdown, sedangkan aturan visual serta urutan bab disimpan di berkas YAML yang dapat dipakai ulang. Pipeline Python `autooffice` menjalankan validasi dan seluruh stage DOCX tanpa memerlukan skrip build terpisah.
 
 ## Saran
 

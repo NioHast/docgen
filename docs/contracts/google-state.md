@@ -71,8 +71,10 @@ A3: Referral      B3: 28
    `createSheetsChart`, `spreadsheetId`, `chartId`, dan
    `linkingMode: LINKED`.
 4. Posisi dan ukuran linked chart diambil dari placeholder.
-5. Bila sudah ada linked chart untuk `chart_id`, jangan membuat duplikat.
-   Verifikasi link dan update data saja.
+5. Bila sudah ada linked chart untuk `chart_id` pada slide yang diharapkan,
+   jangan membuat duplikat. Verifikasi link dan update data saja. Linked chart
+   dengan pasangan `(spreadsheetId, chartId)` yang sama tetapi berada di slide
+   lain ditolak atau dibuat ulang, bukan dipertahankan sebagai chart tersebut.
 6. Bila ada linked chart dengan `chart_id` lain di posisi yang sama, gagal.
 7. Bila spec berubah, gunakan update chart spec agar `embedded_chart_id`
    tetap dan link Slides tidak putus. Bila tab atau chart hilang, buat ulang
@@ -116,7 +118,15 @@ Aturan state:
 - State ditulis atomik, dan tidak boleh masuk Git. `.autooffice/**` dan
   `.autooffice-build/**` di-ignore.
 - State diperiksa terhadap `deck_sha256`; perbedaan bukan error, hanya memicu
-  perencanaan sync.
+  perencanaan sync. `deck_sha256` hanya maju saat presentasi baru berhasil
+  di-upload, termasuk bila preflight, replacement, atau push teks sesudah
+  upload itu gagal; digest tidak dikembalikan ke nilai lama. Path review-only
+  (`pull`/`diff`/`apply`) tidak mengubah digest, sehingga presentasi staging
+  lama tidak pernah dianggap cocok dengan deck baru.
+- `last_pushed_at` hanya disimpan setelah replacement linked chart dan push
+  teks berhasil. Bila salah satu gagal, nilai lama dipertahankan; progress
+  workbook, presentasi, dan chart yang sudah tersimpan tidak dibatalkan.
+  Kegagalan preflight juga tidak memajukan `last_pushed_at`.
 - State tanpa `presentation_id` membuat `pull`, `diff`, dan `apply` gagal
   dengan pesan agar push dilakukan lebih dulu.
 
@@ -128,10 +138,18 @@ Aturan state:
   bagian 9.7).
 - Client secret tidak boleh ada di repo. Token cache berada di direktori
   user, bukan repo.
-- Bila akun berganti dan state menunjuk file yang tidak bisa diakses, error
-  harus jelas: minta login akun yang sama atau reset state.
-- Setiap push membuat presentasi baru dan menyimpan ID aktif. Presentasi lama
-  tidak dihapus otomatis.
+- Bila lookup spreadsheet atau presentasi mengembalikan 404, objek dianggap
+  tidak ada; push boleh membuat spreadsheet baru atau meng-upload presentasi
+  baru. Bila spreadsheet dibuat ulang, chart dan `presentation_id` lama
+  dilepas karena workbook baru tidak memiliki chart lama. 401, 403, dan 5xx
+  tidak boleh diperlakukan sebagai 404: push gagal dengan pesan yang meminta
+  memeriksa akun OAuth atau mereset state.
+- Push tidak selalu membuat presentasi baru. Presentasi staging dipakai ulang
+  dengan `presentation_id` yang sama bila `deck_sha256` state sama dengan
+  digest deck saat ini dan masih ada placeholder chart yang tertunda. Bila
+  digest berbeda, placeholder sudah tidak tersisa, atau lookup presentasi
+  menghasilkan 404, push meng-upload presentasi baru dan menyimpan ID aktif.
+  Presentasi lama tidak dihapus otomatis.
 
 ## Preflight table native
 
@@ -141,8 +159,13 @@ Aturan state:
    benar.
 3. Elemen `image`, shape group, atau table dengan dimensi berbeda menggagalkan
    push dengan menyebut slide ID dan block ID.
-4. Kegagalan preflight berarti tidak ada placeholder dihapus, tidak ada
-   linked chart dibuat, dan state tidak ditulis.
+4. Kegagalan preflight berarti tidak ada placeholder dihapus dan tidak ada
+   linked chart dibuat. State boleh sudah mencatat progress workbook,
+   presentasi, dan chart yang berhasil disiapkan, tetapi `last_pushed_at`
+   tidak dimajukan dan tetap pada nilai sebelum push. Replacement dan push
+   teks tidak dijalankan pada push yang gagal preflight. `deck_sha256` hanya
+   berubah bila presentasi baru sudah di-upload sebelum preflight; presentasi
+   yang dipakai ulang tidak mengubah digest.
 5. `CreateTableRequest` tersedia sebagai fallback masa depan, tetapi tidak
    dipakai otomatis di v1.
 
@@ -152,13 +175,50 @@ Aturan state:
 - Tab gagal dibuat: state tidak mencatat chart.
 - Data gagal ditulis: chart tidak boleh di-link.
 - Chart object gagal dibuat: tidak ada replacement.
-- Placeholder tidak lengkap: tidak ada penghapusan.
-- Table preflight gagal: tidak ada mutasi remote.
+- Placeholder tidak lengkap: tidak ada placeholder dihapus atau linked chart
+  dibuat; state progress yang sudah tersimpan dipertahankan.
+- Table preflight gagal: tidak ada placeholder dihapus atau linked chart
+  dibuat; state progress yang sudah tersimpan dipertahankan.
 - Replacement gagal: state mencatat chart yang sudah siap; rerun melanjutkan.
 - Kuota API: retry terbatas dengan backoff, lalu gagal.
 - Jangan menghapus spreadsheet atau presentasi user secara otomatis.
 - Jangan membuat spreadsheet kedua bila state masih valid. Bila spreadsheet
   dihapus user, buat ulang dan tandai presentasi lama tidak sinkron.
+
+## Klarifikasi implementasi F2-GOOGLE
+
+Bagian ini hanya memperjelas kontrak yang sudah ada; tidak menambah field
+YAML, target CLI, atau perilaku produk baru.
+
+- OAuth memakai user flow dengan scope `drive.file`, `presentations`, dan
+  `spreadsheets`. Client id/secret dibaca dari environment dan token default
+  berada di direktori pengguna (`LOCALAPPDATA`/`APPDATA` di Windows,
+  `XDG_CONFIG_HOME` atau `~/.config` di POSIX), bukan di repo.
+- `GoogleState` strict: field tidak dikenal dan field bernama token, secret,
+  credential, refresh, atau client_id ditolak. Penulisan memakai file sementara
+  di direktori state, `fsync`, lalu `os.replace`; file sementara dibersihkan
+  bila gagal. `.autooffice/` sudah di-ignore Git.
+- `ChartState` menyimpan tepat `tab_name`, `sheet_id`, `embedded_chart_id`,
+  dan `last_data_sha256`. `spreadsheet_id` dan `spreadsheet_url` berada di
+  level state, bukan per chart.
+- Nama tab adalah `chart_id` selama tidak lebih dari 100 karakter; bila lebih,
+  potong menjadi 100 karakter dengan akhiran `-` dan hash SHA-256 8 karakter.
+- Preflight table mencari title namespace `sNN.block` (atau marker
+  `autooffice:table:sNN.block`), lalu memastikan page element bertipe `table`,
+  bukan `image` atau shape group (`elementGroup`), dan jumlah baris/kolom sama.
+  `CreateTableRequest` tidak dikirim; fake mencatat request itu sebagai error.
+- Placeholder chart dicari dari title persis `autooffice:chart:<chart_id>`.
+  Linked chart diverifikasi dari pasangan `spreadsheetId` dan `chartId` pada
+  slide yang diharapkan. Bila pasangan itu ada di slide yang benar, placeholder
+  sisa dihapus tanpa membuat chart baru. Bila pasangan itu ada di slide lain,
+  chart ditolak atau dibuat ulang, bukan dipertahankan sebagai milik
+  `chart_id` tersebut.
+- Identitas teks mengikuti title shape: key datar untuk shape, namespace
+  `sNN.block` untuk tabel native, dan `sNN.notes` untuk notes page. Baris
+  header tabel dipetakan ke key `hN`; baris data ke `rN.cM`.
+- Fake in-memory berada di `src/autooffice/google/fake.py` dan memakai protokol
+  `DriveApi`, `SheetsApi`, serta `SlidesApi`. Test lane Google hanya memakai
+  fake dan tidak melakukan panggilan jaringan.
 
 ## Pemetaan acceptance
 
@@ -166,11 +226,11 @@ Catatan F0: test bentuk ada di `tests/contract/test_contract_shapes.py` dan `tes
 
 | Invarian | Bukti |
 | --- | --- |
-| Satu spreadsheet dan tab per chart | `tests/google/test_sheets.py` (planned); F2-GOOGLE. |
-| State JSON dan atomic write | `tests/google/test_state.py` (planned). |
-| Linked chart replacement | Fake `createSheetsChart`; `tests/google/test_linked_chart.py` (planned). |
-| Tanpa duplikat chart | Idempotency test rerun; bagian 9.5. |
-| Preflight table native | Fake page element; `tests/google/test_table_preflight.py` (planned). |
-| Ownership dan scope | Smoke akun bersih; bagian 9.7 dan 18.5. |
+| Satu spreadsheet dan tab per chart | `tests/google/test_sheets.py`; F2-GOOGLE. |
+| State JSON dan atomic write | `tests/google/test_state.py`. |
+| Linked chart replacement | Fake `createSheetsChart`; `tests/google/test_replacement.py`. |
+| Tanpa duplikat chart | Idempotency rerun di `tests/google/test_replacement.py`; bagian 9.5. |
+| Preflight table native | Fake page element; `tests/google/test_preflight.py`. |
+| Ownership dan scope | `tests/google/test_auth.py`; live smoke akun bersih masih pending bagian 9.7 dan 18.5. |
 
 [Rencana AutoOffice](../../AUTO_OFFICE_PLAN.md)

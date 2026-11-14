@@ -1,6 +1,6 @@
-# Materi Belajar docgen
+# Materi Belajar AutoOffice
 
-Materi ini adalah jalur belajar berlapis untuk repo `docgen`: dari programmer
+Materi ini adalah jalur belajar berlapis untuk repo `autooffice`: dari programmer
 yang baru membuka repo sampai kontributor yang mengubah stage, helper DOCX,
 atau dokumentasi. Setiap halaman punya tujuan, prasyarat, contoh dari repo,
 perintah yang bisa dijalankan, latihan, dan tautan ke halaman berikutnya.
@@ -66,18 +66,18 @@ ditemukan, bukan sebelum.
 Semua perintah ditulis untuk dijalankan dari akar repo:
 
 ```bash
-uv run docgen check examples/assignment-single/document.md
-uv run --extra dev pytest tests/unit
+uv run autooffice check examples/assignment-single/document.md
+uv run --extra dev pytest tests/docx
 ```
 
-- `uv run docgen ...` memakai entry point `docgen = "docgen.cli:main"`.
+- `uv run autooffice ...` memakai entry point `autooffice = "autooffice.cli.main:main"`.
 - `uv run --extra dev pytest ...` memakai dependensi pengembangan dari
   `pyproject.toml`.
 - Jika perintah dijalankan dari direktori lain, tambahkan
   `--project <path-repo>` pada `uv`, misalnya
-  `uv run --project <path-repo> docgen --version`.
+  `uv run --project <path-repo> autooffice --version`.
 - Output build adalah artefak. Jangan menyunting DOCX atau PDF sebagai
-  sumber; perbaiki `document.md` atau data di `src/docgen/data/`.
+  sumber; perbaiki `document.md` atau data di `src/autooffice/docx/data/`.
 
 ## Cara memakai latihan
 
@@ -91,7 +91,7 @@ berkas yang harus muncul.
 Perintah pemeriksa tautan dan registry referensi:
 
 ```bash
-uv run python tools/dev/check_docs.py
+uv run python tools/quality/check_docs.py
 ```
 
 Hasil yang diharapkan adalah `Broken: 0`. Halaman ini memakai tautan relatif
@@ -104,7 +104,7 @@ ulang di banyak tempat.
 - [Arsitektur](../architecture.md)
 - [Peta repo](../repo-map.md)
 - [Glosarium codebase](../glossary.md)
-- [Kontrak konfigurasi](../contracts/config.md)
-- [Kontrak stage](../contracts/stage-api.md)
-- [Kontrak DOCX](../contracts/docx-api.md)
+- [Format dan struktur](../formats.md)
+- [Pipeline dan urutan stage](../pipeline/stages.md)
+- [Kontrak DOCX](../../contracts/docx.md)
 - [Registry referensi](../references.md)

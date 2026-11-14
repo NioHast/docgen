@@ -1,7 +1,7 @@
 # Caption dan Tabel
 
 Halaman ini menjelaskan caption tabel/gambar dan perlakuan tabel. Kontrak ada
-di [contracts/docx-api.md](../contracts/docx-api.md).
+di [contracts/docx.md](../../contracts/docx.md).
 
 - Tabel biasa diberi caption `Tabel bab.n` di atas tabel.
 - Gambar diberi caption `Gambar bab.n` di bawah gambar.

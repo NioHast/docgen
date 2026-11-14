@@ -43,9 +43,9 @@ dua sumber kebenaran.
 | Lapisan | Pemilik data | Contoh konkret | Pertanyaan yang dijawab |
 | --- | --- | --- | --- |
 | Konten | `document.md` dan aset di sampingnya | `examples/thesis-single/document.md`, `references.bib`, `gambar/` | Apa yang ditulis? |
-| Struktur | `structure.yml` | `src/docgen/data/structures/thesis/structure.yml` | Bagian apa yang muncul dan dalam urutan apa? |
-| Format | `format.yml` dan aset format | `src/docgen/data/formats/undip-msi/format.yml` | Bagaimana tampilannya? |
-| Pipeline | `src/docgen/` | `pipeline.py`, `stages/`, `docx/` | Bagaimana data diubah menjadi artefak? |
+| Struktur | `structure.yml` | `src/autooffice/docx/data/structures/thesis/structure.yml` | Bagian apa yang muncul dan dalam urutan apa? |
+| Format | `format.yml` dan aset format | `src/autooffice/docx/data/formats/undip-msi/format.yml` | Bagaimana tampilannya? |
+| Pipeline | `src/autooffice/docx/` | `pipeline.py`, `stages/`, `package/` | Bagaimana data diubah menjadi artefak? |
 
 Aturan praktis:
 
@@ -78,8 +78,8 @@ Konsekuensi:
 
 - Mengubah DOCX tidak mengubah naskah. Build berikutnya akan menimpa
   perubahan itu.
-- `reconcile` membantu melihat edit manual pada DOCX, tetapi keputusan tetap
-  diterapkan ke `document.md`.
+- Modul rekonsiliasi internal membantu melihat edit manual pada DOCX, tetapi
+  keputusan tetap diterapkan ke `document.md`.
 - Nama artefak ditentukan `report_name` yang wajib di front matter.
 - Output tidak ditulis ke `build/` atau `review/`.
 
@@ -145,8 +145,8 @@ Tanpa Word:
 - Field TOC yang baru dibuat belum memiliki entri cache. Akibatnya TOC bisa
   tampil kosong sampai dibuka di Word dan field diperbarui.
 - `--target pdf` selalu gagal karena tidak ada output yang diminta.
-- `--target both` gagal kecuali memakai `--allow-missing-word`; dengan flag
-  itu target diturunkan menjadi DOCX dan PDF dilewati.
+- `--target all` gagal karena PDF tidak dapat dihasilkan; DOCX dapat sudah
+  tertulis sebelum error. Tidak ada flag yang menurunkan `all` menjadi DOCX.
 
 Di Word, field dapat diperbarui dengan memilih seluruh dokumen lalu menekan
 F9, atau lewat menu Update Field. Word juga yang menghasilkan PDF dari DOCX
@@ -163,7 +163,7 @@ jelas. Beberapa contoh nyata di repo:
 | Kunci YAML tidak dikenal | `document.py`, `config/` | `CFG-UNKNOWN-KEY` |
 | Artifact Markdown hilang sebelum Pandoc | `stages/pandoc.py` | `PANDOC-INPUT` |
 | Lebar konten tidak bisa dihitung | `docx/page.py` | `PAGE-WIDTH` |
-| DOCX untuk `reconcile` tidak ada | `adeu/reconcile.py` | `RECONCILE-INPUT` |
+| DOCX untuk rekonsiliasi internal tidak ada | `autooffice.docx.adeu.reconcile` | `RECONCILE-INPUT` |
 
 Yang tidak boleh dilakukan:
 
@@ -177,7 +177,7 @@ lalu perbaiki input atau data. Jangan menambal stage agar error hilang.
 
 ## Contoh konkret dari repo
 
-Lokasi output dihitung di `src/docgen/paths.py`:
+Lokasi output dihitung di `src/autooffice/docx/paths.py`:
 
 ```python
 def output_directory(document_path: Path) -> Path:
@@ -204,7 +204,7 @@ sudah selesai.
 Verifikasi model mental dengan perintah read-only:
 
 ```bash
-uv run python -c "from docgen.pipeline import CANONICAL_ORDER; print(len(CANONICAL_ORDER)); print(', '.join(item.value for item in CANONICAL_ORDER))"
+uv run python -c "from autooffice.docx.pipeline import CANONICAL_ORDER; print(len(CANONICAL_ORDER)); print(', '.join(item.value for item in CANONICAL_ORDER))"
 ```
 
 Hasil yang diharapkan adalah `18` dan daftar stage dari `validate` sampai
@@ -231,12 +231,11 @@ struktur, dan field TOC/PAGE ditulis pipeline ke DOCX.
 Jalankan:
 
 ```bash
-uv run docgen check examples/thesis-single/document.md
+uv run autooffice check examples/thesis-single/document.md
 ```
 
-Cara memeriksa: exit code 0, output diawali `[OK]`, dan ringkasan memuat
-`struktur=thesis`, `bab=5`, serta `gambar=1`. Perintah ini tidak memanggil
-Pandoc atau Word.
+Cara memeriksa: exit code 0 dan output `[OK] check <path>: bersih`. Perintah
+ini tidak memanggil Pandoc atau Word.
 
 ### 3. Uji zero-fallback pada salinan
 
@@ -244,7 +243,7 @@ Salin `examples/assignment-single` ke direktori sementara di luar repo, hapus
 baris `report_name` dari `document.md` salinan, lalu jalankan:
 
 ```bash
-uv run docgen check <path-salinan>/document.md
+uv run autooffice check <path-salinan>/document.md
 ```
 
 Cara memeriksa: perintah harus berhenti dengan exit code 1 dan pesan yang
@@ -263,9 +262,9 @@ pertama dan melihat lokasi output.
 | Arsitektur dan invariant | [architecture.md](../architecture.md) |
 | Model eksekusi pipeline | [pipeline/overview.md](../pipeline/overview.md) |
 | Urutan dan guard stage | [pipeline/stages.md](../pipeline/stages.md) |
-| Kontrak konfigurasi | [contracts/config.md](../contracts/config.md) |
-| Kontrak DOCX | [contracts/docx-api.md](../contracts/docx-api.md) |
-| Kontrak stage | [contracts/stage-api.md](../contracts/stage-api.md) |
+| Format dan struktur | [formats.md](../formats.md) |
+| Kontrak DOCX | [contracts/docx.md](../../contracts/docx.md) |
+| Kontrak CLI | [contracts/cli.md](../../contracts/cli.md) |
 | PDF dan batas Word | [pdf.md](../pdf.md) |
 
 ### Referensi resmi

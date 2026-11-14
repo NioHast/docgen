@@ -19,6 +19,7 @@ Sumber: AUTO_OFFICE_PLAN.md bagian 13.2 (F0-CONTRACTS) dan 3.2 sampai 3.5.
 | [block-spec.md](block-spec.md) | 11 block type, field wajib, table dan chart native. | 4.7, 4.8, 4.14 |
 | [pptx-renderer.md](pptx-renderer.md) | Renderer python-pptx, font, alt, key, larangan. | 8.1, 8.3 |
 | [chart-contract.md](chart-contract.md) | Chart native, linked Sheets, placeholder, preflight. | 8.3, 8.4, 9.1 sampai 9.5 |
+| [mermaid.md](mermaid.md) | Render `mmdc` ke PNG, cache, path, dan integrasi PPTX. | 4.8, 8.6, 18.7 |
 | [copy.md](copy.md) | Copy checker, rule, severity, allowlist. | 4.16, 8.7, 12.13 |
 | [transcript.md](transcript.md) | Transcript parser, output, dan validasi. | 4.15, 8.7, 12.13 |
 | [google-state.md](google-state.md) | State Google, ownership, dan kegagalan. | 9 |
@@ -26,6 +27,7 @@ Sumber: AUTO_OFFICE_PLAN.md bagian 13.2 (F0-CONTRACTS) dan 3.2 sampai 3.5.
 | [coverage.md](coverage.md) | Coverage, exclusion, dan report. | 12.3, 12.11 |
 | [design-token.md](design-token.md) | Token, theme, font, dan kontras. | 11 |
 | [docx.md](docx.md) | DOCX API dan parity docgen. | 8.2 |
+| [pdf.md](pdf.md) | Word COM, ekspor PDF, timeout, dan cleanup. | 8.5, F2-PDF |
 | [documentation.md](documentation.md) | Gate dokumentasi dan TOC. | 12.9 |
 | [ownership.md](ownership.md) | File ownership dan lane map. | 14, 15.6 |
 | [test-quality.md](test-quality.md) | Test quality, golden, dan visual. | 12.1, 12.2, 12.10 |
@@ -51,6 +53,7 @@ layout-spec.md
 block-spec.md
 pptx-renderer.md
 chart-contract.md
+mermaid.md
 copy.md
 transcript.md
 google-state.md
@@ -58,6 +61,7 @@ cli.md
 coverage.md
 design-token.md
 docx.md
+pdf.md
 documentation.md
 ownership.md
 test-quality.md

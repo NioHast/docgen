@@ -84,12 +84,12 @@ examples/demo-deck/
   deck.yaml
   transcripts.md
   out/
-    demo-deck.pptx
-    demo-deck.pdf
-    demo-deck.transcript.md
+    deck.pptx
+    deck.pdf
+    deck.transcript.md
 ```
 
-`demo-deck.transcript.md` adalah salinan tervalidasi, bukan hasil sinkronisasi
+`deck.transcript.md` adalah salinan tervalidasi, bukan hasil sinkronisasi
 Google Slides dan bukan pengganti notes.
 
 ## Pemetaan acceptance

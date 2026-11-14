@@ -3,17 +3,13 @@
 Jalankan: python -m unittest discover -s tests -v
 """
 
-import sys
 import tempfile
 import unittest
 import zipfile
 from pathlib import Path
 from xml.sax.saxutils import escape
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "tools" / "dev"))
-
-import check_prose  # noqa: E402
+from tools.dev import check_prose
 
 NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 

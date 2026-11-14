@@ -1,4 +1,6 @@
 """Domain DOCX AutoOffice.
 
-Package marker F0; implementasi dipindahkan dari ``docgen`` pada F1.
+Pipeline, stage, package OPC, konfigurasi, Adeu, istilah, dan API
+:func:`autooffice.docx.command.build_docx` diporting dari ``docgen`` pada
+F1-DOCX tanpa perubahan perilaku dokumen.
 """

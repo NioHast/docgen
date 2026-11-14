@@ -74,8 +74,8 @@ Input `.md` mengikuti perilaku docgen:
 - Istilah `.laporan/istilah-baru.txt`.
 - Intermediate `.laporan-build/`.
 - `examples/<name>/document.md` default ke `examples/<name>/out/`.
-- `--out DIR` menimpa direktori output; lokasi manifest dan intermediate
-  mengikuti aturan docgen.
+- `--out DIR` hanya menimpa direktori output final. Manifest, istilah, dan
+  intermediate `.laporan-build/` tetap berada di samping dokumen sumber.
 
 Input `.yaml`:
 
@@ -86,16 +86,20 @@ Input `.yaml`:
 - Staging internal `<stem>.slides-upload.pptx`, bukan deliverable.
 - State `.autooffice/state/<stem>.json`, cache `.autooffice/cache/`,
   intermediate `.autooffice-build/<stem>/`, dan review `.autooffice/review/`.
-- `--out DIR` mengubah direktori artefak final, bukan identitas state.
+- `--out DIR` mengubah direktori artefak final saja. State, cache,
+  intermediate, dan review tetap berada di samping YAML agar pembersihan
+  intermediate tidak pernah menyentuh direktori output.
 
 ## Dry-run dan penulisan
 
 `--dry-run` wajib memvalidasi input dan aset, menjalankan copy checker dan
 transcript validation, menyusun compiler, layout measurement, coverage plan,
-serta mencetak file, target, aksi Google, dan rencana diff. Dry-run tidak
-menulis file atau state, tidak memanggil COM, dan tidak menulis ke Drive,
-Sheets, atau Slides. Temuan overflow, key hilang, atau kredensial Google yang
-tidak ada saat target Slides menghasilkan exit code nonzero.
+serta mencetak file, target, aksi Google, dan rencana diff. Dry-run juga
+memvalidasi API lane yang diperlukan (renderer PPTX, converter PDF, dan operasi
+Google) tanpa memanggil COM atau jaringan. Dry-run tidak menulis file atau
+state, tidak memanggil COM, dan tidak menulis ke Drive, Sheets, atau Slides.
+Temuan overflow, key hilang, lane yang belum tersedia, atau kredensial Google
+yang tidak ada saat target Slides menghasilkan exit code nonzero.
 
 File final ditulis atomik. Output yang sudah selesai tidak dihapus saat target
 lain gagal, tetapi exit code tetap nonzero dan ringkasan diberikan.
@@ -119,10 +123,10 @@ fallback diam-diam.
 ```bash
 autooffice build examples/demo-deck/deck.yaml --target pptx,pdf --out out
 autooffice build examples/demo-deck/deck.yaml --target slides --sync diff
-autooffice check examples/docx/thesis-single/document.md
+autooffice check examples/thesis-single/document.md
 ```
 
-Perintah pertama menulis `out/demo-deck.pptx` dan `out/demo-deck.pdf` tanpa
+Perintah pertama menulis `out/deck.pptx` dan `out/deck.pdf` tanpa
 memanggil Google. Perintah kedua hanya membaca remote dan menulis laporan diff
 di `.autooffice/review/`.
 

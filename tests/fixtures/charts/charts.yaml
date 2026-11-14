@@ -1,0 +1,87 @@
+# Fixture chart AutoOffice. Satu slide per kind agar test native memakai
+# kategori, seri, orientation, dan unit yang berbeda.
+schema: autooffice.deck/v1
+
+meta:
+  title: "Fixture Chart"
+  author: "Tim AutoOffice"
+  language: "id"
+
+theme:
+  name: indigo
+
+defaults:
+  layout: custom
+  image_fit: contain
+  code_language: text
+
+slides:
+  - id: s01
+    layout: custom
+    rows:
+      - blocks:
+          - id: chart1
+            type: chart
+            kind: bar
+            title: "Pendapatan per kuartal"
+            alt: "Diagram batang pendapatan empat seri naik dari Q1 ke Q4"
+            categories: ["Q1", "Q2", "Q3", "Q4"]
+            series:
+              - name: "2023"
+                values: [10, 12, 14, 16]
+              - name: "2024"
+                values: [11, 13, 15, 18]
+              - name: "2025"
+                values: [12, 14, 17, 20]
+              - name: "2026"
+                values: [13, 16, 19, 23]
+            span: 12
+
+  - id: s02
+    layout: custom
+    rows:
+      - blocks:
+          - id: chart1
+            type: chart
+            kind: bar
+            orientation: horizontal
+            title: "Waktu build per target"
+            alt: "Diagram batang horizontal waktu build DOCX, PPTX, dan Slides"
+            categories: ["DOCX", "PPTX", "Slides"]
+            series:
+              - name: "Detik"
+                values: [4, 9, 14]
+            span: 12
+
+  - id: s03
+    layout: custom
+    rows:
+      - blocks:
+          - id: chart1
+            type: chart
+            kind: line
+            title: "Adopsi per kuartal"
+            alt: "Grafik garis adopsi 2025 dan 2026 naik setiap kuartal"
+            categories: ["Q1", "Q2", "Q3", "Q4"]
+            series:
+              - name: "2025"
+                values: [12, 18, 27, 35]
+              - name: "2026"
+                values: [20, 29, 41, 52]
+            unit: "persen"
+            span: 12
+
+  - id: s04
+    layout: custom
+    rows:
+      - blocks:
+          - id: chart1
+            type: chart
+            kind: donut
+            title: "Sumber akuisisi"
+            alt: "Diagram donat sumber akuisisi langsung, referral, pencarian, dan sosial"
+            categories: ["Langsung", "Referral", "Pencarian", "Sosial"]
+            series:
+              - name: "Pengguna"
+                values: [42, 28, 20, 10]
+            span: 12

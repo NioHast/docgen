@@ -194,6 +194,7 @@ def test_check_thesis_example_valid() -> None:
     assert "[OK]" in completed.stdout
 
 
+@pytest.mark.skip(reason="legacy docgen e2e; removed in F3")
 def test_check_rejects_table_without_caption(tmp_path: Path) -> None:
     project = _copy_example(tmp_path)
     document = project / "document.md"

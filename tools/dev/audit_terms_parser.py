@@ -8,28 +8,6 @@ menulis laporan dan tidak menjalankan CLI.
 import re
 from pathlib import Path
 
-from audit_terms_model import (
-    CATEGORY_GLOSSARY_ITALIC,
-    CATEGORY_GLOSSARY_PLAIN,
-    CATEGORY_ITALIC_MISSING,
-    CATEGORY_MIXED_CASE_NAME,
-    CATEGORY_PLAIN_BUT_ITALIC,
-    CATEGORY_UNKNOWN,
-    AuditResult,
-    Group,
-    Occurrence,
-)
-from audit_terms_rules import (
-    CONTEXT_WORD_RE,
-    NON_PROSE_RE,
-    TOKEN_RE,
-    is_abbreviation,
-    is_english_stopword,
-    is_mixed_case_name,
-    looks_indonesian,
-    normalize_key,
-)
-
 from docgen.docx.paragraphs import paragraph_style_id
 from docgen.docx.terms import (
     BIBLIOGRAPHY_STYLE,
@@ -40,6 +18,27 @@ from docgen.docx.terms import (
     open_docx,
 )
 from docgen.docx.xml import iter_paragraphs
+from tools.dev.audit_terms_model import (
+    CATEGORY_GLOSSARY_ITALIC,
+    CATEGORY_GLOSSARY_PLAIN,
+    CATEGORY_ITALIC_MISSING,
+    CATEGORY_MIXED_CASE_NAME,
+    CATEGORY_PLAIN_BUT_ITALIC,
+    CATEGORY_UNKNOWN,
+    AuditResult,
+    Group,
+    Occurrence,
+)
+from tools.dev.audit_terms_rules import (
+    CONTEXT_WORD_RE,
+    NON_PROSE_RE,
+    TOKEN_RE,
+    is_abbreviation,
+    is_english_stopword,
+    is_mixed_case_name,
+    looks_indonesian,
+    normalize_key,
+)
 
 DOCUMENT_PART = "word/document.xml"
 HEADER_FOOTER_RE = re.compile(r"^word/(?:header|footer)\d*\.xml$")

@@ -1,14 +1,15 @@
 # Code Style
 
-Dokumen ini adalah kontrak gaya kode Python untuk `docgen`. Konfigurasi yang
+Dokumen ini adalah kontrak gaya kode Python untuk `autooffice`. Konfigurasi yang
 dijalankan mesin ada di `pyproject.toml`; dokumen ini menjelaskan alasan,
 contoh benar dan salah, serta batas pengecualian. Jika dokumen dan konfigurasi
 berbeda, `pyproject.toml` menang dan dokumen ini harus diperbaiki.
 
 Ruang lingkup Ruff adalah file Python di repo, termasuk `src`, `tests`, dan
 `tools`, kecuali `docs/` yang dikecualikan. Mypy saat ini memeriksa
-`src/docgen` sesuai `files` di `[tool.mypy]`. Gaya penulisan dokumen Markdown
-diatur di [contributing.md](contributing.md).
+`src/autooffice` dan jalur legacy DOCX sampai F3 sesuai `files` di
+`[tool.mypy]`. Gaya penulisan dokumen Markdown diatur di
+[contributing.md](contributing.md).
 
 ## Daftar isi
 
@@ -40,7 +41,7 @@ Jalankan dari root repo. Urutan ini dipakai lokal dan di gate otomatis.
 | 2 | Lint | `uv run --extra dev ruff check .` | Lint cepat. Setelah format stabil, temuan lint bukan lagi noise format. |
 | 3 | Tipe | `uv run --extra dev mypy` | Kontrak tipe diperiksa sebelum suite test yang lebih mahal. |
 | 4 | Test | `uv run --extra dev pytest` | Perilaku diverifikasi terakhir karena paling lambat dan paling luas. |
-| 5 | Dokumentasi | `uv run python tools/dev/check_docs.py` | Tautan relatif dan registry referensi valid. Jalankan bila docs berubah. |
+| 5 | Dokumentasi | `uv run python tools/quality/check_docs.py` | Tautan relatif dan registry referensi valid. Jalankan bila docs berubah. |
 
 Alasan urutannya: formatter lebih dulu agar lint tidak melaporkan spasi yang
 akan segera diubah; lint sebelum mypy karena kesalahan import dan nama jauh
@@ -129,7 +130,7 @@ URL resmi hanya disimpan di sana agar tidak terduplikasi.
 | `E` | Dipakai | pycodestyle error: spasi, indentasi, baris kosong, dan panjang baris maksimum 100 kolom. | `x=1` menjadi `x = 1` | [Ruff rules](references.md#registry) |
 | `F` | Dipakai | pyflakes: nama tidak terdefinisi, import mati, dan variabel lokal mati. | `import os` tanpa pemakaian dihapus | [Ruff rules](references.md#registry) |
 | `W` | Dipakai | pycodestyle warning: trailing whitespace dan baris kosong berlebih. | `x = 1 ` menjadi `x = 1` | [Ruff rules](references.md#registry) |
-| `I` | Dipakai | isort: urutan dan pengelompokan import deterministik. | stdlib, pihak ketiga, lalu `docgen` | [Ruff rules](references.md#registry) |
+| `I` | Dipakai | isort: urutan dan pengelompokan import deterministik. | stdlib, pihak ketiga, lalu `autooffice` | [Ruff rules](references.md#registry) |
 | `UP` | Dipakai | pyupgrade: sintaks lama yang sudah digantikan Python 3.15. | `Optional[str]` menjadi `str \| None` | [Ruff rules](references.md#registry) |
 | `B` | Dipakai | flake8-bugbear: mutable default, perbandingan, dan pola loop rawan bug. | `def f(x=[])` menjadi `def f(x: list[str] \| None = None)` | [Ruff rules](references.md#registry) |
 | `SIM` | Dipakai | flake8-simplify: kontrol alur yang bisa disederhanakan tanpa mengubah perilaku. | `if a:` berisi `if b:` menjadi `if a and b:` | [Ruff rules](references.md#registry) |
@@ -145,7 +146,7 @@ URL resmi hanya disimpan di sana agar tidak terduplikasi.
 | `D401` | Diabaikan | Imperative mood Inggris tidak sesuai docstring bahasa Indonesia. | `"""Mengembalikan hasil."""` tidak perlu diubah menjadi `Return ...` | [Ruff D401](references.md#registry) |
 | `BLE001` | Dikecualikan | Blind except hanya boleh di boundary opsional dengan `# noqa: BLE001 - alasan`; selain itu perbaiki tipe atau re-raise. | `except Exception:  # noqa: BLE001 - boundary` bukan pola umum | [Ruff BLE001](references.md#registry) |
 | `SIM118` | Dikecualikan | `dict.keys()` hanya untuk objek yang bukan `Mapping`; Mapping memakai `in` langsung. | `if "docx" in artifacts:` bukan `if "docx" in artifacts.keys():` | [Ruff SIM118](references.md#registry) |
-| `E741` | Dikecualikan | Per-file ignore untuk `O` di `names.py`; `O` adalah prefix namespace OOXML resmi, bukan variabel lokal. | `O = f"{{{O_NS}}}"` hanya di `src/docgen/docx/names.py` | [Ruff E741](references.md#registry) |
+| `E741` | Dikecualikan | Per-file ignore untuk `O` di `names.py`; `O` adalah prefix namespace OOXML resmi, bukan variabel lokal. | `O = f"{{{O_NS}}}"` hanya di `src/autooffice/docx/package/names.py` | [Ruff E741](references.md#registry) |
 | `D203` | Diabaikan | Bertentangan dengan D211. Ruff mengabaikan D203 secara otomatis; jangan menambahkannya ke `ignore`. | Baris kosong sebelum docstring class salah karena D211 dipilih | [Ruff D203](references.md#registry) |
 | `D211` | Dipakai | Tidak ada baris kosong antara `class` dan docstring. | `class A:` lalu `"""Ringkasan."""` tanpa baris kosong | [Ruff D211](references.md#registry) |
 | `D212` | Dipakai | Ringkasan docstring multi-baris dimulai pada baris pertama setelah `"""`. | `"""Ringkasan.` lalu detail pada baris berikutnya | [Ruff D212](references.md#registry) |
@@ -310,14 +311,14 @@ def render_toc(package: DocxPackage, *, keep_existing: bool) -> TocReport:
 
 ## Mypy
 
-Mypy memeriksa `src/docgen` pada tahap ini. Konfigurasi berasal dari
+Mypy memeriksa `src/autooffice` pada tahap ini. Konfigurasi berasal dari
 `[tool.mypy]` di `pyproject.toml`; dokumentasi pengaturannya ada di
 [mypy configuration](references.md#registry).
 
 | Setelan | Nilai | Alasan |
 | --- | --- | --- |
 | `python_version` | `"3.15"` | Target runtime dan sintaks yang sama dengan Ruff. |
-| `files` | `["src/docgen"]` | Fokus pada kode sumber; `tests` dan `tools` belum masuk gate mypy. |
+| `files` | `src/autooffice` dan jalur legacy DOCX sampai F3 | Fokus pada kode sumber; `tests` dan `tools` belum masuk gate mypy. |
 | `check_untyped_defs` | `true` | Fungsi tanpa anotasi tetap diperiksa isinya. |
 | `no_implicit_optional` | `true` | Default `None` wajib dianotasi `X \| None`. |
 | `warn_unused_configs` | `true` | Konfigurasi yang tidak lagi dipakai dilaporkan. |
@@ -351,25 +352,18 @@ Perintah pemeriksaan:
 
 ```bash
 uv run --extra dev mypy
-uv run --extra dev mypy src/docgen/pipeline.py
+uv run --extra dev mypy src/autooffice/docx/pipeline.py
 ```
 
 Tahapan peningkatan:
 
-1. **Tahap awal, non-strict.** Konfigurasi saat ini adalah baseline bersih,
-   bukan strict total. `ignore_missing_imports` masih `true` karena stub
-   pihak ketiga belum lengkap.
-2. **Strict per modul baru.** Modul baru yang ditulis dari awal wajib strict
-   sejak dibuat. Tambahkan override untuk modul tersebut, bukan menaikkan
-   seluruh proyek sekaligus.
-
-   ```toml
-   [[tool.mypy.overrides]]
-   module = "docgen.modul_baru"
-   strict = true
-   ```
-
-3. **Strict total bukan gate v0.2.0.** Strict total baru dipertimbangkan
+1. **Strict untuk AutoOffice.** Override `autooffice.*` sudah memakai
+   `strict = true`. Modul baru di `src/autooffice` wajib lolos strict sejak
+   dibuat; jangan menambah `ignore_errors` per modul.
+2. **Legacy DOCX non-strict sampai F3.** Override legacy mengembalikan
+   baseline non-strict supaya migrasi tidak memaksa refactor besar sekaligus.
+   Jangan menambah kode baru di jalur legacy.
+3. **Strict total bukan gate saat ini.** Strict total baru dipertimbangkan
    setelah stub pihak ketiga memadai, semua signature publik dianotasi, dan
    `ignore_missing_imports` tidak dipakai. Jangan menambah `ignore_errors`
    global untuk menurunkan target.
@@ -377,11 +371,11 @@ Tahapan peningkatan:
 ## Import dan tipe
 
 Ruff dengan aturan `I` mengurutkan dan mengelompokkan import. Kelompoknya:
-standard library, pihak ketiga, lalu paket internal `docgen`. Setiap kelompok
+standard library, pihak ketiga, lalu paket internal `autooffice`. Setiap kelompok
 dipisahkan satu baris kosong.
 
 - Satu nama per baris untuk import langsung. Hindari `import *`. Pengecualian
-  hanya `from .names import *` di `src/docgen/docx/__init__.py` untuk
+  hanya `from .names import *` di `src/autooffice/docx/package/__init__.py` untuk
   re-export namespace, dengan `# noqa: F403` dan alasan blok.
 - Import internal di dalam paket memakai bentuk relatif yang sudah dipakai
   modul sekitarnya, misalnya `from ..errors import DocgenError`.
@@ -396,7 +390,7 @@ dipisahkan satu baris kosong.
   menghindari siklus inisialisasi, menambah `sys.path` sebelum import tool,
   atau memasang marker modul. Setiap baris memakai `# noqa: E402` dan blok
   diberi alasan tepat di atasnya. Contoh yang sudah ada:
-  `src/docgen/docx/__init__.py`.
+  `src/autooffice/docx/package/__init__.py`.
 
 Contoh urutan yang benar:
 
@@ -421,8 +415,8 @@ from .errors import DocgenError
   tangkap tipe yang relevan, catat konteks, lalu re-raise atau ubah menjadi
   error domain.
 - `BLE001` hanya dikecualikan pada boundary opsional dengan alasan tertulis.
-  Contoh saat ini: `src/docgen/pipeline.py` untuk pengaman siklus impor dan
-  `src/docgen/docx/terms/model.py` untuk package tanpa rels.
+  Contoh saat ini: `src/autooffice/docx/pipeline.py` untuk pengaman siklus impor dan
+  `src/autooffice/docx/terms/model.py` untuk package tanpa rels.
 - Pertahankan rantai error dengan `raise NewError(...) from exc` agar penyebab
   asli tidak hilang.
 - Pesan error untuk pengguna ditulis dalam bahasa Indonesia, menyebut path,
@@ -488,28 +482,28 @@ Aturan `# noqa`:
   pindahkan ekspresi ke variabel yang lebih jelas.
 - Bila satu blok import berurutan memerlukan kode yang sama, alasan blok boleh
   ditulis sekali pada komentar tepat di atas blok. Setiap baris tetap menyebut
-  kodenya. Pola ini dipakai di `src/docgen/docx/__init__.py`.
+  kodenya. Pola ini dipakai di `src/autooffice/docx/package/__init__.py`.
 - `# type: ignore` mengikuti aturan tersendiri: kode sempit dan alasan singkat,
   misalnya `# type: ignore[attr-defined]  # package adapter belum punya stub`.
   Jangan memakai `# type: ignore` tanpa kode.
 - `# fmt: off` dan `# fmt: on` hanya untuk alasan struktural yang sempit, bukan
   untuk menghindari format yang tidak disukai.
 
-Pengecualian per file yang tercatat di `pyproject.toml`:
+Pengecualian per file dan inline:
 
 | File | Rule | Alasan |
 | --- | --- | --- |
-| `src/docgen/docx/names.py` | `E741` | `O` adalah prefix namespace OOXML resmi pada tabel Clark notation. Mengganti nama konstanta akan memutus tabel namespace publik. |
+| `src/autooffice/docx/package/names.py` | `E741` inline | `O` adalah prefix namespace OOXML resmi pada tabel Clark notation. Mengganti nama konstanta akan memutus tabel namespace publik. |
 
 Contoh pengecualian inline yang dipakai saat ini:
 
-- `BLE001` di `src/docgen/pipeline.py` untuk pengaman siklus impor.
-- `BLE001` di `src/docgen/docx/terms/model.py` untuk package tanpa rels.
-- `SIM118` di `src/docgen/stages/office.py` dan `src/docgen/stages/mermaid.py`
+- `BLE001` di `src/autooffice/docx/pipeline.py` untuk pengaman siklus impor.
+- `BLE001` di `src/autooffice/docx/terms/model.py` untuk package tanpa rels.
+- `SIM118` di `src/autooffice/docx/stages/office.py` dan `src/autooffice/docx/stages/mermaid.py`
   karena `Artifacts` bukan `Mapping`.
 - `SIM118` di `tests/unit/test_pandoc_stage.py` karena fake artifacts bukan
   `Mapping`.
-- `E402` dan `F403` pada blok import `src/docgen/docx/__init__.py` karena
+- `E402` dan `F403` pada blok import `src/autooffice/docx/package/__init__.py` karena
   import ditempatkan setelah kelas error untuk menghindari siklus inisialisasi.
   Alasan blok ditulis tepat di atas blok.
 
@@ -524,7 +518,7 @@ uv run --extra dev ruff format --check .
 uv run --extra dev ruff check .
 uv run --extra dev mypy
 uv run --extra dev pytest
-uv run python tools/dev/check_docs.py
+uv run python tools/quality/check_docs.py
 git diff --check
 ```
 

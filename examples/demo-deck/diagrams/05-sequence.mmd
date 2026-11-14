@@ -1,0 +1,19 @@
+%%{init: {"theme": "base", "flowchart": {"curve": "basis", "htmlLabels": false}, "sequence": {"mirrorActors": false}}}%%
+sequenceDiagram
+    accTitle: Sequence Login Pengguna
+    accDescr: Alur login pengguna dengan pemeriksaan kredensial dan cabang kegagalan
+    actor U as User
+    participant UI as UI
+    participant A as Auth Service
+    participant DB as Database
+    U->>UI: Isi email dan kata sandi
+    UI->>A: Kirim kredensial
+    A->>DB: Cari pengguna
+    DB-->>A: Data pengguna
+    alt Kredensial tidak valid
+        A-->>UI: Pesan gagal
+        UI-->>U: Tampilkan kesalahan
+    else Kredensial valid
+        A-->>UI: Token akses
+        UI-->>U: Buka beranda
+    end

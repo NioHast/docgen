@@ -1,0 +1,12 @@
+%%{init: {"theme": "base", "flowchart": {"curve": "basis", "htmlLabels": false}, "sequence": {"mirrorActors": false}}}%%
+flowchart LR
+    accTitle: Alur Pengajuan Cuti
+    accDescr: Alur pengajuan cuti dari pengisian formulir sampai keputusan verifikasi
+    Mulai([Mulai pengajuan]) --> Form[Isi formulir cuti]
+    Form --> Cek{Data lengkap?}
+    Cek -- Tidak --> Form
+    Cek -- Ya --> Verifikasi[Verifikasi atasan]
+    Verifikasi --> Keputusan[Setujui atau tolak]
+    Keputusan --> Selesai([Selesai proses])
+    classDef penting stroke-width:2px
+    class Cek penting

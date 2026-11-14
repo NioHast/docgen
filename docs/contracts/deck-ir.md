@@ -5,8 +5,9 @@ mentransformasi YAML tervalidasi menjadi `DeckIR` dan `KeyManifest`; layout
 engine menambahkan `LayoutPlan`. Renderer hanya boleh menerima objek ini
 beserta `Theme`, bukan path YAML atau file token.
 
-Status: F0 contract, version 1
-Sumber: AUTO_OFFICE_PLAN.md bagian 3.4, 5.1, dan 8.1.
+Status: F0 contract, version 1, diamendemen ADR 0009 untuk `SlideIR.rows`.
+Sumber: AUTO_OFFICE_PLAN.md bagian 3.4, 5.1, dan 8.1;
+[docs/decisions/0009-explicit-custom-rows.md](../decisions/0009-explicit-custom-rows.md).
 
 ## Input dan output
 
@@ -58,6 +59,7 @@ class SlideIR:
     blocks: tuple[BlockIR, ...]
     notes: str | None
     source: Mapping[str, str] | None
+    rows: tuple[tuple[str, ...], ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,6 +74,15 @@ class DeckIR:
 `source` adalah mapping, bukan field `source_text`. Bila `source` ada,
 `source["text"]` wajib dan `source["url"]` opsional; `source.text` menjadi
 key, sedangkan `source.url` bukan key.
+
+`rows` menyimpan block ID per row untuk slide `layout: custom`. Compiler
+mengisi `rows` dari authoring dan mempertahankan urutan block row-major, sehingga
+urutan ID di `rows` sama dengan urutan `blocks`. Slide preset memakai default
+`rows=()`. Bila `rows` terisi, setiap ID wajib ada di `blocks`, tidak boleh
+duplikat, dan setiap row minimal satu ID; slide custom wajib memuat setiap
+block tepat satu kali, sedangkan slide non-custom boleh memuat sebagian block.
+`rows` kosong berarti IR tidak membawa batas row eksplisit dan hanya dipakai
+oleh IR yang dibuat manual; hasil compiler untuk slide custom selalu terisi.
 
 `kind` hanya bernilai `text`, `data`, `notes`, `source`, atau `media_text`.
 `text` untuk teks tampil, `data` untuk angka chart, `notes` untuk catatan
@@ -97,6 +108,8 @@ Contoh ini menunjukkan bentuk kontrak, bukan kode final.
   tetap stabil dan tidak dihitung dari posisi.
 - `source` memakai mapping dengan `text` wajib dan `url` opsional; tidak ada
   field `source_text`.
+- `rows` hanya berisi block ID yang ada di `blocks`, tanpa duplikat, dan
+  menutup seluruh block untuk `layout: custom`; slide preset memakai `rows=()`.
 - `fields` hanya berisi field yang lolos `BlockSpec`, tanpa field geometri.
 - Mapping `meta`, `source`, dan `fields` read-only setelah konstruksi.
 - `plain_text` sudah dinormalisasi sesuai mode teks atau preserve newline.
@@ -115,6 +128,7 @@ Catatan F0: test bentuk ada di `tests/contract/test_contract_shapes.py` dan `tes
 | Mutasi dataclass IR memunculkan `FrozenInstanceError`. | `tests/contract/test_deck_ir.py` (planned) |
 | Import model tidak menarik renderer, Google, pptx, atau COM. | `tests/contract/test_deck_ir.py` (planned) |
 | Compile dua kali menghasilkan manifest yang identik. | `tests/contract/test_deck_ir.py` (planned) |
+| Rows custom tersimpan eksplisit dan menutup seluruh block. | `tests/deck/model/test_compiler.py`, `tests/contract/test_contract_shapes.py` |
 | Setiap teks tampil punya binding dan setiap binding punya key. | `tests/contract/test_deck_ir.py` (planned) |
 | Key duplikat ditolak sebelum `DeckIR` dibuat. | `tests/contract/test_deck_ir.py` (planned) |
 | IR tidak memuat path output, state Google, atau `LayoutPlan`. | `tests/contract/test_deck_ir.py` (planned) |

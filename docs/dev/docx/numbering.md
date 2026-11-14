@@ -3,7 +3,7 @@
 Halaman ini menjelaskan dua modul penomoran yang berbeda: `numbering.py` untuk
 angka Romawi dan nomor bab, serta `heading_numbering.py` untuk penomoran
 heading DOCX. Kontrak ada di
-[contracts/docx-api.md](../contracts/docx-api.md).
+[contracts/docx.md](../../contracts/docx.md).
 
 ## `numbering.py`
 
@@ -25,7 +25,7 @@ untuk angka Romawi dan tidak menyentuh section, header/footer, atau geometri
 halaman.
 
 Penomoran heading Markdown sebelum Pandoc bukan tanggung jawab lapisan DOCX;
-modulnya ada di `src/docgen/markdown/headings.py`.
+modulnya ada di `src/autooffice/docx/markdown/headings.py`.
 
 ## Referensi resmi
 

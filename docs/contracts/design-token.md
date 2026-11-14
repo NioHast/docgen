@@ -4,6 +4,14 @@ Status: F0 contract, version 1
 Sumber: `AUTO_OFFICE_PLAN.md` bagian 11 (11.1-11.6), 6, dan keputusan L15.
 Pemilik kontrak: design owner.
 
+## Daftar Isi
+
+- [Tujuan](#tujuan)
+- [Invarian](#invarian)
+- [Bentuk theme](#bentuk-theme)
+- [Contoh konstruksi](#contoh-konstruksi)
+- [Pemetaan acceptance](#pemetaan-acceptance)
+
 ## Tujuan
 
 Kontrak ini membekukan token desain sebagai satu-satunya sumber warna,
@@ -89,15 +97,18 @@ theme = Theme(
     name="hitam",
     mode="light",
     colors=ThemeColors(
-        background="#FFFFFF", surface="#F8FAFC", surface_alt="#F1F5F9",
-        ink="#111827", ink_secondary="#374151", muted="#6B7280",
-        border="#E5E7EB", accent="#111827", accent_deep="#0B1220",
+        background="#FAFAFA", surface="#FFFFFF", surface_alt="#F9FAFB",
+        ink="#0B0B0F", ink_secondary="#374151", muted="#6B7280",
+        border="#E5E7EB", accent="#111827", accent_deep="#000000",
         accent_soft="#F3F4F6", accent_line="#D1D5DB", accent_ink="#FFFFFF",
-        status={"success": "#0F766E", "warning": "#B45309"},
+        status={
+            "neutral": "#374151", "success": "#0F766E",
+            "warning": "#B45309", "danger": "#BE123C",
+        },
     ),
     chart=ChartPalette(
         series=("#111827", "#374151", "#4B5563", "#6B7280"),
-        grid="#E5E7EB", axis="#6B7280", legend="#374151", title="#111827",
+        grid="#E5E7EB", axis="#6B7280", legend="#374151", title="#0B0B0F",
     ),
     typography=Typography(
         family="Plus Jakarta Sans", weights=(400, 600, 700, 800),
@@ -142,7 +153,7 @@ Catatan F0: test bentuk ada di `tests/contract/test_contract_shapes.py` dan `tes
 | Dua theme dan mode light | `tests/design/test_themes.py` (planned); golden visual `hitam`. |
 | `chartSeries` empat warna dan kontras 3:1 | `tests/design/test_contrast.py` (planned); F2-CHARTS. |
 | Tidak ada hex di renderer | Contract test scan `deck/render/**`; review F1-DESIGN. |
-| Font dan embedding | `tests/design/test_fonts.py` (planned); `tests/deck/render/pptx/test_fonts.py` (planned). |
+| Font dan embedding | `tests/design/test_design_fonts.py` (planned); `tests/deck/render/pptx/test_pptx_fonts.py` (planned). |
 | Tipografi dan ukuran minimum | Golden PPTX dan visual test; bagian 18.4. |
 | Larangan desain | Contract test dan review golden; bagian 11.5. |
 
