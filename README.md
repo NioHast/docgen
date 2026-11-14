@@ -92,6 +92,5 @@ di atas tidak memanggil Word/PowerPoint COM atau Google.
 
 ## Lisensi
 
-MIT. Komponen pemeriksa prosa di `tools/dev/check_prose.py` berasal dari proyek
-naskah-id (MIT, Copyright (c) 2026 nothinx). Teks lisensi lengkap ada di
-[`LICENSE`](LICENSE).
+MIT. Sebagian kaidah prosa dalam panduan berasal dari proyek naskah-id (MIT,
+Copyright (c) 2026 nothinx). Teks lisensi lengkap ada di [`LICENSE`](LICENSE).

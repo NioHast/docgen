@@ -7,7 +7,7 @@ aset lalu memvalidasi silang semuanya. Error input dilempar sebagai
 
 Modul ini tidak menjalankan Pandoc/Word, tidak menulis berkas, dan tidak
 memvalidasi DOCX. Semua validasi yang bisa dilakukan tanpa DOCX berada di sini
-agar ``docgen check`` aman dijalankan di lingkungan tanpa Word.
+agar ``autooffice check`` aman dijalankan di lingkungan tanpa Word.
 """
 
 import re
@@ -312,7 +312,7 @@ def _validate_body(body: str, *, structure: Structure, path: Path) -> None:
     appendices = any(item.id == "appendices" for item in structure.back_matter)
     expected_index = 0
     current_level = 0
-    lampiran_seen = False
+    appendix_seen = False
 
     for line_number, line in enumerate(masked_lines(body), start=1):
         match = _HEADING_RE.match(line)
@@ -332,7 +332,7 @@ def _validate_body(body: str, *, structure: Structure, path: Path) -> None:
                         path=path,
                         key=f"body:{line_number}",
                     )
-                if lampiran_seen:
+                if appendix_seen:
                     raise _doc_error(
                         "# Lampiran hanya boleh muncul sekali",
                         code="CFG-DUPLICATE",
@@ -346,7 +346,7 @@ def _validate_body(body: str, *, structure: Structure, path: Path) -> None:
                         path=path,
                         key=f"body:{line_number}",
                     )
-                lampiran_seen = True
+                appendix_seen = True
                 current_level = 1
                 continue
 
@@ -405,7 +405,7 @@ def _validate_body(body: str, *, structure: Structure, path: Path) -> None:
             path=path,
             key="body",
         )
-    if appendices and not lampiran_seen:
+    if appendices and not appendix_seen:
         raise _doc_error(
             "back_matter memuat appendices, tetapi body tidak memiliki '# Lampiran'",
             code="CFG-BODY-ORDER",

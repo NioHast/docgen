@@ -82,87 +82,87 @@ UNSAFE_CALLS = frozenset(
 
 
 @dataclass(frozen=True)
-class Pelanggaran:
+class Violation:
     """Satu pelanggaran test dengan lokasi dan jenisnya."""
 
-    jenis: str
-    berkas: str
-    baris: int
-    pesan: str
+    kind: str
+    file: str
+    line: int
+    message: str
 
     def __str__(self) -> str:
-        return f"{self.berkas}:{self.baris}: [{self.jenis}] {self.pesan}"
+        return f"{self.file}:{self.line}: [{self.kind}] {self.message}"
 
 
 @dataclass(frozen=True)
-class Hasil:
+class Result:
     """Ringkasan hasil pemeriksaan test."""
 
-    berkas: int = 0
+    file_count: int = 0
     test: int = 0
-    masalah: tuple[Pelanggaran, ...] = ()
+    violations: tuple[Violation, ...] = ()
 
 
-def _is_test_file(jalur: Path) -> bool:
-    return jalur.suffix == ".py" and jalur.name.startswith("test_")
+def _is_test_file(path: Path) -> bool:
+    return path.suffix == ".py" and path.name.startswith("test_")
 
 
-def _di_fixtures(jalur: Path) -> bool:
-    bagian = [bagian.lower() for bagian in jalur.resolve().parts]
+def _in_fixtures(path: Path) -> bool:
+    parts = [part.lower() for part in path.resolve().parts]
     return any(
-        bagian[posisi] == "tests" and bagian[posisi + 1] == "fixtures"
-        for posisi in range(len(bagian) - 1)
+        parts[position] == "tests" and parts[position + 1] == "fixtures"
+        for position in range(len(parts) - 1)
     )
 
 
 def _iter_files(paths: list[str], cwd: Path) -> list[Path]:
     """Kumpulkan berkas test secara deterministik."""
-    terpilih: list[Path] = []
-    terlihat: set[Path] = set()
-    for mentah in paths:
-        jalur = Path(mentah)
-        if not jalur.is_absolute():
-            jalur = cwd / jalur
-        jalur = jalur.resolve()
-        if not jalur.exists():
-            raise FileNotFoundError(mentah)
-        kandidat = [jalur] if jalur.is_file() else sorted(jalur.rglob("test_*.py"))
-        for item in kandidat:
-            if not _is_test_file(item) or _di_fixtures(item):
+    selected: list[Path] = []
+    seen: set[Path] = set()
+    for raw in paths:
+        path = Path(raw)
+        if not path.is_absolute():
+            path = cwd / path
+        path = path.resolve()
+        if not path.exists():
+            raise FileNotFoundError(raw)
+        candidates = [path] if path.is_file() else sorted(path.rglob("test_*.py"))
+        for item in candidates:
+            if not _is_test_file(item) or _in_fixtures(item):
                 continue
-            if item not in terlihat:
-                terlihat.add(item)
-                terpilih.append(item)
-    terpilih.sort(key=lambda item: _nama_tampil(item, cwd))
-    return terpilih
+            if item not in seen:
+                seen.add(item)
+                selected.append(item)
+    selected.sort(key=lambda item: _display_name(item, cwd))
+    return selected
 
 
-def _nama_tampil(jalur: Path, cwd: Path) -> str:
+def _display_name(path: Path, cwd: Path) -> str:
     try:
-        return jalur.resolve().relative_to(cwd).as_posix()
+        return path.resolve().relative_to(cwd).as_posix()
     except ValueError:
-        return jalur.resolve().as_posix()
+        return path.resolve().as_posix()
 
 
 def _aliases(tree: ast.Module) -> dict[str, str]:
     """Petakan nama lokal import ke nama lengkapnya."""
-    hasil: dict[str, str] = {}
+    result: dict[str, str] = {}
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
                 if alias.asname:
-                    hasil[alias.asname] = alias.name
+                    result[alias.asname] = alias.name
                 else:
-                    akar = alias.name.split(".", 1)[0]
-                    hasil[akar] = akar
+                    root = alias.name.split(".", 1)[0]
+                    result[root] = root
         elif isinstance(node, ast.ImportFrom):
             prefix = node.module or ""
             for alias in node.names:
                 if alias.name == "*":
                     continue
-                lengkap = f"{prefix}.{alias.name}" if prefix else alias.name
-                hasil[alias.asname or alias.name] = lengkap
-    return hasil
+                full_name = f"{prefix}.{alias.name}" if prefix else alias.name
+                result[alias.asname or alias.name] = full_name
+    return result
 
 
 def _full_name(node: ast.AST, aliases: dict[str, str]) -> str:
@@ -170,8 +170,8 @@ def _full_name(node: ast.AST, aliases: dict[str, str]) -> str:
     if isinstance(node, ast.Name):
         return aliases.get(node.id, node.id)
     if isinstance(node, ast.Attribute):
-        dasar = _full_name(node.value, aliases)
-        return f"{dasar}.{node.attr}" if dasar else node.attr
+        base = _full_name(node.value, aliases)
+        return f"{base}.{node.attr}" if base else node.attr
     return ""
 
 
@@ -206,26 +206,26 @@ class _DirectVisitor(ast.NodeVisitor):
 
 def _is_assertion_call(call: ast.Call, aliases: dict[str, str]) -> bool:
     """True bila call adalah assertion pytest/unittest yang dikenal."""
-    nama = _full_name(call.func, aliases)
-    if nama in {"pytest.raises", "pytest.warns", "pytest.fail"}:
+    name = _full_name(call.func, aliases)
+    if name in {"pytest.raises", "pytest.warns", "pytest.fail"}:
         return True
-    akhir = nama.rsplit(".", 1)[-1]
-    if akhir.startswith("assert"):
+    ending = name.rsplit(".", 1)[-1]
+    if ending.startswith("assert"):
         return True
-    return akhir == "fail" and nama in {"pytest.fail", "self.fail", "cls.fail"}
+    return ending == "fail" and name in {"pytest.fail", "self.fail", "cls.fail"}
 
 
 def _is_helper_call(call: ast.Call, helpers: set[str]) -> bool:
     """True bila call memanggil helper assertion lokal."""
-    fungsi = call.func
-    if isinstance(fungsi, ast.Name):
-        return fungsi.id in helpers
+    function = call.func
+    if isinstance(function, ast.Name):
+        return function.id in helpers
     if (
-        isinstance(fungsi, ast.Attribute)
-        and isinstance(fungsi.value, ast.Name)
-        and fungsi.value.id in {"self", "cls"}
+        isinstance(function, ast.Attribute)
+        and isinstance(function.value, ast.Name)
+        and function.value.id in {"self", "cls"}
     ):
-        return fungsi.attr in helpers
+        return function.attr in helpers
     return False
 
 
@@ -284,15 +284,15 @@ def _is_tautology(expr: ast.AST) -> bool:
     if _is_true_constant(expr) or _is_not_false(expr):
         return True
     if isinstance(expr, ast.Compare):
-        sebelumnya = expr.left
-        for operator, pembanding in zip(expr.ops, expr.comparators, strict=True):
+        previous = expr.left
+        for operator, comparator in zip(expr.ops, expr.comparators, strict=True):
             if (
                 isinstance(operator, ast.Eq)
-                and _same_expr(sebelumnya, pembanding)
-                and _simple_expr(sebelumnya)
+                and _same_expr(previous, comparator)
+                and _simple_expr(previous)
             ):
                 return True
-            sebelumnya = pembanding
+            previous = comparator
     if isinstance(expr, ast.BoolOp):
         return any(_is_tautology(value) for value in expr.values)
     return False
@@ -322,18 +322,18 @@ def _iter_asserts(node: ast.AST):
         yield from _iter_asserts(child)
 
 
-def _combine(risiko: list[str]) -> str:
-    if "safe" in risiko:
+def _combine(risk: list[str]) -> str:
+    if "safe" in risk:
         return "safe"
-    if "unsafe" in risiko:
+    if "unsafe" in risk:
         return "unsafe"
     return "unknown"
 
 
-def _binop_risk(kiri: str, kanan: str) -> str:
-    if "safe" in {kiri, kanan}:
+def _binop_risk(left: str, right: str) -> str:
+    if "safe" in {left, right}:
         return "safe"
-    if kiri == "unsafe" and kanan == "unsafe":
+    if left == "unsafe" and right == "unsafe":
         return "unsafe"
     return "unknown"
 
@@ -353,10 +353,10 @@ def _path_risk(expr: ast.AST, safe: set[str], unsafe: set[str]) -> str:
     if isinstance(expr, ast.Attribute):
         if expr.attr in {"cwd", "home"} and _full_name(expr.value, {}) in {"Path", "pathlib.Path"}:
             return "unsafe"
-        dasar = _path_risk(expr.value, safe, unsafe)
-        if dasar == "safe":
+        base = _path_risk(expr.value, safe, unsafe)
+        if base == "safe":
             return "safe"
-        return dasar
+        return base
     if isinstance(expr, ast.Subscript):
         return _path_risk(expr.value, safe, unsafe)
     if isinstance(expr, ast.BinOp):
@@ -370,15 +370,15 @@ def _path_risk(expr: ast.AST, safe: set[str], unsafe: set[str]) -> str:
     if isinstance(expr, ast.JoinedStr):
         return _combine([_path_risk(item, safe, unsafe) for item in expr.values])
     if isinstance(expr, ast.Call):
-        nama = _full_name(expr.func, {})
-        if nama in TEMP_DIRECTORY_CALLS:
+        name = _full_name(expr.func, {})
+        if name in TEMP_DIRECTORY_CALLS:
             return "safe"
-        if nama in UNSAFE_CALLS:
+        if name in UNSAFE_CALLS:
             return "unsafe"
-        risiko = [_path_risk(argument, safe, unsafe) for argument in expr.args]
-        risiko.extend(_path_risk(keyword.value, safe, unsafe) for keyword in expr.keywords)
-        risiko.append(_path_risk(expr.func, safe, unsafe))
-        return _combine(risiko)
+        risk = [_path_risk(argument, safe, unsafe) for argument in expr.args]
+        risk.extend(_path_risk(keyword.value, safe, unsafe) for keyword in expr.keywords)
+        risk.append(_path_risk(expr.func, safe, unsafe))
+        return _combine(risk)
     return "unknown"
 
 
@@ -386,19 +386,19 @@ def _bindings(
     node: ast.FunctionDef | ast.AsyncFunctionDef, unsafe: set[str]
 ) -> tuple[set[str], set[str]]:
     """Kumpulkan nama lokal yang pasti aman dan yang pasti keluar tmp_path."""
-    aman: set[str] = {
-        argumen.arg
-        for argumen in [
+    safe: set[str] = {
+        argument.arg
+        for argument in [
             *node.args.posonlyargs,
             *node.args.args,
             *node.args.kwonlyargs,
         ]
-        if argumen.arg in SAFE_PATH_NAMES
+        if argument.arg in SAFE_PATH_NAMES
     }
-    tidak_aman = set(unsafe)
-    berubah = True
-    while berubah:
-        berubah = False
+    unsafe_names = set(unsafe)
+    changed = True
+    while changed:
+        changed = False
         for child in ast.walk(node):
             if isinstance(child, ast.Assign):
                 targets = child.targets
@@ -410,32 +410,32 @@ def _bindings(
                 targets = []
                 value = None
             if value is not None:
-                risiko = _path_risk(value, aman, tidak_aman)
-                tujuan = "aman" if risiko == "safe" else "tidak_aman" if risiko == "unsafe" else ""
+                risk = _path_risk(value, safe, unsafe_names)
+                verdict = "aman" if risk == "safe" else "tidak_aman" if risk == "unsafe" else ""
                 for target in targets:
                     if not isinstance(target, ast.Name):
                         continue
-                    if tujuan == "aman" and target.id not in aman:
-                        aman.add(target.id)
-                        berubah = True
-                    elif tujuan == "tidak_aman" and target.id not in tidak_aman:
-                        tidak_aman.add(target.id)
-                        berubah = True
+                    if verdict == "aman" and target.id not in safe:
+                        safe.add(target.id)
+                        changed = True
+                    elif verdict == "tidak_aman" and target.id not in unsafe_names:
+                        unsafe_names.add(target.id)
+                        changed = True
             if isinstance(child, (ast.With, ast.AsyncWith)):
                 for item in child.items:
                     if not isinstance(item.optional_vars, ast.Name):
                         continue
-                    if _path_risk(item.context_expr, aman, tidak_aman) != "safe":
+                    if _path_risk(item.context_expr, safe, unsafe_names) != "safe":
                         continue
-                    if item.optional_vars.id not in aman:
-                        aman.add(item.optional_vars.id)
-                        berubah = True
-    return aman, tidak_aman
+                    if item.optional_vars.id not in safe:
+                        safe.add(item.optional_vars.id)
+                        changed = True
+    return safe, unsafe_names
 
 
 def _module_unsafe_roots(tree: ast.Module) -> set[str]:
     """Nama modul yang jelas menunjuk path repo, filesystem, atau working directory."""
-    hasil: set[str] = set()
+    result: set[str] = set()
     for node in tree.body:
         if isinstance(node, ast.Assign):
             targets = node.targets
@@ -449,20 +449,20 @@ def _module_unsafe_roots(tree: ast.Module) -> set[str]:
             continue
         for target in targets:
             if isinstance(target, ast.Name):
-                hasil.add(target.id)
-    return hasil
+                result.add(target.id)
+    return result
 
 
 def _write_targets(call: ast.Call) -> list[ast.AST]:
     """Kembalikan ekspresi path yang ditulis oleh satu call."""
-    fungsi = call.func
-    if isinstance(fungsi, ast.Attribute):
-        if fungsi.attr in WRITE_METHODS:
-            return [fungsi.value]
+    function = call.func
+    if isinstance(function, ast.Attribute):
+        if function.attr in WRITE_METHODS:
+            return [function.value]
         return []
-    if not isinstance(fungsi, ast.Name):
+    if not isinstance(function, ast.Name):
         return []
-    if fungsi.id == "open":
+    if function.id == "open":
         if len(call.args) < 2:
             return []
         mode = call.args[1]
@@ -471,10 +471,10 @@ def _write_targets(call: ast.Call) -> list[ast.AST]:
         if not any(token in mode.value for token in ("a", "w", "x", "+")):
             return []
         return [call.args[0]]
-    nama = _full_name(fungsi, {})
-    if nama not in WRITE_FUNCTIONS:
+    name = _full_name(function, {})
+    if name not in WRITE_FUNCTIONS:
         return []
-    if nama in {
+    if name in {
         "os.rename",
         "os.replace",
         "shutil.copy",
@@ -492,44 +492,44 @@ def _violations_for(
     aliases: dict[str, str],
     helpers: set[str],
     unsafe: set[str],
-) -> list[Pelanggaran]:
-    hasil: list[Pelanggaran] = []
+) -> list[Violation]:
+    result: list[Violation] = []
     if not _has_assertion(node, aliases, helpers):
-        hasil.append(
-            Pelanggaran("no_assert", "", node.lineno, "test tidak memiliki assertion perilaku")
+        result.append(
+            Violation("no_assert", "", node.lineno, "test tidak memiliki assertion perilaku")
         )
     for assertion in _iter_asserts(node):
         if _is_tautology(assertion.test):
-            hasil.append(
-                Pelanggaran(
+            result.append(
+                Violation(
                     "assert_true",
                     "",
                     assertion.lineno,
                     "assert selalu benar; ganti dengan expected independen",
                 )
             )
-    aman, tidak_aman = _bindings(node, unsafe)
+    safe, unsafe_names = _bindings(node, unsafe)
     for call in _iter_calls(node):
-        nama = _full_name(call.func, aliases)
-        if nama in SLEEP_CALLS:
-            hasil.append(
-                Pelanggaran("sleep", "", call.lineno, "test memakai sleep; gunakan fake clock")
+        name = _full_name(call.func, aliases)
+        if name in SLEEP_CALLS:
+            result.append(
+                Violation("sleep", "", call.lineno, "test memakai sleep; gunakan fake clock")
             )
-        if nama.startswith(NETWORK_PREFIXES) or nama in NETWORK_CALLS:
-            hasil.append(
-                Pelanggaran("network", "", call.lineno, f"test mengakses network langsung: {nama}")
+        if name.startswith(NETWORK_PREFIXES) or name in NETWORK_CALLS:
+            result.append(
+                Violation("network", "", call.lineno, f"test mengakses network langsung: {name}")
             )
         for target in _write_targets(call):
-            if _path_risk(target, aman, tidak_aman) == "unsafe":
-                hasil.append(
-                    Pelanggaran(
+            if _path_risk(target, safe, unsafe_names) == "unsafe":
+                result.append(
+                    Violation(
                         "write",
                         "",
                         call.lineno,
                         "test menulis path yang jelas di luar tmp_path",
                     )
                 )
-    return hasil
+    return result
 
 
 def _skip_reason_missing(dec: ast.AST, aliases: dict[str, str]) -> bool:
@@ -544,89 +544,89 @@ def _skip_reason_missing(dec: ast.AST, aliases: dict[str, str]) -> bool:
 def _collect_tests(
     body: list[ast.stmt],
     path: Path,
-    tampil: str,
+    display: str,
     aliases: dict[str, str],
     helpers: set[str],
     unsafe: set[str],
-    hasil: list[Pelanggaran],
-    kelas: list[str] | None = None,
+    result: list[Violation],
+    class_names: list[str] | None = None,
 ) -> int:
     """Kumpulkan test dari module/class dan tambahkan pelanggarannya."""
-    jumlah = 0
-    kelas = kelas or []
+    count = 0
+    class_names = class_names or []
     for node in body:
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             if not node.name.startswith("test_"):
                 continue
-            jumlah += 1
+            count += 1
             for violation in _violations_for(node, aliases, helpers, unsafe):
-                hasil.append(
-                    Pelanggaran(
-                        violation.jenis,
-                        tampil,
-                        violation.baris,
-                        violation.pesan,
+                result.append(
+                    Violation(
+                        violation.kind,
+                        display,
+                        violation.line,
+                        violation.message,
                     )
                 )
             for dec in node.decorator_list:
                 if _skip_reason_missing(dec, aliases):
-                    hasil.append(
-                        Pelanggaran(
+                    result.append(
+                        Violation(
                             "skip_without_reason",
-                            tampil,
+                            display,
                             dec.lineno,
                             "skip/skipif wajib memiliki alasan tertulis",
                         )
                     )
         elif isinstance(node, ast.ClassDef):
-            jumlah += _collect_tests(
+            count += _collect_tests(
                 node.body,
                 path,
-                tampil,
+                display,
                 aliases,
                 helpers,
                 unsafe,
-                hasil,
-                [*kelas, node.name],
+                result,
+                [*class_names, node.name],
             )
-    return jumlah
+    return count
 
 
-def _parse_file(path: Path, tampil: str) -> tuple[int, list[Pelanggaran]]:
-    tree = ast.parse(path.read_text(encoding="utf-8"), filename=tampil)
+def _parse_file(path: Path, display: str) -> tuple[int, list[Violation]]:
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=display)
     aliases = _aliases(tree)
     helpers = _assertion_helpers(tree, aliases)
     unsafe = _module_unsafe_roots(tree)
-    hasil: list[Pelanggaran] = []
-    jumlah = _collect_tests(tree.body, path, tampil, aliases, helpers, unsafe, hasil)
-    return jumlah, hasil
+    result: list[Violation] = []
+    count = _collect_tests(tree.body, path, display, aliases, helpers, unsafe, result)
+    return count, result
 
 
-def periksa(paths: list[str] | None = None) -> Hasil:
+def check(paths: list[str] | None = None) -> Result:
     """Pindai path dan kembalikan pelanggaran test secara deterministik."""
     cwd = Path.cwd().resolve()
-    diminta = list(paths) if paths else list(DEFAULT_PATHS)
-    berkas = _iter_files(diminta, cwd)
-    jumlah_test = 0
-    masalah: list[Pelanggaran] = []
-    for jalur in berkas:
-        tampil = _nama_tampil(jalur, cwd)
+    requested = list(paths) if paths else list(DEFAULT_PATHS)
+    files = _iter_files(requested, cwd)
+    test_count = 0
+    violations: list[Violation] = []
+    for path in files:
+        display = _display_name(path, cwd)
         try:
-            jumlah, temuan = _parse_file(jalur, tampil)
+            count, findings = _parse_file(path, display)
         except (OSError, SyntaxError, UnicodeDecodeError) as exc:
-            masalah.append(
-                Pelanggaran(
+            violations.append(
+                Violation(
                     "unreadable",
-                    tampil,
+                    display,
                     0,
                     f"tidak dapat diperiksa: {exc.__class__.__name__}",
                 )
             )
             continue
-        jumlah_test += jumlah
-        masalah.extend(temuan)
-    masalah.sort(key=lambda item: (item.berkas, item.baris, item.jenis, item.pesan))
-    return Hasil(berkas=len(berkas), test=jumlah_test, masalah=tuple(masalah))
+        test_count += count
+        violations.extend(findings)
+    violations.sort(key=lambda item: (item.file, item.line, item.kind, item.message))
+    return Result(file_count=len(files), test=test_count, violations=tuple(violations))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -643,16 +643,16 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
     try:
-        hasil = periksa(args.paths or None)
+        result = check(args.paths or None)
     except FileNotFoundError as exc:
         print(f"path tidak ditemukan: {exc}", file=sys.stderr)
         return 2
-    print(f"Berkas test diperiksa: {hasil.berkas}")
-    print(f"Fungsi test diperiksa: {hasil.test}")
-    print(f"Pelanggaran: {len(hasil.masalah)}")
-    for masalah in hasil.masalah:
-        print(f"- {masalah}")
-    return 1 if hasil.masalah else 0
+    print(f"Berkas test diperiksa: {result.file_count}")
+    print(f"Fungsi test diperiksa: {result.test}")
+    print(f"Pelanggaran: {len(result.violations)}")
+    for violation in result.violations:
+        print(f"- {violation}")
+    return 1 if result.violations else 0
 
 
 if __name__ == "__main__":

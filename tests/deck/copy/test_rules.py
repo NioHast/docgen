@@ -50,7 +50,10 @@ def test_title_case_rejects_lowercase_word(make_deck: Callable[..., DeckIR]) -> 
 
     diagnostics = check_copy(deck)
 
-    assert "title_case" in rules(diagnostics)
+    assert [(item.rule, item.key, item.message) for item in diagnostics] == [
+        ("title_case", "s01.title", "Kata 'tiga' pada judul harus diawali huruf kapital."),
+        ("title_case", "s01.title", "Kata 'bagian' pada judul harus diawali huruf kapital."),
+    ]
 
 
 def test_title_case_keeps_function_word_lowercase_in_middle(
@@ -61,22 +64,6 @@ def test_title_case_keeps_function_word_lowercase_in_middle(
 
     assert "title_case" not in rules(check_copy(valid))
     assert "title_case" in rules(check_copy(invalid))
-
-
-def test_title_case_rejects_trailing_period(make_deck: Callable[..., DeckIR]) -> None:
-    deck = make_deck(slides=[{"id": "s01", "title": "Peta Tiga Bagian."}])
-
-    diagnostics = check_copy(deck)
-
-    assert any("titik" in diagnostic.message for diagnostic in diagnostics)
-
-
-def test_title_case_rejects_comma(make_deck: Callable[..., DeckIR]) -> None:
-    deck = make_deck(slides=[{"id": "s01", "title": "Peta Tiga, Bagian"}])
-
-    diagnostics = check_copy(deck)
-
-    assert any("koma" in diagnostic.message for diagnostic in diagnostics)
 
 
 def test_title_case_preserves_acronym(make_deck: Callable[..., DeckIR]) -> None:

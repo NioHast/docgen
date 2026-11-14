@@ -1,12 +1,12 @@
 """Perintah ``check``: validasi Markdown/DOCX dan deck tanpa menulis output."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
 from autooffice.errors import AutoOfficeError
 
-from . import CliError, require_callable, require_module
 from .outputs import missing_deck_assets
 from .targets import InputKind
 
@@ -61,10 +61,9 @@ def load_markdown_project(source: Path) -> Any:
     struktur, aset, dan urutan heading divalidasi oleh ``load_project`` serta
     ``validate_body``.
     """
-    document_module = require_module("autooffice.docx.document", "F1-DOCX")
-    load_project = require_callable(document_module, "load_project", "F1-DOCX")
-    validate_module = require_module("autooffice.docx.stages.validate", "F1-DOCX")
-    validate_body = require_callable(validate_module, "validate_body", "F1-DOCX")
+    from autooffice.docx.document import load_project
+    from autooffice.docx.stages.validate import validate_body
+
     project = load_project(source)
     validate_body(project.document)
     return project
@@ -94,33 +93,51 @@ def check_deck(
     theme: str | None = None,
 ) -> CheckResult:
     """Validasi deck YAML: schema, coverage, layout, copy, dan transkrip."""
-    model_module = require_module("autooffice.deck.model", "F1-MODEL")
-    compile_deck_file = require_callable(model_module, "compile_deck_file", "F1-MODEL")
-    build_coverage_plan = require_callable(model_module, "build_coverage_plan", "F1-MODEL")
+    from autooffice.deck.model import build_coverage_plan, compile_deck_file
 
     deck = compile_deck_file(source)
-    theme_name = theme or str(getattr(deck, "theme_name", "indigo"))
+    theme_name = theme if theme is not None else getattr(deck, "theme_name", None)
     theme_value: Any | None = None
     findings: list[Finding] = []
     notes: list[str] = []
 
     findings.extend(_asset_findings(source, deck))
 
-    try:
-        design_module = require_module("autooffice.design", "F1-DESIGN")
-        resolve_theme = require_callable(design_module, "resolve_theme", "F1-DESIGN")
-        theme_value = resolve_theme(theme_name)
-    except CliError as exc:
-        findings.append(_cli_finding(exc, rule="theme", file=source))
-    except AutoOfficeError as exc:
+    meta = getattr(deck, "meta", None)
+    title = meta.get("title") if isinstance(meta, Mapping) else None
+    if not isinstance(title, str) or not title.strip():
         findings.append(
             Finding(
                 severity="error",
-                message=f"theme '{theme_name}' gagal di-resolve: {exc}",
+                message="deck meta.title wajib berupa teks non-kosong",
+                rule="meta",
+                file=str(source),
+            )
+        )
+
+    if not isinstance(theme_name, str) or not theme_name.strip():
+        findings.append(
+            Finding(
+                severity="error",
+                message="deck tidak memiliki theme_name",
                 rule="theme",
                 file=str(source),
             )
         )
+    else:
+        try:
+            from autooffice.design import resolve_theme
+
+            theme_value = resolve_theme(theme_name)
+        except AutoOfficeError as exc:
+            findings.append(
+                Finding(
+                    severity="error",
+                    message=f"theme '{theme_name}' gagal di-resolve: {exc}",
+                    rule="theme",
+                    file=str(source),
+                )
+            )
 
     coverage = build_coverage_plan(deck)
     findings.extend(_coverage_findings(coverage, source))
@@ -202,13 +219,7 @@ def _layout_findings(
     theme: Any,
     source: Path,
 ) -> tuple[list[Finding], str | None]:
-    try:
-        require_module("autooffice.deck.layout", "F1-LAYOUT")
-        overflow_module = require_module("autooffice.deck.layout.overflow", "F1-LAYOUT")
-        plan_deck = require_callable(overflow_module, "plan_deck", "F1-LAYOUT")
-        plan_overflow_keys = require_callable(overflow_module, "plan_overflow_keys", "F1-LAYOUT")
-    except CliError as exc:
-        return [_cli_finding(exc, rule="layout", file=source)], str(exc)
+    from autooffice.deck.layout.overflow import plan_deck, plan_overflow_keys
 
     try:
         plan = plan_deck(deck, theme, fail_on_overflow=False)
@@ -217,7 +228,7 @@ def _layout_findings(
             [
                 Finding(
                     severity="error",
-                    message=f"layout gagal (lane F1-LAYOUT): {exc}",
+                    message=f"layout gagal: {exc}",
                     rule="layout",
                     file=str(source),
                 )
@@ -248,17 +259,13 @@ def _copy_findings(source: Path, deck: Any) -> tuple[list[Finding], list[str]]:
     transcript: Any | None = None
 
     if transcript_path.is_file():
+        from autooffice.deck.transcript import parse_transcript_file
+
         try:
-            transcript_module = require_module("autooffice.deck.transcript", "F1-COPY")
-            parse_transcript_file = require_callable(
-                transcript_module, "parse_transcript_file", "F1-COPY"
-            )
             transcript = parse_transcript_file(
                 transcript_path,
                 [slide.slide_id for slide in deck.slides],
             )
-        except CliError as exc:
-            notes.append(f"transcript validation dilewati: {exc}")
         except AutoOfficeError as exc:
             findings.append(
                 Finding(
@@ -269,12 +276,7 @@ def _copy_findings(source: Path, deck: Any) -> tuple[list[Finding], list[str]]:
                 )
             )
 
-    try:
-        copy_module = require_module("autooffice.deck.copy", "F1-COPY")
-        check_copy = require_callable(copy_module, "check_copy", "F1-COPY")
-    except CliError as exc:
-        notes.append(f"copy checker dilewati: {exc}")
-        return findings, notes
+    from autooffice.deck.copy import check_copy
 
     copy_path = source.parent / "copy.yaml"
     try:
@@ -319,15 +321,6 @@ def _diagnostic_findings(diagnostics: Any) -> list[Finding]:
             )
         )
     return findings
-
-
-def _cli_finding(exc: CliError, *, rule: str, file: Path) -> Finding:
-    return Finding(
-        severity="error",
-        message=str(exc),
-        rule=rule,
-        file=str(file),
-    )
 
 
 def _optional_text(value: Any) -> str | None:

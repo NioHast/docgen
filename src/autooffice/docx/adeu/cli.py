@@ -1,7 +1,7 @@
 """Titik masuk CLI fitur Adeu.
 
 ``register_reconcile`` mendaftarkan subperintah ``reconcile`` pada parser
-``docgen`` yang diberikan. Pemanggil di ``docgen.cli`` cukup:
+``autooffice`` yang diberikan. Pemanggil di ``autooffice.cli`` cukup:
 
 ```python
 from .adeu.cli import register_reconcile
@@ -23,7 +23,7 @@ from . import reconcile
 def register_reconcile(
     subparsers: argparse._SubParsersAction[argparse.ArgumentParser],
 ) -> argparse.ArgumentParser:
-    """Daftarkan subperintah ``reconcile`` ke parser ``docgen``."""
+    """Daftarkan subperintah ``reconcile`` ke parser ``autooffice``."""
 
     parser: argparse.ArgumentParser = subparsers.add_parser(
         "reconcile",
@@ -38,13 +38,13 @@ def register_reconcile(
 
 
 def command_reconcile(args: argparse.Namespace) -> int:
-    """Handler untuk subperintah ``docgen reconcile``."""
+    """Handler untuk subperintah ``autooffice reconcile``."""
 
     return reconcile.command(args)
 
 
-def build_parser(prog: str = "docgen") -> argparse.ArgumentParser:
-    """Parser mandiri ``python -m docgen.adeu.cli``."""
+def build_parser(prog: str = "autooffice") -> argparse.ArgumentParser:
+    """Parser mandiri ``python -m autooffice.docx.adeu.cli``."""
 
     parser = argparse.ArgumentParser(
         prog=prog,

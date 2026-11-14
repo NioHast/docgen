@@ -8,7 +8,6 @@ import time
 from pathlib import Path
 
 from .. import paths
-from ..errors import AssetError
 from ..pipeline import BaseStage, StageName, StageResult, canonical_prefix
 from ..terms import (
     Glossary,
@@ -39,26 +38,31 @@ def _same_path(first: Path, second: Path) -> bool:
         return first == second
 
 
-def _package_glossary() -> Path | None:
-    try:
-        return paths.glossary_file()
-    except AssetError:
-        return None
-
-
 def resolve_glossary(
     document_path: str | Path,
     override: str | Path | Glossary | None = None,
 ) -> Glossary:
-    """Muat glosarium package lalu override user di samping dokumen.
+    """Muat glosarium package, override eksplisit, lalu user di samping dokumen.
 
-    Presedensi user > package dan merge dilakukan per frasa (casefold).
-    ``override`` eksplisit (mis. ``ctx.glossary``) boleh berupa path atau
-    :class:`Glossary`; bila tidak ada, ``<document_dir>/istilah.tsv`` dipakai.
+    Urutan merge adalah paket, override eksplisit, lalu
+    ``<document_dir>/istilah.tsv`` pengguna. Karena merge dilakukan per frasa
+    (casefold), entri pengguna mengalahkan override eksplisit dan paket;
+    override eksplisit mengalahkan paket. ``override`` eksplisit (mis.
+    ``ctx.glossary``) harus berupa path atau :class:`Glossary`. Glosarium
+    package wajib ada: instalasi yang rusak tidak boleh ditutupi oleh
+    glosarium user.
     """
 
+    if override is not None and not isinstance(override, str | Path | Glossary):
+        raise GlossaryError(
+            "glossary eksplisit harus berupa path atau Glossary; "
+            f"diterima {type(override).__name__}",
+            code="GLOSSARY-TYPE",
+            path=Path(document_path),
+        )
+
     document_dir = Path(document_path).resolve().parent
-    package_path = _package_glossary()
+    package_path = paths.glossary_file()
     explicit_glossary: Glossary | None = override if isinstance(override, Glossary) else None
     candidates: list[Path] = []
     if isinstance(override, str | Path):
@@ -69,31 +73,17 @@ def resolve_glossary(
 
     unique_candidates: list[Path] = []
     for candidate in candidates:
-        if package_path is not None and _same_path(Path(candidate), package_path):
+        if _same_path(Path(candidate), package_path):
             continue
         if any(_same_path(Path(candidate), known) for known in unique_candidates):
             continue
         unique_candidates.append(Path(candidate))
 
-    if package_path is None and not unique_candidates and explicit_glossary is None:
-        raise GlossaryError(
-            "glosarium paket dan istilah.tsv pengguna tidak ditemukan; "
-            "letakkan istilah.tsv di samping document.md",
-            code="GLOSSARY-MISSING",
-            path=document_dir / "istilah.tsv",
-        )
-
-    glossary: Glossary | None = None
-    if package_path is not None:
-        glossary = load_glossary(package_path)
+    glossary = load_glossary(package_path)
     if explicit_glossary is not None:
-        glossary = (
-            explicit_glossary if glossary is None else merge_glossaries(glossary, explicit_glossary)
-        )
+        glossary = merge_glossaries(glossary, explicit_glossary)
     for candidate in unique_candidates:
-        loaded = load_glossary(candidate)
-        glossary = loaded if glossary is None else merge_glossaries(glossary, loaded)
-    assert glossary is not None
+        glossary = merge_glossaries(glossary, load_glossary(candidate))
     return glossary
 
 

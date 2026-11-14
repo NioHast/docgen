@@ -427,7 +427,7 @@ from .errors import DocgenError
 ## Test
 
 - Test memakai pytest dan mengikuti marker yang terdaftar di `pytest.ini`:
-  `unit`, `integration`, `packaging`, `e2e`, `word`, dan `windows`.
+  `unit`, `integration`, `packaging`, `word`, `windows`, dan `slow`.
 - Satu test menguji satu perilaku. Nama test menyatakan perilaku yang
   diharapkan, bukan nama fungsi internal.
 - Test unit tidak memanggil Word, jaringan, atau proses eksternal. Test yang
@@ -501,7 +501,7 @@ Contoh pengecualian inline yang dipakai saat ini:
 - `BLE001` di `src/autooffice/docx/terms/model.py` untuk package tanpa rels.
 - `SIM118` di `src/autooffice/docx/stages/office.py` dan `src/autooffice/docx/stages/mermaid.py`
   karena `Artifacts` bukan `Mapping`.
-- `SIM118` di `tests/unit/test_pandoc_stage.py` karena fake artifacts bukan
+- `SIM118` di `tests/docx/test_pandoc_stage.py` karena fake artifacts bukan
   `Mapping`.
 - `E402` dan `F403` pada blok import `src/autooffice/docx/package/__init__.py` karena
   import ditempatkan setelah kelas error untuk menghindari siklus inisialisasi.

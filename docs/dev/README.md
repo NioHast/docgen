@@ -60,10 +60,8 @@ pilih jalur baca yang sesuai di indeks materi belajar.
 | [../contracts/pdf.md](../contracts/pdf.md) | Word/PowerPoint COM, ekspor PDF, timeout, cleanup, dan embedding font. |
 | [../contracts/documentation.md](../contracts/documentation.md) | Struktur dokumentasi, TOC, tautan, dan aturan isi. |
 
-Kontrak internal lama di `contracts/` hanya dipertahankan untuk transisi F3 dan
-tidak menjadi acuan aktif:
-[config.md](contracts/config.md), [docx-api.md](contracts/docx-api.md), dan
-[stage-api.md](contracts/stage-api.md).
+Kontrak internal lama sudah dihapus. Acuan aktif berada di
+[../contracts/](../contracts/).
 
 ## Fitur dan operasi
 
@@ -85,8 +83,8 @@ tidak menjadi acuan aktif:
 | [performance.md](performance.md) | Tes performa deck besar, marker `slow`, dan batas waktu. |
 | [visual-testing.md](visual-testing.md) | Smoke harness render PPTX ke PNG lewat PowerPoint COM. |
 | [quality-gates.md](quality-gates.md) | Gate lokal AutoOffice, checker, dan urutan verifikasi. |
-| [f3-cleanup.md](f3-cleanup.md) | Runbook F3 untuk parity baseline, penghapusan legacy, gate, dan rollback. |
-| [test-quality.md](test-quality.md) | Prinsip memilih kasus test dan hasil audit suite. |
+| [f3-cleanup.md](f3-cleanup.md) | Status pembersihan legacy F3, verifikasi, dan tautan ke ADR 0011. |
+| [test-quality.md](test-quality.md) | Prinsip memilih kasus test dan alat pemeriksa deterministik. |
 | [mutation-testing.md](mutation-testing.md) | Mutation testing manual modul kritis: tool, scope, perintah, runtime, dan survivor. |
 | [code-style.md](code-style.md) | Konfigurasi Ruff, mypy, dan tabel rule. |
 | [python-315-style.md](python-315-style.md) | Anotasi lazy PEP 649/749, fitur 3.13 sampai 3.15, API deprecated, dan checker gaya. |

@@ -130,7 +130,8 @@ def test_binding_kinds_and_sync_flags_follow_contract() -> None:
     assert bindings["s01.chart1.series1.value1"].sync is False
 
 
-def test_unknown_block_type_is_rejected() -> None:
+def test_defensive_unknown_block_type_is_rejected() -> None:
+    """Guard internal: schema menolak block type di luar kontrak sebelum binding."""
     with pytest.raises(KeyGrammarError, match="tanpa binding"):
         _bindings_for(_block("mystery", block_id="mystery1"))
 
@@ -168,7 +169,11 @@ def test_binding_field_shape_errors_are_reported(block: BlockDefinition, match: 
         _bindings_for(block)
 
 
-def test_inline_binding_rejects_non_inline_kind() -> None:
+def test_defensive_inline_binding_rejects_non_inline_kind() -> None:
+    """Guard internal: ``block_bindings`` selalu memilih kind text/media_text.
+
+    Pemanggil langsung tetap dilindungi agar binding inline tidak salah kind.
+    """
     with pytest.raises(KeyGrammarError, match="Binding inline"):
         _inline_binding(
             slide_id="s01",
@@ -180,7 +185,8 @@ def test_inline_binding_rejects_non_inline_kind() -> None:
         )
 
 
-def test_plain_binding_rejects_non_text_kind() -> None:
+def test_defensive_plain_binding_rejects_non_text_kind() -> None:
+    """Guard internal: ``block_bindings`` hanya memakai kind text untuk plain binding."""
     with pytest.raises(KeyGrammarError, match="Binding plain"):
         _plain_binding(
             slide_id="s01",
@@ -193,7 +199,8 @@ def test_plain_binding_rejects_non_text_kind() -> None:
         )
 
 
-def test_preserve_binding_rejects_non_preserve_kind() -> None:
+def test_defensive_preserve_binding_rejects_non_preserve_kind() -> None:
+    """Guard internal: notes memakai kind notes dan code memakai kind text."""
     with pytest.raises(KeyGrammarError, match="Binding preserve"):
         _preserve_binding(
             slide_id="s01",

@@ -43,12 +43,17 @@ def test_forbidden_node_paths_wraps_invalid_xml_part(tmp_path: Path) -> None:
         forbidden_node_paths(path)
 
 
-def test_validate_package_wraps_bad_zip(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    "operation",
+    (validate_package, normalize_embedded_workbooks),
+    ids=("validate_package", "normalize_embedded_workbooks"),
+)
+def test_bad_zip_is_wrapped_with_package_error(tmp_path: Path, operation) -> None:
     path = tmp_path / "bukan-zip.pptx"
     path.write_bytes(b"bukan arsip")
 
     with pytest.raises(PptxRenderError, match="bukan PPTX ZIP yang valid"):
-        validate_package(path)
+        operation(path)
 
 
 def test_validate_package_rejects_corrupt_zip_entry(tmp_path: Path) -> None:
@@ -64,14 +69,6 @@ def test_validate_package_rejects_corrupt_zip_entry(tmp_path: Path) -> None:
 
     with pytest.raises(PptxRenderError, match="Arsip PPTX rusak"):
         validate_package(path)
-
-
-def test_normalize_embedded_workbooks_wraps_bad_zip(tmp_path: Path) -> None:
-    path = tmp_path / "bukan-zip.pptx"
-    path.write_bytes(b"bukan arsip")
-
-    with pytest.raises(PptxRenderError, match="bukan PPTX ZIP yang valid"):
-        normalize_embedded_workbooks(path)
 
 
 def test_normalize_embedded_workbooks_rejects_invalid_workbook(tmp_path: Path) -> None:

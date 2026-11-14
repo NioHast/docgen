@@ -1,8 +1,8 @@
 """Injeksi ID paragraf Adeu dan penyusunan manifest.
 
 Modul ini adalah port ``tools/add_paragraph_ids.py`` ke atas API
-``docgen.docx`` dan parser Markdown bersama. Bookmark ``pNNNN`` ditangani
-``docgen.docx.bookmarks``; modul ini hanya menambahkan klasifikasi, proteksi,
+``autooffice.docx`` dan parser Markdown bersama. Bookmark ``pNNNN`` ditangani
+``autooffice.docx.bookmarks``; modul ini hanya menambahkan klasifikasi, proteksi,
 pencocokan sumber, dan manifest deterministik.
 """
 
@@ -438,7 +438,7 @@ def _summary(manifest: Manifest) -> str:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="docgen-adeu-add",
+        prog="autooffice-adeu-add",
         description=(
             "Injeksi bookmark pNNNN ke setiap paragraf body DOCX dan tulis manifest JSON Adeu."
         ),

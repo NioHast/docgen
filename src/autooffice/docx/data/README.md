@@ -9,7 +9,7 @@ mengubah output build, jadi perlakukan seperti kontrak.
 
 ## Ownership
 
-- [Kontrak config](../../../../docs/dev/contracts/config.md) adalah sumber
+- [Kontrak format dan struktur](../../../../docs/dev/formats.md) adalah sumber
   kebenaran skema `format.yml`, `structure.yml`, dan front matter. README ini
   tidak mendefinisikan key baru.
 - ID format dan struktur adalah nama direktori. Menambah format atau struktur
@@ -68,7 +68,7 @@ data	no
 
 ## Tautan
 
-- [Kontrak config](../../../../docs/dev/contracts/config.md)
+- [Kontrak format dan struktur](../../../../docs/dev/formats.md)
 - [Format dan struktur](../../../../docs/dev/formats.md)
 - [Peta repo](../../../../docs/dev/repo-map.md)
 - [Rencana refactor](../../../../docs/dev/archive/refactor-plan.md)

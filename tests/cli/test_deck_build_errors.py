@@ -1,6 +1,7 @@
 """Tes cabang build deck: renderer palsu, error Google, dan validasi target."""
 
 import sys
+from dataclasses import replace
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
 
@@ -10,12 +11,25 @@ import autooffice.pdf
 from autooffice.cli import CliError
 from autooffice.cli.build import _render_pptx, build_deck, require_google_extra
 from autooffice.deck.layout.spec import LayoutError
-from autooffice.deck.model import CoveragePlan
+from autooffice.deck.model import CoveragePlan, compile_deck_file
 from autooffice.design import DesignTokenError
-from autooffice.google import GoogleAuthError, GoogleError
+from autooffice.google import GoogleAuthError, GoogleError, GoogleState, save_state
 
 _MISSING = object()
 _OK = object()
+
+
+def _write_google_state(deck_path: Path) -> Path:
+    state = deck_path.parent / ".autooffice" / "state" / f"{deck_path.stem}.json"
+    save_state(
+        GoogleState(
+            deck_path=deck_path.name,
+            deck_sha256="a" * 64,
+            presentation_id="p1",
+        ),
+        state,
+    )
+    return state
 
 
 class _FakeRenderer:
@@ -149,10 +163,10 @@ def test_build_pptx_without_renderer_api_stops_before_output(
     monkeypatch.setitem(sys.modules, "autooffice.deck.render.pptx", _fake_empty_render_module())
     out = tmp_path / "out"
 
-    with pytest.raises(CliError, match="F1-PPTX") as error:
+    with pytest.raises(CliError, match="renderer PPTX") as error:
         build_deck(deck_path, ("pptx",), out)
 
-    assert error.value.code == "CLI-LANE-F1-PPTX"
+    assert error.value.code == "CLI-RENDERER"
     assert not out.exists()
 
 
@@ -172,10 +186,10 @@ def test_render_pptx_reports_missing_renderer_api(
             destination=tmp_path / "deck.pptx",
         )
 
-    assert error.value.code == "CLI-LANE-F1-PPTX"
+    assert error.value.code == "CLI-RENDERER"
 
 
-def test_build_pptx_renderer_type_error_is_lane_error(
+def test_build_pptx_renderer_type_error_reports_renderer_error(
     deck_path: Path,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -187,7 +201,7 @@ def test_build_pptx_renderer_type_error_is_lane_error(
     with pytest.raises(CliError, match="kontrak render salah") as error:
         build_deck(deck_path, ("pptx",), out)
 
-    assert error.value.code == "CLI-LANE-F1-PPTX"
+    assert error.value.code == "CLI-RENDERER"
     assert not list(out.glob("*.pptx"))
 
 
@@ -234,7 +248,7 @@ def test_build_pptx_rejects_renderer_without_artifact_path(
     with pytest.raises(CliError, match="tidak mengembalikan path") as error:
         build_deck(deck_path, ("pptx",), tmp_path / "out")
 
-    assert error.value.code == "CLI-LANE-F1-PPTX"
+    assert error.value.code == "CLI-ARTIFACT"
 
 
 def test_build_pptx_rejects_missing_rendered_artifact(
@@ -247,7 +261,21 @@ def test_build_pptx_rejects_missing_rendered_artifact(
     with pytest.raises(CliError, match="tidak menghasilkan artefak") as error:
         build_deck(deck_path, ("pptx",), tmp_path / "out")
 
-    assert error.value.code == "CLI-LANE-F1-PPTX"
+    assert error.value.code == "CLI-ARTIFACT"
+
+
+def test_build_pptx_rejects_renderer_without_coverage(
+    deck_path: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _use_factory(monkeypatch, _FakeRenderer(coverage=None))
+
+    with pytest.raises(CliError, match="tidak mengembalikan coverage") as error:
+        build_deck(deck_path, ("pptx",), tmp_path / "out")
+
+    assert error.value.code == "CLI-RENDERER"
+    assert not (tmp_path / "out" / "deck.pptx").exists()
 
 
 def test_build_pptx_publishes_renderer_artifact_written_to_destination(
@@ -262,19 +290,6 @@ def test_build_pptx_publishes_renderer_artifact_written_to_destination(
 
     assert (out / "deck.pptx").read_bytes() == b"PK fake pptx"
     assert outcome.files == (out / "deck.pptx", out / "deck.transcript.md")
-
-
-def test_build_pptx_font_embedding_adapter_missing_reports_lane(
-    deck_path: Path,
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(autooffice.pdf, "embed_pptx_fonts", None)
-
-    with pytest.raises(CliError, match="F2-PDF") as error:
-        build_deck(deck_path, ("pptx",), tmp_path / "out")
-
-    assert error.value.code == "CLI-LANE-F2-PDF"
 
 
 def test_build_pptx_font_embedding_cli_error_is_propagated(
@@ -316,7 +331,7 @@ def test_build_pptx_ambiguous_font_cleanup_preserves_build_dir(
     assert (workspace / "render.pptx").is_file()
 
 
-def test_build_pptx_font_embedding_os_error_reports_font_lane(
+def test_build_pptx_font_embedding_os_error_reports_font_error(
     deck_path: Path,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -333,20 +348,17 @@ def test_build_pptx_font_embedding_os_error_reports_font_lane(
     assert error.value.exit_code == 1
 
 
-def test_build_pptx_font_embedding_may_return_none(
+def test_build_pptx_font_embedding_requires_returned_path(
     deck_path: Path,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(autooffice.pdf, "embed_pptx_fonts", lambda _path: None)
 
-    outcome = build_deck(deck_path, ("pptx",), tmp_path / "out")
+    with pytest.raises(CliError, match="tidak mengembalikan path") as error:
+        build_deck(deck_path, ("pptx",), tmp_path / "out")
 
-    assert (tmp_path / "out" / "deck.pptx").is_file()
-    assert outcome.files == (
-        tmp_path / "out" / "deck.pptx",
-        tmp_path / "out" / "deck.transcript.md",
-    )
+    assert error.value.code == "CLI-ARTIFACT"
 
 
 def test_build_deck_requires_at_least_one_target(deck_path: Path) -> None:
@@ -362,6 +374,50 @@ def test_build_deck_rejects_unknown_theme_name(deck_path: Path, tmp_path: Path) 
 
     assert error.value.code == "CLI-THEME"
     assert error.value.exit_code == 2
+    assert not (tmp_path / "out").exists()
+
+
+@pytest.mark.parametrize("theme_name", [None, "", "   "])
+def test_build_deck_requires_deck_theme_name(
+    deck_path: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    theme_name: object,
+) -> None:
+    compiled = compile_deck_file(deck_path)
+    monkeypatch.setattr(
+        "autooffice.deck.model.compile_deck_file",
+        lambda _path: replace(compiled, theme_name=theme_name),
+    )
+
+    with pytest.raises(CliError, match="theme_name") as error:
+        build_deck(deck_path, ("pptx",), tmp_path / "out")
+
+    assert error.value.code == "CLI-THEME"
+    assert error.value.exit_code == 1
+    assert not (tmp_path / "out").exists()
+
+
+@pytest.mark.parametrize(
+    "meta",
+    [{}, {"title": ""}, {"title": "  "}, {"author": "Tim AutoOffice"}],
+)
+def test_build_deck_requires_meta_title(
+    deck_path: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    meta: dict[str, str],
+) -> None:
+    compiled = compile_deck_file(deck_path)
+    monkeypatch.setattr(
+        "autooffice.deck.model.compile_deck_file",
+        lambda _path: replace(compiled, meta=meta),
+    )
+
+    with pytest.raises(CliError, match=r"meta\.title") as error:
+        build_deck(deck_path, ("pptx",), tmp_path / "out", dry_run=True)
+
+    assert error.value.code == "CLI-META"
     assert not (tmp_path / "out").exists()
 
 
@@ -395,7 +451,7 @@ def test_build_deck_propagates_theme_autooffice_error(
         build_deck(deck_path, ("pptx",), tmp_path / "out")
 
 
-def test_build_deck_layout_failure_reports_layout_lane(
+def test_build_deck_layout_failure_reports_layout_error(
     deck_path: Path,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -567,17 +623,20 @@ def test_build_deck_without_transcript_does_not_copy_one(
     assert not (out / "deck.transcript.md").exists()
 
 
-def test_build_deck_pdf_without_exporter_reports_lane(
+def test_build_deck_pdf_exporter_none_result_reports_artifact_error(
     deck_path: Path,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(autooffice.pdf, "export_pptx_pdf", None)
+    def fake_export(_pptx: Path, pdf: Path) -> None:
+        pdf.write_bytes(b"%PDF-1.7 fake\n")
 
-    with pytest.raises(CliError, match="F2-PDF") as error:
+    monkeypatch.setattr(autooffice.pdf, "export_pptx_pdf", fake_export)
+
+    with pytest.raises(CliError, match="tidak mengembalikan path") as error:
         build_deck(deck_path, ("pdf",), tmp_path / "out")
 
-    assert error.value.code == "CLI-LANE-F2-PDF"
+    assert error.value.code == "CLI-ARTIFACT"
 
 
 def test_build_deck_pdf_exporter_cli_error_is_wrapped_with_pptx_path(
@@ -598,7 +657,7 @@ def test_build_deck_pdf_exporter_cli_error_is_wrapped_with_pptx_path(
     assert error.value.path.endswith(".pptx")
 
 
-def test_build_deck_pdf_exporter_os_error_reports_pdf_lane(
+def test_build_deck_pdf_exporter_os_error_reports_pdf_error(
     deck_path: Path,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -680,11 +739,15 @@ def test_build_deck_slides_without_services_checks_extra_and_pushes(
 ) -> None:
     extra_calls: list[int] = []
     pushes: list[dict[str, object]] = []
+    state = deck_path.parent / ".autooffice" / "state" / f"{deck_path.stem}.json"
 
-    def fake_push(**kwargs: object) -> None:
+    def fake_push(**kwargs: object) -> tuple[Path, ...]:
         pushes.append(kwargs)
         staging = Path(str(kwargs["staging"]))
         pushes[-1]["staging_exists"] = staging.is_file()
+        state.parent.mkdir(parents=True, exist_ok=True)
+        state.write_text("{}", encoding="utf-8")
+        return (state,)
 
     monkeypatch.setattr("autooffice.cli.build.require_google_extra", lambda: extra_calls.append(1))
     monkeypatch.setattr("autooffice.google.push_deck", fake_push)
@@ -696,7 +759,27 @@ def test_build_deck_slides_without_services_checks_extra_and_pushes(
     assert pushes[0]["staging_exists"] is True
     assert pushes[0]["mode"] == "push"
     assert "services" not in pushes[0]
-    assert outcome.files == (out / "deck.transcript.md",)
+    assert outcome.files == (out / "deck.transcript.md", state)
+    assert not (out / "deck.slides-upload.pptx").exists()
+
+
+@pytest.mark.parametrize("result", [None, [], ()])
+def test_build_deck_slides_push_requires_output_paths(
+    deck_path: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    result: object,
+) -> None:
+    def fake_push(**_kwargs: object) -> object:
+        return result
+
+    monkeypatch.setattr("autooffice.google.push_deck", fake_push)
+    out = tmp_path / "out"
+
+    with pytest.raises(CliError, match="output") as error:
+        build_deck(deck_path, ("slides",), out, google_services=object())
+
+    assert error.value.code == "CLI-GOOGLE-RESULT"
     assert not (out / "deck.slides-upload.pptx").exists()
 
 
@@ -722,17 +805,37 @@ def test_build_deck_slides_result_path_is_added_to_files(
     assert extra.is_file()
 
 
-def test_build_deck_slides_missing_push_api_reports_lane(
+def test_build_deck_slides_push_rejects_missing_returned_path(
+    deck_path: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    missing = tmp_path / "tidak-ada.json"
+
+    def fake_push(**_kwargs: object) -> Path:
+        return missing
+
+    monkeypatch.setattr("autooffice.google.push_deck", fake_push)
+    out = tmp_path / "out"
+
+    with pytest.raises(CliError, match="tidak menghasilkan artefak") as error:
+        build_deck(deck_path, ("slides",), out, google_services=object())
+
+    assert error.value.code == "CLI-ARTIFACT"
+    assert not (out / "deck.slides-upload.pptx").exists()
+
+
+def test_build_deck_slides_missing_push_api_reports_error(
     deck_path: Path,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr("autooffice.google.push_deck", None)
 
-    with pytest.raises(CliError, match="F2-GOOGLE") as error:
+    with pytest.raises(CliError, match="operasi Google Slides") as error:
         build_deck(deck_path, ("slides",), tmp_path / "out", google_services=object())
 
-    assert error.value.code == "CLI-LANE-F2-GOOGLE"
+    assert error.value.code == "CLI-GOOGLE"
     assert error.value.exit_code == 1
 
 
@@ -752,6 +855,23 @@ def test_build_deck_slides_push_google_error_removes_staging(
 
     assert error.value.code == "CLI-GOOGLE"
     assert error.value.path == str(deck_path)
+    assert not (out / "deck.slides-upload.pptx").exists()
+
+
+def test_build_deck_slides_push_os_error_removes_staging(
+    deck_path: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_push(**_kwargs: object) -> None:
+        raise OSError("disk penuh")
+
+    monkeypatch.setattr("autooffice.google.push_deck", fail_push)
+    out = tmp_path / "out"
+
+    with pytest.raises(OSError, match="disk penuh"):
+        build_deck(deck_path, ("slides",), out, google_services=object())
+
     assert not (out / "deck.slides-upload.pptx").exists()
 
 
@@ -799,9 +919,15 @@ def test_build_deck_slides_push_cli_error_is_propagated(
 @pytest.mark.parametrize(
     ("content", "match"),
     [
-        ("{bukan json", "tidak dapat dibaca"),
+        ("{bukan json", "JSON valid"),
         ("[]", "objek JSON"),
-        ('{"presentation_id": ""}', "presentation_id"),
+        ('{"presentation_id": "p1"}', "schema"),
+        (
+            '{"schema":"autooffice.state/v1","deck_path":"deck.yaml",'
+            '"deck_sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",'
+            '"presentation_id":""}',
+            "presentation_id",
+        ),
     ],
 )
 def test_build_deck_sync_reports_unusable_state(
@@ -825,6 +951,63 @@ def test_build_deck_sync_reports_unusable_state(
 
     assert error.value.code == "CLI-GOOGLE-STATE"
     assert not (tmp_path / "out").exists()
+
+
+@pytest.mark.parametrize("mode", ["diff", "pull", "apply"])
+@pytest.mark.parametrize("result", [None, [], ()])
+def test_build_deck_sync_requires_google_output_paths(
+    deck_path: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mode: str,
+    result: object,
+) -> None:
+    _write_google_state(deck_path)
+
+    def fake_sync(**_kwargs: object) -> object:
+        return result
+
+    monkeypatch.setattr("autooffice.google.sync_deck", fake_sync)
+    out = tmp_path / "out"
+
+    with pytest.raises(CliError, match="output") as error:
+        build_deck(
+            deck_path,
+            ("slides",),
+            out,
+            sync=mode,
+            google_services=object(),
+        )
+
+    assert error.value.code == "CLI-GOOGLE-RESULT"
+    assert not out.exists()
+
+
+def test_build_deck_sync_reports_review_directory_file(
+    deck_path: Path,
+    tmp_path: Path,
+    fake_google: object,
+) -> None:
+    build_deck(
+        deck_path,
+        ("slides",),
+        tmp_path / "push-out",
+        google_services=fake_google,
+    )
+    review = deck_path.parent / ".autooffice" / "review"
+    review.parent.mkdir(parents=True, exist_ok=True)
+    review.write_text("bukan direktori", encoding="utf-8")
+
+    with pytest.raises(CliError, match="Direktori review") as error:
+        build_deck(
+            deck_path,
+            ("slides",),
+            tmp_path / "out",
+            sync="diff",
+            google_services=fake_google,
+        )
+
+    assert error.value.code == "CLI-GOOGLE"
 
 
 @pytest.mark.parametrize("file_name", ["...yaml", "..yaml", ".. .yaml"])
@@ -871,7 +1054,7 @@ def test_dry_run_pptx_requires_pptx_renderer_class(
     with pytest.raises(CliError, match="PptxRenderer") as error:
         build_deck(deck_path, ("pptx",), out, dry_run=True)
 
-    assert error.value.code == "CLI-LANE-F1-PPTX"
+    assert error.value.code == "CLI-RENDERER"
     assert not out.exists()
 
 
@@ -886,7 +1069,7 @@ def test_dry_run_pdf_requires_pptx_renderer(
     with pytest.raises(CliError, match="PptxRenderer") as error:
         build_deck(deck_path, ("pdf",), out, dry_run=True)
 
-    assert error.value.code == "CLI-LANE-F1-PPTX"
+    assert error.value.code == "CLI-RENDERER"
     assert not out.exists()
 
 
@@ -898,10 +1081,10 @@ def test_dry_run_pdf_requires_pptx_converter(
     monkeypatch.setattr(autooffice.pdf, "export_pptx_pdf", None)
     out = tmp_path / "out"
 
-    with pytest.raises(CliError, match="F2-PDF") as error:
+    with pytest.raises(CliError, match="ekspor PDF PPTX") as error:
         build_deck(deck_path, ("pdf",), out, dry_run=True)
 
-    assert error.value.code == "CLI-LANE-F2-PDF"
+    assert error.value.code == "CLI-PDF"
     assert not out.exists()
 
 
@@ -913,10 +1096,10 @@ def test_dry_run_slides_requires_google_operation(
     monkeypatch.setattr("autooffice.google.push_deck", None)
     out = tmp_path / "out"
 
-    with pytest.raises(CliError, match="F2-GOOGLE") as error:
+    with pytest.raises(CliError, match="operasi Google Slides") as error:
         build_deck(deck_path, ("slides",), out, dry_run=True, google_services=object())
 
-    assert error.value.code == "CLI-LANE-F2-GOOGLE"
+    assert error.value.code == "CLI-GOOGLE"
     assert not out.exists()
 
 
@@ -925,13 +1108,11 @@ def test_dry_run_sync_requires_sync_deck_operation(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    state = deck_path.parent / ".autooffice" / "state" / f"{deck_path.stem}.json"
-    state.parent.mkdir(parents=True, exist_ok=True)
-    state.write_text('{"presentation_id": "p1"}', encoding="utf-8")
+    _write_google_state(deck_path)
     monkeypatch.setattr("autooffice.google.sync_deck", None)
     out = tmp_path / "out"
 
-    with pytest.raises(CliError, match="F2-GOOGLE") as error:
+    with pytest.raises(CliError, match="operasi Google Slides") as error:
         build_deck(
             deck_path,
             ("slides",),
@@ -941,7 +1122,7 @@ def test_dry_run_sync_requires_sync_deck_operation(
             google_services=object(),
         )
 
-    assert error.value.code == "CLI-LANE-F2-GOOGLE"
+    assert error.value.code == "CLI-GOOGLE"
     assert not out.exists()
 
 

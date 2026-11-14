@@ -1,4 +1,4 @@
-"""Tes kontrak scaffold F0 AutoOffice."""
+"""Tes kontrak scaffold AutoOffice."""
 
 from pathlib import Path
 
@@ -56,14 +56,27 @@ def test_package_version() -> None:
     assert autooffice.__version__ == "0.1.0"
 
 
-def test_help_exits_zero() -> None:
+def test_help_prints_commands_and_exits_zero(capsys: pytest.CaptureFixture[str]) -> None:
     with pytest.raises(SystemExit) as error:
         main(["--help"])
+
     assert error.value.code == 0
+    output = capsys.readouterr().out
+    assert "usage: autooffice" in output
+    for command in ("build", "check", "doctor"):
+        assert command in output
 
 
-def test_main_returns_zero() -> None:
+def test_main_without_arguments_prints_help_and_returns_zero(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     assert main([]) == 0
+
+    output = capsys.readouterr().out
+    assert "usage: autooffice" in output
+    assert "build" in output
+    assert "check" in output
+    assert "doctor" in output
 
 
 def test_block_registry_has_exact_eleven_names() -> None:

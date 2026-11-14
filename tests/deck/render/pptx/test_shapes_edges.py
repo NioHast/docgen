@@ -1,5 +1,6 @@
 """Tes cabang edge primitif shape, metadata key, dan validasi field."""
 
+import logging
 from types import SimpleNamespace
 
 import pytest
@@ -17,6 +18,7 @@ from autooffice.deck.render.pptx.shapes import (
     apply_paragraph_style,
     apply_run_style,
     box_from_placed,
+    collect_render_warnings,
     configure_text_frame,
     extension_keys,
     field_optional_text,
@@ -25,6 +27,7 @@ from autooffice.deck.render.pptx.shapes import (
     field_text,
     key_from_shape,
     primary_typeface,
+    record_render_warning,
     rgb,
     sequence,
     set_chrome_shape,
@@ -122,6 +125,21 @@ def test_apply_run_style_falls_back_and_warns_for_unknown_weight_family(weight: 
     assert warning is not None
     assert "tidak tersedia" in warning
     assert "bold=True" in warning
+
+
+def test_record_render_warning_logs_without_collector(caplog) -> None:
+    with caplog.at_level(logging.WARNING, logger="autooffice.deck.render.pptx.shapes"):
+        record_render_warning("font-weight: fallback")
+
+    assert "font-weight: fallback" in caplog.text
+
+
+def test_collect_render_warnings_deduplicates_messages() -> None:
+    with collect_render_warnings() as warnings:
+        record_render_warning("font-weight: fallback")
+        record_render_warning("font-weight: fallback")
+
+    assert warnings == ["font-weight: fallback"]
 
 
 def _styled_run(family: str, weight: int):

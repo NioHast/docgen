@@ -1,4 +1,4 @@
-"""Hierarki error tunggal untuk ``docgen``.
+"""Hierarki error tunggal untuk AutoOffice.
 
 Semua error yang dapat ditampilkan ke pengguna wajib berupa subclass
 ``DocgenError``. Setiap error membawa ``code``, ``path``, dan ``key`` opsional;

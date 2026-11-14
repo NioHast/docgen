@@ -1,12 +1,9 @@
 """Antarmuka baris perintah AutoOffice.
 
-Modul ini menyimpan error CLI bersama dan helper import lazy. Modul domain
-hanya diimpor saat perintah yang membutuhkannya benar-benar dijalankan agar
-``autooffice --help`` dan ``autooffice --version`` tetap ringan.
+Modul ini menyimpan error CLI bersama. Perintah memuat modul domain langsung
+di dalam fungsi yang membutuhkannya agar ``autooffice --help`` dan
+``autooffice --version`` tetap ringan.
 """
-
-import importlib
-from typing import Any
 
 from autooffice.errors import AutoOfficeError
 
@@ -44,33 +41,4 @@ class CliError(AutoOfficeError):
         return self.format()
 
 
-def require_module(name: str, lane: str) -> Any:
-    """Impor modul domain secara lazy atau lempar :class:`CliError`.
-
-    ``lane`` adalah nama lane plan, misalnya ``F1-PPTX``. Pesan error harus
-    menyebut lane tersebut agar pengguna tahu bagian mana yang belum selesai,
-    bukan menerima output palsu.
-    """
-    try:
-        return importlib.import_module(name)
-    except ImportError as exc:
-        raise CliError(
-            f"modul '{name}' untuk lane {lane} belum tersedia: {exc}",
-            code=f"CLI-LANE-{lane}",
-            exit_code=1,
-        ) from exc
-
-
-def require_callable(module: object, name: str, lane: str) -> Any:
-    """Ambil atribut callable dari modul lazy atau lempar :class:`CliError`."""
-    value = getattr(module, name, None)
-    if not callable(value):
-        raise CliError(
-            f"API '{name}' untuk lane {lane} belum tersedia",
-            code=f"CLI-LANE-{lane}",
-            exit_code=1,
-        )
-    return value
-
-
-__all__ = ["CliError", "require_callable", "require_module"]
+__all__ = ["CliError"]

@@ -28,7 +28,7 @@ lists:
   figures: false
   tables: false
 
-# Kunci cover mengikuti kontrak docs/dev/contracts/config.md bagian structure.yml.
+# Kunci cover mengikuti kontrak DOCX di docs/contracts/docx.md.
 cover:
   show_lecturer: false
   logo_width: 4.7cm

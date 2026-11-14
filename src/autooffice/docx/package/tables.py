@@ -2,7 +2,7 @@
 
 Modul ini adalah satu-satunya tempat yang membangun ``w:tblPr``/``w:tcPr``
 untuk stage ``code`` dan ``captions``. Semua perubahan XML memakai
-``docgen.docx.xml``; tidak ada ``python-docx`` atau ``zipfile`` di sini.
+``autooffice.docx.package.xml``; tidak ada ``python-docx`` atau ``zipfile`` di sini.
 
 Tabel kode tidak pernah dianggap tabel data: ``is_code_table`` dipakai stage
 caption untuk melewati tabel 1x1 yang seluruh paragrafnya bergaya kode.

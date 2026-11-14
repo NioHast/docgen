@@ -66,12 +66,14 @@ repo.
 |   |-- mutation/                # mutation testing manual
 |   `-- install_fonts.py
 `-- tests/
+    |-- acceptance/
     |-- cli/
     |-- contract/
     |-- deck/
     |-- design/
     |-- docx/
     |-- google/
+    |-- packaging/
     |-- pdf/
     |-- performance/
     |-- property/

@@ -460,16 +460,26 @@ class WordAdapterProtocol(Protocol):
 
 
 def _word_adapter(ctx: object, *, action: str) -> WordAdapterProtocol:
-    """Pakai ``ctx.word`` bila disuntikkan pipeline, selain itu adapter baru."""
+    """Pakai ``ctx.word`` bila disuntikkan pipeline, selain itu adapter baru.
+
+    ``ctx.word`` yang diisi tetapi tidak memenuhi protokol adalah error
+    konteks, bukan alasan membuat adapter Word nyata. Fallback diam-diam ke
+    adapter nyata akan membuat tes/CI tanpa Word mencoba COM.
+    """
 
     candidate = getattr(ctx, "word", None)
-    if (
-        candidate is not None
-        and callable(getattr(candidate, "available", None))
-        and callable(getattr(candidate, action, None))
-    ):
-        return cast("WordAdapterProtocol", candidate)
-    return WordAdapter()
+    if candidate is None:
+        return WordAdapter()
+    missing = [
+        name for name in ("available", action) if not callable(getattr(candidate, name, None))
+    ]
+    if missing:
+        names = ", ".join(repr(name) for name in missing)
+        raise TypeError(
+            f"ctx.word tidak memenuhi WordAdapterProtocol: method {names} tidak tersedia "
+            f"pada {type(candidate).__name__}"
+        )
+    return cast("WordAdapterProtocol", candidate)
 
 
 def _document_report_name(ctx: object) -> str:
@@ -495,26 +505,31 @@ def _docx_path(ctx: object) -> Path:
         )
 
     report_name = _document_report_name(ctx)
-    candidates = [
-        getattr(ctx, "output_dir", Path.cwd()) / f"{report_name}.docx",
-    ]
-    workspace = getattr(ctx, "workspace", None)
-    if workspace is not None and callable(getattr(workspace, "path", None)):
-        candidates.append(workspace.path(f"{report_name}.docx"))
-    for candidate in candidates:
-        if candidate.is_file():
-            return candidate
+    output_dir = getattr(ctx, "output_dir", None)
+    if not output_dir:
+        raise WordError(
+            "ctx.output_dir tidak tersedia; path DOCX tidak dapat ditentukan.",
+            code="WORD-INPUT",
+        )
+    candidate = Path(output_dir) / f"{report_name}.docx"
+    if candidate.is_file():
+        return candidate
     raise WordError(
         f"DOCX final tidak ditemukan untuk stage office/pdf: {report_name}.docx",
         code="WORD-INPUT",
-        path=candidates[0],
+        path=candidate,
     )
 
 
 def _pdf_path(ctx: object) -> Path:
+    output_dir = getattr(ctx, "output_dir", None)
+    if not output_dir:
+        raise PdfError(
+            "ctx.output_dir tidak tersedia; path PDF tidak dapat ditentukan.",
+            code="PDF-INPUT",
+        )
     report_name = _document_report_name(ctx)
-    output_dir = getattr(ctx, "output_dir", Path.cwd())
-    return output_dir / f"{report_name}.pdf"
+    return Path(output_dir) / f"{report_name}.pdf"
 
 
 def _skipped(

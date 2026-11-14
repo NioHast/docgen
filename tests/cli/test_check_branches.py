@@ -1,33 +1,15 @@
 """Tes cabang check deck: theme, layout, transcript, copy, dan coverage."""
 
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
-from autooffice.cli import CliError, require_module
 from autooffice.cli.check import Finding, check_deck
 from autooffice.deck.layout.spec import LayoutError
-from autooffice.deck.model import CoveragePlan
+from autooffice.deck.model import CoveragePlan, compile_deck_file
 from autooffice.design import DesignTokenError
 from autooffice.errors import AutoOfficeError
-
-
-def _failing_require(
-    monkeypatch: pytest.MonkeyPatch,
-    *,
-    names: tuple[str, ...] = (),
-    prefixes: tuple[str, ...] = (),
-) -> None:
-    def fake_require(name: str, lane: str) -> object:
-        if name in names or any(name.startswith(prefix) for prefix in prefixes):
-            raise CliError(
-                f"modul '{name}' untuk lane {lane} belum tersedia",
-                code=f"CLI-LANE-{lane}",
-                exit_code=1,
-            )
-        return require_module(name, lane)
-
-    monkeypatch.setattr("autooffice.cli.check.require_module", fake_require)
 
 
 def test_finding_format_includes_line_key_and_hint() -> None:
@@ -47,17 +29,38 @@ def test_finding_format_includes_line_key_and_hint() -> None:
     )
 
 
-def test_check_deck_reports_missing_design_lane_as_theme_finding(
+def test_check_deck_reports_missing_theme_name(
     deck_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    _failing_require(monkeypatch, names=("autooffice.design",))
+    compiled = compile_deck_file(deck_path)
+    monkeypatch.setattr(
+        "autooffice.deck.model.compile_deck_file",
+        lambda _path: replace(compiled, theme_name=""),
+    )
 
     result = check_deck(deck_path, ("pptx",))
 
     theme_findings = [finding for finding in result.findings if finding.rule == "theme"]
     assert len(theme_findings) == 1
-    assert "F1-DESIGN" in theme_findings[0].message
+    assert "theme_name" in theme_findings[0].message
+    assert result.ok is False
+
+
+def test_check_deck_reports_missing_meta_title(
+    deck_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    compiled = compile_deck_file(deck_path)
+    monkeypatch.setattr(
+        "autooffice.deck.model.compile_deck_file",
+        lambda _path: replace(compiled, meta={"author": "Tim AutoOffice"}),
+    )
+
+    result = check_deck(deck_path, ("pptx",))
+
+    finding = next(item for item in result.findings if item.rule == "meta")
+    assert "meta.title" in finding.message
     assert result.ok is False
 
 
@@ -77,19 +80,6 @@ def test_check_deck_reports_theme_autooffice_error(
     assert "token rusak" in finding.message
 
 
-def test_check_deck_notes_missing_layout_lane(
-    deck_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    _failing_require(monkeypatch, prefixes=("autooffice.deck.layout",))
-
-    result = check_deck(deck_path, ("pptx",))
-
-    layout_finding = next(item for item in result.findings if item.rule == "layout")
-    assert "F1-LAYOUT" in layout_finding.message
-    assert any("F1-LAYOUT" in note for note in result.notes)
-
-
 def test_check_deck_reports_layout_failure(
     deck_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -102,7 +92,7 @@ def test_check_deck_reports_layout_failure(
     result = check_deck(deck_path, ("pptx",))
 
     finding = next(item for item in result.findings if item.rule == "layout")
-    assert "layout gagal (lane F1-LAYOUT)" in finding.message
+    assert "layout gagal" in finding.message
     assert "grid tidak muat" in finding.message
 
 
@@ -137,30 +127,6 @@ def test_check_deck_without_transcript_skips_parse(deck_path: Path) -> None:
 
     assert result.ok is True
     assert not any(finding.rule == "transcript" for finding in result.findings)
-
-
-def test_check_deck_notes_missing_transcript_lane(
-    deck_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    _failing_require(monkeypatch, names=("autooffice.deck.transcript",))
-
-    result = check_deck(deck_path, ("pptx",))
-
-    assert any("transcript validation dilewati" in note for note in result.notes)
-    assert not any(finding.rule == "transcript" for finding in result.findings)
-
-
-def test_check_deck_notes_missing_copy_lane(
-    deck_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    _failing_require(monkeypatch, names=("autooffice.deck.copy",))
-
-    result = check_deck(deck_path, ("pptx",))
-
-    assert any("copy checker dilewati" in note for note in result.notes)
-    assert result.ok is True
 
 
 @pytest.mark.parametrize("error_type", [AutoOfficeError, OSError])

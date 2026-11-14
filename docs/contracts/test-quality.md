@@ -45,9 +45,9 @@ bermakna. Test adalah kontrak yang dapat dieksekusi, bukan pelengkap gate.
 12. Fixture existing tidak boleh diedit lane. Fixture baru memakai nama unik.
     Fixture besar wajib punya alasan dan tidak menggantikan assertion
     semantik.
-13. Baseline DOCX dibuat dari docgen sebelum kode lama dihapus. Fake Google
-    berada di `src/autooffice/google/fake.py` atau `tests/fixtures/google/`
-    dengan kontrak yang jelas.
+13. Baseline DOCX dibuat dari pipeline DOCX legacy sebelum kode lama dihapus.
+    Fake Google berada di `src/autooffice/google/fake.py` atau
+    `tests/fixtures/google/` dengan kontrak yang jelas.
 14. Visual test memakai lock COM yang sama dengan PDF. Threshold pixel dan
     mask area wajib eksplisit. Perbedaan font atau versi PowerPoint
     dilaporkan, bukan diabaikan.

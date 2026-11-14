@@ -1,4 +1,4 @@
-"""Render blok Mermaid inline menjadi PNG untuk pipeline ``docgen``.
+"""Render blok Mermaid inline menjadi PNG untuk pipeline ``autooffice``.
 
 Penulis menulis diagram sebagai code fence dengan caption wajib:
 
@@ -15,7 +15,7 @@ Penulis menulis diagram sebagai code fence dengan caption wajib:
 caption DOCX yang memberi nomor per bab.
 
 Modul ini hanya menyediakan API render dan stage ``MermaidStage``; orkestrasi
-urutan tetap milik ``docgen.pipeline``.
+urutan tetap milik ``autooffice.docx.pipeline``.
 
 Setiap diagram di-hash dari isi Mermaid dan opsi render. Berkas PNG yang sudah
 ada dipakai ulang tanpa memanggil ``mmdc`` lagi.
@@ -478,7 +478,7 @@ def _render_mermaid(
         raise MermaidError(f"Gagal menyiapkan folder gambar {target.parent}: {exc}") from exc
 
     try:
-        with tempfile.TemporaryDirectory(prefix="docgen-mermaid-") as temp_dir:
+        with tempfile.TemporaryDirectory(prefix="autooffice-mermaid-") as temp_dir:
             source = Path(temp_dir) / "diagram.mmd"
             source.write_text(_normalize_code(code), encoding="utf-8", newline="\n")
             command = [
@@ -591,11 +591,18 @@ class MermaidStage(BaseStage):
 
         Selalu menulis ``mermaid.md``, termasuk untuk dokumen tanpa blok, agar
         ``front_matter`` punya sumber body eksplisit. Melempar ``MermaidError``
-        bila workspace tidak tersedia dan ``StageError`` bila rendering gagal.
+        bila workspace tidak tersedia dan ``StageError`` bila konteks tidak
+        memiliki ``document`` atau rendering gagal.
         """
 
         started = time.monotonic()
         document = getattr(ctx, "document", None)
+        if document is None:
+            raise StageError(
+                self.name.value,
+                "stage mermaid membutuhkan document pada konteks stage.",
+                code="MERMAID-NO-DOCUMENT",
+            )
         body = getattr(document, "body", "") or ""
         document_path = getattr(document, "path", None)
         blocks = extract_blocks(body, path=document_path)

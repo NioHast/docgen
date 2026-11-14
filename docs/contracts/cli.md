@@ -23,10 +23,8 @@ autooffice --version
 autooffice --help
 ```
 
-2. Permukaan final v1 tidak punya perintah, alias, atau entry point `docgen`
-   dan `deck-studio`. Pengecualian transisi: entry point `docgen` yang sudah
-   ada tetap berfungsi sampai parity F1-DOCX diterima, bukan bagian permukaan
-   AutoOffice v1, dan dihapus setelah parity. Tidak ada alias baru.
+2. Permukaan final v1 tidak punya perintah, alias, shim, atau entry point
+   selain yang di atas. Nama package dan entry point lama tidak dipertahankan.
    `--help` hanya menampilkan perintah yang didukung.
 3. `--target` wajib untuk `build`. Target dipisah koma, spasi setelah koma
    boleh, duplikat dihapus, dan urutan kanonik dipertahankan.
@@ -34,9 +32,9 @@ autooffice --help
 5. Input selain `.md` dan `.yaml` ditolak. `docx` hanya untuk `.md`; `pptx`
    dan `slides` hanya untuk `.yaml`.
 
-`tools/quality/check_no_legacy.py` pada F0 bersifat list-only: hanya memuat
-daftar target no-legacy. Implementasi pemeriksaan penuh masih pending dan
-dijadwalkan pada F3-GATE.
+`tools/quality/check_no_legacy.py` memeriksa path, import, entry point, dan
+nama teknologi legacy. Gate memanggilnya sebagai langkah blocking; allowlist
+eksplisit mencakup arsip, ADR, fixture golden, dan guard negatif.
 
 ## Matriks target
 
@@ -57,7 +55,7 @@ dijadwalkan pada F3-GATE.
 | --- | --- | --- |
 | `--out DIR` | semua | Direktori output, dibuat bila belum ada; tidak boleh menunjuk file. |
 | `--theme NAME` | `.yaml` | `indigo` atau `hitam`; menimpa `theme.name`; error untuk `.md`. |
-| `--terms` | `.md` | Menulis daftar istilah baru seperti docgen; error untuk `.yaml`. |
+| `--terms` | `.md` | Menulis daftar istilah baru seperti pipeline DOCX baseline; error untuk `.yaml`. |
 | `--dry-run` | semua | Validasi penuh dan cetak rencana; tidak menulis output, state, atau remote. |
 | `--keep-intermediate` | semua | Menyimpan intermediate di lokasi yang didokumentasikan. |
 | `--sync MODE` | `.yaml` + `slides` | `push` (default), `pull`, `diff`, `apply`. |
@@ -67,7 +65,7 @@ memerlukan state dengan `presentation_id`.
 
 ## Penamaan output
 
-Input `.md` mengikuti perilaku docgen:
+Input `.md` mengikuti perilaku baseline DOCX:
 
 - `<report_name>.docx` dan `<report_name>.pdf` dari front matter.
 - Manifest `.laporan/manifest.json`.
@@ -98,8 +96,8 @@ serta mencetak file, target, aksi Google, dan rencana diff. Dry-run juga
 memvalidasi API lane yang diperlukan (renderer PPTX, converter PDF, dan operasi
 Google) tanpa memanggil COM atau jaringan. Dry-run tidak menulis file atau
 state, tidak memanggil COM, dan tidak menulis ke Drive, Sheets, atau Slides.
-Temuan overflow, key hilang, lane yang belum tersedia, atau kredensial Google
-yang tidak ada saat target Slides menghasilkan exit code nonzero.
+Temuan overflow, key hilang, atau kredensial Google yang tidak ada saat target
+Slides menghasilkan exit code nonzero.
 
 File final ditulis atomik. Output yang sudah selesai tidak dihapus saat target
 lain gagal, tetapi exit code tetap nonzero dan ringkasan diberikan.
@@ -136,11 +134,11 @@ Catatan F0: test bentuk ada di `tests/contract/test_contract_shapes.py` dan `tes
 
 | Invarian | Bukti |
 | --- | --- |
-| Permukaan final v1 dan pengecualian transisi `docgen` | `autooffice --help`; review F0-CONTRACTS; parity F1-DOCX. |
-| `check_no_legacy` F0 list-only, implementasi F3 | Daftar target di `tools/quality/check_no_legacy.py`; F3-GATE pending. |
-| Matriks target dan normalisasi | `tests/cli/test_targets.py` (planned), acceptance bagian 18.8. |
-| Penamaan output dan `--out` | `tests/cli/test_outputs.py` (planned), golden output. |
-| Exit code dan error | `tests/cli/test_exit_codes.py` (planned), contract test pesan error. |
-| Dry-run tanpa efek samping | `tests/cli/test_dry_run.py` (planned), fake Google dan fake COM. |
+| Permukaan final v1 | `autooffice --help`; `tests/cli/test_cli.py`; `tests/cli/test_targets.py`. |
+| Pemeriksaan target legacy | `tools/quality/check_no_legacy.py`; langkah gate `no-legacy`. |
+| Matriks target dan normalisasi | `tests/cli/test_targets.py`; acceptance bagian 18.8. |
+| Penamaan output dan `--out` | `tests/cli/test_outputs.py`; golden output. |
+| Exit code dan error | `tests/cli/test_cli.py`; `tests/cli/test_build_markdown.py`; contract test pesan error. |
+| Dry-run tanpa efek samping | `tests/cli/test_build_deck.py`; fake Google dan fake COM. |
 
 [Rencana AutoOffice](../../AUTO_OFFICE_PLAN.md)

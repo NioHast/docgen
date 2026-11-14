@@ -1,7 +1,5 @@
 """Tes ukuran 16:9, theme OOXML, background slide, dan core properties."""
 
-from datetime import datetime
-
 from lxml import etree
 from pptx import Presentation
 from pptx.opc.constants import RELATIONSHIP_TYPE as RT
@@ -65,10 +63,6 @@ def test_slide_background_and_core_properties_follow_tokens(minimal_case, theme)
     assert presentation.core_properties.author == "AutoOffice"
     assert presentation.core_properties.created == FIXED_DOCUMENT_TIME
     assert presentation.core_properties.modified == FIXED_DOCUMENT_TIME
-
-
-def test_fixed_document_time_is_deterministic() -> None:
-    assert datetime(2000, 1, 1) == FIXED_DOCUMENT_TIME
 
 
 def _scheme_color(scheme: etree._Element, name: str) -> str:

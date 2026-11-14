@@ -28,6 +28,8 @@ NUL
 .ruff_cache/
 .mypy_cache/
 .coverage
+.coverage.*
+.cov.json
 htmlcov/
 .idea/
 .vscode/

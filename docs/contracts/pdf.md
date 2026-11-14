@@ -10,6 +10,7 @@ Pemilik kontrak: PDF/COM owner.
 - [Tujuan](#tujuan)
 - [API](#api)
 - [Invarian](#invarian)
+- [Process discovery and termination](#process-discovery-and-termination)
 - [Error](#error)
 - [Contoh](#contoh)
 - [Acceptance](#acceptance)
@@ -18,8 +19,8 @@ Pemilik kontrak: PDF/COM owner.
 
 Kontrak ini membekukan adapter Word COM dan PowerPoint COM di
 `autooffice.pdf` untuk finalisasi field DOCX serta ekspor PDF dari DOCX dan
-PPTX. Adapter menggantikan `scripts/word.ps1` tanpa PowerShell dan hanya
-berjalan di Windows dengan Microsoft Word dan Microsoft PowerPoint desktop.
+PPTX. Adapter berjalan tanpa PowerShell dan hanya berjalan di Windows dengan
+Microsoft Word dan Microsoft PowerPoint desktop.
 
 ## API
 
@@ -68,8 +69,10 @@ def embed_fonts(
   EmbedTrueTypeFonts=msoTrue)`, memverifikasi hasil, lalu mengganti PPTX sumber
   secara atomik.
 - Path hasil dikembalikan dalam bentuk absolut.
-- `timeout_s` wajib positif dan terbatas; nilainya membatasi seluruh operasi
-  COM lewat watchdog.
+- `timeout_s` wajib positif dan terbatas; nilainya membatasi lock dan operasi
+  COM lewat watchdog. Setelah timeout, cleanup worker memakai anggaran tetap 5
+  detik, sehingga total panggilan dapat melewati `timeout_s` hingga 5 detik
+  (lihat invarian 8).
 - `visible=True` hanya untuk debugging; default Word dan PowerPoint dijalankan
   tersembunyi. PowerPoint tidak menerima `Application.Visible = False`, jadi
   adapter hanya menulis `Visible = True` saat debugging dan mengandalkan
@@ -104,27 +107,39 @@ def embed_fonts(
    blok `finally`, termasuk saat error atau timeout.
 7. Snapshot PID `WINWORD.EXE`/`POWERPNT.EXE` diambil sebelum aplikasi dibuat
    dan wajib berhasil; bila snapshot gagal, operasi dibatalkan sebelum
-   `DispatchEx`. PID automation diambil dari `Application.Hwnd` melalui
-   `GetWindowThreadProcessId`, bukan dari selisih snapshot. PID itu harus
-   bukan PID snapshot awal, terlihat di snapshot baru, image-nya cocok, dan
-   creation time-nya terbaca. Sebelum `taskkill`, image dan creation time
-   dibaca ulang dan harus sama persis. Proses Office pengguna, termasuk yang
-   dibuka setelah snapshot, tidak pernah dibunuh; PID ambigu tidak diklaim
-   dan tidak dihentikan.
-8. Timeout memakai watchdog wall-clock. Saat timeout, PID automation yang
-   sudah terverifikasi dihentikan, lalu worker ditunggu berhenti dalam budget
-   cleanup terbatas.
-   Bila worker berhenti, `WordTimeoutError` dilempar. Bila worker masih
-   hidup, `WordCleanupError` dilempar, snapshot/temp dipertahankan, dan
-   pemanggil tidak menghapusnya. Karena cleanup itu, panggilan dapat melewati
-   `timeout_s` sebesar budget cleanup terbatas, bukan tanpa batas.
+   `DispatchEx`. PowerPoint yang sudah berjalan ditolak sebelum dispatch.
+   Word: setelah `DispatchEx`, tepat satu PID `WINWORD.EXE` baru harus muncul,
+   lalu window top-level class `OpusApp` dengan PID tersebut dipilih lewat
+   `GetWindowThreadProcessId`; setelah `Documents.Open`, `ActiveWindow.Hwnd`
+   harus menunjuk PID yang sama. PowerPoint: setelah `DispatchEx`, tepat satu
+   PID `POWERPNT.EXE` baru harus muncul. Image dan creation time diverifikasi
+   sebelum klaim; PID ambigu tidak diklaim dan tidak dihentikan. Sebelum
+   `taskkill`, image dan creation time dibaca ulang dan harus sama persis.
+   Proses Office pengguna tidak pernah dibunuh. `Quit` hanya dipanggil untuk
+   PID yang sudah diklaim, dan keberhasilan `Quit` diverifikasi lewat
+   `is_running` sebelum `terminate_owned` bila proses masih hidup.
+8. Timeout memakai watchdog wall-clock. `timeout_s` (default 120 detik;
+   pemanggil seperti alur build dapat memakai 300 detik) membatasi lock dan
+   operasi COM, bukan cleanup pasca-timeout. Saat timeout, PID automation yang
+   sudah terverifikasi dihentikan, lalu worker ditunggu berhenti dengan
+   anggaran cleanup tetap 5 detik (`CLEANUP_TIMEOUT_S`, alias
+   `WATCHDOG_CLEANUP_TIMEOUT_S`).
+   Bila worker berhenti, `WordTimeoutError` dilempar. Bila worker masih hidup
+   setelah 5 detik, `WordCleanupError` dilempar, kecuali PID target sudah
+   terverifikasi hilang; pada kasus itu cleanup dianggap selesai dan
+   `WordTimeoutError` dilempar. Untuk cleanup ambigu, snapshot/temp
+   dipertahankan, dan pemanggil tidak menghapusnya. Karena cleanup itu,
+   panggilan dapat melewati `timeout_s` hingga 5 detik, bukan tanpa batas.
+   Cleanup ambigu adalah pengaman yang disengaja: lebih baik mempertahankan
+   temp dan meminta pemeriksaan manual daripada menghapus berkas yang mungkin
+   masih ditulis worker.
 9. Seluruh operasi diserialisasi dengan lock file global
-   `%TEMP%/docgen-word.lock` dan `msvcrt.locking`.
-10. API tidak memakai PowerShell dan tidak memanggil `scripts/word.ps1`.
-    `tasklist` dan `taskkill` hanya dipakai untuk inspeksi dan cleanup PID,
-    dan selalu dipanggil lewat path absolut di `%SystemRoot%\System32`
-    (`%SystemRoot%\Sysnative` untuk interpreter 32-bit di Windows 64-bit),
-    bukan lewat nama yang dapat dibajak `PATH` atau direktori kerja.
+   `%TEMP%/autooffice-word.lock` dan `msvcrt.locking`.
+10. API tidak memakai PowerShell atau skrip shell. `tasklist` dan `taskkill`
+    hanya dipakai untuk inspeksi dan cleanup PID, dan selalu dipanggil lewat
+    path absolut di `%SystemRoot%\System32` (`%SystemRoot%\Sysnative` untuk
+    interpreter 32-bit di Windows 64-bit), bukan lewat nama yang dapat dibajak
+    `PATH` atau direktori kerja.
 11. `autooffice.pdf` hanya boleh mengimpor stdlib, `autooffice.errors`, modul
     `autooffice.pdf` sendiri, dan `python-pptx` untuk verifikasi paket hasil
     embedding. Paket ini tidak mengimpor `deck`, `google`, `cli`, atau
@@ -141,6 +156,29 @@ def embed_fonts(
     desktop dan font Plus Jakarta Sans terpasang. Target final PPTX/PDF gagal
     bila embedding tidak tersedia; staging Slides tidak memanggil embedding.
 
+## Process discovery and termination
+
+Implementasi memakai `tasklist.exe` dan `taskkill.exe` absolut dari
+`%SystemRoot%\System32` (`%SystemRoot%\Sysnative` untuk interpreter 32-bit)
+lewat `subprocess`, tanpa shell dan tanpa pencarian `PATH`.
+
+`win32process` tidak dipakai karena enumerasi dan pembukaan proses sederhana,
+tetapi penghentian pohon proses memerlukan Job Object (`win32job`) beserta
+manajemen handle. `taskkill /T /F` lebih sederhana dan ikut menghentikan proses
+anak Word/PowerPoint.
+
+Risiko yang diterima: format CSV `tasklist` dapat berbeda menurut locale dan
+versi Windows; parser bersikap defensif dan kegagalan snapshot atau verifikasi
+membatalkan pelacakan PID, bukan menebak. Setiap panggilan `subprocess`
+menambah overhead, dan ada race antara snapshot dan klaim PID. Word mengklaim
+hanya PID baru yang juga punya window `OpusApp`; PowerPoint mengklaim hanya
+saat tepat satu PID baru muncul. Image dan creation time diverifikasi ulang
+sebelum `taskkill`. PID yang tidak dapat diidentifikasi tidak diklaim dan tidak
+ada proses yang dihentikan; kegagalan cleanup yang membuat worker tetap hidup
+dilaporkan sebagai `WordCleanupError`. Opsi jangka panjang
+adalah mengganti kontrol proses berbasis subprocess dengan Windows Job Object
+bila pengelolaan pohon proses menjadi lebih kompleks.
+
 ## Error
 
 | Error | Arti |
@@ -148,8 +186,8 @@ def embed_fonts(
 | `PdfUnavailableError` | Non-Windows, pywin32 tidak ada, COM tidak dapat diinisialisasi, atau Word/PowerPoint tidak terpasang. |
 | `WordComError` | Dokumen read-only, langkah COM Word/PowerPoint gagal, output DOCX/PDF tidak valid, atau hasil embedding font tidak memuat font Plus Jakarta Sans regular/bold, memuat `p:timing`/`p:transition`, atau tidak dapat dibuka python-pptx. |
 | `ProcessSnapshotError` | Snapshot PID Office gagal; operasi dibatalkan sebelum aplikasi COM dibuat. Subclass `WordComError`. |
-| `WordTimeoutError` | Operasi melewati `timeout_s`; watchdog menghentikan PID automation yang terverifikasi lalu menunggu worker berhenti. |
-| `WordCleanupError` | Worker COM masih hidup setelah budget cleanup. Cleanup ambigu: snapshot/temp dipertahankan dan proses Office harus diperiksa manual. Subclass `WordTimeoutError`. |
+| `WordTimeoutError` | Operasi melewati `timeout_s`; watchdog menghentikan PID automation yang terverifikasi lalu menunggu worker berhenti hingga 5 detik. |
+| `WordCleanupError` | Worker COM masih hidup setelah anggaran cleanup tetap 5 detik. Cleanup ambigu disengaja: snapshot/temp dipertahankan dan proses Office harus diperiksa manual. Subclass `WordComError`, bukan `WordTimeoutError`. |
 | `WordBusyError` | Lock COM tidak diperoleh sebelum sisa `timeout_s` habis; default 30 detik bila `com_lock` dipanggil langsung. |
 | `FileNotFoundError` | DOCX/PPTX input tidak ditemukan. |
 | `ValueError` | Suffix path salah atau `timeout_s` tidak valid. |

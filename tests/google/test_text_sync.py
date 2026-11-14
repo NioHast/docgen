@@ -4,9 +4,11 @@ import json
 from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
+import autooffice.google.sync as sync_module
 from autooffice.deck.model import compile_deck_file
 from autooffice.google import GoogleSyncError
 from autooffice.google.extract import PulledText, TextEntry, extract_text
@@ -14,6 +16,7 @@ from autooffice.google.fake import FakeGoogleServices
 from autooffice.google.slides import PresentationSnapshot
 from autooffice.google.state import GoogleState, load_state, save_state
 from autooffice.google.sync import (
+    _compiled_title,
     apply_diff,
     diff_text,
     pull_text,
@@ -469,3 +472,148 @@ def test_pull_text_uses_fake_only(
 
     assert isinstance(pulled, PulledText)
     assert pulled.presentation_id == "presentation-1"
+
+
+def test_sync_deck_reports_review_directory_file(
+    deck_copy: Path,
+    tmp_path: Path,
+    make_snapshot: Callable[..., PresentationSnapshot],
+) -> None:
+    fake = FakeGoogleServices.create()
+    fake.slides.add_presentation(_remote_snapshot(make_snapshot))
+    state_file = tmp_path / ".autooffice" / "state" / "deck.json"
+    save_state(
+        GoogleState(
+            deck_path=deck_copy.name,
+            deck_sha256="a" * 64,
+            presentation_id="presentation-1",
+        ),
+        state_file,
+    )
+    review = tmp_path / "review"
+    review.write_text("bukan direktori", encoding="utf-8")
+
+    with pytest.raises(GoogleSyncError, match="Direktori review"):
+        sync_deck(
+            deck=deck_copy,
+            state=state_file,
+            mode="diff",
+            review_dir=review,
+            services=fake,
+        )
+
+
+def test_sync_deck_rejects_save_state_without_written_file(
+    deck_copy: Path,
+    tmp_path: Path,
+    make_snapshot: Callable[..., PresentationSnapshot],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake = FakeGoogleServices.create()
+    fake.slides.add_presentation(_remote_snapshot(make_snapshot))
+    state_file = tmp_path / ".autooffice" / "state" / "deck.json"
+    save_state(
+        GoogleState(
+            deck_path=deck_copy.name,
+            deck_sha256="a" * 64,
+            presentation_id="presentation-1",
+        ),
+        state_file,
+    )
+    missing = tmp_path / "missing-state.json"
+    monkeypatch.setattr(sync_module, "save_state", lambda *_args, **_kwargs: missing)
+
+    with pytest.raises(GoogleSyncError, match="State Google tidak tertulis setelah sync"):
+        sync_deck(
+            deck=deck_copy,
+            state=state_file,
+            mode="diff",
+            review_dir=tmp_path / "review",
+            services=fake,
+        )
+
+    assert not missing.exists()
+
+
+def test_sync_deck_rejects_apply_diff_without_written_file(
+    deck_copy: Path,
+    tmp_path: Path,
+    make_snapshot: Callable[..., PresentationSnapshot],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake = FakeGoogleServices.create()
+    fake.slides.add_presentation(_remote_snapshot(make_snapshot))
+    state_file = tmp_path / ".autooffice" / "state" / "deck.json"
+    save_state(
+        GoogleState(
+            deck_path=deck_copy.name,
+            deck_sha256="a" * 64,
+            presentation_id="presentation-1",
+        ),
+        state_file,
+    )
+    missing = tmp_path / "missing-applied.yaml"
+    monkeypatch.setattr(sync_module, "apply_diff", lambda *_args, **_kwargs: missing)
+
+    with pytest.raises(GoogleSyncError, match="tidak menghasilkan berkas review"):
+        sync_deck(
+            deck=deck_copy,
+            state=state_file,
+            mode="apply",
+            review_dir=tmp_path / "review",
+            services=fake,
+        )
+
+
+def test_apply_diff_reports_destination_directory_error(
+    deck_copy: Path,
+    tmp_path: Path,
+    make_snapshot: Callable[..., PresentationSnapshot],
+) -> None:
+    pulled = extract_text(_remote_snapshot(make_snapshot))
+    diff = diff_text(deck_copy, pulled)
+    blocked = tmp_path / "blocked"
+    blocked.write_text("bukan direktori", encoding="utf-8")
+
+    with pytest.raises(GoogleSyncError, match="YAML hasil sync tidak dapat ditulis"):
+        apply_diff(deck_copy, diff, blocked / "deck.applied.yaml")
+
+
+def test_compiled_title_requires_non_empty_meta_title() -> None:
+    with pytest.raises(GoogleSyncError, match=r"meta\.title"):
+        _compiled_title(SimpleNamespace(meta={}), Path("deck.yaml"))
+
+    with pytest.raises(GoogleSyncError, match=r"meta\.title"):
+        _compiled_title(SimpleNamespace(meta={"title": "  "}), Path("deck.yaml"))
+
+
+def test_sync_deck_returns_review_and_state_paths(
+    deck_copy: Path,
+    tmp_path: Path,
+    make_snapshot: Callable[..., PresentationSnapshot],
+) -> None:
+    fake = FakeGoogleServices.create()
+    fake.slides.add_presentation(_remote_snapshot(make_snapshot))
+    state_file = tmp_path / ".autooffice" / "state" / "deck.json"
+    save_state(
+        GoogleState(
+            deck_path=deck_copy.name,
+            deck_sha256="a" * 64,
+            presentation_id="presentation-1",
+        ),
+        state_file,
+    )
+
+    review_path, returned_state = sync_deck(
+        deck=deck_copy,
+        state=state_file,
+        mode="diff",
+        review_dir=tmp_path / "review",
+        services=fake,
+    )
+
+    assert review_path == tmp_path / "review" / "deck.diff.json"
+    assert review_path.is_file()
+    assert returned_state == state_file
+    assert returned_state.is_file()
+    assert load_state(state_file).last_pulled_revision_id == "revision-1"

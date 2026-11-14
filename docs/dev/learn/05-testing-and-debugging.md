@@ -8,7 +8,7 @@ membaca kegagalan, dan memakai `--keep-intermediate` atau fixture tanpa menebak.
 
 Setelah halaman ini, pembaca bisa:
 
-1. membedakan tes domain, integration, e2e, dan packaging;
+1. membedakan tes domain, contract, CLI, dan visual;
 2. memilih perintah pytest yang sesuai dengan perubahan;
 3. membaca kegagalan `DocgenError` dan `StageError`;
 4. men-debug build DOCX memakai `check`, `--keep-intermediate`, manifest, dan fixture;
@@ -41,8 +41,7 @@ Urutan verifikasi yang disarankan:
 1. jalankan `autooffice check` untuk input dan konfigurasi;
 2. jalankan tes domain untuk modul yang berubah;
 3. jalankan tes integration yang menyentuh pipeline atau tool nyata;
-4. jalankan e2e atau packaging hanya jika perubahan menyentuh CLI, path, atau
-   packaging;
+4. jalankan packaging hanya jika perubahan menyentuh CLI, path, atau packaging;
 5. jalankan suite penuh sebelum menyatakan selesai.
 
 Tes harus menunjukkan perilaku yang berubah, bukan sekadar menambah cakupan.
@@ -54,18 +53,18 @@ tes berhenti gagal.
 | Tingkat | Lokasi | Ciri | Tool eksternal |
 | --- | --- | --- | --- |
 | Domain | `tests/docx/`, `tests/deck/`, `tests/design/` | Cepat, memakai objek di memori dan fixture kecil. | Tidak menyentuh Word, Pandoc, atau `mmdc`. |
-| Integration | `tests/integration/` | Menyentuh pipeline, Pandoc, golden DOCX, atau Word. | Tergantung tes. |
-| E2E | `tests/e2e/` | Menjalankan CLI dari luar modul pada contoh yang disalin. | Pandoc, `mmdc`, dan Word bila tersedia. |
-| Packaging | `tests/packaging/` | Memeriksa entry point dan perilaku repo-local. | `uv`, build package. |
+| Contract | `tests/contract/` | Membekukan bentuk API dan scaffold kontrak. | Tidak ada. |
+| CLI | `tests/cli/` | Menjalankan parser, target, output, dan entry point. | Fake Google dan fake COM. |
+| Visual dan performa | `tests/visual/`, `tests/performance/` | Render PPTX ke PNG atau deck besar. | PowerPoint COM atau marker `slow`. |
 
 Marker di `pytest.ini`:
 
 - `unit`: tes cepat tanpa Word/Pandoc/mmdc;
 - `integration`: membutuhkan Pandoc, Word, atau artefak build;
 - `packaging`: packaging repo-local atau wheel;
-- `e2e`: end-to-end dari luar repo;
 - `word`: membutuhkan Microsoft Word;
-- `windows`: hanya Windows.
+- `windows`: hanya Windows;
+- `slow`: tes berat seperti deck 500 slide atau render PPTX.
 
 ## Perintah pytest
 
@@ -88,18 +87,21 @@ Filter nama tes:
 uv run --extra dev pytest -k report_name -q
 ```
 
-Subset cepat tanpa integration, packaging, e2e, Word, dan Windows:
+Subset cepat tanpa integration, packaging, Word, Windows, dan slow:
 
 ```bash
-uv run --extra dev pytest -m "not integration and not packaging and not e2e and not word and not windows" -q
+uv run --extra dev pytest -m "not integration and not packaging and not word and not windows and not slow" -q
 ```
 
-Tes Word/Windows:
+Tes PDF dan Word memakai fake COM di suite offline:
 
 ```bash
-uv run --extra dev pytest -m windows tests/integration/test_golden_pdf.py -q
-uv run --extra dev pytest -m word tests/integration/test_lists_word.py -q
+uv run --extra dev pytest tests/docx/test_pdf.py -q
+uv run --extra dev pytest tests/docx/test_office.py -q
 ```
+
+Smoke Word/PowerPoint nyata hanya dijalankan manual pada gate final di Windows.
+Marker `word` dan `windows` disediakan untuk tes yang membutuhkannya.
 
 Suite penuh:
 
@@ -197,14 +199,17 @@ Fixture golden ada di `tests/fixtures/golden/`:
 - `baseline-4a5b777.json` untuk metadata invariant;
 - `pdf-baseline.json` untuk invariant PDF.
 
-`tests/integration/test_golden_docx.py` membekukan struktur output, bukan
-membangun ulang DOCX. Tes ini memeriksa field TOC, caption, tabel kode,
-style, dan content type tertentu. Fixture DOCX wajib ada.
+`tests/docx/test_command.py` membekukan part DOCX ternormalisasi terhadap
+`tests/fixtures/golden/docx/minimal/baseline.json`. `tests/docx/test_toc.py`,
+`tests/docx/test_sections.py`, dan `tests/docx/test_page_numbers.py` membaca
+`tests/fixtures/golden/laporan-baseline.docx` dan memeriksa field TOC, caption,
+tabel kode, style, section, serta content type tertentu. Fixture DOCX wajib ada.
 
-`tests/integration/test_golden_pdf.py` memakai marker `windows` dan `word`.
-Perbandingan PDF memerlukan fixture PDF lokal yang tidak disimpan di repo;
-kontrak `pdf-baseline.json` tetap berjalan. Di Linux seluruh modul di-skip.
-Jangan menambahkan skip karena fixture hilang. Perbaiki fixture atau tes.
+`tests/docx/test_pdf.py` menguji stage PDF dan pemetaan error dengan fake COM.
+Perbandingan PDF nyata hanya smoke Windows pada gate final. Fixture
+`pdf-baseline.json` disimpan sebagai referensi historis, bukan dijalankan suite
+offline. Jangan menambahkan skip karena fixture hilang. Perbaiki fixture atau
+tes.
 
 Aturan golden:
 
@@ -229,15 +234,10 @@ Yang diperiksa:
 - pesan pelanggaran menyebut istilah dan paragraf;
 - tanpa `--terms`, tidak ada review file dan tidak ada verifikasi.
 
-Audit DOCX hasil build:
-
-```bash
-uv run python -m tools.dev.audit_terms --docx examples/thesis-single/out/Tugas.docx --out .laporan/istilah-audit.md
-```
-
-Alat ini menulis laporan audit dan tidak mengubah DOCX. Jika glosarium
-pengguna dipakai, tambahkan `--glossary <path-istilah.tsv>`. Format header
-wajib `term<TAB>italic`.
+Audit istilah otomatis tidak disertakan di paket AutoOffice. Untuk memeriksa
+hasil build, tinjau `.laporan/istilah-baru.txt` dan jalankan build ulang setelah
+keputusan istilah. Jika glosarium pengguna dipakai, tambahkan `istilah.tsv` di
+samping `document.md` dengan header `term<TAB>italic`.
 
 ## Latihan
 

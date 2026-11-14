@@ -308,7 +308,7 @@ def test_custom_media_reserves_following_body_row(
     )
     slide = slide_factory((image, body), layout="custom")
 
-    plan = plan_custom_slide(slide, theme)
+    plan = plan_custom_slide(slide, theme, rows=((image,), (body,)))
     image_box, body_box = plan.boxes
 
     assert plan.overflow_keys == ()
@@ -334,7 +334,7 @@ def test_source_and_notes_are_allowed_on_custom_slides(
         notes="Catatan pembicara",
     )
 
-    plan = plan_custom_slide(slide, theme)
+    plan = plan_custom_slide(slide, theme, rows=((block,),))
 
     assert tuple(box.block_id for box in plan.boxes) == ("body",)
     assert plan.overflow_keys == ()
@@ -372,7 +372,7 @@ def test_custom_overflow_findings_deduplicate_width_and_height_keys(
     block = block_factory("body", "text", fields={"text": text}, span=12)
     slide = slide_factory((block,), layout="custom")
 
-    plan = plan_custom_slide_with_findings(slide, theme)
+    plan = plan_custom_slide_with_findings(slide, theme, rows=((block,),))
 
     assert plan.layout.overflow_keys == ("s01.body.text",)
     assert tuple(finding.kind for finding in plan.overflows) == ("lebar", "tinggi")
@@ -405,7 +405,7 @@ def test_custom_media_caption_height_overflow_uses_caption_key(
     )
     slide = slide_factory((title, image), layout="custom")
 
-    plan = plan_custom_slide_with_findings(slide, theme)
+    plan = plan_custom_slide_with_findings(slide, theme, rows=((title,), (image,)))
     image_box = plan.layout.boxes[1]
 
     assert plan.layout.overflow_keys == ("s01.image1.caption",)
@@ -473,52 +473,39 @@ def test_custom_slide_without_rows_or_blocks_is_rejected(
         plan_custom_slide(slide, theme)
 
 
-def test_ir_rows_with_unknown_block_id_are_rejected(
+def test_custom_slide_with_blocks_but_without_rows_is_rejected(
     block_factory: Callable[..., BlockIR],
     slide_factory: Callable[..., SlideIR],
+    theme,
+) -> None:
+    blocks = (
+        block_factory("b0", "text", fields={"text": "Isi 0"}, span=12),
+        block_factory("b1", "text", fields={"text": "Isi 1"}, span=6),
+        block_factory("b2", "text", fields={"text": "Isi 2"}, span=6),
+    )
+    slide = slide_factory(blocks, layout="custom")
+
+    with pytest.raises(CustomLayoutError, match="tidak memiliki rows eksplisit"):
+        plan_custom_slide(slide, theme)
+
+    with pytest.raises(CustomLayoutError, match="tidak memiliki rows eksplisit"):
+        plan_custom_slide_with_findings(slide, theme)
+
+    with pytest.raises(CustomLayoutError, match="tidak memiliki rows eksplisit"):
+        rows_for_slide(slide)
+
+
+def test_plan_deck_rejects_custom_slide_with_blocks_but_without_rows(
+    block_factory: Callable[..., BlockIR],
+    slide_factory: Callable[..., SlideIR],
+    deck_factory: Callable[..., DeckIR],
     theme,
 ) -> None:
     block = block_factory("body", "text", fields={"text": "Isi"}, role="body", span=12)
     slide = slide_factory((block,), layout="custom")
-    object.__setattr__(slide, "rows", (("ghost",),))
 
-    with pytest.raises(CustomLayoutError, match="tidak ada di blocks: ghost"):
-        plan_custom_slide(slide, theme)
-
-
-@pytest.mark.parametrize(
-    ("spans", "expected_rows"),
-    [
-        ((12, 6, 6), ((0,), (1, 2))),
-        ((7, 6), ((0,), (1,))),
-    ],
-)
-def test_legacy_custom_slide_uses_span_fallback_rows(
-    block_factory: Callable[..., BlockIR],
-    slide_factory: Callable[..., SlideIR],
-    theme,
-    grid: Grid,
-    spans: tuple[int, ...],
-    expected_rows: tuple[tuple[int, ...], ...],
-) -> None:
-    blocks = tuple(
-        block_factory(f"b{index}", "text", fields={"text": f"Isi {index}"}, span=span)
-        for index, span in enumerate(spans)
-    )
-    slide = slide_factory(blocks, layout="custom")
-
-    plan = plan_custom_slide(slide, theme)
-
-    actual_rows: list[tuple[int, ...]] = []
-    for index, box in enumerate(plan.boxes):
-        if index and box.top_emu == plan.boxes[index - 1].top_emu:
-            actual_rows[-1] += (index,)
-        else:
-            actual_rows.append((index,))
-    assert tuple(actual_rows) == expected_rows
-    assert tuple(box.width_emu for box in plan.boxes) == tuple(
-        grid.span_width(span) for span in spans
-    )
+    with pytest.raises(CustomLayoutError, match="tidak memiliki rows eksplisit"):
+        plan_deck(deck_factory((slide,)), theme, layouts={})
 
 
 @pytest.mark.parametrize(

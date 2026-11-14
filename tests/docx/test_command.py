@@ -22,10 +22,10 @@ import pytest
 from autooffice.docx.command import build_docx
 from autooffice.docx.package import DocumentPackage
 from autooffice.docx.stages import office
-from autooffice.docx.stages.pandoc import find_pandoc
+from tests._helpers.pandoc import pandoc_available
 
 pytestmark = pytest.mark.skipif(
-    find_pandoc() is None,
+    not pandoc_available(),
     reason="Pandoc diperlukan untuk membangun fixture DOCX",
 )
 

@@ -22,10 +22,9 @@ environment proyek.
 | Build backend | `setuptools.build_meta` |
 | Entry point | `autooffice = "autooffice.cli.main:main"` |
 | Package discovery | `src` |
-| Package data | `autooffice = ["data/**/*", "assets/**/*", "design/data/**/*", "docx/data/**/*"]` |
+| Package data | `autooffice = ["assets/**/*", "design/data/**/*", "docx/data/**/*"]` |
 
-Nama distribusi masih mengikuti metadata transisi sampai F3. Dokumentasi dan
-perintah resmi selalu memakai entry point `autooffice`.
+Nama distribusi dan entry point resmi adalah `autooffice`.
 
 ## Dependensi
 
@@ -50,14 +49,14 @@ di `src/autooffice/design/data/`.
 
 ```bash
 uv sync --extra dev
-uv run --extra dev pytest tests/unit
+uv run --extra dev pytest tests/cli tests/docx
 ```
 
 Dari luar repo, tambahkan `--project <repo>`:
 
 ```bash
 uv sync --project <repo> --extra dev
-uv run --project <repo> --extra dev pytest tests/unit
+uv run --project <repo> --extra dev pytest tests/cli tests/docx
 ```
 
 `uv.lock` menyimpan resolusi dependensi. Jangan mengedit lock secara manual.
@@ -65,22 +64,20 @@ Setelah mengubah `pyproject.toml`, jalankan `uv lock`.
 
 ## Pemakaian dari luar repo
 
-Tes packaging menjalankan CLI dari direktori sementara di luar repo:
+Tes CLI menjalankan entry point dari repo dan dari subprocess:
 
 ```bash
 uv run --project <repo> autooffice check /tmp/proyek/document.md
 ```
 
-Tes `tests/packaging/test_repo_local.py` memastikan:
+`tests/cli/test_cli_lazy.py` memastikan:
 
-- `autooffice --version` tersedia dari luar repo setelah entry point aktif;
-- `check` menerima dokumen minimal;
-- perintah tidak mengubah `git status` repo;
-- working directory tes berada di luar repo.
+- `autooffice --version` tersedia lewat `python -m autooffice` dan subprocess;
+- modul entry point tidak menjalankan CLI saat diimpor;
+- working directory tes tidak mengubah state build pengguna.
 
-Tes ini tidak membangun DOCX atau PDF. Selama transisi F3, sebagian tes
-packaging masih menargetkan entry point lama; jangan menganggap hasilnya
-sebagai bukti entry point `autooffice`.
+Tes ini tidak membangun DOCX atau PDF. Smoke Word/PowerPoint nyata hanya
+dijalankan pada gate final di Windows.
 
 ## Distribusi
 
@@ -94,10 +91,10 @@ Perintah resmi selalu memakai `uv run --project <repo> autooffice`.
 ## Menjalankan tes
 
 ```bash
-uv run --project <repo> --extra dev pytest tests/unit
-uv run --project <repo> --extra dev pytest -m "not integration and not packaging and not e2e and not word and not windows"
+uv run --project <repo> --extra dev pytest tests/cli tests/docx
+uv run --project <repo> --extra dev pytest -m "not integration and not packaging and not word and not windows and not slow"
 uv run --project <repo> --extra dev pytest
 ```
 
-Di Linux, tes Word dan Windows dilewati. Tes PDF golden hanya berjalan di
+Di Linux, tes Word dan Windows dilewati. Smoke PDF nyata hanya berjalan di
 Windows dengan Word. Lihat [testing.md](testing.md).

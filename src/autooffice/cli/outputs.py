@@ -17,6 +17,7 @@ _ASSET_FIELDS: dict[str, str] = {
     "diagram": "source",
 }
 _ASSET_ROOTS = ("assets", "diagrams")
+_DECK_SYNC_MODES = frozenset({"", "push", "pull", "diff", "apply"})
 _MAX_OUTPUT_STEM_LENGTH = 200
 _WINDOWS_RESERVED_NAMES = frozenset(
     {
@@ -103,7 +104,7 @@ class MissingAsset:
 
 
 def resolve_output_directory(source: Path, out: Path | None) -> Path:
-    """Tentukan direktori output final sesuai perilaku docgen dan plan 10.4.
+    """Tentukan direktori output final untuk satu input.
 
     ``--out`` menimpa direktori final. Tanpa ``--out``, input di
     ``examples/<nama>/`` memakai ``out/``; input lain memakai direktori input.
@@ -134,7 +135,7 @@ def docx_outputs(
 
     Nama final berasal dari ``report_name`` front matter. Manifest, istilah,
     dan ``.laporan-build`` tetap berada di samping dokumen sumber walaupun
-    ``--out`` diberikan, persis seperti perilaku docgen.
+    ``--out`` diberikan.
     """
     name = _safe_report_name(report_name, source)
     output_dir = resolve_output_directory(source, out)
@@ -249,6 +250,13 @@ def planned_deck_files(
 
 def deck_sync_path(outputs: DeckOutputs, sync_mode: str) -> Path | None:
     """Path laporan review untuk mode sync non-push."""
+    if sync_mode not in _DECK_SYNC_MODES:
+        raise CliError(
+            f"mode sync tidak valid: {sync_mode}; pilihan: push, pull, diff, apply",
+            code="CLI-SYNC-MODE",
+            exit_code=2,
+            path=str(outputs.source),
+        )
     stem = outputs.source.stem
     if sync_mode == "pull":
         return outputs.review_dir / f"{stem}.pulled.yaml"

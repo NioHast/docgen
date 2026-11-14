@@ -106,7 +106,7 @@ CellValue = str | int | float
 
 @runtime_checkable
 class SheetsApi(Protocol):
-    """Kontrak Sheets yang dipakai lane chart dan sync."""
+    """Kontrak Sheets untuk chart dan sinkronisasi."""
 
     def create_spreadsheet(self, title: str) -> SpreadsheetRef:
         """Buat spreadsheet baru."""

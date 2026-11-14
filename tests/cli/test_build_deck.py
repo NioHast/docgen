@@ -1,10 +1,10 @@
-"""Tes integrasi build_deck: lazy import lane dan dry-run tanpa render."""
+"""Tes integrasi build_deck: validasi API dan dry-run tanpa render."""
 
 from pathlib import Path
 
 import pytest
 
-from autooffice.cli import CliError, require_module
+from autooffice.cli import CliError
 from autooffice.cli.build import build_deck
 from autooffice.deck.layout.spec import LayoutPlan
 
@@ -44,23 +44,17 @@ def test_build_deck_rejects_invalid_target(tmp_path: Path) -> None:
         build_deck(FIXTURE, ("docx",), tmp_path)
 
 
-def test_build_deck_missing_renderer_names_lane(
+def test_build_deck_missing_renderer_reports_error(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _patch_deck_dependencies(monkeypatch)
-
-    def fake_require(name: str, lane: str) -> object:
-        if name == "autooffice.deck.render.pptx":
-            raise CliError(
-                f"modul '{name}' untuk lane {lane} belum tersedia",
-                code=f"CLI-LANE-{lane}",
-                exit_code=1,
-            )
-        return require_module(name, lane)
-
-    monkeypatch.setattr("autooffice.cli.build.require_module", fake_require)
+    for name in ("create_renderer", "renderer_factory", "render_deck", "PptxRenderer"):
+        monkeypatch.setattr(f"autooffice.deck.render.pptx.{name}", None, raising=False)
     out = tmp_path / "out"
-    with pytest.raises(CliError, match="F1-PPTX"):
+
+    with pytest.raises(CliError, match="renderer PPTX") as error:
         build_deck(FIXTURE, ("pptx",), out)
+
+    assert error.value.code == "CLI-RENDERER"
     assert not list(out.glob("*.pptx"))

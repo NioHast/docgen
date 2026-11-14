@@ -65,7 +65,7 @@ bila merujuk dokumentasi eksternal. Label harus unik; URL harus memakai skema
 | Mermaid documentation | https://mermaid.js.org/ | Sintaks diagram Mermaid; `docs/user/mermaid.md`. |
 | lxml documentation | https://lxml.de/ | API `lxml.etree`; `src/autooffice/docx/package/`, `docs/contracts/docx.md`. |
 | python-docx documentation | https://python-docx.readthedocs.io/ | Referensi pembanding untuk API DOCX; `docs/contracts/docx.md`. |
-| pypdf documentation | https://pypdf.readthedocs.io/ | Pemeriksaan PDF pada tes; `tests/integration/test_golden_pdf.py`. |
+| pypdf documentation | https://pypdf.readthedocs.io/ | Pemeriksaan PDF pada tes; `tests/docx/test_pdf.py`. |
 | ruamel.yaml documentation | https://yaml.dev/doc/ruamel.yaml/ | Parser YAML dan penanganan duplicate key; `src/autooffice/docx/config/common.py`. |
 | Adeu GitHub | https://github.com/dealfluence/adeu | Source resmi SDK/CLI Adeu; `docs/dev/adeu-integration.md`. |
 | Adeu PyPI | https://pypi.org/project/adeu/ | Distribusi paket Python SDK/CLI Adeu; `docs/dev/adeu-integration.md`. |

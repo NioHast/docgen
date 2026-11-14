@@ -10,7 +10,7 @@ Aturan yang ditegakkan:
   diabaikan.
 
 Modul ini tidak membuka package DOCX dan tidak menulis berkas. Error
-dilempar sebagai :class:`docgen.errors.ValidationError` dengan exit code 1.
+dilempar sebagai :class:`autooffice.docx.errors.ValidationError` dengan exit code 1.
 """
 
 import argparse
@@ -323,7 +323,7 @@ def _body_line_offset(path: Path) -> int:
 def validate_body(document: object) -> None:
     """Validasi caption pada body ``Document``; lempar ``ValidationError``.
 
-    Dipakai bersama oleh stage ``validate`` dan ``docgen check`` agar aturan
+    Dipakai bersama oleh stage ``validate`` dan ``autooffice check`` agar aturan
     caption tidak berbeda antara perintah check dan build.
     """
 

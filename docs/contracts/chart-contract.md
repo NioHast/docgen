@@ -130,14 +130,14 @@ Catatan F0: test bentuk ada di `tests/contract/test_contract_shapes.py` dan `tes
 
 | Aturan | Test kontrak |
 | --- | --- |
-| Chart PPTX terdeteksi native dan bukan gambar. | `tests/contract/test_chart_contract.py` (planned) |
-| Data chart XML sama dengan nilai YAML. | `tests/contract/test_chart_contract.py` (planned) |
-| Lima seri `bar` atau `line` ditolak. | `tests/contract/test_chart_contract.py` (planned) |
-| Donut dengan dua seri atau lima kategori ditolak. | `tests/contract/test_chart_contract.py` (planned) |
-| `chartSeries` lolos kontras 3:1 di indigo dan hitam. | `tests/contract/test_chart_contract.py` (planned) |
-| Placeholder memakai marker `autooffice:chart:<chart_id>`. | `tests/contract/test_chart_contract.py` (planned) |
+| Chart PPTX terdeteksi native dan bukan gambar. | `tests/deck/charts/test_native.py` |
+| Data chart XML sama dengan nilai YAML. | `tests/deck/charts/test_integration.py` |
+| Lima seri `bar` atau `line` ditolak. | `tests/deck/charts/test_spec.py` |
+| Donut dengan dua seri atau lima kategori ditolak. | `tests/deck/charts/test_spec.py` |
+| `chartSeries` lolos kontras 3:1 di indigo dan hitam. | `tests/deck/charts/test_colors.py`; `tests/design/test_contrast.py` |
+| Placeholder memakai marker `autooffice:chart:<chart_id>`. | `tests/deck/charts/test_placeholder.py` |
 | Preflight gagal tidak menghapus placeholder dan tidak memajukan `last_pushed_at`; progress state yang sudah tersimpan tetap ada. | `tests/google/test_replacement.py::test_push_deck_table_preflight_failure_persists_workbook_and_presentation` |
-| Satu tab per chart dan satu chart object per tab. | `tests/integration/test_google_charts.py` (planned) |
-| Rerun tidak membuat linked chart duplikat. | `tests/integration/test_google_charts.py` (planned) |
+| Satu tab per chart dan satu chart object per tab. | `tests/google/test_chart_contract.py` |
+| Rerun tidak membuat linked chart duplikat. | `tests/google/test_chart_contract.py` |
 
 [Rencana AutoOffice](../../AUTO_OFFICE_PLAN.md)

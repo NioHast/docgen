@@ -1,1 +1,0 @@
-"""Factory data uji."""

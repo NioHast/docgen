@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from autooffice.docx.errors import DocgenError, ToolMissingError
+from autooffice.docx.errors import DocgenError, StageError, ToolMissingError
 from autooffice.docx.pipeline import ArtifactStore, Workspace
 from autooffice.docx.stages.mermaid import (
     MermaidError,
@@ -190,10 +190,10 @@ def test_extract_regular_fence_unclosed_ignored() -> None:
     assert extract_blocks(source) == []
 
 
-def test_hash_idempotent_and_depends_on_content_and_options() -> None:
+def test_hash_normalizes_line_endings_and_depends_on_content_and_options() -> None:
     code = "flowchart TD\n  A --> B"
 
-    assert render_hash(code) == render_hash(code)
+    assert render_hash(code) == "dc70ea933086"
     assert render_hash(code) == render_hash("flowchart TD\r\n  A --> B\r\n")
     assert len(render_hash(code)) == 12
     assert render_hash(code) != render_hash(code + "\n  B --> C")
@@ -305,6 +305,19 @@ def test_stage_without_blocks_still_writes_mermaid_md_and_artifact(tmp_path: Pat
     assert second.changed is False
     assert second.metrics["blocks"] == 0
     assert ctx.artifacts.get("mermaid.markdown") == output
+
+
+def test_stage_missing_document_raises_domain_error(tmp_path: Path) -> None:
+    ctx = SimpleNamespace(
+        workspace=Workspace(root=tmp_path / ".laporan-build", keep=True),
+        artifacts=ArtifactStore(),
+    )
+
+    with pytest.raises(StageError) as error:
+        MermaidStage().run(ctx)
+
+    assert error.value.code == "MERMAID-NO-DOCUMENT"
+    assert not ctx.workspace.path("mermaid.md").exists()
 
 
 def test_render_blocks_missing_mmdc_raises_tool_missing(

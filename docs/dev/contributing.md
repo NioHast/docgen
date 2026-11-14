@@ -19,20 +19,20 @@ uv run --project <repo> pytest tests/cli tests/docx
 
 ```bash
 uv run --project <repo> pytest tests/cli tests/docx
-uv run --project <repo> pytest -m "not integration and not packaging and not e2e and not word and not windows and not slow"
+uv run --project <repo> pytest -m "not integration and not packaging and not word and not windows and not slow"
 uv run --project <repo> pytest
 ```
 
-Suite AutoOffice berada di `tests/cli`, `tests/docx`, `tests/deck`,
-`tests/design`, `tests/google`, `tests/pdf`, `tests/performance`,
-`tests/property`, `tests/tools`, `tests/visual`, `tests/contract`,
-`tests/autooffice`, dan `tests/packaging`. Tes yang membutuhkan Word
-atau Windows memakai marker `word` atau `windows`. Tes PDF golden hanya
-berjalan di Windows. Di Linux, jalankan subset non-Windows dan jangan
-mengklaim PDF lulus.
+Suite AutoOffice berada di `tests/cli`, `tests/contract`, `tests/deck`,
+`tests/design`, `tests/docx`, `tests/google`, `tests/pdf`,
+`tests/performance`, `tests/property`, `tests/tools`, dan `tests/visual`.
+Tes yang membutuhkan Word atau Windows memakai marker `word` atau `windows`.
+Tes PDF memakai fake COM di suite offline; smoke Word/PowerPoint nyata hanya
+dijalankan pada gate final di Windows. Di Linux, jalankan subset non-Windows
+dan jangan mengklaim PDF lulus.
 
-Tes packaging dijalankan dari luar repo dan memastikan `git status` tidak
-berubah. Jangan menambahkan build DOCX (Word) ke tes domain.
+Jalankan tes CLI dan DOCX lebih dulu untuk perubahan yang menyentuh kedua area
+tersebut. Jangan menambahkan build DOCX (Word) ke tes domain.
 
 ## Aturan kode
 
@@ -90,7 +90,7 @@ tes sesuai kontrak.
 ## Checklist sebelum selesai
 
 - [ ] Perubahan hanya menyentuh area yang menjadi tanggung jawab.
-- [ ] `pytest tests/unit` lulus.
+- [ ] `uv run python tools/quality/gate.py` lulus.
 - [ ] Tes integrasi terkait lulus atau dijelaskan alasannya.
 - [ ] Tidak ada path atau alat lama yang diperkenalkan kembali.
 - [ ] Tidak ada output build atau file sementara yang ikut dilacak.

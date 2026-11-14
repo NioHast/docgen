@@ -1,8 +1,8 @@
 """API publik pembangunan DOCX.
 
-Modul ini menggantikan entry point CLI ``docgen build --target docx`` dengan
-fungsi Python bertipe. Pemanggil CLI cukup memanggil :func:`build_docx`; modul
-ini tidak memuat parser argumen dan tidak mengimpor ``autooffice.cli``.
+Modul ini menyediakan fungsi Python bertipe untuk membangun DOCX dari satu
+input Markdown. Pemanggil CLI cukup memanggil :func:`build_docx`; modul ini
+tidak memuat parser argumen dan tidak mengimpor ``autooffice.cli``.
 """
 
 from dataclasses import dataclass

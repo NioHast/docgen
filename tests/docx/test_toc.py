@@ -7,7 +7,6 @@ from types import SimpleNamespace
 
 import pytest
 
-import autooffice.docx.package.fields as fields_module
 from autooffice.docx.package.fields import (
     Field,
     FieldError,
@@ -271,11 +270,8 @@ def test_golden_toc_sdt_count() -> None:
     root = package.xml(DOCUMENT_PART)
     galleries = _sdt_gallery(root)
     assert len(galleries) == 3
-    assert all(
-        gallery.find(qn("w:sdtPr")).find(".//" + qn("w:docPartGallery")).get(qn("w:val"))
-        == "Table of Contents"
-        for gallery in galleries
-    )
+    for gallery in galleries:
+        assert _sdt_content_paragraphs(gallery)
 
 
 def test_golden_toc_styles_toc1_toc2_toc3() -> None:
@@ -283,8 +279,6 @@ def test_golden_toc_styles_toc1_toc2_toc3() -> None:
     styles = package.xml("word/styles.xml")
     ids = _style_ids(styles)
     assert {"TOCHeading", "TOC1", "TOC2", "TOC3"} <= ids
-    for style_id in ("TOC1", "TOC2", "TOC3"):
-        assert next(item for item in styles if item.get(qn("w:styleId")) == style_id) is not None
     toc1 = next(item for item in styles if item.get(qn("w:styleId")) == "TOC1")
     assert any(tab.get(qn("w:leader")) == "dot" for tab in toc1.findall(".//" + qn("w:tab")))
 
@@ -449,42 +443,29 @@ def test_insert_toc_caption_uses_c_field(tmp_path: Path) -> None:
     assert 'TOC \\c "Gambar"' in field_instruction(field)
 
 
-def test_insert_toc_field_is_not_dirty(tmp_path: Path) -> None:
-    path = _write_package(
-        tmp_path,
-        _paragraph("Sampul", style="CoverTitle") + _paragraph("BAB I", style="Heading1"),
-    )
-    package = DocumentPackage.load(path)
-    field = insert_toc(package, title="DAFTAR ISI")
-
-    _assert_no_dirty(package.xml(DOCUMENT_PART))
-    _assert_complex_field_order(field)
-
-
-def test_insert_toc_caption_field_is_not_dirty(tmp_path: Path) -> None:
-    path = _write_package(tmp_path, _paragraph("BAB I", style="Heading1"))
-    package = DocumentPackage.load(path)
-    field = insert_toc(package, title="DAFTAR TABEL", caption="Tabel")
-
-    _assert_no_dirty(package.xml(DOCUMENT_PART))
-    _assert_complex_field_order(field)
-
-
-def test_insert_seq_field_is_not_dirty(tmp_path: Path) -> None:
-    path = _write_package(tmp_path, _paragraph("Tabel 1 Judul", style="TableCaption"))
-    package = DocumentPackage.load(path)
-    paragraph = next(package.xml(DOCUMENT_PART).iter(qn("w:p")))
-    field = insert_seq(package, paragraph=paragraph, label="Tabel")
-
-    _assert_no_dirty(package.xml(DOCUMENT_PART))
-    _assert_complex_field_order(field)
-
-
-def test_insert_pageref_field_is_not_dirty(tmp_path: Path) -> None:
-    path = _write_package(tmp_path, _paragraph("Lihat halaman"))
-    package = DocumentPackage.load(path)
-    paragraph = next(package.xml(DOCUMENT_PART).iter(qn("w:p")))
-    field = insert_pageref(package, paragraph=paragraph, bookmark="_Ref1")
+@pytest.mark.parametrize("field_kind", ["toc", "toc_caption", "seq", "pageref"])
+def test_inserted_fields_are_clean_and_ordered(tmp_path: Path, field_kind: str) -> None:
+    if field_kind == "toc":
+        path = _write_package(
+            tmp_path,
+            _paragraph("Sampul", style="CoverTitle") + _paragraph("BAB I", style="Heading1"),
+        )
+        package = DocumentPackage.load(path)
+        field = insert_toc(package, title="DAFTAR ISI")
+    elif field_kind == "toc_caption":
+        path = _write_package(tmp_path, _paragraph("BAB I", style="Heading1"))
+        package = DocumentPackage.load(path)
+        field = insert_toc(package, title="DAFTAR TABEL", caption="Tabel")
+    elif field_kind == "seq":
+        path = _write_package(tmp_path, _paragraph("Tabel 1 Judul", style="TableCaption"))
+        package = DocumentPackage.load(path)
+        paragraph = next(package.xml(DOCUMENT_PART).iter(qn("w:p")))
+        field = insert_seq(package, paragraph=paragraph, label="Tabel")
+    else:
+        path = _write_package(tmp_path, _paragraph("Lihat halaman"))
+        package = DocumentPackage.load(path)
+        paragraph = next(package.xml(DOCUMENT_PART).iter(qn("w:p")))
+        field = insert_pageref(package, paragraph=paragraph, bookmark="_Ref1")
 
     _assert_no_dirty(package.xml(DOCUMENT_PART))
     _assert_complex_field_order(field)
@@ -594,33 +575,6 @@ def test_insert_field_inserts_runs_before_anchor(tmp_path: Path) -> None:
     _assert_complex_field_order(field)
     assert paragraph.index(field.end) == paragraph.index(anchor) - 1
     assert paragraph.findall(qn("w:r"))[-1] is anchor
-
-
-def test_insert_seq_is_thin_insert_field_wrapper(monkeypatch, tmp_path: Path) -> None:
-    path = _write_package(tmp_path, _paragraph("Tabel 1 Judul", style="TableCaption"))
-    package = DocumentPackage.load(path)
-    paragraph = next(package.xml(DOCUMENT_PART).iter(qn("w:p")))
-    calls: list[tuple[tuple[str, ...], FieldPosition, str]] = []
-    sentinel = object()
-
-    def fake_insert_field(
-        switches,
-        position: FieldPosition,
-        result: str = "",
-    ):
-        calls.append((tuple(switches), position, result))
-        return sentinel
-
-    monkeypatch.setattr(fields_module, "insert_field", fake_insert_field)
-
-    assert insert_seq(package, paragraph=paragraph, label="Tabel") is sentinel
-    assert len(calls) == 1
-    switches, position, result = calls[0]
-    assert switches == ("SEQ", "Tabel")
-    assert position.paragraph is paragraph
-    assert position.before is None
-    assert position.end_paragraph is None
-    assert result == "1"
 
 
 def test_field_scanner_reads_split_instruction_and_simple_field(tmp_path: Path) -> None:

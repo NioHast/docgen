@@ -93,8 +93,7 @@ def test_fresh_render_has_no_embedded_font_parts(minimal_case, theme) -> None:
     assert "embeddedFontLst" not in presentation.part.blob.decode("utf-8")
 
 
-def test_font_embedding_rejects_theme_without_bundled_assets(minimal_case, theme) -> None:
-    artifact = _render_minimal(minimal_case, theme).artifact_path
+def test_font_embedding_rejects_theme_without_bundled_assets(theme) -> None:
     wrong_theme = replace(
         theme,
         typography=replace(theme.typography, family="Font Tidak Dikenal"),
@@ -102,7 +101,6 @@ def test_font_embedding_rejects_theme_without_bundled_assets(minimal_case, theme
 
     with pytest.raises(PptxRenderError, match="aset tertanam"):
         font_files_for_theme(wrong_theme)
-    assert artifact.exists()
 
 
 def test_font_embedding_rejects_missing_artifact(theme, tmp_path: Path) -> None:

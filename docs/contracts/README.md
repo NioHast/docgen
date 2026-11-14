@@ -26,7 +26,7 @@ Sumber: AUTO_OFFICE_PLAN.md bagian 13.2 (F0-CONTRACTS) dan 3.2 sampai 3.5.
 | [cli.md](cli.md) | Permukaan CLI, target matrix, output, exit code. | 10 |
 | [coverage.md](coverage.md) | Coverage, exclusion, dan report. | 12.3, 12.11 |
 | [design-token.md](design-token.md) | Token, theme, font, dan kontras. | 11 |
-| [docx.md](docx.md) | DOCX API dan parity docgen. | 8.2 |
+| [docx.md](docx.md) | DOCX API dan parity baseline DOCX. | 8.2 |
 | [pdf.md](pdf.md) | Word COM, ekspor PDF, timeout, dan cleanup. | 8.5, F2-PDF |
 | [documentation.md](documentation.md) | Gate dokumentasi dan TOC. | 12.9 |
 | [ownership.md](ownership.md) | File ownership dan lane map. | 14, 15.6 |
@@ -39,7 +39,7 @@ Sumber: AUTO_OFFICE_PLAN.md bagian 13.2 (F0-CONTRACTS) dan 3.2 sampai 3.5.
 - Prosa memakai bahasa Indonesia; identifier dan nama field memakai bahasa Inggris.
 - Satu berkas kontrak maksimal 150 baris, atau wajib punya `## Daftar Isi` yang valid.
 - Setiap kontrak memuat status, sumber plan, bentuk data/berkas/state, invariant, contoh, dan acceptance.
-- Tautan relatif harus resolve dan diperiksa dengan `python tools/dev/check_docs.py`.
+- Tautan relatif harus resolve dan diperiksa dengan `python tools/quality/check_docs.py`.
 - Tidak ada kode produksi di direktori ini.
 - Kontrak tidak menggantikan plan; plan tetap sumber keputusan dan asumsi.
 
@@ -71,7 +71,7 @@ test-quality.md
 
 | Gate | Bukti |
 | --- | --- |
-| Docs | `python tools/dev/check_docs.py` keluar 0 untuk `docs/contracts/**`. |
+| Docs | `python tools/quality/check_docs.py` keluar 0 untuk `docs/contracts/**`. |
 | Versi | Setiap kontrak memuat `Status: F0 contract, version 1`. |
 | Sumber | Setiap kontrak menyebut bagian `AUTO_OFFICE_PLAN.md`. |
 | Contoh | Setiap kontrak punya minimal satu contoh yang sesuai bentuknya: YAML, JSON, dataclass, perintah, tree, report, atau state. |

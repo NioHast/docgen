@@ -29,7 +29,7 @@ from coverage import Coverage
 from coverage.exceptions import CoverageException
 from coverage.report_core import get_analysis_to_report
 
-AKAR = Path(__file__).resolve().parents[2]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 GLOBAL_MINIMUM = 90.0
 CRITICAL_MINIMUM = 100.0
 ADAPTER_MINIMUM = 85.0
@@ -390,7 +390,7 @@ def module_name(filename: str | Path, root: Path) -> str | None:
 
 def read_coverage(
     coverage_file: str | Path = ".coverage",
-    root: Path = AKAR,
+    root: Path = REPO_ROOT,
 ) -> dict[str, ModuleCoverage]:
     """Baca ``.coverage`` lewat API coverage dan kembalikan statistik per modul."""
     path = Path(coverage_file)
@@ -456,7 +456,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--root",
         type=Path,
-        default=AKAR,
+        default=REPO_ROOT,
         help="akar repo untuk memetakan path sumber",
     )
     parser.add_argument(

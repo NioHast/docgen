@@ -85,6 +85,7 @@ def slide_factory() -> Callable[..., SlideIR]:
         slide_id: str = "s01",
         source: Mapping[str, str] | None = None,
         notes: str | None = None,
+        rows: Sequence[Sequence[str]] = (),
     ) -> SlideIR:
         return SlideIR(
             slide_id=slide_id,
@@ -93,6 +94,7 @@ def slide_factory() -> Callable[..., SlideIR]:
             blocks=tuple(blocks),
             notes=notes,
             source=source,
+            rows=tuple(tuple(row) for row in rows),
         )
 
     return factory

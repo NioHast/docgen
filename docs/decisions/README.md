@@ -22,7 +22,7 @@ setelah F0 wajib memiliki ADR.
 | [0008-min-one-of.md](0008-min-one-of.md) | Grup slot minimal satu untuk alternatif seperti toc group1-3 dan kpi kpi1-4. | diterima |
 | [0009-explicit-custom-rows.md](0009-explicit-custom-rows.md) | Rows custom eksplisit di `SlideIR`; compiler mengisi, planner memakai. | diterima |
 | [0010-risk-based-coverage.md](0010-risk-based-coverage.md) | Coverage global 90%, modul kritis 100%, adapter 85%; checker dan gate. | diterima |
-| [0011-f3-cleanup.md](0011-f3-cleanup.md) | Daftar hapus/update F3, inventaris referensi legacy, urutan operasi, dan rollback. | diusulkan |
+| [0011-f3-cleanup.md](0011-f3-cleanup.md) | Daftar hapus/update F3, inventaris referensi legacy, urutan operasi, dan rollback. | diterima |
 | [0012-chart-kind-preset.md](0012-chart-kind-preset.md) | `SlotSpec.chart_kind` mengikat kind chart pada slot preset `bars`, `line`, dan `donut`. | diterima |
 
 ## Aturan ADR

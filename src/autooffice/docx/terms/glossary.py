@@ -2,7 +2,7 @@
 
 Modul ini hanya memuat tipe glosarium, validasi ``istilah.tsv``, dan merge
 entri. Model paragraf, pencocokan istilah, dan style berada di
-:mod:`docgen.docx.terms.model`.
+:mod:`autooffice.docx.terms.model`.
 """
 
 import re

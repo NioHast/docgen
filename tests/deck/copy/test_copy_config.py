@@ -5,7 +5,6 @@ from pathlib import Path
 import pytest
 
 from autooffice.deck.copy import (
-    RULE_NAMES,
     CopyConfigError,
     CopyTargets,
     load_copy_config,
@@ -21,10 +20,19 @@ def test_default_config_has_all_rules_enabled() -> None:
 
     assert config.schema == 1
     assert config.targets == CopyTargets()
-    assert set(config.rules) == set(RULE_NAMES)
-    assert all(rule.active for rule in config.rules.values())
-    assert config.rule("sentence_length").severity == "warning"
-    assert config.rule("sentence_length").max_words == 25
+    assert {
+        name: (rule.severity, rule.active, rule.max_words) for name, rule in config.rules.items()
+    } == {
+        "banned_phrases": ("error", True, None),
+        "title_case": ("error", True, None),
+        "dash": ("error", True, None),
+        "sentence_length": ("warning", True, 25),
+        "negative_parallelism": ("error", True, None),
+        "contrast_pattern": ("error", True, None),
+        "forced_triad": ("warning", True, None),
+        "one_line_closer": ("warning", True, None),
+        "paired_clause_label": ("warning", True, None),
+    }
     assert dict(config.rule("banned_phrases").extra) == {}
     assert config.allow == ()
 

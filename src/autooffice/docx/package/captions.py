@@ -124,7 +124,7 @@ class FigureLayoutSpec:
 @dataclass
 class CaptionReport:
     heading1_count: int = 0
-    bab_headings: int = 0
+    chapter_headings: int = 0
     image_captions: int = 0
     table_captions: int = 0
     created_image_captions: int = 0
@@ -946,7 +946,7 @@ def _heading_chapter(
     report.heading1_count += 1
     chapter = numbering.chapter_number(paragraph_text(paragraph))
     if chapter is not None:
-        report.bab_headings += 1
+        report.chapter_headings += 1
         if scope == "chapter":
             counters[CaptionKind.FIGURE] = 0
             counters[CaptionKind.TABLE] = 0

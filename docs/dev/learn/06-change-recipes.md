@@ -174,8 +174,8 @@ uv run --extra dev pytest tests/docx/test_pipeline.py -q
 6. jika output DOCX berubah, jalankan tes integration terkait:
 
 ```bash
-uv run --extra dev pytest tests/integration/test_golden_docx.py -q
-uv run --extra dev pytest tests/integration/test_pipeline_python.py -q
+uv run --extra dev pytest tests/docx/test_command.py -q
+uv run --extra dev pytest tests/docx/test_pipeline.py -q
 ```
 
 Cara memeriksa:
@@ -254,11 +254,7 @@ uv run autooffice build examples/thesis-single/document.md --target docx --terms
 ```
 
 5. periksa `.laporan/istilah-baru.txt`;
-6. audit DOCX bila perlu:
-
-```bash
-uv run python -m tools.dev.audit_terms --docx examples/thesis-single/out/Tugas.docx --out .laporan/istilah-audit.md
-```
+6. audit DOCX bila perlu dengan meninjau hasil build dan daftar istilah baru.
 
 Cara memeriksa:
 

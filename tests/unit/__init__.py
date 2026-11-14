@@ -1,1 +1,0 @@
-"""Tes unit paket ``docgen``."""

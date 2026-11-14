@@ -106,29 +106,6 @@ def _completed(
     )
 
 
-class _StatFailPath(type(Path())):
-    """Path yang lolos ``is_file`` tetapi gagal di-``stat``."""
-
-    def is_file(self) -> bool:
-        return True
-
-    def stat(self, *, follow_symlinks: bool = True) -> os.stat_result:
-        raise OSError("stat gagal disengaja")
-
-
-class _OpenFailPath(type(Path())):
-    """Path dengan ukuran valid tetapi gagal dibuka."""
-
-    def is_file(self) -> bool:
-        return True
-
-    def stat(self, *, follow_symlinks: bool = True) -> Any:
-        return SimpleNamespace(st_size=len(MINIMAL_PNG))
-
-    def open(self, *_args: object, **_kwargs: object) -> Any:
-        raise OSError("buka gagal disengaja")
-
-
 @pytest.mark.parametrize(
     ("payload", "reason"),
     [
@@ -233,16 +210,46 @@ def test_png_problem_rejects_malformed_chunks(
     assert _png_problem(path) == reason
 
 
-def test_png_problem_reports_stat_failure(tmp_path: Path) -> None:
-    problem = _png_problem(_StatFailPath(tmp_path / "flow.png"))
+def test_png_problem_reports_stat_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = tmp_path / "flow.png"
+    path.write_bytes(MINIMAL_PNG)
+    real_stat = Path.stat
+
+    def fail_stat(self: Path, *, follow_symlinks: bool = True) -> os.stat_result:
+        if self == path:
+            raise OSError("stat gagal disengaja")
+        return real_stat(self, follow_symlinks=follow_symlinks)
+
+    monkeypatch.setattr(Path, "stat", fail_stat)
+
+    problem = _png_problem(path)
 
     assert problem is not None
     assert problem.startswith("tidak dapat dibaca")
 
 
-def test_validate_png_reports_read_failure(tmp_path: Path) -> None:
-    with pytest.raises(MermaidError, match="tidak dapat dibaca"):
-        _validate_png(_OpenFailPath(tmp_path / "flow.png"))
+def test_validate_png_reports_read_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = tmp_path / "flow.png"
+    path.write_bytes(MINIMAL_PNG)
+    real_open = Path.open
+
+    def fail_open(self: Path, *args: object, **kwargs: object) -> Any:
+        if self == path:
+            raise OSError("buka gagal disengaja")
+        return real_open(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", fail_open)
+
+    with pytest.raises(MermaidError, match="tidak dapat dibaca") as error:
+        _validate_png(path)
+
+    assert str(path) in str(error.value)
 
 
 def test_valid_png_passes_validation(tmp_path: Path) -> None:
@@ -252,9 +259,32 @@ def test_valid_png_passes_validation(tmp_path: Path) -> None:
     assert _png_problem(path) is None
 
 
-def test_validated_source_reports_stat_failure(tmp_path: Path) -> None:
-    with pytest.raises(MermaidError, match="tidak dapat dibaca"):
-        _validated_source(_StatFailPath(tmp_path / "flow.mmd"))
+def test_validated_source_reports_stat_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = tmp_path / "flow.mmd"
+    path.write_text("flowchart TD\n", encoding="utf-8")
+    real_stat = Path.stat
+    real_is_file = Path.is_file
+
+    def fail_stat(self: Path, *, follow_symlinks: bool = True) -> os.stat_result:
+        if self == path:
+            raise OSError("stat gagal disengaja")
+        return real_stat(self, follow_symlinks=follow_symlinks)
+
+    def existing_is_file(self: Path) -> bool:
+        if self == path:
+            return True
+        return real_is_file(self)
+
+    monkeypatch.setattr(Path, "stat", fail_stat)
+    monkeypatch.setattr(Path, "is_file", existing_is_file)
+
+    with pytest.raises(MermaidError, match="tidak dapat dibaca") as error:
+        _validated_source(path)
+
+    assert str(path) in str(error.value)
 
 
 def test_source_sha256_streaming_limit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -507,17 +537,21 @@ def test_discard_cache_entry_ignores_unlink_errors(
 ) -> None:
     cache_path = tmp_path / "mermaid-abc.png"
     cache_path.write_bytes(MINIMAL_PNG)
-    cache_path.with_suffix(".json").write_text("{}", encoding="utf-8")
+    metadata_path = cache_path.with_suffix(".json")
+    metadata_path.write_text("{}", encoding="utf-8")
+    attempted: list[Path] = []
 
-    def fail_unlink(*_args: object, **_kwargs: object) -> None:
+    def fail_unlink(self: Path, *_args: object, **_kwargs: object) -> None:
+        attempted.append(self)
         raise OSError("hapus gagal disengaja")
 
     monkeypatch.setattr(Path, "unlink", fail_unlink)
 
     _discard_cache_entry(cache_path)
 
+    assert attempted == [cache_path, metadata_path]
     assert cache_path.exists()
-    assert cache_path.with_suffix(".json").exists()
+    assert metadata_path.exists()
 
 
 def test_output_capture_handles_missing_and_broken_streams() -> None:
@@ -892,13 +926,17 @@ def test_create_windows_job_returns_handle(
     assert _create_windows_job() == 1
 
 
-def test_close_windows_job_ignores_none(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_close_windows_job_ignores_none_and_closes_handle(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     kernel = _fake_kernel()
     monkeypatch.setattr(mermaid_module, "_kernel32", lambda: kernel)
 
     _close_windows_job(None)
-
     assert kernel.CloseHandle.calls == []
+
+    _close_windows_job(7)
+    assert kernel.CloseHandle.calls == [((7,), {})]
 
 
 def test_assign_process_to_job_reports_missing_process(

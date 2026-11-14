@@ -1,9 +1,8 @@
 # CLI AutoOffice
 
-`autooffice` adalah satu-satunya permukaan perintah AutoOffice. Alias `docgen`
-tidak dipakai dan tidak didokumentasikan di sini; entry point `docgen` hanya
-dipertahankan sementara sampai parity F1-DOCX diterima. Kontrak normatifnya
-ada di [kontrak CLI](../contracts/cli.md).
+`autooffice` adalah satu-satunya permukaan perintah AutoOffice. Tidak ada alias,
+shim, atau entry point kedua. Kontrak normatifnya ada di
+[kontrak CLI](../contracts/cli.md).
 
 ## Perintah
 

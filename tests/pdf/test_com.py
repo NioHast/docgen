@@ -391,6 +391,38 @@ def test_taskkill_timeout_does_not_exceed_small_budget(
     assert captured["timeout"] == pytest.approx(0.05)
 
 
+def test_word_cleanup_error_is_not_timeout_error() -> None:
+    assert issubclass(com.WordCleanupError, com.WordComError)
+    assert not issubclass(com.WordCleanupError, com.WordTimeoutError)
+    assert com.WordCleanupError("cleanup ambigu").cleanup_ambiguous is True
+
+
+def test_find_word_window_handle_selects_matching_pid_only(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    if os.name != "nt":
+        pytest.skip("Enumerasi window hanya relevan di Windows")
+    windows = {7001: 1111, 7002: 1111, 9001: 4242}
+    classes = {7001: "OpusApp", 7002: "OpusApp", 9001: "OpusApp", 8001: "IEFrame"}
+
+    class FakeWin32Gui:
+        @staticmethod
+        def EnumWindows(callback: Any, extra: object) -> None:
+            for hwnd in [*windows, 8001]:
+                callback(hwnd, extra)
+
+        @staticmethod
+        def GetClassName(hwnd: int) -> str:
+            return classes[hwnd]
+
+    monkeypatch.setattr(com, "_import_module", lambda name: FakeWin32Gui())
+    monkeypatch.setattr(com, "_window_process_id", lambda hwnd: windows.get(hwnd))
+
+    assert com.find_word_window_handle(4242) == 9001
+    assert com.find_word_window_handle(1111) == 7001
+    assert com.find_word_window_handle(9999) is None
+
+
 def test_application_window_handle_accepts_positive_hwnd() -> None:
     assert com.application_window_handle(SimpleNamespace(Hwnd=1234)) == 1234
 
@@ -629,7 +661,7 @@ def test_tasklist_uses_absolute_system32_path_not_cwd(
     assert Path(commands[0][0]).is_absolute()
 
 
-def test_taskkill_uses_absolute_system32_path_not_cwd(
+def test_taskkill_uses_absolute_system32_path_and_force_flags(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -651,9 +683,143 @@ def test_taskkill_uses_absolute_system32_path_not_cwd(
     monkeypatch.setattr(com.subprocess, "run", fake_run)
 
     assert com.SystemProcessControl().terminate(4242) is True
-    assert Path(commands[0][0]) == system32 / "taskkill.exe"
-    assert Path(commands[0][0]) != fake_in_cwd
-    assert Path(commands[0][0]).is_absolute()
+    executable = Path(commands[0][0])
+    assert executable == system32 / "taskkill.exe"
+    assert executable.is_absolute()
+    assert executable.parent.name in {"System32", "Sysnative"}
+    assert executable != fake_in_cwd
+    assert commands[0][1:] == ["/PID", "4242", "/T", "/F"]
+
+
+def test_taskkill_nonzero_is_success_when_pid_is_gone(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        com.subprocess,
+        "run",
+        lambda *args, **kwargs: SimpleNamespace(returncode=1, stdout="", stderr=""),
+    )
+    monkeypatch.setattr(com, "_tasklist_rows", lambda *args, **kwargs: [])
+
+    assert com.SystemProcessControl(timeout_s=1.0).terminate(4242) is True
+
+
+def test_taskkill_nonzero_stays_failure_when_pid_is_alive(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        com.subprocess,
+        "run",
+        lambda *args, **kwargs: SimpleNamespace(returncode=1, stdout="", stderr=""),
+    )
+    monkeypatch.setattr(
+        com,
+        "_tasklist_rows",
+        lambda *args, **kwargs: [["WINWORD.EXE", "4242", "Console", "1", "100 K"]],
+    )
+
+    assert com.SystemProcessControl(timeout_s=1.0).terminate(4242) is False
+
+
+def test_taskkill_nonzero_stays_failure_when_pid_cannot_be_verified(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        com.subprocess,
+        "run",
+        lambda *args, **kwargs: SimpleNamespace(returncode=1, stdout="", stderr=""),
+    )
+    monkeypatch.setattr(com, "_tasklist_rows", lambda *args, **kwargs: None)
+
+    assert com.SystemProcessControl(timeout_s=1.0).terminate(4242) is False
+
+
+class _NonzeroTaskkillControl:
+    """Control with taskkill nonzero result and a verifiable PID status."""
+
+    def __init__(self, *, process_gone: bool) -> None:
+        self.pid = 4242
+        self.alive = False
+        self.process_gone = process_gone
+        self.terminated: list[int] = []
+        self.timeout_s = com.CLEANUP_TIMEOUT_S
+
+    def set_timeout(self, timeout_s: float) -> None:
+        self.timeout_s = max(0.0, timeout_s)
+
+    def list_word_pids(self) -> set[int] | None:
+        return {self.pid} if self.alive else set()
+
+    def image_name(self, pid: int) -> str | None:
+        return com.WORD_IMAGE if self.alive else None
+
+    def creation_time(self, pid: int) -> int | None:
+        return 1000 if self.alive else None
+
+    def pid_for_window(self, hwnd: int) -> int | None:
+        return self.pid if self.alive else None
+
+    def terminate(self, pid: int) -> bool:
+        self.terminated.append(pid)
+        if self.process_gone:
+            self.alive = False
+        return False
+
+    def is_running(self, pid: int) -> bool | None:
+        return self.alive
+
+
+def _claim_control(control: _NonzeroTaskkillControl) -> com.WordProcessTracker:
+    tracker = com.WordProcessTracker(
+        control=control,
+        image=com.WORD_IMAGE,
+        before=set(),
+        list_pids=control.list_word_pids,
+    )
+    control.alive = True
+    assert tracker.claim(hwnd=1) == control.pid
+    return tracker
+
+
+def test_watchdog_timeout_accepts_nonzero_taskkill_when_pid_is_gone() -> None:
+    control = _NonzeroTaskkillControl(process_gone=True)
+    tracker = _claim_control(control)
+    release = threading.Event()
+
+    try:
+        with pytest.raises(com.WordTimeoutError) as error:
+            com.run_with_watchdog(
+                lambda: release.wait(5.0),
+                timeout_s=0.01,
+                on_timeout=lambda: tracker.terminate_owned(wait_s=0.0),
+                cleanup_timeout_s=0.01,
+                description="uji",
+            )
+    finally:
+        release.set()
+
+    assert not isinstance(error.value, com.WordCleanupError)
+    assert control.terminated == [4242]
+
+
+def test_watchdog_timeout_raises_cleanup_error_when_pid_remains() -> None:
+    control = _NonzeroTaskkillControl(process_gone=False)
+    tracker = _claim_control(control)
+    release = threading.Event()
+
+    try:
+        with pytest.raises(com.WordCleanupError, match="Cleanup ambigu"):
+            com.run_with_watchdog(
+                lambda: release.wait(5.0),
+                timeout_s=0.01,
+                on_timeout=lambda: tracker.terminate_owned(wait_s=0.0),
+                cleanup_timeout_s=0.01,
+                description="uji",
+            )
+    finally:
+        release.set()
+
+    assert control.terminated == [4242]
 
 
 def test_system32_tool_prefers_sysnative_for_32bit_python(

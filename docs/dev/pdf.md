@@ -122,10 +122,14 @@ uv run --project <repo> autooffice doctor --json
 
 ## COM, watchdog, dan cleanup
 
-- PID automation diambil dari `Application.Hwnd` lewat
-  `GetWindowThreadProcessId`, bukan dari selisih snapshot. PID yang diklaim
-  harus lolos pemeriksaan image dan creation time; sebelum `taskkill` keduanya
-  dibaca ulang. Proses Office pengguna atau PID ambigu tidak pernah dihentikan.
+- Word membuktikan PID automation dari tepat satu PID `WINWORD.EXE` baru dan
+  window top-level `OpusApp` milik PID itu (`GetWindowThreadProcessId`);
+  `Documents.Open` diverifikasi ulang lewat `ActiveWindow.Hwnd`. PowerPoint
+  menolak instance yang sudah berjalan lalu mewajibkan tepat satu PID
+  `POWERPNT.EXE` baru. PID yang diklaim harus lolos pemeriksaan image dan
+  creation time; sebelum `taskkill` keduanya dibaca ulang. Proses Office
+  pengguna atau PID ambigu tidak pernah dihentikan, dan `Quit` hanya dipanggil
+  untuk PID yang sudah diklaim.
 - Snapshot PID diambil sebelum aplikasi COM dibuat. Bila snapshot gagal,
   operasi dibatalkan sebelum `DispatchEx`.
 - `tasklist` dan `taskkill` dipanggil lewat path absolut di

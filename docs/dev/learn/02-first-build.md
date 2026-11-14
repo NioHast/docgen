@@ -295,8 +295,8 @@ dan cara membaca kegagalannya.
 | Error dan exit code | [pipeline/errors.md](../pipeline/errors.md) |
 | PDF dan Word | [pdf.md](../pdf.md) |
 | Contoh repo | [examples/README.md](../../../examples/README.md) |
-| Kontrak konfigurasi | [contracts/config.md](../contracts/config.md) |
-| Kontrak stage | [contracts/stage-api.md](../contracts/stage-api.md) |
+| Kontrak konfigurasi | [formats.md](../formats.md) |
+| Kontrak stage dan CLI | [contracts/cli.md](../../contracts/cli.md) |
 
 ### Referensi resmi
 

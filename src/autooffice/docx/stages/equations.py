@@ -96,7 +96,7 @@ class EquationReport:
     """Ringkasan pekerjaan penomoran persamaan."""
 
     heading1_count: int = 0
-    bab_headings: int = 0
+    chapter_headings: int = 0
     equation_paragraphs: int = 0
     numbered: int = 0
     skipped_no_chapter: int = 0
@@ -106,7 +106,7 @@ class EquationReport:
     def as_dict(self) -> dict[str, object]:
         return {
             "heading1_count": self.heading1_count,
-            "bab_headings": self.bab_headings,
+            "bab_headings": self.chapter_headings,
             "equation_paragraphs": self.equation_paragraphs,
             "numbered": self.numbered,
             "skipped_no_chapter": self.skipped_no_chapter,
@@ -306,7 +306,7 @@ def _apply_numbers(body: etree._Element, report: EquationReport, spec: EquationS
             report.heading1_count += 1
             chapter = chapter_number(paragraph_text(paragraph))
             if chapter is not None:
-                report.bab_headings += 1
+                report.chapter_headings += 1
                 current_chapter = chapter
                 counter = 0
             continue
@@ -341,7 +341,7 @@ def _apply_numbers(body: etree._Element, report: EquationReport, spec: EquationS
 
 
 def _add_warnings(report: EquationReport) -> None:
-    if report.bab_headings == 0:
+    if report.chapter_headings == 0:
         if report.heading1_count == 0:
             report.warnings.append(
                 "Tidak ada paragraf Heading1/ChapterTitle; penomoran persamaan dilewati."
@@ -419,7 +419,7 @@ class EquationsStage(BaseStage):
             duration_ms=int((time.monotonic() - started) * 1000),
             metrics={
                 "heading1_count": report.heading1_count,
-                "bab_headings": report.bab_headings,
+                "bab_headings": report.chapter_headings,
                 "equation_paragraphs": report.equation_paragraphs,
                 "numbered": report.numbered,
                 "skipped_no_chapter": report.skipped_no_chapter,

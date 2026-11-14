@@ -99,11 +99,12 @@ uv run autooffice check document.md
 bibliografi, gambar, urutan Heading 1, dan caption Markdown. Perintah ini tidak
 memanggil Pandoc atau Word dan tidak menulis berkas.
 
-Pemeriksa prosa terpisah dan hanya memberi petunjuk:
+Aturan prosa ada di [writing-rules.md](writing-rules.md). Paket AutoOffice tidak
+menyertakan pemeriksa prosa terpisah; jalankan `autooffice doctor` untuk
+memeriksa perkakas build:
 
 ```bash
 uv run autooffice doctor
-uv run python tools/dev/check_prose.py document.md
 ```
 
 ## 5. Build

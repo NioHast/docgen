@@ -1,23 +1,20 @@
 """Orkestrasi build CLI untuk Markdown/DOCX dan deck YAML.
 
-Modul ini tidak mengimpor domain deck, DOCX, PDF, atau Google secara eager.
-Setiap lane dimuat lewat :func:`autooffice.cli.require_module` saat perintah
-benar-benar membutuhkannya sehingga ``--help``/``--version`` tidak menyentuh
-COM, Google, atau renderer.
+Modul domain diimpor di dalam fungsi yang membutuhkannya sehingga
+``--help``/``--version`` tidak menyentuh COM, Google, atau renderer.
 """
 
 import contextlib
 import importlib.util
-import json
 import shutil
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol, cast
 
 from autooffice.errors import AutoOfficeError
 
-from . import CliError, require_callable, require_module
+from . import CliError
 from .check import load_markdown_project
 from .outputs import (
     DeckOutputs,
@@ -87,7 +84,7 @@ def build_markdown(
         project = load_markdown_project(input)
         report_name = str(project.document.metadata.report_name)
         outputs = docx_outputs(input, report_name, out)
-        _preflight_markdown_lanes(requested)
+        _preflight_markdown_apis(requested)
         dry_notes = [f"direktori output: {outputs.output_dir}"]
         if "pdf" in requested:
             dry_notes.append(f"PDF DOCX melalui Word COM: {outputs.pdf}")
@@ -108,8 +105,8 @@ def build_markdown(
             dry_run=True,
         )
 
-    command_module = require_module("autooffice.docx.command", "F1-DOCX")
-    build_docx = require_callable(command_module, "build_docx", "F1-DOCX")
+    from autooffice.docx.command import build_docx
+
     intermediate_dir = docx_outputs(input, "build", out).build_dir
     cleanup_safe = True
     try:
@@ -202,22 +199,21 @@ def build_deck(
     *,
     google_services: Any | None = None,
 ) -> BuildOutcome:
-    """Bangun deck YAML menjadi PPTX/PDF/Slides dengan lane yang tersedia.
+    """Bangun deck YAML menjadi PPTX/PDF/Slides.
 
-    ``model``, ``layout``, ``copy``, dan ``render.pptx`` diimpor secara lazy.
-    ``google_services`` adalah seam dependency injection untuk test dan
-    pemanggil yang sudah memiliki service Google; CLI normal tidak mengisinya.
+    ``model``, ``layout``, ``copy``, dan ``render.pptx`` diimpor di dalam
+    fungsi ini. ``google_services`` adalah seam dependency injection untuk
+    test dan pemanggil yang sudah memiliki service Google; CLI normal tidak
+    mengisinya.
     """
     requested = _validated_targets(targets, DECK_TARGETS, "deck")
     if out is not None:
         out = resolve_output_directory(input, out)
     outputs = deck_outputs(input, out)
-    model_module = require_module("autooffice.deck.model", "F1-MODEL")
-    compile_deck_file = require_callable(model_module, "compile_deck_file", "F1-MODEL")
-    build_coverage_plan = require_callable(model_module, "build_coverage_plan", "F1-MODEL")
+    from autooffice.deck.model import build_coverage_plan, compile_deck_file
+
     deck = compile_deck_file(input)
-    theme_name = theme or str(getattr(deck, "theme_name", "indigo"))
-    theme_value = _resolve_theme(theme_name)
+    theme_value = _resolve_theme(_deck_theme_name(theme, deck))
     sync_mode = _sync_mode(sync, requested)
     sync_only = sync_mode in {"diff", "pull", "apply"}
     if "slides" in requested:
@@ -233,7 +229,7 @@ def build_deck(
             path=str(input),
         )
     if dry_run:
-        _preflight_deck_lanes(requested, sync_mode)
+        _preflight_deck_apis(requested, sync_mode)
     else:
         _preflight_renderer(requested, sync_mode)
 
@@ -342,7 +338,7 @@ def build_deck(
                     written.extend(
                         _google_sync(outputs, sync_mode, staging, google_services, theme_value)
                     )
-                except CliError, AutoOfficeError:
+                except CliError, AutoOfficeError, OSError:
                     if not keep_intermediate:
                         with contextlib.suppress(OSError):
                             staging.unlink(missing_ok=True)
@@ -356,8 +352,6 @@ def build_deck(
                 written.extend(
                     _google_sync(outputs, sync_mode, outputs.staging, google_services, theme_value)
                 )
-                if outputs.state.is_file() and outputs.state not in written:
-                    written.append(outputs.state)
 
         if transcript_source.is_file() and not sync_only:
             written.append(atomic_copy(transcript_source, outputs.transcript))
@@ -413,6 +407,20 @@ def _validated_targets(
     return requested
 
 
+def _deck_theme_name(theme: str | None, deck: Any) -> str:
+    """Kembalikan theme eksplisit atau ``theme_name`` wajib dari deck."""
+    if theme is not None:
+        return theme
+    name = getattr(deck, "theme_name", None)
+    if not isinstance(name, str) or not name.strip():
+        raise CliError(
+            "deck tidak memiliki theme_name; tentukan --theme secara eksplisit",
+            code="CLI-THEME",
+            exit_code=1,
+        )
+    return name
+
+
 def _resolve_theme(name: str) -> Any:
     if name not in {"indigo", "hitam"}:
         raise CliError(
@@ -420,8 +428,8 @@ def _resolve_theme(name: str) -> Any:
             code="CLI-THEME",
             exit_code=2,
         )
-    design_module = require_module("autooffice.design", "F1-DESIGN")
-    resolve_theme = require_callable(design_module, "resolve_theme", "F1-DESIGN")
+    from autooffice.design import resolve_theme
+
     try:
         return resolve_theme(name)
     except AutoOfficeError:
@@ -435,15 +443,13 @@ def _resolve_theme(name: str) -> Any:
 
 
 def _build_layout_plan(deck: Any, theme: Any, source: Path) -> Any:
-    require_module("autooffice.deck.layout", "F1-LAYOUT")
-    overflow_module = require_module("autooffice.deck.layout.overflow", "F1-LAYOUT")
-    plan_deck = require_callable(overflow_module, "plan_deck", "F1-LAYOUT")
-    plan_overflow_keys = require_callable(overflow_module, "plan_overflow_keys", "F1-LAYOUT")
+    from autooffice.deck.layout.overflow import plan_deck, plan_overflow_keys
+
     try:
         plan = plan_deck(deck, theme, fail_on_overflow=False)
     except AutoOfficeError as exc:
         raise CliError(
-            f"layout deck gagal (lane F1-LAYOUT): {exc}",
+            f"layout deck gagal: {exc}",
             code="CLI-LAYOUT",
             exit_code=1,
             path=str(source),
@@ -474,7 +480,23 @@ def _require_coverage_plan(coverage: Any) -> None:
 
 
 def _summary_notes(deck: Any, coverage: Any, outputs: DeckOutputs) -> list[str]:
-    title = str(getattr(deck, "meta", {}).get("title", "")).strip() or outputs.source.stem
+    meta = getattr(deck, "meta", None)
+    if not isinstance(meta, Mapping):
+        raise CliError(
+            "deck tidak memiliki metadata meta",
+            code="CLI-META",
+            exit_code=1,
+            path=str(outputs.source),
+        )
+    raw_title = meta.get("title")
+    if not isinstance(raw_title, str) or not raw_title.strip():
+        raise CliError(
+            "deck meta.title wajib berupa teks non-kosong",
+            code="CLI-META",
+            exit_code=1,
+            path=str(outputs.source),
+        )
+    title = raw_title.strip()
     declared = len(getattr(coverage, "declared_keys", ()))
     charts = len(getattr(coverage, "charts", ()))
     return [
@@ -488,8 +510,8 @@ def _summary_notes(deck: Any, coverage: Any, outputs: DeckOutputs) -> list[str]:
 def _load_transcript(deck: Any, transcript_path: Path) -> Any | None:
     if not transcript_path.is_file():
         return None
-    transcript_module = require_module("autooffice.deck.transcript", "F1-COPY")
-    parse_transcript_file = require_callable(transcript_module, "parse_transcript_file", "F1-COPY")
+    from autooffice.deck.transcript import parse_transcript_file
+
     return parse_transcript_file(
         transcript_path,
         [slide.slide_id for slide in deck.slides],
@@ -502,9 +524,8 @@ def _run_copy_checker(
     transcript: Any | None,
     transcript_path: Path,
 ) -> tuple[str, ...]:
-    copy_module = require_module("autooffice.deck.copy", "F1-COPY")
-    check_copy = require_callable(copy_module, "check_copy", "F1-COPY")
-    has_errors = require_callable(copy_module, "has_errors", "F1-COPY")
+    from autooffice.deck.copy import check_copy, has_errors
+
     copy_path = source.parent / "copy.yaml"
     diagnostics = check_copy(
         deck,
@@ -541,34 +562,34 @@ def _format_diagnostic(diagnostic: Any) -> str:
     return str(diagnostic)
 
 
-def _docx_pdf_converter() -> Callable[[Path, Path], object]:
-    module = require_module("autooffice.pdf", "F2-PDF")
-    converter = getattr(module, "convert_docx_to_pdf", None)
-    if not callable(converter):
-        converter = getattr(module, "export_pdf", None)
-    if not callable(converter):
+def _preflight_markdown_apis(requested: tuple[str, ...]) -> None:
+    """Validasi API Markdown pada dry-run tanpa memanggil COM."""
+
+    from autooffice.docx.command import build_docx
+
+    if not callable(build_docx):
         raise CliError(
-            "konversi DOCX ke PDF memerlukan lane F2-PDF (Word COM) yang belum tersedia",
-            code="CLI-LANE-F2-PDF",
+            "API build DOCX tidak tersedia",
+            code="CLI-DOCX",
             exit_code=1,
         )
-    return cast("Callable[[Path, Path], object]", converter)
-
-
-def _preflight_markdown_lanes(requested: tuple[str, ...]) -> None:
-    """Validasi lane Markdown pada dry-run tanpa memanggil COM."""
-
-    docx_module = require_module("autooffice.docx.command", "F1-DOCX")
-    require_callable(docx_module, "build_docx", "F1-DOCX")
     if "pdf" in requested:
-        _docx_pdf_converter()
+        from autooffice.pdf import export_pdf
+
+        if not callable(export_pdf):
+            raise CliError(
+                "API ekspor PDF tidak tersedia",
+                code="CLI-PDF",
+                exit_code=1,
+            )
 
 
 def _convert_docx_to_pdf(source: Path, destination: Path) -> Path:
     ensure_directory(destination.parent)
-    converter = _docx_pdf_converter()
+    from autooffice.pdf import export_pdf
+
     try:
-        converted = converter(source, destination)
+        converted = export_pdf(source, destination)
     except CliError:
         raise
     except AutoOfficeError as exc:
@@ -588,23 +609,15 @@ def _convert_docx_to_pdf(source: Path, destination: Path) -> Path:
             exit_code=1,
             path=str(source),
         ) from exc
-    path = destination if converted is None else _as_path(converted, "F2-PDF")
-    return _require_artifact(path, "F2-PDF")
+    return _require_artifact(_as_path(converted, "konversi PDF DOCX"), "konversi PDF DOCX")
 
 
 def _convert_pptx_to_pdf(source: Path, destination: Path) -> Path:
     ensure_directory(destination.parent)
-    module = require_module("autooffice.pdf", "F2-PDF")
-    exporter = getattr(module, "export_pptx_pdf", None)
-    if not callable(exporter):
-        raise CliError(
-            "konversi PPTX ke PDF memerlukan adapter "
-            "autooffice.pdf.powerpoint.export_pptx_pdf (PowerPoint COM) yang belum tersedia",
-            code="CLI-LANE-F2-PDF",
-            exit_code=1,
-        )
+    from autooffice.pdf import export_pptx_pdf
+
     try:
-        converted = exporter(source, destination)
+        converted = export_pptx_pdf(source, destination)
     except CliError:
         raise
     except AutoOfficeError as exc:
@@ -624,8 +637,7 @@ def _convert_pptx_to_pdf(source: Path, destination: Path) -> Path:
             exit_code=1,
             path=str(source),
         ) from exc
-    path = destination if converted is None else _as_path(converted, "F2-PDF")
-    return _require_artifact(path, "F2-PDF")
+    return _require_artifact(_as_path(converted, "konversi PDF PPTX"), "konversi PDF PPTX")
 
 
 class _Renderer(Protocol):
@@ -653,41 +665,45 @@ def _render_pptx(
     embed_fonts: bool = True,
     cache: Path | None = None,
 ) -> _RenderedPptx:
-    protocol_module = require_module("autooffice.deck.render.protocol", "F1-PPTX")
-    render_request = require_callable(protocol_module, "RenderRequest", "F1-PPTX")
-    output_target = require_callable(protocol_module, "OutputTarget", "F1-PPTX")
-    pptx_module = require_module("autooffice.deck.render.pptx", "F1-PPTX")
-    renderer = _renderer_from(pptx_module)
+    from autooffice.deck.render.protocol import OutputTarget, RenderRequest
+
+    renderer = _renderer_from(importlib.import_module("autooffice.deck.render.pptx"))
     ensure_directory(workspace)
     if cache is not None:
         _restore_render_cache(cache, workspace)
-    request = render_request(
+    request = RenderRequest(
         deck=deck,
         layout=layout,
         theme=theme,
-        target=output_target(target),
+        target=OutputTarget(target),
         workspace=workspace,
     )
     try:
         result = renderer.render(request)
     except TypeError as exc:
         raise CliError(
-            f"renderer PPTX tidak cocok dengan kontrak lane F1-PPTX: {exc}",
-            code="CLI-LANE-F1-PPTX",
+            f"renderer PPTX tidak cocok dengan kontrak render: {exc}",
+            code="CLI-RENDERER",
             exit_code=1,
         ) from exc
     if cache is not None:
         _persist_render_cache(workspace, cache)
     coverage = getattr(result, "coverage", None)
-    if coverage is not None and not bool(getattr(coverage, "ok", False)):
+    if coverage is None:
+        raise CliError(
+            "renderer PPTX tidak mengembalikan coverage; artefak tidak dapat diverifikasi",
+            code="CLI-RENDERER",
+            exit_code=1,
+        )
+    if not bool(getattr(coverage, "ok", False)):
         raise CliError(
             "coverage renderer PPTX gagal: " + _coverage_message(coverage),
             code="CLI-COVERAGE",
             exit_code=1,
         )
     artifact = getattr(result, "artifact_path", None)
-    artifact_path = _as_path(artifact, "F1-PPTX")
-    _require_artifact(artifact_path, "F1-PPTX")
+    artifact_path = _as_path(artifact, "renderer PPTX")
+    _require_artifact(artifact_path, "renderer PPTX")
     warnings = tuple(str(warning) for warning in getattr(result, "warnings", ()))
     if embed_fonts:
         _embed_pptx_fonts(artifact_path)
@@ -750,18 +766,10 @@ def _embed_pptx_fonts(source: Path) -> Path:
     berubah setelah langkah ini.
     """
 
-    module = require_module("autooffice.pdf", "F2-PDF")
-    embedder = getattr(module, "embed_pptx_fonts", None)
-    if not callable(embedder):
-        raise CliError(
-            "font embedding PPTX memerlukan adapter "
-            "autooffice.pdf.powerpoint.embed_fonts (PowerPoint COM) yang belum tersedia",
-            code="CLI-LANE-F2-PDF",
-            exit_code=1,
-            path=str(source),
-        )
+    from autooffice.pdf import embed_pptx_fonts
+
     try:
-        embedded = embedder(source)
+        embedded = embed_pptx_fonts(source)
     except CliError:
         raise
     except AutoOfficeError as exc:
@@ -782,8 +790,7 @@ def _embed_pptx_fonts(source: Path) -> Path:
             exit_code=1,
             path=str(source),
         ) from exc
-    path = source if embedded is None else _as_path(embedded, "F2-PDF")
-    return _require_artifact(path, "F2-PDF")
+    return _require_artifact(_as_path(embedded, "font embedding PPTX"), "font embedding PPTX")
 
 
 def _without_font_embedding_warnings(warnings: tuple[str, ...]) -> tuple[str, ...]:
@@ -804,8 +811,8 @@ def _renderer_from(module: Any) -> _Renderer:
     if callable(render_function):
         return _FunctionRenderer(cast("Callable[[object], object]", render_function))
     raise CliError(
-        "renderer PPTX untuk lane F1-PPTX belum tersedia; build deck dihentikan tanpa output",
-        code="CLI-LANE-F1-PPTX",
+        "renderer PPTX tidak menyediakan API render; build deck dihentikan tanpa output",
+        code="CLI-RENDERER",
         exit_code=1,
     )
 
@@ -816,8 +823,8 @@ def _needs_render(targets: tuple[str, ...], sync_mode: str) -> bool:
     return "slides" in targets and sync_mode == "push"
 
 
-def _preflight_deck_lanes(targets: tuple[str, ...], sync_mode: str) -> None:
-    """Validasi lane deck pada dry-run tanpa COM, renderer, atau jaringan."""
+def _preflight_deck_apis(targets: tuple[str, ...], sync_mode: str) -> None:
+    """Validasi API deck pada dry-run tanpa COM, renderer, atau jaringan."""
 
     if {"pptx", "pdf"} & set(targets) or ("slides" in targets and sync_mode == "push"):
         _require_pptx_renderer_class()
@@ -828,41 +835,46 @@ def _preflight_deck_lanes(targets: tuple[str, ...], sync_mode: str) -> None:
 
 
 def _require_pptx_renderer_class() -> None:
-    module = require_module("autooffice.deck.render.pptx", "F1-PPTX")
-    if not isinstance(getattr(module, "PptxRenderer", None), type):
+    pptx_module = importlib.import_module("autooffice.deck.render.pptx")
+    if not isinstance(getattr(pptx_module, "PptxRenderer", None), type):
         raise CliError(
-            "renderer PPTX (PptxRenderer) untuk lane F1-PPTX belum tersedia; "
-            "build deck dihentikan tanpa output",
-            code="CLI-LANE-F1-PPTX",
+            "renderer PPTX (PptxRenderer) tidak tersedia; build deck dihentikan tanpa output",
+            code="CLI-RENDERER",
             exit_code=1,
         )
 
 
 def _require_pptx_pdf_adapter() -> None:
-    module = require_module("autooffice.pdf", "F2-PDF")
-    if not callable(getattr(module, "export_pptx_pdf", None)):
+    from autooffice.pdf import export_pptx_pdf
+
+    if not callable(export_pptx_pdf):
         raise CliError(
-            "konversi PPTX ke PDF memerlukan adapter "
-            "autooffice.pdf.powerpoint.export_pptx_pdf (PowerPoint COM) yang belum tersedia",
-            code="CLI-LANE-F2-PDF",
+            "API ekspor PDF PPTX tidak tersedia",
+            code="CLI-PDF",
             exit_code=1,
         )
 
 
 def _require_google_operation(sync_mode: str) -> None:
-    module = require_module("autooffice.google", "F2-GOOGLE")
-    function_name = "push_deck" if sync_mode == "push" else "sync_deck"
-    require_callable(module, function_name, "F2-GOOGLE")
+    from autooffice.google import push_deck, sync_deck
+
+    operation = push_deck if sync_mode == "push" else sync_deck
+    if not callable(operation):
+        raise CliError(
+            f"operasi Google Slides '{sync_mode}' tidak tersedia",
+            code="CLI-GOOGLE",
+            exit_code=1,
+        )
 
 
 def _preflight_renderer(targets: tuple[str, ...], sync_mode: str) -> None:
     if not _needs_render(targets, sync_mode):
         return
-    module = require_module("autooffice.deck.render.pptx", "F1-PPTX")
-    if not _has_renderer_api(module):
+    pptx_module = importlib.import_module("autooffice.deck.render.pptx")
+    if not _has_renderer_api(pptx_module):
         raise CliError(
-            "renderer PPTX untuk lane F1-PPTX belum tersedia; build deck dihentikan tanpa output",
-            code="CLI-LANE-F1-PPTX",
+            "renderer PPTX tidak menyediakan API render; build deck dihentikan tanpa output",
+            code="CLI-RENDERER",
             exit_code=1,
         )
 
@@ -931,21 +943,21 @@ def _cleanup_build_directory(
     shutil.rmtree(safe_build_dir, ignore_errors=True)
 
 
-def _as_path(value: object, lane: str) -> Path:
+def _as_path(value: object, component: str) -> Path:
     if isinstance(value, (str, Path)):
         return Path(value)
     raise CliError(
-        f"API lane {lane} tidak mengembalikan path artefak yang valid",
-        code=f"CLI-LANE-{lane}",
+        f"{component} tidak mengembalikan path artefak yang valid",
+        code="CLI-ARTIFACT",
         exit_code=1,
     )
 
 
-def _require_artifact(path: Path, lane: str) -> Path:
+def _require_artifact(path: Path, component: str) -> Path:
     if not path.is_file():
         raise CliError(
-            f"lane {lane} tidak menghasilkan artefak yang diminta: {path}",
-            code=f"CLI-LANE-{lane}",
+            f"{component} tidak menghasilkan artefak yang diminta: {path}",
+            code="CLI-ARTIFACT",
             exit_code=1,
             path=str(path),
         )
@@ -967,7 +979,7 @@ def _sync_mode(sync: str | None, targets: tuple[str, ...]) -> str:
                 exit_code=2,
             )
         return ""
-    return sync or "push"
+    return "push" if sync is None else sync
 
 
 def _google_notes(
@@ -997,14 +1009,13 @@ def _google_sync(
         require_google_extra()
     if sync_mode != "push":
         _require_state(outputs.state)
-    module = require_module("autooffice.google", "F2-GOOGLE")
-    function_name = "push_deck" if sync_mode == "push" else "sync_deck"
-    operation = getattr(module, function_name, None)
+    from autooffice.google import push_deck, sync_deck
+
+    operation = push_deck if sync_mode == "push" else sync_deck
     if not callable(operation):
         raise CliError(
-            f"sinkronisasi Google Slides '{sync_mode}' memerlukan lane F2-GOOGLE "
-            "yang belum tersedia",
-            code="CLI-LANE-F2-GOOGLE",
+            f"operasi Google Slides '{sync_mode}' tidak tersedia",
+            code="CLI-GOOGLE",
             exit_code=1,
             path=str(outputs.source),
         )
@@ -1031,10 +1042,25 @@ def _google_sync(
             path=str(outputs.source),
         ) from exc
     if result is None:
-        return []
-    if isinstance(result, (list, tuple)):
-        return [_as_path(item, "F2-GOOGLE") for item in result]
-    return [_as_path(result, "F2-GOOGLE")]
+        raise CliError(
+            f"Google Slides '{sync_mode}' untuk {outputs.source} tidak mengembalikan output; "
+            "state/review tidak boleh dianggap sukses",
+            code="CLI-GOOGLE-RESULT",
+            exit_code=1,
+            path=str(outputs.source),
+        )
+    items: Sequence[object] = result if isinstance(result, (list, tuple)) else (result,)
+    if not items:
+        raise CliError(
+            f"Google Slides '{sync_mode}' untuk {outputs.source} tidak menghasilkan output",
+            code="CLI-GOOGLE-RESULT",
+            exit_code=1,
+            path=str(outputs.source),
+        )
+    paths: list[Path] = []
+    for item in items:
+        paths.append(_require_artifact(_as_path(item, "Google Slides"), "Google Slides"))
+    return paths
 
 
 def _preflight_google(services: Any | None, *, check_credentials: bool) -> None:
@@ -1049,12 +1075,11 @@ def _preflight_google(services: Any | None, *, check_credentials: bool) -> None:
     require_google_extra()
     if not check_credentials:
         return
-    module = require_module("autooffice.google", "F2-GOOGLE")
-    settings_type = require_callable(module, "OAuthSettings", "F2-GOOGLE")
-    token_store_type = require_callable(module, "TokenStore", "F2-GOOGLE")
+    from autooffice.google import OAuthSettings, TokenStore
+
     try:
-        settings_type.from_environment()
-        token_store_type.from_environment().require()
+        OAuthSettings.from_environment()
+        TokenStore.from_environment().require()
     except AutoOfficeError as exc:
         raise CliError(
             f"kredensial Google belum siap untuk target slides: {exc}",
@@ -1073,7 +1098,7 @@ def require_google_extra() -> None:
         )
 
 
-def _require_state(path: Path) -> dict[str, Any]:
+def _require_state(path: Path) -> None:
     if not path.is_file():
         raise CliError(
             f"state belum ada di {path}; jalankan push lebih dulu",
@@ -1081,30 +1106,24 @@ def _require_state(path: Path) -> dict[str, Any]:
             exit_code=1,
             path=str(path),
         )
+    from autooffice.google import GoogleStateError, load_state
+
     try:
-        raw = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
+        state = load_state(path)
+    except GoogleStateError as exc:
         raise CliError(
-            f"state Google tidak dapat dibaca: {exc}",
+            f"state Google tidak valid: {exc}",
             code="CLI-GOOGLE-STATE",
             exit_code=1,
             path=str(path),
         ) from exc
-    if not isinstance(raw, dict):
-        raise CliError(
-            "state Google harus berupa objek JSON",
-            code="CLI-GOOGLE-STATE",
-            exit_code=1,
-            path=str(path),
-        )
-    if not raw.get("presentation_id"):
+    if state.presentation_id is None:
         raise CliError(
             f"state {path} belum memiliki presentation_id; jalankan push lebih dulu",
             code="CLI-GOOGLE-STATE",
             exit_code=1,
             path=str(path),
         )
-    return cast("dict[str, Any]", raw)
 
 
 __all__ = ["BuildOutcome", "build_deck", "build_markdown", "require_google_extra"]

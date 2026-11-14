@@ -46,7 +46,7 @@ def create_chart_placeholder(
     """Buat shape placeholder pada box chart tanpa chart object native.
 
     Nama shape dan ``title`` berisi marker deterministik; ``descr`` berisi alt
-    manusia agar Google lane dapat mencari berdasarkan nama dan alt title
+    manusia agar Google Slides dapat mencari berdasarkan nama dan alt title
     tanpa kehilangan deskripsi aksesibilitas.
     """
     marker = chart_marker(spec.chart_id)

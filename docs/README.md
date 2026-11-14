@@ -31,7 +31,7 @@ bila baru mengenal repo, lalu pilih salah satu pintu berikut:
 | [dev/pipeline/README.md](dev/pipeline/README.md) | Urutan stage, opsi build, output, artefak, dan error. |
 | [dev/docx/README.md](dev/docx/README.md) | Model package DOCX, modul internal, field, bookmark, dan istilah. |
 | [dev/formats.md](dev/formats.md) | Skema `format.yml`, `structure.yml`, dan struktur yang tersedia. |
-| [dev/docx/terms.md](dev/docx/terms.md) | Glosarium, penanda istilah, stage `terms`, dan audit. |
+| [dev/docx/terms.md](dev/docx/terms.md) | Glosarium, penanda istilah, stage `terms`, dan verifikasi. |
 | [dev/pdf.md](dev/pdf.md) | Ekspor PDF lewat Word/PowerPoint, embedding font, dan batas platform. |
 | [dev/adeu-integration.md](dev/adeu-integration.md) | Adeu (MCP DOCX↔LLM): bookmark `pNNNN`, manifest, source scan, dan modul rekonsiliasi internal. |
 | [dev/packaging.md](dev/packaging.md) | Entry point, package data, dan pemakaian repo-local. |
@@ -39,7 +39,7 @@ bila baru mengenal repo, lalu pilih salah satu pintu berikut:
 | [dev/contributing.md](dev/contributing.md) | Alur kontribusi, tes, dan aturan perubahan. |
 | [dev/com.md](dev/com.md) | Guard COM Word/PowerPoint, watchdog, PID, lock, dan cleanup proses. |
 | [dev/security.md](dev/security.md) | Batas keamanan resource input tidak tepercaya. |
-| [dev/f3-cleanup.md](dev/f3-cleanup.md) | Runbook F3 untuk parity baseline, penghapusan legacy, gate, dan rollback. |
+| [dev/f3-cleanup.md](dev/f3-cleanup.md) | Status pembersihan legacy F3, verifikasi, dan tautan ke ADR 0011. |
 | [dev/testing.md](dev/testing.md) | Golden invariant dan cara menjalankan tes. |
 | [dev/quality-gates.md](dev/quality-gates.md) | Gate lokal AutoOffice, checker, dan urutan verifikasi. |
 | [dev/test-quality.md](dev/test-quality.md) | Prinsip memilih kasus test dan hasil audit suite. |
@@ -56,12 +56,13 @@ bila baru mengenal repo, lalu pilih salah satu pintu berikut:
 | [learn/design-system.md](learn/design-system.md) | Token, theme, font, dan kontras. |
 | [learn/humanizer.md](learn/humanizer.md) | Copy checker dan batas editorial. |
 
-## AutoOffice (migrasi)
+## AutoOffice
 
-Repo ini sedang dimigrasikan ke AutoOffice. Kontrak F0 ada di
-[contracts/README.md](contracts/README.md) dan keputusan serta penutupan
-asumsi ada di [decisions/README.md](decisions/README.md). Materi konsep
-bertahap ada di [learn/README.md](learn/README.md). Dokumen
+Kontrak normatif ada di [contracts/README.md](contracts/README.md) dan
+keputusan ada di [decisions/README.md](decisions/README.md). Materi konsep
+bertahap ada di [learn/README.md](learn/README.md). Riwayat pembersihan
+legacy ada di [dev/f3-cleanup.md](dev/f3-cleanup.md) dan
+[decisions/0011-f3-cleanup.md](decisions/0011-f3-cleanup.md). Dokumen
 [AUTO_OFFICE_PLAN.md](../AUTO_OFFICE_PLAN.md) adalah rencana migrasi dan
 bukan dokumentasi pengguna.
 

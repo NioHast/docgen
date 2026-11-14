@@ -13,8 +13,9 @@ API publik:
     sumber tidak berubah.
 
 Kedua fungsi memakai watchdog, lock COM global dengan timeout turunan, dan
-cleanup PID Word yang diidentifikasi dari window handle aplikasi. pywin32
-diimpor lazy oleh :mod:`autooffice.pdf.com`.
+cleanup PID Word yang dibuktikan dari snapshot PID baru, window ``OpusApp``
+milik PID tersebut, lalu verifikasi ulang ``ActiveWindow.Hwnd`` setelah dokumen
+dibuka. pywin32 diimpor lazy oleh :mod:`autooffice.pdf.com`.
 """
 
 import contextlib
@@ -27,18 +28,21 @@ from pathlib import Path
 from typing import Any
 
 from .com import (
-    WATCHDOG_CLEANUP_TIMEOUT_S,
+    CLEANUP_TIMEOUT_S,
     Deadline,
     PdfUnavailableError,
     SystemProcessControl,
     WordCleanupError,
     WordComError,
+    WordOwnershipError,
     WordProcessTracker,
     application_window_handle,
     com_apartment,
     com_lock,
+    find_word_window_handle,
     limit_process_control,
     load_com_modules,
+    quit_owned_application,
     run_with_watchdog,
     validate_timeout,
 )
@@ -59,9 +63,11 @@ def export_pdf(
 ) -> Path:
     """Ekspor DOCX ke PDF lewat Word tanpa mengubah DOCX sumber.
 
-    ``timeout_s`` membatasi lock, operasi COM, dan cleanup. ``visible`` hanya
-    untuk debugging dan default menyembunyikan Word. Path PDF dikembalikan
-    dalam bentuk absolut setelah ditulis atomik.
+    ``timeout_s`` membatasi lock dan operasi COM. Setelah timeout, worker tetap
+    mendapat anggaran cleanup tetap 5 detik, sehingga panggilan dapat melewati
+    ``timeout_s`` hingga 5 detik. ``visible`` hanya untuk debugging dan default
+    menyembunyikan Word. Path PDF dikembalikan dalam bentuk absolut setelah
+    ditulis atomik.
     """
 
     validate_timeout(timeout_s)
@@ -113,6 +119,10 @@ def update_fields(
     Word membuka snapshot, bukan path sumber. Hasil snapshot diverifikasi dan
     baru kemudian dipindahkan ke path DOCX dengan ``os.replace``. Path DOCX
     dikembalikan dalam bentuk absolut.
+
+    ``timeout_s`` membatasi lock dan operasi COM. Setelah timeout, worker tetap
+    mendapat anggaran cleanup tetap 5 detik, sehingga panggilan dapat melewati
+    ``timeout_s`` hingga 5 detik.
     """
 
     validate_timeout(timeout_s)
@@ -186,14 +196,21 @@ def _resolve_pdf(pdf: Path) -> Path:
     return path
 
 
-def _terminate_tracker(tracker: WordProcessTracker, deadline: Deadline) -> None:
-    """Cleanup PID dengan sisa waktu yang masih dimiliki deadline."""
+def _terminate_tracker(tracker: WordProcessTracker) -> bool:
+    """Cleanup PID dengan anggaran tetap, independen deadline operasi.
 
-    wait_s = max(0.0, min(2.0, deadline.remaining()))
+    Saat watchdog timeout, ``deadline.remaining()`` sudah nol atau negatif.
+    Memakai nilai itu akan membuat ``SystemProcessControl`` menolak snapshot
+    dan ``taskkill`` tidak pernah dipanggil, sehingga cleanup menjadi no-op.
+    Nilai kembali ``True`` berarti PID terverifikasi sudah hilang.
+    """
+
+    wait_s = min(2.0, CLEANUP_TIMEOUT_S)
     with contextlib.suppress(Exception):
-        limit_process_control(tracker.control, deadline.remaining())
+        limit_process_control(tracker.control, CLEANUP_TIMEOUT_S)
     with contextlib.suppress(Exception):
-        tracker.terminate_owned(wait_s=wait_s)
+        return tracker.terminate_owned(wait_s=wait_s)
+    return False
 
 
 def _run_word(
@@ -222,15 +239,17 @@ def _run_word(
     description = "Ekspor PDF Word" if export_path is not None else "Finalisasi field DOCX"
     remaining = deadline.remaining_or_raise("menjalankan Word")
     try:
+        # timeout_s hanya membatasi operasi/lock. Cleanup setelah timeout
+        # memakai anggaran tetap 5 detik agar worker sempat berhenti.
         run_with_watchdog(
             operation,
             timeout_s=remaining,
-            cleanup_timeout_s=min(WATCHDOG_CLEANUP_TIMEOUT_S, max(0.25, remaining)),
-            on_timeout=lambda: _terminate_tracker(tracker, deadline),
+            cleanup_timeout_s=CLEANUP_TIMEOUT_S,
+            on_timeout=lambda: _terminate_tracker(tracker),
             description=description,
         )
     finally:
-        _terminate_tracker(tracker, deadline)
+        _terminate_tracker(tracker)
 
 
 def _execute_word_operation(
@@ -244,6 +263,7 @@ def _execute_word_operation(
 ) -> None:
     word: Any | None = None
     doc: Any | None = None
+    owned = False
     stage = "menyiapkan COM"
     with com_apartment(pythoncom):
         try:
@@ -256,11 +276,48 @@ def _execute_word_operation(
                     "tersedia. Pasang Microsoft Word desktop di Windows, "
                     f"lalu ulangi. Detail: {exc}"
                 ) from exc
-            tracker.claim(hwnd=application_window_handle(word))
+            stage = "mencari window Word"
+            claimed_pid = tracker.pid
+            if claimed_pid is None:
+                new_pid = tracker.verify_new_process()
+                hwnd = find_word_window_handle(new_pid)
+                if hwnd is None:
+                    raise WordOwnershipError(
+                        f"Tidak ada window Word class OpusApp yang cocok dengan "
+                        f"PID automation baru {new_pid}. Word tidak akan di-Quit "
+                        "atau dihentikan agar instance pengguna tidak tersentuh."
+                    )
+                claimed_pid = tracker.claim_pid(new_pid)
+                if claimed_pid != new_pid:
+                    raise WordOwnershipError(
+                        f"PID window Word ({claimed_pid}) tidak cocok dengan PID "
+                        f"automation baru ({new_pid}). Instance tidak akan ditutup."
+                    )
+            if claimed_pid is None:
+                raise WordOwnershipError(
+                    "Window/PID Word automation tidak dapat diverifikasi setelah "
+                    "DispatchEx. Word tidak akan di-Quit atau dihentikan agar "
+                    "instance pengguna tidak tersentuh."
+                )
+            owned = True
             stage = "mengatur opsi Word"
             _configure_word(word, visible)
             stage = "membuka dokumen"
             doc = word.Documents.Open(str(open_path), False, False, False)
+            stage = "memverifikasi window dokumen"
+            active_window: Any | None = None
+            with contextlib.suppress(Exception):
+                active_window = word.ActiveWindow
+            active_hwnd = application_window_handle(active_window)
+            active_pid = (
+                tracker.control.pid_for_window(active_hwnd) if active_hwnd is not None else None
+            )
+            if active_pid != claimed_pid:
+                raise WordOwnershipError(
+                    f"PID window Word setelah membuka dokumen ({active_pid}) "
+                    f"tidak cocok dengan PID automation yang diklaim "
+                    f"({claimed_pid}). Dokumen tidak diproses lebih lanjut."
+                )
             if bool(doc.ReadOnly):
                 raise WordComError(
                     f"Dokumen terbuka dalam mode read-only: {open_path}. "
@@ -279,7 +336,8 @@ def _execute_word_operation(
             ) from exc
         finally:
             _close_quietly(doc)
-            _quit_quietly(word)
+            if owned:
+                quit_owned_application(word, tracker)
             doc = None
             word = None
             gc.collect()
@@ -323,13 +381,6 @@ def _close_quietly(doc: Any | None) -> None:
         return
     with contextlib.suppress(Exception):
         doc.Close(_WD_DO_NOT_SAVE_CHANGES)
-
-
-def _quit_quietly(word: Any | None) -> None:
-    if word is None:
-        return
-    with contextlib.suppress(Exception):
-        word.Quit()
 
 
 def _check_file(path: Path, *, magic: bytes | None, label: str) -> None:

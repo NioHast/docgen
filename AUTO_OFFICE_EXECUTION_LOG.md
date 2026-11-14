@@ -583,3 +583,157 @@ Log ini mencatat masalah yang muncul saat eksekusi plan, resolusi yang diambil, 
   - `tests/docx/test_office.py`, `test_pdf.py`, `test_pipeline_edges.py`.
   - `tests/cli/test_build_markdown.py`, `test_deck_build_errors.py`.
   - `AUTO_OFFICE_EXECUTION_LOG.md`.
+
+## 2026-11-14 - F3 cleanup legacy dan rename package
+
+- Fase/lane: F3 cleanup, branch `autooffice/f1`.
+- Masalah: package, test, tool, dan dokumen legacy `docgen` masih hidup berdampingan dengan `autooffice`; metadata package masih memakai nama `docgen`.
+- Resolusi:
+  - 152 berkas legacy dihapus: `src/docgen/**`; `tests/unit`, `tests/integration`, `tests/e2e`, `tests/packaging` legacy; tool/test/script yang dihapus; `docs/dev/contracts/**`.
+  - Tag lokal `pre-autooffice-cleanup` dibuat di `34e472d`; tidak di-push.
+  - Metadata package di `pyproject.toml` di-rename menjadi `autooffice`; `uv.lock` resolve 76 package, entri editable `docgen` hilang, `autooffice` masuk.
+  - `scripts/word.ps1`, `tools/dev`, `tests/factories`, dan `tests/autooffice/conftest.py` dihapus.
+- Efek samping: path, import, dan entry point lama tidak tersedia; tidak ada jalur editable `docgen` yang tersisa.
+- Catatan/verifikasi: collection `3307/3315` (8 deselected); ruff, mypy (171 file), dan import-linter (12 kontrak) lulus. Ini bukan klaim gate final penuh.
+- File yang berubah:
+  - `src/docgen/**` (dihapus), `tests/unit/**`, `tests/integration/**`, `tests/e2e/**`, `tests/packaging/**` legacy (dihapus).
+  - `scripts/word.ps1`, `tools/dev/**`, `tests/factories/**`, `tests/autooffice/conftest.py` (dihapus).
+  - `docs/dev/contracts/**` (dihapus), `pyproject.toml`, `uv.lock`, `AUTO_OFFICE_EXECUTION_LOG.md`.
+
+## 2026-11-14 - F3 fallback layout dihapus
+
+- Fase/lane: F3 fallback fixes, layout, branch `autooffice/f1`.
+- Masalah: fallback senyap pada layout: `F0_LAYOUT_NAMES` masih ada; discovery preset kosong tidak melempar error; slide custom tanpa `rows` tidak melempar error; warning bobot font tidak sampai ke `RenderResult.warnings`.
+- Resolusi: `F0_LAYOUT_NAMES` dihapus; discovery preset kosong melempar `LayoutRegistryError`; slide custom tanpa `rows` melempar `CustomLayoutError`; warning bobot font diteruskan ke `RenderResult.warnings`.
+- Efek samping: konfigurasi/preset yang sebelumnya jatuh ke fallback senyap kini gagal keras; warning font terlihat pada hasil render.
+- Catatan/verifikasi: `tests/deck/layout tests/deck/render/pptx` 587 passed; `tests/deck` 1487 passed, 1 deselected.
+- File yang berubah: `src/autooffice/deck/layout/{registry,presets/__init__,custom,spec,overflow}.py`, `src/autooffice/deck/render/pptx/{renderer,shapes,table,textbox}.py`, `tests/deck/layout/**`, `tests/deck/render/pptx/**`, `AUTO_OFFICE_EXECUTION_LOG.md`.
+
+## 2026-11-14 - F3 fallback DOCX, config, dan terms dihapus
+
+- Fase/lane: F3 fallback fixes, DOCX/config/terms, branch `autooffice/f1`.
+- Masalah: fallback senyap pada DOCX/config/terms: `ctx.output_dir` hilang, `ctx.word` invalid, environment Pandoc invalid, relationship terms korup, glossary packaged hilang, guard overwrite style, dan string config kosong eksplisit.
+- Resolusi: `ctx.output_dir` hilang melempar error; `ctx.word` invalid melempar error; environment Pandoc invalid melempar error; relationship terms korup dipropagasikan; glossary packaged hilang gagal; style overwrite guard fail closed; string config kosong eksplisit melempar `CFG-REQUIRED`.
+- Efek samping: build gagal keras alih-alih memakai fallback; string config kosong eksplisit tidak lagi diterima.
+- Catatan/verifikasi: `tests/docx` 828 passed.
+- File yang berubah: `src/autooffice/docx/{pipeline,errors,document,command}.py`, `src/autooffice/docx/config/format.py`, `src/autooffice/docx/stages/**`, `src/autooffice/docx/terms/**`, `tests/docx/**`, `AUTO_OFFICE_EXECUTION_LOG.md`.
+
+## 2026-11-14 - F3 fallback CLI/Google terverifikasi
+
+- Fase/lane: F3 fallback fixes, CLI/Google, branch `autooffice/f1`.
+- Masalah: tiga fallback senyap dilaporkan: Google sync `None` dianggap sukses; scaffolding lane dan `CLI-LANE-*` masih ada; `convert_docx_to_pdf` masih memiliki hidden fallback.
+- Resolusi: Google sync `None` tidak lagi dianggap sukses; scaffolding lane/`CLI-LANE-*` dihapus; hidden fallback `convert_docx_to_pdf` dihapus.
+- Status: terverifikasi; ketiga perubahan dikonfirmasi.
+- Efek samping: sync tanpa hasil eksplisit kini gagal; kode error lane tidak lagi tersedia.
+- Catatan/verifikasi: `uv run pytest tests/cli tests/google -q`: 602 passed.
+- File yang berubah: `src/autooffice/google/sync.py`, `src/autooffice/cli/build.py`, `AUTO_OFFICE_EXECUTION_LOG.md`.
+
+## 2026-11-14 - F3 check_no_legacy aktif dan blocking
+
+- Fase/lane: F3 quality gate, branch `autooffice/f1`.
+- Masalah: `check_no_legacy` belum memindai secara aktif; `*.egg-info` dan metadata fixture `docgen-golden` di `docs/dev/testing.md` memicu false positive; checker belum menjadi langkah gate blocking. Sisa pelanggaran aktif saat itu adalah docstring `pdf/com.py` yang menyebut `word.ps1`.
+- Resolusi: checker kini memindai aktif, melewati `*.egg-info`, mengizinkan hanya metadata fixture `docgen-golden` di `docs/dev/testing.md`, dan menjadi langkah gate blocking.
+- Efek samping: pelanggaran legacy kini menggagalkan gate, bukan hanya dilaporkan.
+- Catatan/verifikasi: saat pencatatan, `check_no_legacy` melaporkan 489 berkas diperiksa dan 0 pelanggaran aktif; ini bukan gate final penuh.
+- File yang berubah: `tools/quality/check_no_legacy.py`, `tools/quality/gate.py`, `tests/tools/test_no_legacy.py`, `AUTO_OFFICE_EXECUTION_LOG.md`.
+
+## 2026-11-14 - F3 test packaging, acceptance, dan coverage visibility
+
+- Fase/lane: F3 tests/packaging, branch `autooffice/f1`.
+- Masalah: belum ada test yang mengunci paket AutoOffice, demo deck end-to-end, dan coverage yang hanya berbasis metadata.
+- Resolusi:
+  - `tests/packaging/test_autooffice_package.py`: 6 test mencakup console script, font/OFL, design data, DOCX data, dan tidak ada `docgen`.
+  - `tests/acceptance/test_demo_deck.py`: 1 test integration/slow; PPTX 24 slide nyata, Plus Jakarta Sans ter-embed, tanpa timing/transition; PDF 24 halaman; transcript identik.
+  - Meta-test `tests/contract/test_coverage_visibility.py`: 2 test; menolak key coverage yang hanya metadata.
+  - Pruning test: model/copy/charts 767 passed; deck/media/design/performance/visual/contract 306 passed.
+- Efek samping: test acceptance bergantung pada PowerPoint COM/Windows dan aset font; test lambat ditandai integration/slow.
+- Catatan/verifikasi: angka di atas adalah hasil lane test, bukan gate final penuh.
+- File yang berubah: `tests/packaging/test_autooffice_package.py`, `tests/acceptance/test_demo_deck.py`, `tests/contract/test_coverage_visibility.py`, `tests/tools/test_no_legacy.py`, test yang dipangkas di `tests/deck/**` dan `tests/contract/**`, `AUTO_OFFICE_EXECUTION_LOG.md`.
+
+## 2026-11-14 - F3 audit COM: tasklist/taskkill dipertahankan
+
+- Fase/lane: F3 COM audit, branch `autooffice/f1`.
+- Masalah: perlu keputusan apakah kontrol proses Office berbasis `tasklist`/`taskkill` diganti pywin32/Job Object.
+- Resolusi: untuk v1, `tasklist`/`taskkill` dipertahankan; rewrite ke pywin32/Job Object tidak dilakukan sekarang. Alasan: pywin32 tidak memperbaiki kepemilikan `Application.Hwnd` maupun `Quit` PowerPoint bersama; `KILL_ON_JOB_CLOSE` lebih destruktif bila kepemilikan salah.
+- Prototipe:
+  - A (`tasklist`/`taskkill` absolut) dan B (`win32process` + Job Object `KILL_ON_JOB_CLOSE`) diuji pada process tree dummy yang tidak berbahaya, bukan Office.
+  - A membunuh tree, tetapi `taskkill` mengembalikan exit code nonzero pada 4/10 iterasi cleanup meskipun tree sudah mati; A tidak dapat membunuh orphan setelah root exit.
+  - B membunuh tree saat job close dan child tetap tercakup setelah root exit, tetapi assignment root yang sudah berjalan tidak menangkap child yang dibuat sebelum assignment; stale handle ditolak dengan aman.
+  - Assignment B berhasil lewat `HWND -> PID -> OpenProcess -> AssignProcessToJobObject` di Windows 11, termasuk nested job.
+  - Ukuran: A 243 baris fisik/198 baris kode, 4 Win32 API + `tasklist`/`taskkill`; B 225 baris fisik/146 baris kode, 12 Win32 API. Waktu assignment B ~0,16 ms, job close <0,2 ms; cleanup A ~0,7–1,2 s median.
+- Temuan:
+  - P0: `Quit` PowerPoint tanpa syarat dapat menutup instance pengguna; `Application.Hwnd` tidak terdokumentasi.
+  - P1: cleanup watchdog memakai deadline yang sudah habis sehingga `taskkill` tidak pernah berjalan.
+  - Bug deterministik terkonfirmasi: deadline habis -> `limit_process_control(..., 0)` -> `image_name()` None -> `terminate()` False -> tidak ada kill. Perbaikan ditangani terpisah.
+- Rekomendasi: secara teknis hybrid B-primary (Job Object plus fallback `taskkill /T /F`) lebih robust, tetapi jangan rewrite sekarang bila AutoOffice pindah ke LibreOffice; perbaiki bug deadline/ownership lebih dulu.
+- Efek samping: risiko P0/P1 tetap ada sampai probe/fix selesai; prototipe tidak mengubah kode produksi.
+- Catatan/verifikasi: Job Object belum diimplementasikan dan tidak ada klaim perubahan kode. Belum diuji: topologi child Word/PowerPoint nyata, Windows localized (non-Inggris), dan PID reuse nyata. Probe/fix sedang berjalan; belum diklaim fixed.
+- Tindak lanjut: probe/fix final dan verifikasi ada di entri `F3 COM final`.
+- File yang berubah: tidak ada perubahan kode dari audit/prototipe ini; catatan terkait di `docs/dev/com.md`.
+
+## 2026-11-14 - F3 dokumentasi AutoOffice dan invariant AGENTS
+
+- Fase/lane: F3 docs, branch `autooffice/f1`.
+- Masalah: dokumentasi, README, kontrak, dan halaman dev masih memakai path/istilah `docgen`; invariant engineering belum tercatat di `AGENTS.md`.
+- Resolusi: invariant engineering ditambahkan ke `AGENTS.md`; `docs/README.md`, `docs/contracts/**`, dan `docs/dev/**` diperbarui ke path AutoOffice.
+- Efek samping: tidak ada perubahan perilaku; dokumentasi mengikuti struktur AutoOffice.
+- Catatan/verifikasi: `check_docs.py`: 110 dokumen, 763 tautan, 28 TOC, 63 entri registry, 0 broken.
+- File yang berubah: `AGENTS.md`, `docs/README.md`, `docs/contracts/**`, `docs/dev/**`, `AUTO_OFFICE_EXECUTION_LOG.md`.
+
+## 2026-11-14 - F3 COM final: ownership probe dan P0/P1 fix
+
+- Fase/lane: F3 COM final, branch `autooffice/f1`.
+- Masalah: probe Office nyata membuktikan `Application.Hwnd` Word tidak ada; `ActiveWindow.Hwnd` hanya tersedia setelah dokumen dibuka. Pada PowerPoint, `Application.Hwnd` tidak dapat dipakai, `DispatchEx` menempel ke instance PowerPoint bersama, dan `Quit` menutup presentasi pengguna.
+- Resolusi:
+  - P0: Word claim memakai PID baru + enumerasi window `OpusApp`; PowerPoint preflight fail-fast bila `POWERPNT.EXE` sudah berjalan; claim memakai PID baru; `Quit` hanya untuk instance milik AutoOffice; tanpa Job Object.
+  - P1: budget cleanup tetap 5 detik; `taskkill` exit code nonzero + PID hilang dianggap sukses; `WordCleanupError` bukan lagi subclass `WordTimeoutError`.
+- Efek samping: instance Office pengguna tidak disentuh; build gagal cepat bila PowerPoint sudah terbuka; cleanup ambigu tetap meninggalkan proses untuk inspeksi manual.
+- Catatan/verifikasi:
+  - `uv run pytest tests/pdf tests/docx -q`: 988 passed.
+  - Smoke COM nyata Word/PowerPoint: tidak ada proses tersisa.
+  - Timeout paksa: cleanup selesai sekitar 0,5 detik.
+- File yang berubah: `src/autooffice/pdf/{__init__,com,word,powerpoint}.py`, `tests/pdf/**`, `tests/docx/test_pdf.py`, `docs/dev/com.md`, `AUTO_OFFICE_EXECUTION_LOG.md`.
+
+## 2026-11-14 - F3 acceptance dan packaging final PASS
+
+- Fase/lane: F3 acceptance/packaging, branch `autooffice/f1`.
+- Masalah: verifikasi end-to-end demo deck, wheel, dan build Word penuh belum final.
+- Resolusi:
+  - `tests/acceptance/test_demo_deck.py`: 1 passed dalam 24,98 detik; PPTX 24 slide, PDF 24 halaman, transcript, Plus Jakarta Sans ter-embed, tanpa timing/transition.
+  - `tests/packaging/test_wheel_contents.py -m slow`: 1 passed; wheel bersih, 0 entri `docgen`.
+  - Build Word `examples/assignment-single/document.md --target docx,pdf`: PDF 6 halaman, teks, DAFTAR ISI, font ter-embed; tidak ada Word/PowerPoint tersisa.
+  - Wheel: 196 entri, 0 `docgen`; `include = ["autooffice*"]`.
+  - `check_identifiers.py` dan `check_source_style.py` menjadi langkah gate blocking dan hijau.
+- Efek samping: acceptance tetap membutuhkan Windows, PowerPoint COM, dan aset font.
+- Catatan/verifikasi: tidak ada klaim visual layer deck-studio.
+- File yang berubah: `tests/acceptance/test_demo_deck.py`, `tests/packaging/test_wheel_contents.py`, `tools/quality/check_identifiers.py`, `tools/quality/check_source_style.py`, `tools/quality/gate.py`, `pyproject.toml`, `AUTO_OFFICE_EXECUTION_LOG.md`.
+
+## 2026-11-14 - F3 final gate PASS
+
+- Fase/lane: F3 final gate, branch `autooffice/f1`.
+- Masalah: gate final penuh belum dijalankan setelah seluruh lane F3.
+- Resolusi: `uv run python tools/quality/gate.py` PASS.
+- Hasil:
+  - 3.482 passed, 10 deselected.
+  - Coverage global 90,61% (line 92,54%, branch 85,48%); modul kritis 8/8 pada 100%.
+  - Adapter: google 89,35%, pdf 90,90%, cli 94,35%, docx 86,08%.
+  - Docs: 110 dokumen, 763 tautan, 0 broken.
+  - test-quality: 0 pelanggaran (2.618 test function).
+  - no-legacy 0; python-style 0; identifiers/source-style 0.
+  - ruff, mypy, import-linter, dan lock lulus.
+- Efek samping: tidak ada; gate final menjadi bukti kelayakan F3.
+- Catatan/verifikasi: fallback CLI/Google sudah terverifikasi (602 test). F3 belum di-commit/merge/push.
+- File yang berubah: `AUTO_OFFICE_EXECUTION_LOG.md` (entri ini).
+
+## 2026-11-14 - F3 sisa lingkup dan status commit
+
+- Fase/lane: F3 penutup, branch `autooffice/f1`.
+- Masalah: belum seluruh lingkup F3 selesai; beberapa item menunggu eksternal.
+- Resolusi/sisa:
+  - Visual layer deck-studio belum dimulai.
+  - Google live smoke membutuhkan OAuth.
+  - Rename repo GitHub menunggu persetujuan.
+  - Belum ada commit/merge/push; perubahan F3 masih uncommitted.
+- Efek samping: F3 belum boleh dianggap selesai penuh atau di-merge.
+- Catatan/verifikasi: tidak ada klaim visual layer atau Google live selesai.
+- File yang berubah: `AUTO_OFFICE_EXECUTION_LOG.md` (entri ini).

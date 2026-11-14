@@ -1,7 +1,7 @@
 """Penerapan glosarium ke DOCX.
 
 Modul ini memuat pembuatan style istilah, transformasi run, dan
-:func:`apply_terms`. Modul bergantung pada :mod:`docgen.docx.terms.model`
+:func:`apply_terms`. Modul bergantung pada :mod:`autooffice.docx.terms.model`
 serta helper DOCX kanonis; modul tidak boleh mengimpor ``verify`` atau
 package induk ``terms`` agar arah dependensi tetap satu arah.
 """
@@ -18,8 +18,8 @@ from ..package.runs import build_run, copy_rpr
 from ..package.styles import StyleError, ensure_character_style
 from .glossary import Glossary, TermsError
 from .model import (
-    ISTILAH_ASING,
-    ISTILAH_REVIEW,
+    FOREIGN_TERM_STYLE,
+    REVIEW_TERM_STYLE,
     ParagraphModel,
     _iter_all_paragraphs,
     build_paragraph_model,
@@ -41,15 +41,15 @@ def ensure_styles(package: object) -> bool:
     """Pastikan IstilahAsing/IstilahReview ada dan invariant-nya benar."""
 
     try:
-        added_asing = ensure_character_style(
+        added_foreign_term_style = ensure_character_style(
             package,
-            ISTILAH_ASING,
+            FOREIGN_TERM_STYLE,
             "Istilah Asing",
             rpr_xml='<w:i/><w:lang w:val="en-US"/>',
         )
         added_review = ensure_character_style(
             package,
-            ISTILAH_REVIEW,
+            REVIEW_TERM_STYLE,
             "Istilah Review",
             rpr_xml='<w:highlight w:val="yellow"/>',
         )
@@ -60,7 +60,7 @@ def ensure_styles(package: object) -> bool:
             path=exc.path,
             key=exc.key,
         ) from exc
-    return bool(added_asing or added_review)
+    return bool(added_foreign_term_style or added_review)
 
 
 # ---------------------------------------------------------------------------
@@ -90,7 +90,7 @@ def _range_already_handled(model: ParagraphModel, start: int, end: int) -> bool:
     for char in model.chars[start:end]:
         if char is None:
             return False
-        if direct_style_id(char.run) in {ISTILAH_ASING, ISTILAH_REVIEW}:
+        if direct_style_id(char.run) in {FOREIGN_TERM_STYLE, REVIEW_TERM_STYLE}:
             continue
         if direct_italic(char.run):
             continue
@@ -115,7 +115,7 @@ def _run_properties(
     rstyle = etree.Element(W_RSTYLE)
     rstyle.set(W_VAL, style)
     properties.insert(0, rstyle)
-    if style == ISTILAH_ASING:
+    if style == FOREIGN_TERM_STYLE:
         for old in properties.findall(W_I):
             properties.remove(old)
         properties.append(etree.Element(W_I))
@@ -258,7 +258,7 @@ def apply_terms(
         if not model.text and not model.ignored_texts:
             continue
 
-        review_terms.extend(styled_spans(model, ISTILAH_REVIEW))
+        review_terms.extend(styled_spans(model, REVIEW_TERM_STYLE))
 
         for marker in iter_ignored_markers(model):
             review_terms.append(marker.content)
@@ -279,7 +279,7 @@ def apply_terms(
 
         for start, end in review_ranges:
             for position in range(start, end):
-                actions[position] = CharAction(style=ISTILAH_REVIEW)
+                actions[position] = CharAction(style=REVIEW_TERM_STYLE)
 
         for start, end in delete_ranges:
             for position in range(start, end):
@@ -294,14 +294,14 @@ def apply_terms(
             ):
                 continue
             if any(
-                char is not None and direct_style_id(char.run) == ISTILAH_REVIEW
+                char is not None and direct_style_id(char.run) == REVIEW_TERM_STYLE
                 for char in model.chars[match.start : match.end]
             ):
                 continue
             if _range_already_handled(model, match.start, match.end):
                 continue
             for position in range(match.start, match.end):
-                actions[position] = CharAction(style=ISTILAH_ASING)
+                actions[position] = CharAction(style=FOREIGN_TERM_STYLE)
             applied += 1
 
         if transform_runs(model, actions):

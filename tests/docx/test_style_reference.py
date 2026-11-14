@@ -327,6 +327,30 @@ def test_build_reference_rejects_overwriting_source(
     assert source.read_bytes() == before
 
 
+def test_build_reference_fails_closed_when_paths_cannot_be_resolved(
+    tmp_path: Path,
+    undip_format: Format,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "reference.docx"
+    source.write_bytes(Path(undip_format.assets.reference_docx).read_bytes())
+    output = tmp_path / "derived.docx"
+    original_resolve = Path.resolve
+
+    def broken_resolve(self: Path, *args: object, **kwargs: object) -> Path:
+        if self in {source, output}:
+            raise OSError("akses path ditolak")
+        return original_resolve(self, *args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(Path, "resolve", broken_resolve)
+
+    with pytest.raises(StyleError) as caught:
+        build_reference_docx(source, output, undip_format)
+
+    assert caught.value.code == "STYLE-SOURCE-OVERWRITE"
+    assert not output.exists()
+
+
 def test_stage_style_reference_writes_to_workspace(
     tmp_path: Path,
     undip_format: Format,

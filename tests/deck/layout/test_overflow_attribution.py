@@ -19,7 +19,12 @@ def _plan(
     theme: Theme,
     keys: KeyManifest | None = None,
 ):
-    slide = slide_factory(tuple(blocks), layout="custom")
+    block_tuple = tuple(blocks)
+    slide = slide_factory(
+        block_tuple,
+        layout="custom",
+        rows=tuple((block.block_id,) for block in block_tuple),
+    )
     return plan_deck(
         deck_factory((slide,), keys=keys),
         theme,
@@ -193,7 +198,7 @@ def test_custom_findings_use_actual_leaf_without_key_resolver(
     )
     slide = slide_factory((block,), layout="custom")
 
-    plan = plan_custom_slide_with_findings(slide, theme)
+    plan = plan_custom_slide_with_findings(slide, theme, rows=((block,),))
 
     assert plan.layout.overflow_keys == ("s01.points.item2.text",)
     assert tuple(finding.key for finding in plan.overflows) == ("s01.points.item2.text",)

@@ -68,7 +68,9 @@ menyimpan intermediate.
 - Jangan mengubah output build atau state Google.
 - Jangan memperbaiki naskah dengan menyunting DOCX atau PPTX. Perbaiki Markdown
   atau YAML lalu build ulang.
-- Jangan menghapus `docgen` atau `deck-studio` sebelum parity/acceptance lulus.
+- Jangan menambahkan kembali nama package, entry point, path, atau alat lama.
+  Permukaan resmi hanya `autooffice`, `tools/quality/`, `tools/install_fonts.py`,
+  `tools/visual/`, dan `tools/mutation/`.
 
 ## Definition of done
 
@@ -76,6 +78,47 @@ menyimpan intermediate.
 - Jangan commit atau push jika gate gagal.
 - Perbarui test dan docs yang terdampak.
 - Jangan mengubah file di luar scope tanpa izin.
+
+## Invarian engineering
+
+Aturan berikut berlaku untuk semua perubahan kode dan test. Aturan eksekusi dan
+log AutoOffice di bawah tetap berlaku.
+
+1. **Identifier Inggris.** Nama variabel, fungsi, kelas, parameter, field, dan
+   nama test wajib ditulis dalam bahasa Inggris. Komentar, docstring, output
+   CLI, dan prosa fixture boleh memakai bahasa Indonesia.
+2. **Komentar hanya perilaku saat ini.** Komentar dan docstring menjelaskan
+   perilaku kode sekarang. Jangan menyebut fase atau tiket rencana (`F0`, `F1`,
+   `P1`, `Plan 1`, `Rencana`, `Tahap`, `Fix`, `Step`, `Milestone`, `Sprint`,
+   `Iterasi`) maupun `legacy`. Riwayat keputusan dan alasan perubahan masuk ADR
+   atau `AUTO_OFFICE_EXECUTION_LOG.md`, bukan komentar kode.
+3. **Input wajib gagal keras.** Tidak boleh ada fallback diam-diam untuk input
+   wajib. Input yang hilang, kosong, atau tidak valid harus melempar error
+   domain atau keluar dengan kode bukan nol; jangan memakai nilai default, `or`,
+   `get(..., default)`, atau jalur alternatif tersembunyi. Fallback hanya boleh
+   untuk kondisi opsional, dan harus eksplisit, terdokumentasi, serta diuji.
+4. **Coverage key harus terlihat.** Setiap coverage key wajib memetakan ke
+   elemen yang benar-benar dirender dan terlihat di artefak akhir. Key yang
+   hanya ada di metadata, notes, YAML, model internal, atau bookkeeping renderer
+   dilarang. Coverage harus diekstrak ulang secara independen dari artefak final
+   (DOCX, PPTX, atau PDF), bukan dari maksud build atau state renderer. Key
+   hilang, key asing, key duplikat, atau teks terlihat tanpa key adalah
+   kegagalan.
+5. **Test di boundary, fake lebih dulu.** Patch hanya di boundary eksternal
+   (COM, Google, subprocess, jaringan, waktu); jangan mem-patch kolaborator
+   internal. Utamakan fake yang menjaga perilaku nyata di atas mock yang
+   memeriksa koreografi panggilan. Setiap test perbaikan bug wajib gagal bila
+   perbaikan produksi dikembalikan; buktikan dengan revert sementara, lalu
+   pulihkan perbaikan.
+6. **Golden visual dan mutation untuk modul kritis.** Perubahan yang menyentuh
+   output visual wajib punya golden test visual untuk artefak final (DOCX,
+   PPTX, PDF). Modul kritis wajib tercakup konfigurasi mutation testing di
+   `tools/mutation/` dan dijalankan saat modul itu berubah atau pada gate akhir.
+   Mutant yang bertahan harus ditutup dengan assertion baru atau didokumentasikan
+   sebagai equivalent mutant.
+7. **Gate sebelum commit.** Sebelum commit, jalankan
+   `uv run python tools/quality/gate.py`. Jangan commit atau push bila gate
+   gagal.
 
 ## Dokumentasi
 

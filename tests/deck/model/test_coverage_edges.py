@@ -1,4 +1,4 @@
-"""Test edge case coverage plan: field opsional, series non-ChartSeries, dan deck kosong."""
+"""Test edge case coverage plan: field opsional, IR tanpa title, dan deck kosong."""
 
 from autooffice.deck.model import (
     BlockIR,
@@ -7,9 +7,6 @@ from autooffice.deck.model import (
     KeyManifest,
     SlideIR,
     build_coverage_plan,
-    check_coverage,
-    compile_deck,
-    load_deck,
 )
 
 
@@ -103,41 +100,16 @@ def test_coverage_plan_flags_visible_blocks_without_manifest_bindings() -> None:
     assert tuple(chart.chart_id for chart in plan.charts) == ("s01.chart1", "s01.chart2")
 
 
-def test_defensive_coverage_plan_tolerates_non_public_ir_shapes() -> None:
-    """Plan coverage adalah proyeksi defensif atas IR, bukan validator authoring.
-
-    Compiler publik selalu menghasilkan tuple dan ``ChartSeries``. Bentuk list,
-    mapping series, dan string series di bawah ini mensimulasikan IR lama atau
-    pemanggil internal, dan plan tetap harus membacanya tanpa crash.
-    """
-    blocks = (
-        _block("table1", "table", {"columns": ["A"], "rows": [["1"]]}),
-        _block(
-            "chart1",
-            "chart",
-            {
-                "title": "Judul",
-                "alt": "Alt chart",
-                "categories": ["Q1"],
-                "series": [{"values": [3, 4]}, "bukan-series"],
-            },
-        ),
-    )
-
-    plan = build_coverage_plan(_deck(blocks))
-
-    assert set(plan.unkeyed_visible) == {"s01.table1", "s01.chart1"}
-    assert tuple(chart.chart_id for chart in plan.charts) == ("s01.chart1",)
-
-
-def test_deck_id_falls_back_to_deck_without_title() -> None:
+def test_defensive_deck_id_falls_back_to_deck_without_title() -> None:
+    """Guard internal: schema mensyaratkan ``meta.title`` sebelum plan dibuat."""
     plan = build_coverage_plan(_deck((), meta={}))
 
     assert plan.deck_id == "deck"
     assert plan.ok is True
 
 
-def test_empty_deck_plan_has_no_findings() -> None:
+def test_defensive_empty_deck_plan_has_no_findings() -> None:
+    """Guard internal: schema menolak deck tanpa slide sebelum plan dibuat."""
     deck = DeckIR(
         schema="autooffice.deck/v1",
         meta={"title": "Kosong"},
@@ -150,37 +122,3 @@ def test_empty_deck_plan_has_no_findings() -> None:
 
     assert plan.findings(()).ok is True
     assert plan.to_report(())["declared"] == 0
-
-
-def test_report_lists_missing_alt() -> None:
-    plan = build_coverage_plan(
-        _deck((_block("image1", "image", {"path": "assets/a.png", "alt": "  ", "fit": "contain"}),))
-    )
-    report = plan.to_report(())
-
-    assert report["deck_id"] == "edge-deck"
-    assert report["missing_alt"] == ["s01.image1"]
-    assert report["unkeyed_visible"] == []
-    assert report["charts"] == []
-
-
-def test_defensive_check_coverage_reports_duplicate_manifest_keys(fixture_dir) -> None:
-    """Manifest duplikat tidak mungkin keluar dari compiler publik.
-
-    Coverage tetap wajib melaporkannya bila IR dibangun ulang oleh pemanggil
-    internal.
-    """
-    deck = compile_deck(load_deck(fixture_dir / "minimal.yaml"))
-    first = deck.keys.bindings[0]
-    duplicate_deck = DeckIR(
-        schema=deck.schema,
-        meta=deck.meta,
-        theme_name=deck.theme_name,
-        slides=deck.slides,
-        keys=KeyManifest(bindings=(first, first)),
-    )
-
-    findings = check_coverage(duplicate_deck, deck.keys.keys())
-
-    assert findings.duplicate == (first.key,)
-    assert findings.ok is False

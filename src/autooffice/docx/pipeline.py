@@ -1,4 +1,4 @@
-"""Orkestrasi pipeline ``docgen``.
+"""Orkestrasi pipeline ``autooffice``.
 
 API masuk utama adalah :class:`Pipeline` dan :meth:`Pipeline.run`, yang
 menerima path ``document.md`` serta :class:`BuildOptions` dan mengembalikan
@@ -892,7 +892,7 @@ class Pipeline:
     """Jalankan rangkaian stage kanonik untuk satu dokumen.
 
     ``stages`` opsional dipakai untuk injeksi saat pengujian; bila ``None``,
-    daftar stage bawaan dimuat dari :mod:`docgen.stages`. Konstruktor
+    daftar stage bawaan dimuat dari :mod:`autooffice.docx.stages`. Konstruktor
     memvalidasi nama, order, ``requires``, ``mutates``, dan ``idempotent``
     terhadap kontrak kanonik lalu melempar :class:`StageOrderError` bila ada
     yang tidak cocok.
@@ -928,7 +928,7 @@ class Pipeline:
             keep=options.keep,
         )
         logger = logging.LoggerAdapter(
-            logging.getLogger("docgen.pipeline"),
+            logging.getLogger("autooffice.docx.pipeline"),
             {"document": str(project.document.path)},
         )
         return StageContext(

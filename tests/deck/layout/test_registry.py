@@ -1,4 +1,4 @@
-"""Test discovery preset deterministik dan fallback F0."""
+"""Test discovery preset deterministik tanpa fallback nama layout."""
 
 from collections.abc import Mapping
 from pathlib import Path
@@ -6,7 +6,6 @@ from pathlib import Path
 import pytest
 
 from autooffice.deck.layout.registry import (
-    F0_LAYOUT_NAMES,
     LayoutRegistryError,
     discover_layouts,
     layout_names,
@@ -41,13 +40,18 @@ def _write_package(
         (package_dir / f"{module}.py").write_text(source, encoding="utf-8")
 
 
-def test_empty_package_uses_f0_name_fallback(tmp_path: Path, monkeypatch) -> None:
+def test_empty_package_is_rejected(tmp_path: Path, monkeypatch) -> None:
     _write_package(tmp_path, "empty_layout_presets", {})
     monkeypatch.syspath_prepend(str(tmp_path))
 
-    assert discover_layouts("empty_layout_presets") == ()
-    assert layout_registry("empty_layout_presets") == {}
-    assert layout_names("empty_layout_presets") == F0_LAYOUT_NAMES
+    with pytest.raises(LayoutRegistryError, match="tidak memuat satu pun LAYOUT"):
+        discover_layouts("empty_layout_presets")
+
+    with pytest.raises(LayoutRegistryError, match="tidak memuat satu pun LAYOUT"):
+        layout_registry("empty_layout_presets")
+
+    with pytest.raises(LayoutRegistryError, match="tidak memuat satu pun LAYOUT"):
+        layout_names("empty_layout_presets")
 
 
 def test_discovery_sorts_by_layout_id_not_module_name(tmp_path: Path, monkeypatch) -> None:

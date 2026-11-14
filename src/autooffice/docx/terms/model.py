@@ -1,6 +1,6 @@
 """Model paragraf, penanda, style, dan pencocokan istilah.
 
-Modul ini bergantung pada :mod:`docgen.docx.terms.glossary` dan helper DOCX
+Modul ini bergantung pada :mod:`autooffice.docx.terms.glossary` dan helper DOCX
 kanonis. Modul ini tidak boleh mengimpor ``apply`` atau ``verify`` agar arah
 dependensi tetap satu arah.
 
@@ -19,8 +19,8 @@ from ..package import DOCUMENT_PART, paragraphs
 from ..package.fields import FieldMarkerKind, field_marker_kind, iter_field_markers
 from ..package.names import (
     STYLE_BIBLIOGRAPHY,
-    STYLE_ISTILAH_ASING,
-    STYLE_ISTILAH_REVIEW,
+    STYLE_FOREIGN_TERM,
+    STYLE_REVIEW_TERM,
     W_BR,
     W_CR,
     W_HYPERLINK,
@@ -44,8 +44,8 @@ W_STYLE = W + "style"
 W_STYLE_ID = W + "styleId"
 W_SOFT_HYPHEN = qn("w:softHyphen")
 
-ISTILAH_ASING = STYLE_ISTILAH_ASING
-ISTILAH_REVIEW = STYLE_ISTILAH_REVIEW
+FOREIGN_TERM_STYLE = STYLE_FOREIGN_TERM
+REVIEW_TERM_STYLE = STYLE_REVIEW_TERM
 BIBLIOGRAPHY_STYLE = STYLE_BIBLIOGRAPHY
 BARRIER = "\ufffc"
 MARKER_PREFIX = "{{?"
@@ -213,11 +213,10 @@ class ParagraphModel:
 
 
 def _relation_index(package: object) -> dict[str, object]:
-    try:
-        relationships = package.relationships(DOCUMENT_PART)  # type: ignore[attr-defined]
-    except Exception:  # noqa: BLE001 - package tanpa rels adalah boundary opsional
+    relationships = getattr(package, "relationships", None)
+    if not callable(relationships):
         return {}
-    return {relationship.rel_id: relationship for relationship in relationships}
+    return {relationship.rel_id: relationship for relationship in relationships(DOCUMENT_PART)}
 
 
 def _is_external_hyperlink(
@@ -446,7 +445,7 @@ class StyleResolver:
                     bold = is_on(node)
             if italic is not None and lang is not None and bold is not None:
                 break
-        if italic is None and style_id == ISTILAH_ASING:
+        if italic is None and style_id == FOREIGN_TERM_STYLE:
             italic = True
         return StyleResolution(
             italic=italic,
@@ -585,7 +584,7 @@ def list_review_items(package: object) -> tuple[ReviewItem, ...]:
         model = build_paragraph_model(paragraph, relations)
         if not model.text and not model.ignored_texts:
             continue
-        for span in styled_spans(model, ISTILAH_REVIEW):
+        for span in styled_spans(model, REVIEW_TERM_STYLE):
             items.append(ReviewItem(span, number))
         for marker in iter_markers(model.text):
             items.append(ReviewItem(marker.content.strip(), number))

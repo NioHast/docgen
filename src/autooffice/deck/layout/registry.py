@@ -1,9 +1,8 @@
 """Registry layout dengan discovery preset deterministik.
 
-F1-LAYOUT memindai package ``autooffice.deck.layout.presets`` untuk modul yang
+Registry memindai package ``autooffice.deck.layout.presets`` untuk modul yang
 mengekspos ``LAYOUT: LayoutSpec``. Hasil diurutkan berdasarkan ``layout_id``.
-Bila package belum berisi satu pun modul preset, registry memakai fallback nama
-katalog F0 agar schema tetap bisa memvalidasi nama layout selama transisi.
+Package tanpa satu pun preset ditolak; tidak ada fallback nama layout.
 """
 
 import importlib
@@ -16,32 +15,6 @@ from autooffice.deck.layout.spec import LayoutError, LayoutSpec
 
 PRESETS_PACKAGE = "autooffice.deck.layout.presets"
 CUSTOM_LAYOUT = "custom"
-
-F0_LAYOUT_NAMES: tuple[str, ...] = (
-    "cover",
-    "toc",
-    "content",
-    "section",
-    "closing",
-    "kpi",
-    "bars",
-    "line",
-    "donut",
-    "table",
-    "comparison",
-    "matrix",
-    "background",
-    "flow",
-    "code",
-    "diagram",
-    "image-split",
-    "image-full",
-    "image-grid",
-    "custom",
-)
-
-# Nama lama dipertahankan agar import privat F0 tidak langsung rusak.
-_LAYOUT_NAMES = F0_LAYOUT_NAMES
 
 
 class LayoutRegistryError(LayoutError):
@@ -69,6 +42,11 @@ def discover_layouts(package: str = PRESETS_PACKAGE) -> tuple[LayoutSpec, ...]:
             )
         found.append(layout)
 
+    if not found:
+        raise LayoutRegistryError(
+            f"Package preset '{package}' tidak memuat satu pun LAYOUT; "
+            "registry memerlukan minimal satu preset."
+        )
     found.sort(key=lambda layout: layout.layout_id)
     duplicates = _duplicate_layout_ids(found)
     if duplicates:
@@ -89,13 +67,11 @@ def layout_registry(package: str = PRESETS_PACKAGE) -> Mapping[str, LayoutSpec]:
 def layout_names(package: str = PRESETS_PACKAGE) -> tuple[str, ...]:
     """Kembalikan nama layout valid untuk schema.
 
-    Bila belum ada preset yang ditemukan, fallback F0 mengembalikan katalog
-    lengkap dalam urutan katalog. Bila discovery menemukan preset, nama
-    diurutkan berdasarkan ``layout_id`` dan ``custom`` tetap tersedia.
+    Nama preset diurutkan berdasarkan ``layout_id`` dan ``custom`` tetap
+    tersedia sebagai layout non-preset. Package tanpa preset ditolak oleh
+    :func:`discover_layouts`; tidak ada fallback nama.
     """
     layouts = discover_layouts(package)
-    if not layouts:
-        return F0_LAYOUT_NAMES
     names = tuple(layout.layout_id for layout in layouts if layout.layout_id != CUSTOM_LAYOUT)
     return (*names, CUSTOM_LAYOUT)
 

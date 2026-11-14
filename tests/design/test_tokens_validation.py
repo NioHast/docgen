@@ -27,33 +27,50 @@ def _read_tokens(data: dict[str, object]):
     return lambda _path: data
 
 
-def test_read_yaml_reports_unreadable_file(tmp_path: Path) -> None:
+def test_load_tokens_reports_unreadable_file(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(tokens_module, "TOKENS_PATH", tmp_path / "tidak-ada.yaml")
+
     with pytest.raises(DesignTokenError, match="tidak dapat dibaca"):
-        tokens_module._read_yaml(tmp_path / "tidak-ada.yaml")
+        load_tokens()
 
 
-def test_read_yaml_reports_invalid_yaml(tmp_path: Path) -> None:
+def test_load_tokens_reports_invalid_yaml(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     path = tmp_path / "rusak.yaml"
     path.write_text("a: [1,\n", encoding="utf-8")
+    monkeypatch.setattr(tokens_module, "TOKENS_PATH", path)
 
     with pytest.raises(DesignTokenError, match="bukan YAML valid"):
-        tokens_module._read_yaml(path)
+        load_tokens()
 
 
-def test_read_yaml_requires_mapping(tmp_path: Path) -> None:
+def test_load_tokens_requires_mapping_document(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     path = tmp_path / "skalar.yaml"
     path.write_text("hanya teks\n", encoding="utf-8")
+    monkeypatch.setattr(tokens_module, "TOKENS_PATH", path)
 
     with pytest.raises(DesignTokenError, match="wajib berupa mapping"):
-        tokens_module._read_yaml(path)
+        load_tokens()
 
 
-def test_read_yaml_rejects_non_string_key(tmp_path: Path) -> None:
+def test_load_tokens_rejects_non_string_key(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     path = tmp_path / "kunci.yaml"
     path.write_text("1: nilai\n", encoding="utf-8")
+    monkeypatch.setattr(tokens_module, "TOKENS_PATH", path)
 
     with pytest.raises(DesignTokenError, match="kunci non-string"):
-        tokens_module._read_yaml(path)
+        load_tokens()
 
 
 @pytest.mark.parametrize(
@@ -156,8 +173,13 @@ def test_load_themes_rejects_invalid_data(
         load_themes()
 
 
-def test_load_themes_requires_top_level_mapping(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(tokens_module, "_read_yaml", _read_tokens(["bukan", "mapping"]))
+def test_load_themes_requires_mapping_document(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = tmp_path / "themes-skalar.yaml"
+    path.write_text("hanya teks\n", encoding="utf-8")
+    monkeypatch.setattr(tokens_module, "THEMES_PATH", path)
 
     with pytest.raises(DesignTokenError, match="wajib berupa mapping"):
         load_themes()

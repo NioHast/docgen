@@ -20,7 +20,6 @@ from autooffice.deck.media.mermaid import (
     MermaidError,
     _copy_png,
     _is_png,
-    _is_remote_path,
     _validate_png,
     cache_digest,
     find_mmdc,
@@ -428,31 +427,6 @@ def test_real_mmdc_renders_high_resolution_png(tmp_path: Path, theme) -> None:
         assert max(image.size) >= 1600
 
 
-class EmptyPath(type(Path())):
-    """Path defensif dengan ``str`` kosong; ``Path`` normal tidak pernah kosong."""
-
-    def __str__(self) -> str:
-        return ""
-
-
-class PartlessPath(type(Path())):
-    """Path defensif tanpa komponen; ``Path`` normal selalu punya komponen."""
-
-    @property
-    def parts(self) -> tuple[str, ...]:
-        return ()
-
-
-class StatFailPath(type(Path())):
-    """Path yang ada tetapi gagal di-``stat`` saat validasi PNG."""
-
-    def is_file(self) -> bool:
-        return True
-
-    def stat(self, *, follow_symlinks: bool = True) -> os.stat_result:
-        raise OSError("stat gagal disengaja")
-
-
 def completed(
     *,
     stdout: str = "",
@@ -507,20 +481,6 @@ def test_resolve_mermaid_source_rejects_symlink_escape(tmp_path: Path) -> None:
         resolve_mermaid_source(root, "link/flow.mmd")
 
 
-def test_defensive_render_mermaid_rejects_empty_source_string(
-    tmp_path: Path,
-    theme,
-) -> None:
-    """Input ``Path`` cacat dengan ``str`` kosong tetap ditolak dengan pesan jelas."""
-    with pytest.raises(MermaidError, match="kosong"):
-        render_mermaid(
-            EmptyPath("flow.mmd"),
-            tmp_path / "flow.png",
-            theme=theme,
-            cache_dir=tmp_path / "cache",
-        )
-
-
 def test_render_mermaid_rejects_relative_path_with_drive_separator(
     tmp_path: Path,
     theme,
@@ -572,9 +532,15 @@ def test_render_mermaid_rejects_unc_network_path(tmp_path: Path, theme) -> None:
         )
 
 
-def test_defensive_is_remote_path_accepts_path_without_parts() -> None:
-    """``Path`` normal selalu punya komponen; subclass tanpa ``parts`` bukan remote."""
-    assert _is_remote_path(PartlessPath("flow.mmd")) is False
+def test_render_mermaid_treats_empty_path_as_non_remote(tmp_path: Path, theme) -> None:
+    """``Path()`` tanpa komponen bukan remote dan ditolak karena ekstensi."""
+    with pytest.raises(MermaidError, match=r"berekstensi \.mmd"):
+        render_mermaid(
+            Path(),
+            tmp_path / "flow.png",
+            theme=theme,
+            cache_dir=tmp_path / "cache",
+        )
 
 
 def test_render_mermaid_reports_output_parent_file(tmp_path: Path, monkeypatch, theme) -> None:
@@ -1069,8 +1035,23 @@ def test_copy_png_ignores_predictable_stale_temp_symlink(
     assert stale.is_symlink()
 
 
-def test_validate_png_reports_stat_failure(tmp_path: Path) -> None:
-    path = StatFailPath(tmp_path / "flow.png")
+def test_validate_png_reports_stat_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = tmp_path / "flow.png"
+    path.write_bytes(PNG_1X1)
+    real_stat = Path.stat
 
-    with pytest.raises(MermaidError, match="tidak dapat dibaca"):
+    def fail_stat(self: Path, *, follow_symlinks: bool = True) -> os.stat_result:
+        if self == path:
+            raise OSError("stat gagal disengaja")
+        return real_stat(self, follow_symlinks=follow_symlinks)
+
+    monkeypatch.setattr(Path, "stat", fail_stat)
+    monkeypatch.setattr(Path, "is_file", lambda self: self == path)
+
+    with pytest.raises(MermaidError, match="tidak dapat dibaca") as error:
         _validate_png(path)
+
+    assert str(path) in str(error.value)

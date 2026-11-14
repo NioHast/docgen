@@ -22,6 +22,7 @@ from .shapes import (
     field_optional_text,
     field_sequence,
     field_text,
+    record_render_warning,
     set_chrome_shape,
     set_keyed_shape,
 )
@@ -677,7 +678,7 @@ def _write_paragraphs(
                 start_at=bullet_start + index,
             )
         for run in paragraph.runs:
-            apply_run_style(
+            warning = apply_run_style(
                 run,
                 family=style.family,
                 size_pt=style.size_pt,
@@ -685,6 +686,8 @@ def _write_paragraphs(
                 color=style.color,
                 tracking_em=theme.typography.tracking_em,
             )
+            if warning is not None:
+                record_render_warning(warning)
             if hyperlink:
                 run.hyperlink.address = hyperlink
 

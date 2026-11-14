@@ -186,6 +186,16 @@ def test_planned_deck_files_slides_sync_writes_review_file(tmp_path: Path) -> No
     )
 
 
+def test_planned_deck_files_rejects_unknown_sync_mode(tmp_path: Path) -> None:
+    outputs = deck_outputs(tmp_path / "deck.yaml")
+
+    with pytest.raises(CliError, match="mode sync tidak valid") as error:
+        planned_deck_files(outputs, ("slides",), sync_mode="pulls")
+
+    assert error.value.code == "CLI-SYNC-MODE"
+    assert error.value.exit_code == 2
+
+
 def test_planned_deck_files_pdf_keep_intermediate(tmp_path: Path) -> None:
     outputs = deck_outputs(tmp_path / "deck.yaml")
     assert planned_deck_files(

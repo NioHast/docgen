@@ -31,6 +31,7 @@ from .shapes import (
     add_extension_keys,
     box_from_placed,
     c_nv_pr,
+    collect_render_warnings,
     field_optional_text,
     rgb,
     set_chrome_shape,
@@ -47,11 +48,11 @@ from .xml import (
 
 _CHART_PLACEHOLDER_WARNING = (
     "chart: {count} chart memakai placeholder {marker}<chart_id> untuk target slides; "
-    "placeholder diganti linked chart oleh lane Google."
+    "placeholder diganti linked chart oleh Google Slides."
 )
 _PDF_WARNING = (
     "target pdf: PptxRenderer hanya menghasilkan PPTX intermediate; konversi PDF "
-    "ditangani lane PDF."
+    "ditangani adapter PDF."
 )
 
 
@@ -67,37 +68,40 @@ class PptxRenderer:
             author=request.deck.meta.get("author", ""),
         )
         chart_count = 0
-        for slide_ir, slide_layout in zip(request.deck.slides, request.layout.slides, strict=True):
-            slide = presentation.slides.add_slide(blank_layout(presentation))
-            apply_slide_background(slide, request.theme)
-            blocks = {block.block_id: block for block in slide_ir.blocks}
-            for placed in slide_layout.boxes:
-                block = blocks[placed.block_id]
-                chart_count += _render_block(
-                    slide,
-                    slide_ir,
-                    block,
-                    placed,
-                    request.theme,
-                    target=request.target,
-                    workspace=request.workspace,
-                )
-            if slide_ir.source is not None:
-                text_renderer.render_source_text(
-                    slide,
-                    slide_ir.slide_id,
-                    dict(slide_ir.source),
-                    request.theme,
-                )
-            if slide_ir.notes:
-                set_notes(
-                    slide,
-                    slide_ir.notes,
-                    slide_id=slide_ir.slide_id,
-                    theme=request.theme,
-                )
+        with collect_render_warnings() as render_warnings:
+            for slide_ir, slide_layout in zip(
+                request.deck.slides, request.layout.slides, strict=True
+            ):
+                slide = presentation.slides.add_slide(blank_layout(presentation))
+                apply_slide_background(slide, request.theme)
+                blocks = {block.block_id: block for block in slide_ir.blocks}
+                for placed in slide_layout.boxes:
+                    block = blocks[placed.block_id]
+                    chart_count += _render_block(
+                        slide,
+                        slide_ir,
+                        block,
+                        placed,
+                        request.theme,
+                        target=request.target,
+                        workspace=request.workspace,
+                    )
+                if slide_ir.source is not None:
+                    text_renderer.render_source_text(
+                        slide,
+                        slide_ir.slide_id,
+                        dict(slide_ir.source),
+                        request.theme,
+                    )
+                if slide_ir.notes:
+                    set_notes(
+                        slide,
+                        slide_ir.notes,
+                        slide_id=slide_ir.slide_id,
+                        theme=request.theme,
+                    )
         remove_animation_nodes(presentation)
-        warnings: list[str] = []
+        warnings: list[str] = list(render_warnings)
         if request.target == OutputTarget.PDF:
             warnings.append(_PDF_WARNING)
         if chart_count and request.target == OutputTarget.SLIDES:

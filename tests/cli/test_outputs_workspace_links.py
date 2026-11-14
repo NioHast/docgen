@@ -72,7 +72,7 @@ def _target_with_sentinel(document: Path, target_name: str) -> tuple[Path, Path]
 
 
 @pytest.mark.parametrize("target_name", [".git", "assets", "."])
-def test_docx_outputs_rejects_laporan_build_link_to_internal_target(
+def test_docx_outputs_rejects_report_build_link_to_internal_target(
     tmp_path: Path,
     target_name: str,
 ) -> None:
@@ -188,7 +188,7 @@ def test_normal_internal_workspace_directories_are_accepted(tmp_path: Path) -> N
     assert deck_outputs(source).build_dir == document / ".autooffice-build" / "deck"
 
 
-def test_require_safe_build_directory_revalidates_replaced_laporan_root(
+def test_require_safe_build_directory_revalidates_replaced_report_root(
     tmp_path: Path,
 ) -> None:
     source, _ = _source_with_sentinel(tmp_path)
@@ -234,7 +234,7 @@ def test_require_safe_build_directory_revalidates_replaced_stem_link(
 
 
 @pytest.mark.skipif(os.name != "nt", reason="junction hanya tersedia di Windows")
-def test_windows_junction_laporan_build_to_git_is_rejected(tmp_path: Path) -> None:
+def test_windows_junction_report_build_to_git_is_rejected(tmp_path: Path) -> None:
     source, outside = _source_with_sentinel(tmp_path)
     document = source.parent
     target = document / ".git"

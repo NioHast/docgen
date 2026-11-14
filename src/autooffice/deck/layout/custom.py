@@ -76,7 +76,7 @@ class CustomLayoutError(LayoutError):
 
 @dataclass(frozen=True, slots=True)
 class CustomOverflow:
-    """Satu temuan overflow mentah dari planner custom."""
+    """Satu temuan overflow mentah dari perencana custom."""
 
     block_id: str
     key: str
@@ -86,7 +86,7 @@ class CustomOverflow:
 
 @dataclass(frozen=True, slots=True)
 class CustomPlan:
-    """Hasil planner custom: layout siap pakai dan temuan mentahnya."""
+    """Hasil perencana custom: layout siap pakai dan temuan mentahnya."""
 
     layout: SlideLayout
     overflows: tuple[CustomOverflow, ...]
@@ -103,8 +103,8 @@ def plan_custom_slide(
     """Tempatkan satu slide custom tanpa melempar overflow.
 
     ``rows`` dipakai bila pemanggil sudah memiliki batas row eksplisit. Bila
-    tidak, row diambil dari ``SlideIR.rows`` hasil compiler. IR lama yang belum
-    membawa rows memakai fallback span deterministik.
+    tidak, row diambil dari ``SlideIR.rows`` hasil compiler; IR tanpa rows
+    ditolak karena compiler selalu mengisi ``SlideIR.rows``.
     """
     return plan_custom_slide_with_findings(
         slide,
@@ -311,14 +311,12 @@ def _validate_slide_block_coverage(
 
 
 def _rows_from_ir(slide: SlideIR) -> tuple[tuple[BlockIR, ...], ...]:
-    if slide.rows:
-        return _rows_from_block_ids(slide)
-    if not slide.blocks:
+    if not slide.rows:
         raise CustomLayoutError(
             f"Slide '{slide.slide_id}' layout custom tidak memiliki rows eksplisit di "
             "SlideIR; compiler wajib mengisi SlideIR.rows."
         )
-    return _rows_from_spans(slide.blocks)
+    return _rows_from_block_ids(slide)
 
 
 def _rows_from_block_ids(slide: SlideIR) -> tuple[tuple[BlockIR, ...], ...]:
@@ -333,29 +331,6 @@ def _rows_from_block_ids(slide: SlideIR) -> tuple[tuple[BlockIR, ...], ...]:
             f"di blocks: {', '.join(missing)}."
         )
     return tuple(tuple(blocks_by_id[block_id] for block_id in row) for row in slide.rows)
-
-
-def _rows_from_spans(blocks: Sequence[BlockIR]) -> tuple[tuple[BlockIR, ...], ...]:
-    """Fallback untuk IR lama tanpa rows eksplisit.
-
-    Row ditutup saat jumlah span mencapai 12 atau block berikutnya tidak muat.
-    Fallback ini tidak dipakai compiler karena ``SlideIR.rows`` selalu terisi
-    untuk slide custom hasil kompilasi.
-    """
-    rows: list[tuple[BlockIR, ...]] = []
-    current: list[BlockIR] = []
-    total = 0
-    for block in blocks:
-        span = _span_value(block)
-        if current and (total == 12 or total + span > 12):
-            rows.append(tuple(current))
-            current = []
-            total = 0
-        current.append(block)
-        total += span
-    if current:
-        rows.append(tuple(current))
-    return tuple(rows)
 
 
 def _as_rows(rows: object, *, slide_id: str) -> tuple[object, ...]:

@@ -729,7 +729,7 @@ def command(args: argparse.Namespace) -> int:
     return result.exit_code
 
 
-def build_parser(prog: str = "docgen reconcile") -> argparse.ArgumentParser:
+def build_parser(prog: str = "autooffice reconcile") -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog=prog,
         description=(

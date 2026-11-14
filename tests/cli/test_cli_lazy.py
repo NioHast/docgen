@@ -1,4 +1,4 @@
-"""Tes error lazy import CLI dan entrypoint ``python -m autooffice``."""
+"""Tes error CLI dan entrypoint ``python -m autooffice``."""
 
 import importlib
 import os
@@ -9,8 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from autooffice.cli import CliError, require_callable, require_module
-from autooffice.cli.outputs import ensure_directory
+from autooffice.cli import CliError
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -30,36 +29,6 @@ def test_cli_error_without_path_omits_prefix() -> None:
 
     assert error.format() == "gagal (CLI)"
     assert error.exit_code == 2
-
-
-def test_require_module_returns_imported_module() -> None:
-    module = require_module("autooffice.cli.targets", "F1-CLI")
-
-    assert module is sys.modules["autooffice.cli.targets"]
-
-
-def test_require_module_missing_module_mentions_lane_and_name() -> None:
-    with pytest.raises(CliError, match=r"autooffice\.tidak_ada.*F1-X") as error:
-        require_module("autooffice.tidak_ada", "F1-X")
-
-    assert error.value.code == "CLI-LANE-F1-X"
-    assert error.value.exit_code == 1
-
-
-def test_require_callable_returns_attribute() -> None:
-    module = require_module("autooffice.cli.outputs", "F1-CLI")
-
-    assert require_callable(module, "ensure_directory", "F1-CLI") is ensure_directory
-
-
-def test_require_callable_missing_api_names_lane() -> None:
-    module = require_module("autooffice.cli.outputs", "F1-CLI")
-
-    with pytest.raises(CliError, match=r"'tidak_ada'.*F1-CLI") as error:
-        require_callable(module, "tidak_ada", "F1-CLI")
-
-    assert error.value.code == "CLI-LANE-F1-CLI"
-    assert error.value.exit_code == 1
 
 
 def test_python_m_autooffice_entrypoint_prints_version(

@@ -2,19 +2,20 @@
 
 ## Tujuan
 
-Folder ini memverifikasi perilaku `docgen` pada beberapa tingkat: unit,
-integrasi, end-to-end, dan packaging. Tes menjadi bukti kontrak dan invariant
-output; fixture golden membekukan perilaku DOCX/PDF. Jalankan pytest dari akar
-repo dengan `uv run --project . pytest`.
+Folder ini memverifikasi perilaku `autooffice` pada beberapa tingkat: domain,
+contract, CLI, Google, PDF, acceptance deck, packaging, performa, properti, dan
+visual. Tes menjadi bukti kontrak dan invariant output; fixture golden
+membekukan perilaku DOCX. Jalankan pytest dari akar repo dengan
+`uv run --project . pytest`.
 
 ## Ownership
 
 - [Testing](../docs/dev/testing.md) adalah acuan golden baseline dan cara
-  menjalankan tes; [kontrak stage](../docs/dev/contracts/stage-api.md) dan
-  [kontrak DOCX](../docs/dev/contracts/docx-api.md) adalah acuan perilaku.
-- `tests/_helpers/`, `tests/factories/`, `tests/conftest.py`, dan harness
-  `tests/integration/` dimiliki pemilik infrastruktur tes. Tes domain dimiliki
-  pemilik modul yang diuji.
+  menjalankan tes; [kontrak DOCX](../docs/contracts/docx.md) dan
+  [kontrak test quality](../docs/contracts/test-quality.md) adalah acuan
+  perilaku.
+- `tests/_helpers/`, `tests/conftest.py`, dan fixture bersama dimiliki oleh
+  pemilik infrastruktur tes. Tes domain dimiliki pemilik modul yang diuji.
 - Perubahan `tests/fixtures/golden/` harus disertai alasan, pembaruan invariant
   JSON/hash, dan review; jangan mengubah baseline agar tes lulus.
 - `pytest.ini` adalah sumber marker; jangan menambah marker tanpa
@@ -24,31 +25,35 @@ repo dengan `uv run --project . pytest`.
 
 | Path | Isi dan kapan dipakai |
 | --- | --- |
-| `unit/` | Tes cepat tanpa Word, Pandoc, atau `mmdc`; memakai objek di memori dan fixture kecil. |
-| `integration/` | Tes yang membutuhkan Pandoc nyata, golden DOCX, pipeline, atau Word; termasuk `test_pipeline_python.py` dan `test_golden_docx.py`. |
-| `e2e/` | Menjalankan CLI `docgen` dari luar modul pada contoh yang disalin ke direktori sementara. |
-| `packaging/` | Memeriksa entry point `uv run --project <repo> docgen` dan perilaku repo-local. |
-| `fixtures/` | Sumber dan baseline tes: `golden/`, `e2e/`, `paragraph_ids/`, `reconcile/`. Bukan kode produksi; jangan diubah tanpa alasan. |
-| `factories/` | Pembuat DOCX minimal berbasis `python-docx` untuk kebutuhan tes. |
+| `acceptance/` | Build PPTX/PDF demo deck nyata dengan font tertanam; marker `integration` dan `slow`. |
+| `cli/` | Parser, target, output, doctor, build Markdown/deck, dan entry point. |
+| `contract/` | Bentuk API dan scaffold kontrak. |
+| `deck/` | Model, layout, chart, copy, transcript, renderer PPTX, dan Mermaid. |
+| `design/` | Token, theme, font, dan kontras. |
+| `docx/` | Pipeline DOCX, package, stage, terms, PDF stage, dan golden part. |
+| `google/` | Auth, Drive, Sheets, Slides, state, dan fake contract. |
+| `packaging/` | Metadata package, entry point `autooffice`, dan package data. |
+| `pdf/` | Adapter COM Word/PowerPoint dengan fake COM dan fake process control. |
+| `performance/` | Deck besar dengan marker `slow`. |
+| `property/` | Property test schema, key, layout, dan chart. |
+| `tools/` | Checker quality dan installer font. |
+| `visual/` | Smoke render PPTX ke PNG lewat fake COM atau PowerPoint. |
+| `fixtures/` | Baseline golden, fixture DOCX, chart, copy, deck, dan reconcile. |
 | `_helpers/` | Helper path dan utilitas bersama yang tidak bergantung cwd. |
-
-Tes alat pengembang berada di `tests/test_check_docs.py`,
-`tests/test_check_prose.py`, dan `tests/test_prose_docx.py`; tes itu mengimpor
-modul dari paket `tools.dev`.
 
 ## Kapan memakai Word
 
-- Gunakan Word hanya untuk perilaku yang memang dihitung Word: pembaruan field
-  TOC/PAGEREF, paginasi, dan ekspor PDF. Tes semacam ini wajib memakai marker
-  `word` dan `windows`, serta hanya berjalan di Windows dengan Word terpasang.
+- Suite offline memakai fake COM. Word dan PowerPoint nyata hanya dipakai pada
+  smoke manual gate final di Windows.
+- Tes yang memang butuh Word wajib memakai marker `word` dan `windows`, serta
+  hanya berjalan di Windows dengan Word terpasang.
 - Jangan memakai Word untuk tes unit, parsing, XML, atau logika transformasi
   yang bisa diuji tanpa Word. Mock Word bukan bukti untuk perilaku Word.
-- `tests/integration/test_golden_pdf.py` membangun ulang PDF dari
-  `examples/thesis-single` dan membandingkannya dengan `pdf-baseline.json`.
-  PDF fixture tidak disimpan; tes tidak boleh skip karena fixture hilang.
-- Tes PDF di Windows tanpa Word harus gagal dengan pesan jelas. Tes Word lain
-  boleh skip hanya karena platform atau perkakas tidak tersedia, bukan karena
-  fixture hilang.
+- PDF fixture tidak disimpan; `tests/docx/test_pdf.py` menguji stage dan
+  pemetaan error tanpa membangun PDF nyata.
+- Tes PDF di Windows tanpa Word harus gagal dengan pesan jelas bila memanggil
+  adapter nyata. Tes Word lain boleh skip hanya karena platform atau perkakas
+  tidak tersedia, bukan karena fixture hilang.
 
 ## Larangan
 
@@ -62,8 +67,8 @@ modul dari paket `tools.dev`.
 ## Tautan
 
 - [Testing](../docs/dev/testing.md)
-- [Kontrak stage](../docs/dev/contracts/stage-api.md)
-- [Kontrak DOCX](../docs/dev/contracts/docx-api.md)
+- [Kontrak DOCX](../docs/contracts/docx.md)
+- [Kontrak test quality](../docs/contracts/test-quality.md)
 - [Rencana refactor](../docs/dev/archive/refactor-plan.md)
 - [Marker pytest](../pytest.ini)
 - [README fixture reconcile](fixtures/reconcile/README.md)

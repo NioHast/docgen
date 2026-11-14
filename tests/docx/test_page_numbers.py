@@ -232,26 +232,6 @@ def test_golden_lower_roman_then_decimal() -> None:
         assert _pg_num(section) == (None, None)
 
 
-def test_golden_front_matter_footer_and_body_header() -> None:
-    package = DocumentPackage.load(GOLDEN)
-    sections = iter_sections(package)
-    front = section_header_footer(sections[1])
-    assert front.header is None
-    assert front.footer is not None
-    front_part, _ = header_footer_part(package, front.footer)
-    assert _page_fields(package, front_part) == 1
-
-    body = section_header_footer(next(section for section in sections if section.kind == "body"))
-    assert body.header is not None
-    assert body.first_page_header is not None
-    assert body.footer is not None
-    assert body.first_page_footer is not None
-    body_header_part, _ = header_footer_part(package, body.header)
-    first_header_part, _ = header_footer_part(package, body.first_page_header)
-    assert _page_fields(package, body_header_part) == 1
-    assert _page_fields(package, first_header_part) == 0
-
-
 # ---------------------------------------------------------------------------
 # Stage page_numbers
 # ---------------------------------------------------------------------------
@@ -355,12 +335,10 @@ def test_page_numbers_stage_does_not_create_blank_page(tmp_path: Path) -> None:
     PageNumbersStage().run(_fake_ctx(package))
     root = package.xml(DOCUMENT_PART)
     body = root.find(qn("w:body"))
+    assert body is not None
     paragraphs = [child for child in body if child.tag == qn("w:p")]
-    for paragraph in paragraphs:
-        if not _has_page_break(paragraph):
-            continue
-        ppr = paragraph.find(qn("w:pPr"))
-        assert ppr is None or ppr.find(qn("w:sectPr")) is None
+    assert paragraphs
+    assert [paragraph for paragraph in paragraphs if _has_page_break(paragraph)] == []
 
 
 def test_strip_update_fields_only_removes_update_fields(tmp_path: Path) -> None:
@@ -382,5 +360,9 @@ def test_strip_update_fields_only_removes_update_fields(tmp_path: Path) -> None:
 
 def test_page_numbers_stage_requires_package() -> None:
     ctx = _fake_ctx(None)  # type: ignore[arg-type]
-    with pytest.raises(StageError):
+
+    with pytest.raises(StageError) as excinfo:
         PageNumbersStage().run(ctx)
+
+    assert excinfo.value.code == "STAGE-PACKAGE"
+    assert "stage page_numbers" in str(excinfo.value)

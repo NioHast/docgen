@@ -3,9 +3,9 @@ requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "docgen"
+name = "autooffice"
 version = "0.1.0"
-description = "Design system dan pipeline laporan akademik berbasis Markdown."
+description = "Pipeline dokumen dan presentasi AutoOffice dari Markdown dan YAML."
 readme = "README.md"
 requires-python = ">=3.15"
 license = "MIT"
@@ -37,7 +37,6 @@ windows = [
 ]
 
 [project.scripts]
-docgen = "docgen.cli:main"
 autooffice = "autooffice.cli.main:main"
 
 [tool.setuptools]
@@ -45,11 +44,10 @@ package-dir = { "" = "src" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
+include = ["autooffice*"]
 
 [tool.setuptools.package-data]
-docgen = ["data/**/*"]
 autooffice = [
-    "data/**/*",
     "assets/**/*",
     "design/data/**/*",
     "docx/data/**/*",
@@ -100,14 +98,10 @@ ignore = [
   "D401", # Imperative mood Inggris sulit diterapkan pada docstring Indonesia.
 ]
 
-[tool.ruff.lint.per-file-ignores]
-# `O` adalah prefix namespace OOXML resmi di tabel Clark notation, bukan variabel lokal.
-"src/docgen/docx/names.py" = ["E741"]
-
 [tool.mypy]
 # Non-strict dulu: target Fase 1 adalah baseline yang bersih, bukan strict total.
 python_version = "3.15"
-files = ["src/docgen", "src/autooffice"]
+files = ["src/autooffice"]
 check_untyped_defs = true
 no_implicit_optional = true
 warn_unused_configs = true
@@ -122,76 +116,9 @@ strict = true
 ignore_missing_imports = false
 warn_unreachable = true
 
-# Mypy 2.4.1 menerapkan ``strict`` per-modul ke opsi global. Override ini
-# mengembalikan baseline docgen yang non-strict sampai migrasi selesai.
-[[tool.mypy.overrides]]
-module = ["docgen", "docgen.*"]
-disallow_any_generics = false
-disallow_subclassing_any = false
-disallow_untyped_calls = false
-disallow_untyped_defs = false
-disallow_incomplete_defs = false
-disallow_untyped_decorators = false
-warn_return_any = false
-no_implicit_reexport = false
-strict_equality = false
-extra_checks = false
-
 [tool.importlinter]
 # Kontrak import dicek dari paket yang terpasang (editable) di src.
-root_packages = ["docgen", "autooffice"]
-
-[[tool.importlinter.contracts]]
-name = "docx tidak boleh mengimpor stage, pipeline, CLI, atau adeu"
-type = "forbidden"
-source_modules = ["docgen.docx"]
-forbidden_modules = [
-    "docgen.stages",
-    "docgen.pipeline",
-    "docgen.cli",
-    "docgen.adeu",
-]
-
-[[tool.importlinter.contracts]]
-name = "config tidak boleh mengimpor docx, stage, pipeline, CLI, adeu, atau markdown"
-type = "forbidden"
-source_modules = ["docgen.config"]
-forbidden_modules = [
-    "docgen.docx",
-    "docgen.stages",
-    "docgen.pipeline",
-    "docgen.cli",
-    "docgen.adeu",
-    "docgen.markdown",
-]
-
-[[tool.importlinter.contracts]]
-name = "markdown tidak boleh mengimpor docx, stage, pipeline, CLI, atau adeu"
-type = "forbidden"
-source_modules = ["docgen.markdown"]
-forbidden_modules = [
-    "docgen.docx",
-    "docgen.stages",
-    "docgen.pipeline",
-    "docgen.cli",
-    "docgen.adeu",
-]
-
-[[tool.importlinter.contracts]]
-name = "adeu tidak boleh mengimpor stage, pipeline, atau CLI"
-type = "forbidden"
-source_modules = ["docgen.adeu"]
-forbidden_modules = [
-    "docgen.stages",
-    "docgen.pipeline",
-    "docgen.cli",
-]
-
-[[tool.importlinter.contracts]]
-name = "stage tidak boleh mengimpor CLI"
-type = "forbidden"
-source_modules = ["docgen.stages"]
-forbidden_modules = ["docgen.cli"]
+root_packages = ["autooffice"]
 
 [[tool.importlinter.contracts]]
 name = "autooffice.design tidak boleh mengimpor domain deck, docx, google, pdf, atau CLI"

@@ -57,11 +57,11 @@ slides:
         text: "Tabel Status"
       - id: table1
         type: table
-        columns: ["Lane", "Status"]
+        columns: ["Aspek", "Status"]
         rows:
           - ["Model", "Selesai"]
           - ["Render", "Berjalan"]
-        caption: "Status lane hari ini."
+        caption: "Status terkini."
   - id: s03
     layout: bars
     blocks:
@@ -146,7 +146,7 @@ Deck ini menjadi contoh build.
 
 ## s02. Tabel Status
 ### Indonesia
-Tabel ini memuat status lane.
+Tabel ini memuat status terkini.
 
 ## s03. Chart Kunjungan
 ### Indonesia

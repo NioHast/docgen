@@ -1,4 +1,4 @@
-"""Tes kontrak bentuk dataclass AutoOffice F0."""
+"""Tes kontrak bentuk dataclass AutoOffice."""
 
 from collections.abc import Callable, Mapping
 from dataclasses import FrozenInstanceError, fields

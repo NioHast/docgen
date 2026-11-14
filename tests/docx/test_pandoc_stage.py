@@ -11,6 +11,7 @@ from types import SimpleNamespace
 import pytest
 
 from autooffice.docx.config import load_format
+from autooffice.docx.errors import ToolMissingError
 from autooffice.docx.package import DocumentPackage
 from autooffice.docx.pipeline import ArtifactStore, StageName, Workspace, canonical_prefix
 from autooffice.docx.stages.pandoc import (
@@ -240,6 +241,105 @@ def test_find_pandoc_explicit_path(tmp_path: Path) -> None:
     fake.write_text("print('ok')\n", encoding="utf-8")
     assert find_pandoc(fake) == str(fake)
     assert find_pandoc(tmp_path / "tidak-ada-pandoc") is None
+
+
+def test_find_pandoc_preserves_explicit_relative_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake = tmp_path / "pandoc"
+    fake.write_text("print('ok')\n", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+
+    assert find_pandoc("./pandoc") == "./pandoc"
+
+
+@pytest.mark.parametrize("variable", ["DOCGEN_PANDOC", "PANDOC", "LAPORAN_PANDOC"])
+def test_find_pandoc_invalid_env_override_raises(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    variable: str,
+) -> None:
+    for name in ("DOCGEN_PANDOC", "PANDOC", "LAPORAN_PANDOC"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv(variable, str(tmp_path / "pandoc-hilang"))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    (tmp_path / "Pandoc").mkdir()
+    (tmp_path / "Pandoc" / "pandoc.exe").write_bytes(b"stub")
+    which_calls: list[str] = []
+
+    def fake_which(name: str) -> str | None:
+        which_calls.append(name)
+        return "C:/fallback/pandoc.exe" if name == "pandoc" else None
+
+    monkeypatch.setattr("autooffice.docx.stages.pandoc.shutil.which", fake_which)
+
+    with pytest.raises(ToolMissingError, match=variable) as caught:
+        find_pandoc()
+
+    assert caught.value.key == variable
+    assert "pandoc" not in which_calls
+
+
+@pytest.mark.parametrize("variable", ["DOCGEN_PANDOC", "PANDOC", "LAPORAN_PANDOC"])
+def test_find_pandoc_empty_env_override_raises(
+    monkeypatch: pytest.MonkeyPatch,
+    variable: str,
+) -> None:
+    for name in ("DOCGEN_PANDOC", "PANDOC", "LAPORAN_PANDOC"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv(variable, "")
+
+    with pytest.raises(ToolMissingError, match="kosong") as caught:
+        find_pandoc()
+
+    assert caught.value.key == variable
+
+
+@pytest.mark.parametrize("variable", ["DOCGEN_PANDOC", "PANDOC", "LAPORAN_PANDOC"])
+def test_find_pandoc_valid_env_override_returns_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    variable: str,
+) -> None:
+    fake = tmp_path / "pandoc-dari-env"
+    fake.write_text("print('ok')\n", encoding="utf-8")
+    for name in ("DOCGEN_PANDOC", "PANDOC", "LAPORAN_PANDOC"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv(variable, str(fake))
+
+    assert find_pandoc() == str(fake)
+
+
+def test_find_pandoc_discovers_from_path_when_env_unset(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    for name in ("DOCGEN_PANDOC", "PANDOC", "LAPORAN_PANDOC", "LOCALAPPDATA"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setattr(
+        "autooffice.docx.stages.pandoc.shutil.which",
+        lambda name: "C:/tools/pandoc.exe" if name == "pandoc" else None,
+    )
+
+    assert find_pandoc() == "C:/tools/pandoc.exe"
+
+
+def test_find_pandoc_discovers_local_app_data_when_path_missing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    candidate = tmp_path / "Pandoc" / "pandoc.exe"
+    candidate.parent.mkdir()
+    candidate.write_bytes(b"stub")
+    for name in ("DOCGEN_PANDOC", "PANDOC", "LAPORAN_PANDOC"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    monkeypatch.setattr(
+        "autooffice.docx.stages.pandoc.shutil.which",
+        lambda _name: None,
+    )
+
+    assert find_pandoc() == str(candidate)
 
 
 def test_resolve_bibliography_from_document_and_format(
@@ -481,8 +581,6 @@ def test_stage_fails_when_pandoc_missing(
         reference=reference,
     )
     ctx.pandoc = "pandoc-tidak-ada-di-path-xyz"
-
-    from autooffice.docx.errors import ToolMissingError
 
     with pytest.raises(ToolMissingError, match="Pandoc"):
         PandocStage().run(ctx)

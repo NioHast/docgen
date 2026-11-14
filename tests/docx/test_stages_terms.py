@@ -11,7 +11,8 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 
 from autooffice.docx import paths
-from autooffice.docx.package import DocumentPackage
+from autooffice.docx.errors import AssetError
+from autooffice.docx.package import DocumentPackage, InvalidPackageError
 from autooffice.docx.package.paragraphs import paragraph_text
 from autooffice.docx.package.xml import iter_paragraphs, iter_runs
 from autooffice.docx.pipeline import BuildOptions
@@ -32,6 +33,7 @@ from autooffice.docx.terms import (
     resolve_style,
     verify_terms,
 )
+from autooffice.docx.terms.model import _relation_index
 
 W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 R_NS = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}"
@@ -226,6 +228,19 @@ def test_merge_glossary_override_wins_per_phrase(tmp_path: Path) -> None:
 
     assert merged.entries["data"].italic is True
     assert merged.source == override.source
+
+
+def test_relation_index_without_relationships_boundary_returns_empty() -> None:
+    assert _relation_index(object()) == {}
+
+
+def test_relation_index_propagates_corrupt_package_relationships() -> None:
+    class CorruptPackage:
+        def relationships(self, source: str) -> tuple[object, ...]:
+            raise InvalidPackageError(f"relationships rusak: {source}")
+
+    with pytest.raises(InvalidPackageError, match="relationships rusak"):
+        _relation_index(CorruptPackage())
 
 
 # ---------------------------------------------------------------------------
@@ -442,3 +457,95 @@ def test_resolve_glossary_package_and_user_override(tmp_path: Path) -> None:
 
     assert glossary.entries["data"].italic is True
     assert glossary.source == tmp_path / "istilah.tsv"
+
+
+def _missing_package_glossary() -> Path:
+    raise AssetError(
+        "glosarium paket tidak ditemukan",
+        code="CFG-ASSET-MISSING",
+    )
+
+
+def test_resolve_glossary_missing_package_fails_with_user_glossary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    write_glossary(tmp_path, [("data", "yes")])
+    monkeypatch.setattr(terms_stage.paths, "glossary_file", _missing_package_glossary)
+
+    with pytest.raises(AssetError) as caught:
+        resolve_glossary(tmp_path / "document.md")
+
+    assert caught.value.code == "CFG-ASSET-MISSING"
+
+
+def test_resolve_glossary_missing_package_fails_with_explicit_glossary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    override = load_glossary(write_glossary(tmp_path, [("data", "yes")]))
+    monkeypatch.setattr(terms_stage.paths, "glossary_file", _missing_package_glossary)
+
+    with pytest.raises(AssetError) as caught:
+        resolve_glossary(tmp_path / "document.md", override)
+
+    assert caught.value.code == "CFG-ASSET-MISSING"
+
+
+def test_resolve_glossary_rejects_unsupported_override_type(tmp_path: Path) -> None:
+    with pytest.raises(GlossaryError) as caught:
+        resolve_glossary(tmp_path / "document.md", object())
+
+    assert caught.value.code == "GLOSSARY-TYPE"
+    assert caught.value.path == tmp_path / "document.md"
+
+
+def test_resolve_glossary_explicit_path_wins_over_package(tmp_path: Path) -> None:
+    (tmp_path / "document.md").write_text("---\ntitle: x\n---\n", encoding="utf-8")
+    explicit = write_glossary(
+        tmp_path,
+        [("data", "yes"), ("explicit only", "yes")],
+        filename="explicit.tsv",
+    )
+
+    glossary = resolve_glossary(tmp_path / "document.md", explicit)
+
+    assert glossary.entries["data"].italic is True
+    assert glossary.entries["explicit only"].italic is True
+    assert glossary.source == explicit
+
+
+def test_resolve_glossary_local_user_wins_over_explicit_path(tmp_path: Path) -> None:
+    (tmp_path / "document.md").write_text("---\ntitle: x\n---\n", encoding="utf-8")
+    explicit = write_glossary(
+        tmp_path,
+        [("data", "yes"), ("explicit only", "yes")],
+        filename="explicit.tsv",
+    )
+    local = write_glossary(tmp_path, [("data", "no"), ("big data", "no")])
+
+    glossary = resolve_glossary(tmp_path / "document.md", explicit)
+
+    assert glossary.entries["data"].italic is False
+    assert glossary.entries["big data"].italic is False
+    assert glossary.entries["explicit only"].italic is True
+    assert glossary.source == local
+
+
+def test_resolve_glossary_local_user_wins_over_explicit_glossary(tmp_path: Path) -> None:
+    (tmp_path / "document.md").write_text("---\ntitle: x\n---\n", encoding="utf-8")
+    explicit = load_glossary(
+        write_glossary(
+            tmp_path,
+            [("data", "yes"), ("explicit only", "yes")],
+            filename="explicit-glossary.tsv",
+        )
+    )
+    local = write_glossary(tmp_path, [("data", "no"), ("big data", "no")])
+
+    glossary = resolve_glossary(tmp_path / "document.md", explicit)
+
+    assert glossary.entries["data"].italic is False
+    assert glossary.entries["big data"].italic is False
+    assert glossary.entries["explicit only"].italic is True
+    assert glossary.source == local

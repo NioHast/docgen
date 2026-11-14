@@ -4,7 +4,7 @@ Modul ini adalah satu-satunya pintu untuk membaca dan mengubah section,
 ukuran halaman, margin, format nomor halaman, serta part header/footer.
 Stage tidak memakai ``zipfile`` atau regex terhadap ``document.xml``;
 semua perubahan melewati helper di sini. Penomoran heading body berada di
-:mod:`docgen.docx.heading_numbering`, bukan di modul ini.
+:mod:`autooffice.docx.package.heading_numbering`, bukan di modul ini.
 
 Section pada OOXML diakhiri oleh ``w:sectPr``. Section terakhir memakai
 ``w:sectPr`` di akhir ``w:body``; section lain memakai ``w:sectPr`` di dalam

@@ -4,7 +4,7 @@ Modul ini adalah satu-satunya tempat yang memutasi ``word/styles.xml``.
 Semua fungsi menerima :class:`DocumentPackage`; pemanggil tidak perlu
 menyentuh ZIP atau pohon XML secara langsung.
 
-API publik mengikuti ``docs/dev/contracts/docx-api.md``:
+API publik mengikuti ``docs/contracts/docx.md``:
 
 ``StyleSpec``
     Spesifikasi deklaratif satu style.

@@ -21,14 +21,14 @@ baseline, lihat [testing.md](testing.md).
 - [Checklist review test](#checklist-review-test)
 - [Contoh dari repo ini](#contoh-dari-repo-ini)
 - [Pemeriksaan deterministik](#pemeriksaan-deterministik)
-- [Hasil audit suite saat ini](#hasil-audit-suite-saat-ini)
+- [Audit suite](#audit-suite)
 - [Referensi resmi](#referensi-resmi)
 
 ## Tujuan dan posisi
 
 Tiga dokumen punya peran berbeda. [testing.md](testing.md) menjawab bagaimana
 menjalankan test, marker apa yang dipakai, dan invariant golden apa yang
-dibekukan. Dokumen kontrak di [contracts/](contracts/config.md) menjawab
+dibekukan. Dokumen kontrak di [contracts/](../contracts/README.md) menjawab
 perilaku apa yang dijanjikan kepada pemanggil. Dokumen ini menjawab kasus
 seperti apa yang layak dijadikan test dan kapan sebuah test lebih banyak biaya
 daripada nilainya.
@@ -150,7 +150,7 @@ dari jalur yang sama.
   yang salah. Pesan "gagal di parameter 3" tidak membantu tanpa melihat kode.
 - Jangan memaksa satu matriks besar untuk perilaku yang tidak berhubungan.
   Matriks besar sulit dibaca dan sering menutupi kasus yang benar-benar penting.
-- Contoh di repo: `tests/unit/test_docx_page.py` memakai parameter untuk ukuran
+- Contoh di repo: `tests/docx/test_docx_page.py` memakai parameter untuk ukuran
   portrait, landscape, atribut yang hilang, dan atribut bukan bilangan bulat.
   Setiap kelompok mewakili kegagalan yang berbeda.
 
@@ -182,9 +182,9 @@ Aturan praktisnya:
 - Jika satu test membutuhkan banyak mock untuk sekadar berjalan, level test atau
   desain seam perlu dipertanyakan. Pindahkan test ke level yang lebih tepat.
 - Fake lebih baik daripada mock bila perilaku yang ditiru cukup sederhana.
-  `tests/unit/test_office.py` memakai `FakeWordAdapter` tanpa COM, sedangkan
-  `tests/unit/test_mermaid.py` memakai executable `mmdc` palsu untuk menguji
-  proses, path output, dan kegagalan render.
+  `tests/docx/test_office.py` memakai `FakeWordModule` tanpa COM, sedangkan
+  `tests/docx/test_mermaid_docx.py` memakai executable `mmdc` palsu untuk
+  menguji proses, path output, dan kegagalan render.
 
 Lihat [pytest fixtures](references.md#registry) untuk cara menyediakan fake dan
 resource test yang bersih.
@@ -213,9 +213,10 @@ Cara mengurangi brittleness:
 - Pisahkan test yang membutuhkan Word atau Windows dengan marker dan skip
   eksplisit. Jangan biarkan test menjadi false-green ketika fixture tidak ada.
 
-`tests/integration/test_golden_docx.py` adalah contoh golden yang menguji
-invariant, bukan menyalin seluruh XML. `tests/integration/test_golden_pdf.py`
-memakai invariant JSON dan skip eksplisit saat fixture PDF tidak tersedia.
+`tests/docx/test_command.py` adalah contoh golden yang menguji invariant,
+bukan menyalin seluruh XML. `tests/fixtures/golden/docx/minimal/baseline.json`
+menyimpan part yang sudah dinormalisasi. PDF baseline disimpan sebagai
+referensi historis dan tidak dibandingkan oleh suite offline.
 
 ## Coverage dan mutation testing
 
@@ -281,10 +282,10 @@ audit menyeluruh dan tidak boleh dibaca sebagai vonis untuk test lain.
 
 | Test | Kontrak yang dilindungi | Kenapa menjadi contoh baik |
 | --- | --- | --- |
-| `tests/unit/test_docx_body_errors.py` | Pemetaan package tanpa `word/document.xml` ke error domain: `BookmarkError`, `CaptionError` dengan kode `CAPTION-NO-BODY`, `FieldError`, dan `SectionError`. | Fixture package minimal, assertion pada tipe dan kode error domain. Fokusnya boundary error, bukan detail XML. |
-| `tests/unit/test_docx_page.py` | `content_width` dan `page_size` pada boundary ukuran halaman, margin, gutter, dan input tidak valid. | Parameterisasi memisahkan kasus batas dan error. Assertion memakai aritmetika independen dan kode `PAGE-WIDTH`. |
-| `tests/unit/test_api_removed.py` | API dan alias yang sudah dihapus tidak muncul lagi. | Menguji kontrak penghapusan, bukan perilaku kode mati. Test sengaja memeriksa ketiadaan nama. |
-| `tests/test_check_docs.py` | Perilaku checker dokumentasi: tautan rusak, daftar isi, registry duplikat, dan exit code. | Memanggil API publik checker dengan direktori sementara. Assertion menyebut berkas, baris, atau pesan yang spesifik. |
+| `tests/docx/test_docx_body_errors.py` | Pemetaan package tanpa `word/document.xml` ke error domain: `BookmarkError`, `CaptionError` dengan kode `CAPTION-NO-BODY`, `FieldError`, dan `SectionError`. | Fixture package minimal, assertion pada tipe dan kode error domain. Fokusnya boundary error, bukan detail XML. |
+| `tests/docx/test_docx_page.py` | `content_width` dan `page_size` pada boundary ukuran halaman, margin, gutter, dan input tidak valid. | Parameterisasi memisahkan kasus batas dan error. Assertion memakai aritmetika independen dan kode `PAGE-WIDTH`. |
+| `tests/docx/test_api_removed.py` | API dan alias yang sudah dihapus tidak muncul lagi. | Menguji kontrak penghapusan, bukan perilaku kode mati. Test sengaja memeriksa ketiadaan nama. |
+| `tests/tools/test_quality_tools.py` | Perilaku checker dokumentasi: tautan rusak, daftar isi, registry duplikat, dan exit code. | Memanggil API publik checker dengan direktori sementara. Assertion menyebut berkas, baris, atau pesan yang spesifik. |
 
 Beberapa pola perlu hati-hati, tetapi tetap bisa sah dalam konteks tertentu:
 
@@ -317,8 +318,8 @@ kontrak. Tiga lapisan yang dipakai:
 
 | Lapisan | Alat | Sifat | Status |
 | --- | --- | --- | --- |
-| Statis | Ruff PT dan `tools/dev/check_tests.py` | Membaca AST dan aturan gaya; tidak menjalankan test. | Dipakai sebelum suite. |
-| Coverage | `pytest-cov` dan `tools/dev/check_coverage.py` | Membaca context per test dari `.coverage`; butuh suite dijalankan. | Dipakai setelah suite unit. |
+| Statis | Ruff PT dan `tools/quality/check_tests.py` | Membaca AST dan aturan gaya; tidak menjalankan test. | Dipakai sebelum suite. |
+| Coverage | `pytest-cov` dan `tools/quality/check_coverage.py` | Membaca context per test dari `.coverage`; butuh suite dijalankan. | Dipakai setelah suite unit. |
 | Mutation | `cosmic-ray` | Mengubah kode untuk menguji kekuatan assertion. | Manual, tidak di gate; lihat [mutation-testing.md](mutation-testing.md). |
 
 Mutation testing belum menjadi bagian gate. Jalankan hanya pada subset modul
@@ -344,14 +345,14 @@ Detail alasan tiap aturan ada di halaman yang sama; daftar resminya di
 
 ### Pemeriksaan statis test
 
-`tools/dev/check_tests.py` memindai fungsi `test_*` pada tingkat module dan
+`tools/quality/check_tests.py` memindai fungsi `test_*` pada tingkat module dan
 class, lalu memberi verdict berdasarkan sinyal AST. Alat ini tidak menjalankan
 test dan tidak membaca niat penulis.
 
 ```bash
-python tools/dev/check_tests.py tests --format json
-python tools/dev/check_tests.py tests --format markdown
-python tools/dev/check_tests.py tests --fail-on high
+python tools/quality/check_tests.py tests --format json
+python tools/quality/check_tests.py tests --format markdown
+python tools/quality/check_tests.py tests --fail-on high
 ```
 
 Default exit code adalah 0 meskipun ada temuan, karena temuan diperlakukan
@@ -365,7 +366,7 @@ Bentuk JSON ringkas:
 ```text
 {
   "schema_version": 1,
-  "generated_by": "tools/dev/check_tests.py",
+  "generated_by": "tools/quality/check_tests.py",
   "summary": {
     "total": int, "KEEP": int, "KEEP-WEAK": int,
     "MERGE": int, "TRIM": int, "REMOVE": int
@@ -409,13 +410,13 @@ Batas alat ini:
 ### Coverage context
 
 `pytest-cov` dengan `--cov-context=test` mencatat test mana yang menjalankan
-setiap baris. `tools/dev/check_coverage.py` membaca `.coverage` lewat
+setiap baris. `tools/quality/check_coverage.py` membaca `.coverage` lewat
 `CoverageData`, lalu menghitung baris unik dan baris yang tumpang tindih.
 
 ```bash
-COVERAGE_CORE=ctrace uv run --extra dev pytest tests/unit \
+COVERAGE_CORE=ctrace uv run --extra dev pytest tests/docx tests/cli \
   --cov=src/autooffice --cov-context=test
-python tools/dev/check_coverage.py \
+python tools/quality/check_coverage.py \
   --coverage-file .coverage --source src/autooffice --format json
 ```
 
@@ -432,7 +433,7 @@ menjalankan satu alur panjang, bukan untuk membuat gate hijau.
 | --- | --- | --- |
 | `no_unique_coverage` | `KEEP-WEAK` / low | Test tidak punya baris yang hanya dicakup dirinya sendiri. Ini informasi overlap, bukan vonis duplikat. |
 | `god_test` | `TRIM` / medium | Test mencakup baris melebihi `--max-covered-lines`; pecah per perilaku bila memang terlalu luas. |
-| `integration_only_lines` | high pada tingkat baris | Baris hanya dicakup test integration/e2e, bukan unit. Sinyal ini baru muncul bila context integration/e2e ikut dijalankan. |
+| `integration_only_lines` | high pada tingkat baris | Baris hanya dicakup test integration, bukan unit. Sinyal ini baru muncul bila context integration ikut dijalankan. |
 
 Jika `no_unique_coverage` dan `god_test` muncul bersamaan, `god_test` menentukan
 verdict `TRIM` medium; `no_unique_coverage` tetap menjadi informasi overlap.
@@ -441,8 +442,8 @@ verdict `TRIM` medium; `no_unique_coverage` tetap menjadi informasi overlap.
 menyentuh jalur yang sama dengan assertion dan tujuan berbeda. Periksa isi test
 sebelum menggabungkan atau menghapus. `integration_only_lines` adalah daftar
 baris, bukan verdict test; tambahkan unit test atau pindahkan cakupan sesuai
-risiko. Untuk memunculkan sinyal itu, sertakan `tests/integration` dan
-`tests/e2e` pada invokasi pytest yang sama.
+risiko. Untuk memunculkan sinyal itu, sertakan seluruh `tests/` pada invokasi
+pytest yang sama.
 
 Contoh hasil audit saat tooling diperkenalkan: 584 test, 370 test dengan
 `no_unique_coverage` (low), dan 52 `god_test`. Angka ini contoh yang akan
@@ -475,98 +476,19 @@ Keputusan tetap memakai kontrak, riwayat bug, biaya perawatan, dan checklist di
 dokumen ini. Mutation testing tersedia manual
 (lihat [mutation-testing.md](mutation-testing.md)) dan belum menjadi gate.
 
-## Hasil audit suite saat ini
+## Audit suite
 
-Audit ini menilai seluruh 617 fungsi test di 49 berkas. Semua fungsi mendapat
-verdict; angka di bawah adalah inventaris saat audit, bukan target yang harus
-dikejar. Porsi dibulatkan ke satu desimal sehingga totalnya tidak selalu tepat
-100%.
+Audit terakhir yang tercatat di dokumen ini dilakukan pada suite legacy sebelum
+pembersihan F3. Lokasi berkas dan angka pada audit itu tidak lagi menjadi
+acuan. Untuk inventaris saat ini, jalankan:
 
-| Verdict | Jumlah | Porsi |
-| --- | ---: | ---: |
-| KEEP | 447 | 72,4% |
-| KEEP-WEAK | 78 | 12,6% |
-| MERGE | 39 | 6,3% |
-| TRIM | 38 | 6,2% |
-| REMOVE | 15 | 2,4% |
+```bash
+python tools/quality/check_tests.py tests
+python tools/quality/check_coverage.py --coverage-file .coverage --source src/autooffice
+```
 
-Sebaran per area:
-
-| Area | Fungsi | KEEP | KEEP-WEAK | MERGE | TRIM | REMOVE |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| T1 Core/CLI/config/pipeline | 88 | 56 | 14 | 7 | 10 | 1 |
-| T2 DOCX core | 123 | 93 | 12 | 8 | 7 | 3 |
-| T3 DOCX features/TOC/lists/layout | 75 | 53 | 8 | 6 | 6 | 2 |
-| T4 Stages terms/captions/code/equations | 69 | 54 | 9 | 4 | 2 | 0 |
-| T5 Front matter/Pandoc/Mermaid/headings | 89 | 63 | 15 | 2 | 6 | 3 |
-| T6 Office/PDF/integration/e2e | 62 | 45 | 8 | 4 | 3 | 2 |
-| T7 Adeu/tools/golden fixtures | 111 | 83 | 12 | 8 | 4 | 4 |
-
-Arti verdict:
-
-| Verdict | Arti |
-| --- | --- |
-| KEEP | Layak dipertahankan. |
-| KEEP-WEAK | Layak, assertion perlu diperkuat. |
-| MERGE | Duplikat atau tumpang tindih; gabung. |
-| TRIM | Sebagian berharga, sebagian detail implementasi. |
-| REMOVE | Tidak memberi sinyal regresi. |
-
-### 15 test yang disarankan REMOVE
-
-Tabel berikut adalah kandidat penghapusan untuk Fase 1. Lokasi mengacu pada
-berkas saat audit dilakukan.
-
-| Berkas:baris | Test | Alasan |
-| --- | --- | --- |
-| `tests/unit/test_api_removed.py:186` | `test_private_duplikat_docx_hilang` | Menguji keberadaan helper privat; tautologis. |
-| `tests/unit/test_docx_runs.py:240` | `test_strip_bold_is_consistent_with_xml_is_on` | Expected dihitung dari `is_on` yang juga dipakai implementasi. |
-| `tests/unit/test_docx_runs.py:269` | `test_run_child_order_is_valid` | Urutan child sudah diassert di test lain. |
-| `tests/unit/test_page_numbers.py:387` | `test_referenced_header_footer_parts_have_page_fields` | Nama menjanjikan page field, tetapi hanya cek `has_part`. |
-| `tests/unit/test_stages_layout.py:480` | `test_content_width_dari_sectpr` | Duplikat `content_width` A4 di `test_docx_page.py`. |
-| `tests/unit/test_stages_layout.py:492` | `test_content_width_tanpa_sectpr_menimbulkan_page_error` | Duplikat error `PAGE-WIDTH`. |
-| `tests/unit/test_front_matter.py:425` | `test_stage_tidak_memakai_body_dokumen_saat_artifact_hilang` | Duplikat test artifact hilang. |
-| `tests/unit/test_mermaid.py:459` | `test_mmdc_asli_merender_png` | Integration `mmdc` di unit suite. |
-| `tests/unit/test_markdown_headings.py:167` | `test_number_markdown_idempoten_pada_input_yang_sudah_bernomor` | Duplikat idempotensi. |
-| `tests/unit/test_office.py:447` | `test_tidak_ada_jalur_pdf_selain_word` | `hasattr` negatif + grep string. |
-| `tests/packaging/test_repo_local.py:151` | `test_version_dan_check_tidak_mengubah_git_status` | Duplikat dua test sebelumnya. |
-| `tests/test_check_docs.py:244` | `test_refactor_plan_archive_memuat_banner_archived` | Snapshot konten arsip, bukan perilaku checker. |
-| `tests/test_check_prose.py:54` | `test_semua_pola_ada_di_rules_yml` | Tautologis: `ATURAN` dibaca dari `rules.yml`. |
-| `tests/test_check_prose_docx.py:143` | `test_tes_bawaan_tetap_109` | Duplikat persis self-test. |
-| `tests/unit/test_golden_fixtures.py:31` | `test_golden_fixture_files_exist` | Hanya cek keberadaan file. |
-
-### Pola temuan prioritas
-
-Sepuluh pola berikut muncul berulang dan menjadi prioritas perbaikan:
-
-| # | Temuan | Tindakan |
-| ---: | --- | --- |
-| 1 | Error-path modul rekonsiliasi hanya assert exit 1. | Assert kode error domain, lalu exit code sebagai konsekuensinya. |
-| 2 | `check_prose` punya test tautologis/white-box dan snapshot angka. | Ganti dengan assertion perilaku checker; jangan membaca `rules.yml` untuk membuktikan isi `rules.yml`. |
-| 3 | Golden PDF hanya skip platform; perlu skip Word/Pandoc/`mmdc` yang eksplisit. | Tambahkan skip eksplisit per alat dan alasan agar tidak false-green di mesin tanpa fixture. |
-| 4 | `test_pipeline_python` menulis ke `examples/.../out`; harus hermetic `tmp_path`. | Salin fixture ke `tmp_path` dan jalankan pipeline di sana. |
-| 5 | Golden TOC unit menduplikasi integration golden DOCX. | Pertahankan satu level; jadikan unit test pemeriksaan field TOC yang terpisah. |
-| 6 | Ukuran halaman A4/Letter/landscape diuji berulang di beberapa test. | Pusatkan matriks ukuran di `test_docx_page.py` dan hapus duplikat. |
-| 7 | Test idempotensi bisa lulus meski implementasi no-op. | Assert perubahan pertama dan bandingkan hasil kedua dengan nilai konkret. |
-| 8 | Snapshot nilai `config/format.yml` brittle. | Assert field semantik yang dikonsumsi pipeline, bukan salinan seluruh nilai. |
-| 9 | Test API removed banyak `hasattr`/`is not None` tautologis. | Batasi pada simbol publik yang dijanjikan hilang; uji perilaku pengganti. |
-| 10 | Metadata stage duplikat antar stage dan test `mmdc` berada di unit. | Satukan invariant metadata di level stage; pindahkan `mmdc` ke suite integration. |
-
-### Rencana tindakan
-
-Perbaikan dilakukan bertahap agar setiap fase dapat ditinjau sendiri:
-
-1. **Fase 1a**: hapus 15 test REMOVE. **Status: sudah dijalankan** (15 test
-   REMOVE sudah dihapus).
-2. **Fase 1b**: gabungkan 39 test MERGE. **Status: belum dijalankan.**
-3. **Fase 2**: perkuat 78 test KEEP-WEAK, terutama kode error, hitungan eksak,
-   dan penghapusan tautologi. **Status: belum dijalankan.**
-4. **Fase 3**: rapikan 38 test TRIM; pertahankan assertion semantik dan buang
-   detail implementasi. **Status: belum dijalankan.**
-
-Status faktual saat ini: 15 test REMOVE sudah dijalankan; 39 MERGE, 78
-KEEP-WEAK, dan 38 TRIM masih backlog. Daftar di atas adalah backlog, bukan
-alasan untuk langsung menghapus atau melonggarkan test tanpa membaca konteks.
+Temuan checker adalah bahan review, bukan vonis. Jangan menghapus test hanya
+karena verdict `REMOVE`; periksa kontrak dan riwayatnya lebih dulu.
 
 ## Referensi resmi
 

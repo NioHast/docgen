@@ -2,7 +2,7 @@
 
 Modul ini memisahkan penomoran H1/H2/H3 dari model section: membaca heading,
 menentukan heading unnumbered, memformat nomor, dan menulis ulang run judul.
-Konversi angka Romawi memakai :func:`docgen.docx.numbering.format_roman` agar
+Konversi angka Romawi memakai :func:`autooffice.docx.package.numbering.format_roman` agar
 tidak ada tabel Romawi kedua. Modul ini tidak menangani ``w:sectPr``,
 header/footer, atau geometri halaman.
 """

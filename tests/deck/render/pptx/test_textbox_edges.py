@@ -1,5 +1,6 @@
 """Tes cabang edge text box, block teks, dan bullet numbering."""
 
+from dataclasses import replace
 from types import SimpleNamespace
 
 import pytest
@@ -7,7 +8,12 @@ from _edge_helpers import line_spacing_points, new_slide
 from pptx.oxml.ns import qn
 
 from autooffice.deck.model.deck_ir import BlockIR
-from autooffice.deck.render.pptx.shapes import Box, PptxRenderError, key_from_shape
+from autooffice.deck.render.pptx.shapes import (
+    Box,
+    PptxRenderError,
+    collect_render_warnings,
+    key_from_shape,
+)
 from autooffice.deck.render.pptx.textbox import (
     add_keyed_text,
     render_bullets_block,
@@ -53,6 +59,17 @@ def test_render_text_block_rejects_no_body_space_after_heading(theme) -> None:
 
     with pytest.raises(PptxRenderError, match="tidak menyisakan ruang untuk teks"):
         render_text_block(new_slide(), block, _tight_box(theme), theme, slide_id="s01")
+
+
+def test_render_text_block_collects_font_weight_fallback_warning(theme) -> None:
+    block = BlockIR("b1", "text", None, "display", {"text": "Judul"})
+    fallback_theme = replace(theme, typography=replace(theme.typography, family="Inter"))
+    box = Box(left=0, top=0, width=4_000_000, height=3_000_000)
+
+    with collect_render_warnings() as warnings:
+        render_text_block(new_slide(), block, box, fallback_theme, slide_id="s01")
+
+    assert any("font-weight" in warning for warning in warnings)
 
 
 def test_render_bullets_block_rejects_zero_available_width(theme) -> None:

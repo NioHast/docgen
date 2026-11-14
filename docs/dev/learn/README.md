@@ -26,7 +26,7 @@ perintah yang bisa dijalankan, latihan, dan tautan ke halaman berikutnya.
 | [02 - Build Pertama](02-first-build.md) | `check`, build DOCX, nama output, target PDF, peringatan tanpa Word. | 00 dan 01. |
 | [03 - Tahap Pipeline](03-pipeline-stages.md) | 18 stage, urutan, guard, `StageResult`, artifact, workspace. | 01 dan 02. |
 | [04 - Model DOCX](04-docx-model.md) | Package OPC, peta modul, helper kanonis, field, terms. | 03 dan dasar XML/ZIP. |
-| [05 - Tes dan Debugging](05-testing-and-debugging.md) | Unit, integration, e2e, packaging, golden, alur debug. | 02 sampai 04. |
+| [05 - Tes dan Debugging](05-testing-and-debugging.md) | Domain, contract, CLI, packaging, golden, alur debug. | 02 sampai 04. |
 | [06 - Resep Perubahan](06-change-recipes.md) | Resep konten, data format, helper DOCX, stage, terms, docs. | 00 sampai 05. |
 
 ## Jalur baca yang disarankan

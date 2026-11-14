@@ -15,8 +15,10 @@ API publik:
     langkah gagal, PPTX sumber tidak berubah.
 
 Kedua fungsi memakai watchdog, lock COM global dengan timeout turunan, dan
-cleanup PID PowerPoint yang diidentifikasi dari window handle aplikasi.
-pywin32 diimpor lazy oleh :mod:`autooffice.pdf.com`.
+cleanup PID PowerPoint yang dibuktikan dari snapshot PID baru setelah
+``DispatchEx``. PowerPoint yang sudah berjalan ditolak sebelum dispatch agar
+instance pengguna tidak pernah di-``Quit`` atau dihentikan. pywin32 diimpor
+lazy oleh :mod:`autooffice.pdf.com`.
 """
 
 import contextlib
@@ -34,18 +36,18 @@ from typing import Any
 from xml.etree import ElementTree
 
 from .com import (
-    WATCHDOG_CLEANUP_TIMEOUT_S,
+    CLEANUP_TIMEOUT_S,
     Deadline,
     PdfUnavailableError,
     PowerPointProcessTracker,
     SystemProcessControl,
     WordCleanupError,
     WordComError,
-    application_window_handle,
     com_apartment,
     com_lock,
     limit_process_control,
     load_com_modules,
+    quit_owned_application,
     run_with_watchdog,
     validate_timeout,
 )
@@ -87,9 +89,11 @@ def export_pdf(
 ) -> Path:
     """Ekspor PPTX ke PDF lewat PowerPoint tanpa mengubah PPTX sumber.
 
-    ``timeout_s`` membatasi lock, operasi COM, dan cleanup. ``visible`` hanya
-    untuk debugging dan default menyembunyikan PowerPoint. Path PDF
-    dikembalikan dalam bentuk absolut setelah ditulis atomik.
+    ``timeout_s`` membatasi lock dan operasi COM. Setelah timeout, worker tetap
+    mendapat anggaran cleanup tetap 5 detik, sehingga panggilan dapat melewati
+    ``timeout_s`` hingga 5 detik. ``visible`` hanya untuk debugging dan default
+    menyembunyikan PowerPoint. Path PDF dikembalikan dalam bentuk absolut
+    setelah ditulis atomik.
     """
 
     validate_timeout(timeout_s)
@@ -149,6 +153,10 @@ def embed_fonts(pptx: Path, *, timeout_s: float = 120.0) -> Path:
 
     Bila COM atau verifikasi gagal, PPTX sumber tidak berubah dan tidak ada
     berkas sementara yang ditinggalkan (kecuali cleanup ambigu).
+
+    ``timeout_s`` membatasi lock dan operasi COM. Setelah timeout, worker tetap
+    mendapat anggaran cleanup tetap 5 detik, sehingga panggilan dapat melewati
+    ``timeout_s`` hingga 5 detik.
     """
 
     validate_timeout(timeout_s)
@@ -223,14 +231,21 @@ def _resolve_pdf(pdf: Path) -> Path:
     return path
 
 
-def _terminate_tracker(tracker: PowerPointProcessTracker, deadline: Deadline) -> None:
-    """Cleanup PID dengan sisa waktu yang masih dimiliki deadline."""
+def _terminate_tracker(tracker: PowerPointProcessTracker) -> bool:
+    """Cleanup PID dengan anggaran tetap, independen deadline operasi.
 
-    wait_s = max(0.0, min(2.0, deadline.remaining()))
+    Saat watchdog timeout, ``deadline.remaining()`` sudah nol atau negatif.
+    Memakai nilai itu akan membuat ``SystemProcessControl`` menolak snapshot
+    dan ``taskkill`` tidak pernah dipanggil, sehingga cleanup menjadi no-op.
+    Nilai kembali ``True`` berarti PID terverifikasi sudah hilang.
+    """
+
+    wait_s = min(2.0, CLEANUP_TIMEOUT_S)
     with contextlib.suppress(Exception):
-        limit_process_control(tracker.control, deadline.remaining())
+        limit_process_control(tracker.control, CLEANUP_TIMEOUT_S)
     with contextlib.suppress(Exception):
-        tracker.terminate_owned(wait_s=wait_s)
+        return tracker.terminate_owned(wait_s=wait_s)
+    return False
 
 
 def _run_powerpoint(
@@ -263,15 +278,17 @@ def _run_powerpoint(
 
     remaining = deadline.remaining_or_raise("menjalankan PowerPoint")
     try:
+        # timeout_s hanya membatasi operasi/lock. Cleanup setelah timeout
+        # memakai anggaran tetap 5 detik agar worker sempat berhenti.
         run_with_watchdog(
             operation,
             timeout_s=remaining,
-            cleanup_timeout_s=min(WATCHDOG_CLEANUP_TIMEOUT_S, max(0.25, remaining)),
-            on_timeout=lambda: _terminate_tracker(tracker, deadline),
+            cleanup_timeout_s=CLEANUP_TIMEOUT_S,
+            on_timeout=lambda: _terminate_tracker(tracker),
             description=description,
         )
     finally:
-        _terminate_tracker(tracker, deadline)
+        _terminate_tracker(tracker)
 
 
 def _execute_powerpoint_operation(
@@ -287,9 +304,18 @@ def _execute_powerpoint_operation(
 ) -> None:
     powerpoint: Any | None = None
     presentation: Any | None = None
+    owned = False
     stage = "menyiapkan COM"
     with com_apartment(pythoncom):
         try:
+            if tracker.before:
+                pids = ", ".join(str(pid) for pid in sorted(tracker.before))
+                raise PdfUnavailableError(
+                    "Microsoft PowerPoint sudah berjalan (PID: "
+                    f"{pids}). Tutup semua instance PowerPoint sebelum "
+                    "mengekspor atau menanam font. AutoOffice tidak menempel "
+                    "ke, menutup, atau menghentikan instance pengguna."
+                )
             stage = "membuat aplikasi PowerPoint"
             try:
                 powerpoint = client.DispatchEx("PowerPoint.Application")
@@ -299,7 +325,9 @@ def _execute_powerpoint_operation(
                     "tidak tersedia. Pasang Microsoft PowerPoint desktop di "
                     f"Windows, lalu ulangi. Detail: {exc}"
                 ) from exc
-            tracker.claim(hwnd=application_window_handle(powerpoint))
+            stage = "mengklaim PID PowerPoint"
+            tracker.claim_new_process()
+            owned = True
             stage = "mengatur opsi PowerPoint"
             _configure_powerpoint(powerpoint, visible)
             stage = "membuka presentasi"
@@ -319,8 +347,9 @@ def _execute_powerpoint_operation(
                 f"PowerPoint gagal pada tahap '{stage}' untuk '{open_path}': {exc}"
             ) from exc
         finally:
-            _close_quietly(presentation)
-            _quit_quietly(powerpoint)
+            if owned:
+                _close_quietly(presentation)
+                quit_owned_application(powerpoint, tracker)
             presentation = None
             powerpoint = None
             gc.collect()
@@ -652,13 +681,6 @@ def _close_quietly(presentation: Any | None) -> None:
         return
     with contextlib.suppress(Exception):
         presentation.Close()
-
-
-def _quit_quietly(powerpoint: Any | None) -> None:
-    if powerpoint is None:
-        return
-    with contextlib.suppress(Exception):
-        powerpoint.Quit()
 
 
 def _check_file(path: Path, *, magic: bytes, label: str) -> None:

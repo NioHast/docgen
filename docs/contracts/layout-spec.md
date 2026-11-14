@@ -148,10 +148,10 @@ package `autooffice.deck.layout.presets` untuk setiap modul yang mengekspos
 `layout_id`. Modul tanpa `LAYOUT` diabaikan; `LAYOUT` bertipe salah dan
 `layout_id` duplikat menggagalkan registry.
 
-Bila package preset belum berisi satu pun `LAYOUT` (kondisi F1), registry
-memakai fallback nama katalog F0 agar schema tetap menerima 19 preset dan
-`custom`. Fallback hanya berisi nama; belum ada `LayoutSpec` bawaan. Layout
-`custom` bukan preset dan tetap tersedia sebagai nama layout.
+Bila package preset belum berisi satu pun `LAYOUT`, discovery gagal dengan
+`LayoutRegistryError` yang menyebut package tersebut. Tidak ada fallback nama
+katalog. Layout `custom` bukan preset dan tetap tersedia sebagai nama layout
+selama registry berhasil menemukan preset.
 
 Preset F2 cukup menambah modul di package tersebut; tidak ada perubahan pada
 `registry.py`. Tidak ada fallback layout saat build: layout yang tidak
@@ -217,8 +217,8 @@ Klarifikasi custom F1-LAYOUT/F2-CUSTOM-GRID:
   block wajib memiliki `span` 1 sampai 12. Compiler mempertahankan urutan block
   row-major yang sama dengan `SlideIR.blocks`.
 - Layout engine memakai `SlideIR.rows` sebagai otoritas batas row, bukan
-  heuristik span atau petunjuk key. Fallback span hanya berlaku untuk IR lama
-  yang dibuat manual tanpa rows dan bukan jalur build compiler.
+  heuristik span atau petunjuk key. IR custom tanpa rows ditolak dengan
+  `CustomLayoutError`; compiler wajib mengisi `SlideIR.rows`.
 - Layout engine memvalidasi ulang IR custom sebelum menempatkan block: rows
   tidak kosong, block ID unik, block type valid, jumlah span per row maksimal
   12, serta tidak ada field geometri absolut atau field slot preset.
@@ -297,8 +297,8 @@ Catatan F0: test bentuk ada di `tests/contract/test_contract_shapes.py` dan `tes
 | Slot wajib hilang dan block di luar slot ditolak. | `tests/deck/layout/test_slots.py` |
 | Grup `min_one_of` kosong, slot tidak dikenal, duplikat, atau tidak terisi ditolak. | `tests/deck/layout/test_slots.py`, `tests/deck/layout/test_presets_core.py` |
 | Hasil layout identik untuk input yang sama. | `tests/deck/layout/test_plan.py` |
-| Discovery preset deterministik dan fallback nama F0. | `tests/deck/layout/test_registry.py` |
-| Batas row custom berasal dari `SlideIR.rows`; partial row unkeyed deterministik. | `tests/deck/layout/test_custom.py` |
+| Discovery preset deterministik; package tanpa preset ditolak. | `tests/deck/layout/test_registry.py` |
+| Batas row custom berasal dari `SlideIR.rows`; IR tanpa rows ditolak. | `tests/deck/layout/test_custom.py` |
 | Golden layout memeriksa posisi slot dan `span`. | `tests/golden/test_layout_*.py` (planned) |
 
 [Rencana AutoOffice](../../AUTO_OFFICE_PLAN.md)

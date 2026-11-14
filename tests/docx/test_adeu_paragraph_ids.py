@@ -375,7 +375,7 @@ def test_docx_name_is_recorded_in_manifest(tmp_path: Path) -> None:
     assert load_manifest(manifest_path).docx == "Tugas.docx"
 
 
-def test_write_prepared_manifest_defaults_to_laporan_directory(tmp_path: Path) -> None:
+def test_write_prepared_manifest_defaults_to_report_directory(tmp_path: Path) -> None:
     package = DocumentPackage.load(FIXTURE)
     prepared = prepare_manifest(package, docx_name="Tugas.docx")
     assert prepared is not None

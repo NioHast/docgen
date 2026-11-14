@@ -431,7 +431,7 @@ def make_empty_paragraph(spec: BlankLineSpec | None = None) -> etree._Element:
     """Buat paragraf kosong TNR 12 pt, line 360, before/after 0.
 
     Wrapper tipis stage ini: format kanonis dibangun oleh
-    :func:`docgen.docx.paragraphs.make_empty_paragraph` agar spec default dan
+    :func:`autooffice.docx.package.paragraphs.make_empty_paragraph` agar spec default dan
     paragraf gap TOC memakai satu sumber.
     """
 

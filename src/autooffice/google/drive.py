@@ -30,7 +30,7 @@ class UploadedPresentation:
 
 @runtime_checkable
 class DriveApi(Protocol):
-    """Kontrak Drive yang dipakai lane Google; fake mengimplementasikan sama."""
+    """Kontrak Drive Google; fake mengimplementasikan kontrak yang sama."""
 
     def upload_presentation(self, pptx: Path, *, name: str) -> UploadedPresentation:
         """Upload PPTX dan kembalikan presentasi Google Slides."""

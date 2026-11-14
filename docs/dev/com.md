@@ -15,6 +15,7 @@ pemakaiannya oleh adapter `src/autooffice/pdf/word.py` serta
 - [COM apartment dan thread](#com-apartment-dan-thread)
 - [Watchdog](#watchdog)
 - [PID dan cleanup](#pid-dan-cleanup)
+- [Process discovery and termination](#process-discovery-and-termination)
 - [Lock](#lock)
 - [Verifikasi output](#verifikasi-output)
 - [Test](#test)
@@ -28,8 +29,11 @@ API publik
   -> snapshot PID WINWORD/POWERPNT (wajib berhasil)
   -> thread worker + COM apartment
   -> DispatchEx("Word.Application") atau DispatchEx("PowerPoint.Application")
-  -> PID automation dari Application.Hwnd + GetWindowThreadProcessId
+  -> Word: tepat satu PID WINWORD.EXE baru + window OpusApp milik PID itu
+     PowerPoint: tolak PID POWERPNT.EXE yang sudah ada, lalu tepat satu PID baru
+  -> verifikasi image + creation time, klaim PID
   -> opsi aplikasi, buka snapshot
+  -> Word: verifikasi ulang ActiveWindow.Hwnd = PID yang diklaim
   -> Word: repaginate, update field, update TOC, repaginate
      PowerPoint: SaveAs(ppSaveAsPDF=32) atau
                  SaveCopyAs(ppSaveAsOpenXMLPresentation=24, msoTrue)
@@ -128,19 +132,24 @@ dan memberi sinyal cleanup.
 Saat waktu habis:
 
 1. `on_timeout` menghentikan PID Word/PowerPoint yang sudah terverifikasi;
-2. worker ditunggu sampai benar-benar berhenti (maksimum
-   `WATCHDOG_CLEANUP_TIMEOUT_S`, atau budget cleanup turunan);
+2. worker ditunggu sampai benar-benar berhenti dengan anggaran cleanup tetap
+   5 detik (`CLEANUP_TIMEOUT_S`, alias `WATCHDOG_CLEANUP_TIMEOUT_S`);
 3. bila worker berhenti, `WordTimeoutError` dilempar dan direktori kerja aman
    dibersihkan;
-4. bila worker masih hidup, `WordCleanupError` dilempar dengan pesan cleanup
-   ambigu. Pemanggil tidak menghapus snapshot/temp pada kasus ini karena worker
+4. bila worker masih hidup setelah 5 detik, `WordCleanupError` dilempar dengan
+   pesan cleanup ambigu, kecuali PID target sudah terverifikasi hilang; pada
+   kasus itu cleanup dianggap selesai dan `WordTimeoutError` dilempar.
+   Pemanggil tidak menghapus snapshot/temp pada cleanup ambigu karena worker
    masih dapat menulis ke sana; proses Office harus diperiksa manual.
 
-Cleanup dan `tasklist`/`taskkill` memakai sisa deadline. Jadi lock, operasi COM,
-dan cleanup tidak lagi masing-masing memakai batas default 30 detik yang tidak
-terkait `timeout_s`. Karena menunggu worker dan cleanup PID, satu panggilan
-dapat melewati `timeout_s` sebesar budget cleanup terbatas
-(`WATCHDOG_CLEANUP_TIMEOUT_S` dan batas terminate), bukan tanpa batas.
+`timeout_s` (default 120 detik; alur build dapat memakai 300 detik) membatasi
+lock dan operasi COM, bukan cleanup pasca-timeout. Saat timeout, upaya
+`tasklist`/`taskkill` dan penantian worker memakai anggaran cleanup tetap 5
+detik (`CLEANUP_TIMEOUT_S`), bukan sisa deadline. Karena itu satu panggilan
+dapat melewati `timeout_s` hingga sekitar 5 detik, bukan tanpa batas. Cleanup
+ambigu setelah 5 detik adalah pengaman yang disengaja: snapshot/temp
+dipertahankan agar worker yang mungkin masih menulis tidak dihapus di
+bawahnya, dan proses Office diperiksa manual.
 
 ## PID dan cleanup
 
@@ -149,24 +158,63 @@ dapat melewati `timeout_s` sebesar budget cleanup terbatas
   gagal. Bila snapshot awal gagal, operasi dibatalkan sebelum aplikasi COM
   dibuat sehingga tidak ada proses yang bisa salah dihentikan.
 - PID automation tidak diambil dari "PID baru terendah". Setelah aplikasi
-  dibuat, `Application.Hwnd` diterjemahkan menjadi PID pemilik window dengan
-  `GetWindowThreadProcessId`. PID itu harus bukan PID snapshot awal, terlihat
-  di snapshot baru, image-nya cocok, dan creation time-nya dapat dibaca.
-  Bila salah satu syarat gagal, tracker tidak mengklaim PID apa pun.
-- Instance Office pengguna yang sudah berjalan sebelum automation, atau yang
-  dibuka pengguna setelah `begin`, tidak pernah menjadi target karena PID
-  automation ditentukan dari window handle, bukan dari selisih snapshot.
+  dibuat, PID harus terbukti sebagai proses baru sekaligus memiliki window yang
+  cocok: Word mewajibkan tepat satu PID `WINWORD.EXE` baru lalu memilih HWND
+  top-level class `OpusApp` yang `GetWindowThreadProcessId`-nya sama dengan PID
+  itu; setelah `Documents.Open`, `ActiveWindow.Hwnd` harus tetap menunjuk PID
+  yang sama. PowerPoint menolak operasi bila sudah ada `POWERPNT.EXE`, lalu
+  mewajibkan tepat satu PID baru setelah `DispatchEx`. Image dan creation time
+  selalu diverifikasi; bila syarat gagal, tracker tidak mengklaim PID apa pun.
+- Instance Office pengguna tidak pernah menjadi target. Word dapat hidup
+  berdampingan dengan instance pengguna karena hanya PID baru yang diklaim;
+  PowerPoint fail-fast sebelum dispatch bila instance pengguna terdeteksi.
+- `Quit()` hanya dipanggil untuk instance yang PID-nya sudah diklaim. `Quit`
+  bukan bukti proses keluar: status PID diverifikasi singkat dengan
+  `is_running`, lalu PID milik automation dihentikan dengan anggaran cleanup
+  tetap bila masih hidup.
 - Sebelum `taskkill`, nama image dan creation time dibaca ulang dan harus sama
   persis dengan nilai saat PID diklaim. PID yang sudah dipakai ulang proses
   lain (image atau creation time berbeda) tidak dihentikan.
+- Bila `taskkill` mengembalikan exit code nonzero, PID diverifikasi ulang lewat
+  `tasklist`. PID yang sudah tidak ada dianggap berhasil dibersihkan; PID yang
+  masih hidup atau statusnya tidak dapat diverifikasi tetap dilaporkan gagal.
 - `Close` dan `Quit()` selalu dicoba di blok `finally`. Kegagalan cleanup tidak
   menimpa error utama.
+
+## Process discovery and termination
+
+Implementasi saat ini menemukan dan menghentikan proses Office lewat
+`tasklist.exe` dan `taskkill.exe` absolut dari `%SystemRoot%\System32`
+(`%SystemRoot%\Sysnative` untuk interpreter 32-bit di Windows 64-bit).
+Keduanya dipanggil dengan `subprocess` tanpa shell dan tanpa pencarian `PATH`.
+
+`win32process` tidak dipakai karena enumerasi dan pembukaan proses sederhana,
+tetapi penghentian pohon proses memerlukan Job Object (`win32job`) beserta
+manajemen handle. `taskkill /T /F` lebih sederhana dan ikut menghentikan proses
+anak Word/PowerPoint.
+
+Risiko yang diterima:
+
+- Format CSV `tasklist` dapat berbeda menurut locale dan versi Windows. Parser
+  bersikap defensif; baris yang tidak dikenali dilewati dan kegagalan
+  snapshot/verifikasi membatalkan pelacakan PID, bukan menebak PID.
+- Setiap panggilan `subprocess` menambah overhead.
+- Ada race antara snapshot dan klaim PID. Word mengklaim hanya PID baru yang
+  juga memiliki window `OpusApp`; PowerPoint mengklaim hanya saat tepat satu
+  PID baru muncul. Image dan creation time diverifikasi ulang tepat sebelum
+  `taskkill`.
+
+Jika PID tidak dapat diidentifikasi, tracker tidak mengklaim PID dan tidak ada
+proses yang dihentikan; kegagalan cleanup yang membuat worker tetap hidup
+dilaporkan sebagai `WordCleanupError` dan pemanggil tidak boleh menghapus temp.
+Opsi jangka panjang adalah mengganti kontrol proses berbasis subprocess dengan
+Windows Job Object bila pengelolaan pohon proses menjadi lebih kompleks.
 
 ## Lock
 
 `com_lock()` memakai `msvcrt.locking` pada file lock di `%TEMP%` dan
-menerima `timeout_s` turunan dari deadline operasi. Nama berkas lock masih
-historis sampai F3, tetapi lock yang sama dipakai bersama oleh Word dan
+menerima `timeout_s` turunan dari deadline operasi. Nama berkas lock adalah
+`autooffice-word.lock`; lock yang sama dipakai bersama oleh Word dan
 PowerPoint, sehingga satu mesin hanya menjalankan satu operasi COM Office pada
 satu waktu. Pemanggil baru tidak boleh memegang lock lama saat memanggil
 adapter ini; kepemilikan lock ada di adapter.

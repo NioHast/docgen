@@ -67,14 +67,16 @@ class _FrontMatterValues:
     def from_document(cls, document: Document) -> _FrontMatterValues:
         metadata = document.metadata
         authors = ", ".join(metadata.author_names)
-        nims = ", ".join(author.nim for author in metadata.authors if author.nim is not None)
+        student_ids = ", ".join(
+            author.student_id for author in metadata.authors if author.student_id is not None
+        )
         return cls(
             mapping={
                 "title": metadata.title,
                 "subtitle": metadata.subtitle or "",
                 "author": authors,
                 "authors": authors,
-                "nim": nims,
+                "nim": student_ids,
                 "lecturer": metadata.lecturer or "",
                 "lecturer_label": metadata.lecturer_label,
                 "course": metadata.course or "",
@@ -256,8 +258,8 @@ def _render_cover(
         blocks.append(_div("CoverLine", "Disusun oleh:"))
         for author in metadata.authors:
             blocks.append(_div("CoverName", f"**{_one_line(author.name)}**"))
-            if author.nim:
-                blocks.append(_div("CoverLine", _one_line(author.nim)))
+            if author.student_id:
+                blocks.append(_div("CoverLine", _one_line(author.student_id)))
 
     if metadata.faculty or metadata.institution or metadata.year:
         blocks.append(spacer(640))

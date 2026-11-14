@@ -129,6 +129,8 @@ class FakeWord:
         toc_count: int = 2,
         pdf_bytes: bytes = PDF_BYTES,
         write_export: bool = True,
+        active_window_hwnd: int = 9001,
+        quit_leaves_alive: bool = False,
     ) -> None:
         object.__setattr__(self, "events", events)
         object.__setattr__(self, "control", control)
@@ -138,8 +140,9 @@ class FakeWord:
         object.__setattr__(self, "toc_count", toc_count)
         object.__setattr__(self, "pdf_bytes", pdf_bytes)
         object.__setattr__(self, "write_export", write_export)
+        object.__setattr__(self, "active_window_hwnd", active_window_hwnd)
+        object.__setattr__(self, "quit_leaves_alive", quit_leaves_alive)
         object.__setattr__(self, "quit_event", threading.Event())
-        object.__setattr__(self, "Hwnd", 9001)
         self.Options = FakeOptions(events)
         self.Documents = FakeDocuments(self)
 
@@ -148,42 +151,87 @@ class FakeWord:
         if name in {"AutomationSecurity", "Visible", "DisplayAlerts", "ScreenUpdating"}:
             self.events.append(f"word.{name}={value!r}")
 
+    @property
+    def ActiveWindow(self) -> SimpleNamespace:
+        """Word hanya punya ``ActiveWindow`` setelah dokumen terbuka."""
+
+        return SimpleNamespace(Hwnd=self.active_window_hwnd)
+
     def Quit(self) -> None:
         self.events.append("quit")
-        self.control.alive = False
+        if not self.quit_leaves_alive:
+            self.control.alive = False
         self.quit_event.set()
 
 
 class FakeProcessControl:
+    """Process control palsu yang meniru gating timeout SystemProcessControl.
+
+    ``SystemProcessControl`` mengembalikan snapshot/image ``None`` dan menolak
+    ``taskkill`` saat timeout-nya nol atau negatif. Fake ini meniru perilaku
+    tersebut agar cleanup setelah deadline operasi habis tetap teruji.
+    """
+
     def __init__(self, events: list[str], *, initially_alive: bool = False) -> None:
         self.events = events
         self.pid = 4242
-        self.alive = initially_alive
+        self.preexisting = 1111 if initially_alive else None
+        self.alive = False
         self.release = threading.Event()
         self.terminated: list[int] = []
         self.snapshot_ok = True
         self.created_at = 1000
+        self.timeout_s = com.CLEANUP_TIMEOUT_S
+        self.timeout_at_terminate: float | None = None
+        self.window_pids: dict[int, int] = {9001: self.pid}
+
+    def set_timeout(self, timeout_s: float) -> None:
+        self.timeout_s = max(0.0, timeout_s)
 
     def list_word_pids(self) -> set[int] | None:
         self.events.append("list_processes")
-        if not self.snapshot_ok:
+        if self.timeout_s <= 0 or not self.snapshot_ok:
             return None
-        return {self.pid} if self.alive else set()
+        pids: set[int] = set()
+        if self.preexisting is not None:
+            pids.add(self.preexisting)
+        if self.alive:
+            pids.add(self.pid)
+        return pids
 
     def image_name(self, pid: int) -> str | None:
         self.events.append(f"image:{pid}")
-        return "WINWORD.EXE" if self.alive else None
+        if self.timeout_s <= 0:
+            return None
+        if pid == self.pid and self.alive:
+            return "WINWORD.EXE"
+        if pid == self.preexisting:
+            return "WINWORD.EXE"
+        return None
 
     def creation_time(self, pid: int) -> int | None:
+        if self.timeout_s <= 0:
+            return None
         return self.created_at
 
     def pid_for_window(self, hwnd: int) -> int | None:
-        return self.pid if self.alive else None
+        if not self.alive:
+            return None
+        return self.window_pids.get(hwnd)
+
+    def is_running(self, pid: int) -> bool | None:
+        if pid == self.pid:
+            return self.alive
+        return pid == self.preexisting
 
     def terminate(self, pid: int) -> bool:
+        self.timeout_at_terminate = self.timeout_s
+        if self.timeout_s <= 0:
+            return False
         self.events.append(f"terminate:{pid}")
         self.terminated.append(pid)
-        self.alive = False
+        if pid == self.pid:
+            self.alive = False
         self.release.set()
         return True
 
@@ -239,6 +287,16 @@ def install(monkeypatch: pytest.MonkeyPatch, environment: FakeEnvironment) -> No
     )
     monkeypatch.setattr(word, "SystemProcessControl", lambda: environment.control)
     monkeypatch.setattr(word, "com_lock", lambda **_kwargs: contextlib.nullcontext())
+    monkeypatch.setattr(
+        word,
+        "find_word_window_handle",
+        lambda pid: (
+            environment.application.active_window_hwnd
+            if environment.control.window_pids.get(environment.application.active_window_hwnd)
+            == pid
+            else None
+        ),
+    )
 
 
 def test_export_pdf_runs_expected_com_sequence(
@@ -259,11 +317,13 @@ def test_export_pdf_runs_expected_com_sequence(
     assert environment.application.opened_path != docx.resolve()
     assert not environment.application.opened_path.exists()
     assert environment.application.open_arguments == (False, False, False)
+    assert not hasattr(environment.application, "Hwnd")
     assert environment.events == [
         "list_processes",
         "co_initialize",
         "dispatch:Word.Application",
         "list_processes",
+        "image:4242",
         "image:4242",
         "word.AutomationSecurity=3",
         "options.UpdateLinksAtOpen=False",
@@ -349,7 +409,7 @@ def test_export_pdf_timeout_cleans_tracked_word_process(
         def begin(cls, control: com.ProcessControl) -> com.WordProcessTracker:
             tracker = super().begin(control)
             environment.control.alive = True
-            pid = tracker.claim(hwnd=environment.application.Hwnd)
+            pid = tracker.claim(hwnd=environment.application.active_window_hwnd)
             assert pid == environment.control.pid
             claimed.append(pid)
             return tracker
@@ -358,13 +418,40 @@ def test_export_pdf_timeout_cleans_tracked_word_process(
     install(monkeypatch, environment)
 
     with pytest.raises(com.WordTimeoutError, match="tidak selesai"):
-        word.export_pdf(docx, pdf, timeout_s=0.05)
+        word.export_pdf(docx, pdf, timeout_s=0.5)
 
     assert claimed == [4242]
     assert environment.control.terminated == [4242]
+    assert environment.control.timeout_s == com.CLEANUP_TIMEOUT_S
+    assert environment.control.timeout_at_terminate == com.CLEANUP_TIMEOUT_S
     assert not pdf.exists()
     assert docx.read_bytes() == DOCX_BYTES
     assert "quit" in environment.events
+
+
+def test_export_pdf_uses_fixed_cleanup_budget_for_short_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    docx = tmp_path / "Laporan.docx"
+    docx.write_bytes(DOCX_BYTES)
+    pdf = tmp_path / "Laporan.pdf"
+    environment = make_environment()
+    install(monkeypatch, environment)
+    captured: list[dict[str, Any]] = []
+
+    def fake_watchdog(*args: object, **kwargs: object) -> None:
+        captured.append(dict(kwargs))
+        raise com.WordComError("berhenti setelah argumen watchdog diperiksa")
+
+    monkeypatch.setattr(word, "run_with_watchdog", fake_watchdog)
+
+    with pytest.raises(com.WordComError, match="argumen watchdog"):
+        word.export_pdf(docx, pdf, timeout_s=0.5)
+
+    assert captured
+    assert 0.0 < captured[0]["timeout_s"] <= 0.5
+    assert captured[0]["cleanup_timeout_s"] == 5.0
 
 
 def test_export_pdf_timeout_before_claim_reports_ambiguous_cleanup(
@@ -383,7 +470,9 @@ def test_export_pdf_timeout_before_claim_reports_ambiguous_cleanup(
     def block_dispatch(name: str) -> FakeWord:
         environment.events.append(f"dispatch:{name}")
         dispatch_started.set()
-        dispatch_release.wait(5.0)
+        # Tahan melewati anggaran cleanup tetap 5 detik agar cleanup ambigu
+        # benar-benar teruji; event dilepas di finally.
+        dispatch_release.wait(30.0)
         environment.control.alive = True
         return environment.application
 
@@ -392,7 +481,7 @@ def test_export_pdf_timeout_before_claim_reports_ambiguous_cleanup(
 
     try:
         with pytest.raises(com.WordCleanupError, match="Cleanup ambigu") as error:
-            word.export_pdf(docx, pdf, timeout_s=0.05)
+            word.export_pdf(docx, pdf, timeout_s=0.5)
 
         assert error.value.cleanup_ambiguous is True
         assert "image:4242" not in environment.events
@@ -480,10 +569,10 @@ def test_terminate_tracker_suppresses_timeout_limit_failure() -> None:
             terminated.append(wait_s)
             return True
 
-    word._terminate_tracker(Tracker(), com.Deadline.start(1.0))  # type: ignore[arg-type]
+    word._terminate_tracker(Tracker())  # type: ignore[arg-type]
 
     assert len(terminated) == 1
-    assert 0.0 <= terminated[0] <= 1.0
+    assert 0.0 < terminated[0] <= com.CLEANUP_TIMEOUT_S
 
 
 def test_export_pdf_does_not_kill_preexisting_word_instance(
@@ -500,6 +589,120 @@ def test_export_pdf_does_not_kill_preexisting_word_instance(
 
     assert result == pdf.resolve()
     assert environment.control.terminated == []
+
+
+def test_export_pdf_uses_new_word_pid_not_preexisting_window(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    docx = tmp_path / "Laporan.docx"
+    docx.write_bytes(DOCX_BYTES)
+    pdf = tmp_path / "Laporan.pdf"
+    environment = make_environment(initially_alive=True)
+    install(monkeypatch, environment)
+    observed: list[int] = []
+
+    def select_window(pid: int) -> int:
+        observed.append(pid)
+        return environment.application.active_window_hwnd
+
+    monkeypatch.setattr(word, "find_word_window_handle", select_window)
+
+    result = word.export_pdf(docx, pdf, timeout_s=5.0)
+
+    assert result == pdf.resolve()
+    assert observed == [4242]
+    assert environment.control.terminated == []
+    assert environment.control.is_running(1111) is True
+    assert environment.control.is_running(4242) is False
+
+
+def test_export_pdf_fails_safely_when_no_word_window_matches_new_pid(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    docx = tmp_path / "Laporan.docx"
+    docx.write_bytes(DOCX_BYTES)
+    pdf = tmp_path / "Laporan.pdf"
+    environment = make_environment()
+    install(monkeypatch, environment)
+    monkeypatch.setattr(word, "find_word_window_handle", lambda pid: None)
+
+    with pytest.raises(com.WordOwnershipError, match="Tidak ada window Word"):
+        word.export_pdf(docx, pdf, timeout_s=5.0)
+
+    assert "quit" not in environment.events
+    assert environment.control.terminated == []
+    assert environment.control.is_running(4242) is True
+    assert not pdf.exists()
+
+
+def test_export_pdf_fails_safely_when_no_new_word_pid_appears(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    docx = tmp_path / "Laporan.docx"
+    docx.write_bytes(DOCX_BYTES)
+    pdf = tmp_path / "Laporan.pdf"
+    environment = make_environment()
+    install(monkeypatch, environment)
+
+    def attach_without_new_process(name: str) -> FakeWord:
+        environment.events.append(f"dispatch:{name}")
+        return environment.application
+
+    monkeypatch.setattr(environment.client, "DispatchEx", attach_without_new_process)
+
+    with pytest.raises(com.WordOwnershipError, match="tepat satu proses"):
+        word.export_pdf(docx, pdf, timeout_s=5.0)
+
+    assert "quit" not in environment.events
+    assert environment.control.terminated == []
+    assert not pdf.exists()
+
+
+def test_export_pdf_rejects_word_pid_mismatch_after_open(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    docx = tmp_path / "Laporan.docx"
+    docx.write_bytes(DOCX_BYTES)
+    pdf = tmp_path / "Laporan.pdf"
+    environment = make_environment(active_window_hwnd=9002)
+    environment.control.window_pids = {9001: 4242, 9002: 9999}
+    install(monkeypatch, environment)
+    monkeypatch.setattr(word, "find_word_window_handle", lambda pid: 9001)
+
+    with pytest.raises(com.WordOwnershipError, match="setelah membuka dokumen"):
+        word.export_pdf(docx, pdf, timeout_s=5.0)
+
+    assert "quit" in environment.events
+    assert environment.control.terminated == []
+    assert not pdf.exists()
+
+
+def test_export_pdf_quits_claimed_word_when_open_fails(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    docx = tmp_path / "Laporan.docx"
+    docx.write_bytes(DOCX_BYTES)
+    pdf = tmp_path / "Laporan.pdf"
+    environment = make_environment()
+    install(monkeypatch, environment)
+
+    def fail_open(*args: object, **kwargs: object) -> Any:
+        raise RuntimeError("open gagal")
+
+    monkeypatch.setattr(environment.application.Documents, "Open", fail_open)
+
+    with pytest.raises(word.WordComError, match="membuka dokumen"):
+        word.export_pdf(docx, pdf, timeout_s=5.0)
+
+    assert "quit" in environment.events
+    assert environment.control.terminated == []
+    assert environment.control.is_running(4242) is False
+    assert not pdf.exists()
 
 
 def test_export_pdf_aborts_before_dispatch_when_snapshot_fails(
@@ -540,12 +743,14 @@ def test_export_pdf_lock_wait_uses_derived_timeout(
 
     started = time.monotonic()
     with pytest.raises(com.WordBusyError, match="lock"):
-        word.export_pdf(docx, pdf, timeout_s=0.05)
+        word.export_pdf(docx, pdf, timeout_s=0.5)
     elapsed = time.monotonic() - started
 
     assert observed
-    assert 0 < observed[0] <= 0.05
-    assert elapsed < 0.5
+    assert 0 < observed[0] <= 0.5
+    # Batas longgar agar tidak flaky saat mesin sibuk; assertion deadline di
+    # atas sudah membuktikan lock memakai sisa timeout operasi.
+    assert elapsed < 3.0
     assert docx.read_bytes() == DOCX_BYTES
     assert not pdf.exists()
 

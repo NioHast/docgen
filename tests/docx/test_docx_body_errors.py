@@ -1,11 +1,13 @@
 """Tes pemetaan error domain saat ``word/document.xml`` tidak ada."""
 
 import zipfile
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 
-from autooffice.docx.adeu.paragraph_ids import _body_paragraphs
+from autooffice.docx.adeu import analyze_manifest
+from autooffice.docx.errors import DocgenError
 from autooffice.docx.package.bookmarks import BookmarkError, iter_bookmarks
 from autooffice.docx.package.captions import CaptionError, iter_captions
 from autooffice.docx.package.fields import FieldError, insert_toc
@@ -34,11 +36,28 @@ def _package_without_document(tmp_path: Path) -> DocumentPackage:
     return DocumentPackage.load(path, validate=False)
 
 
-def test_bookmarks_missing_document_maps_to_bookmark_error(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("operation", "error_type"),
+    [
+        (lambda package: iter_bookmarks(package), BookmarkError),
+        (lambda package: iter_sections(package), SectionError),
+        (lambda package: insert_toc(package, title="DAFTAR ISI"), FieldError),
+        (
+            lambda package: analyze_manifest(package, docx_name="uji.docx", source_scan=False),
+            BookmarkError,
+        ),
+    ],
+    ids=["bookmarks", "sections", "fields", "adeu"],
+)
+def test_missing_document_maps_to_domain_error(
+    tmp_path: Path,
+    operation: Callable[[DocumentPackage], object],
+    error_type: type[DocgenError],
+) -> None:
     package = _package_without_document(tmp_path)
 
-    with pytest.raises(BookmarkError):
-        iter_bookmarks(package)
+    with pytest.raises(error_type):
+        operation(package)
 
 
 def test_captions_missing_document_maps_to_caption_no_body(tmp_path: Path) -> None:
@@ -48,24 +67,3 @@ def test_captions_missing_document_maps_to_caption_no_body(tmp_path: Path) -> No
         iter_captions(package)
 
     assert excinfo.value.code == "CAPTION-NO-BODY"
-
-
-def test_fields_missing_document_maps_to_field_error(tmp_path: Path) -> None:
-    package = _package_without_document(tmp_path)
-
-    with pytest.raises(FieldError):
-        insert_toc(package, title="DAFTAR ISI")
-
-
-def test_sections_missing_document_maps_to_section_error(tmp_path: Path) -> None:
-    package = _package_without_document(tmp_path)
-
-    with pytest.raises(SectionError):
-        iter_sections(package)
-
-
-def test_adeu_missing_document_maps_to_bookmark_error(tmp_path: Path) -> None:
-    package = _package_without_document(tmp_path)
-
-    with pytest.raises(BookmarkError):
-        _body_paragraphs(package)

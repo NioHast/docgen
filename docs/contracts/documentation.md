@@ -36,7 +36,7 @@ menebak urutan baca.
    `docs/dev/archive/**` dan tidak boleh menjadi acuan aktif.
 9. Navigasi harus jelas dari `docs/README.md` menuju indeks direktori, lalu
    ke halaman konkret. Setiap halaman kontrak menautkan balik ke plan.
-10. Docs checker `python tools/dev/check_docs.py` wajib keluar 0 untuk
+10. Docs checker `python tools/quality/check_docs.py` wajib keluar 0 untuk
     dokumentasi aktif. Checker memeriksa tautan relatif, TOC halaman lebih
     dari 150 baris, dan registry referensi.
 11. Halaman lebih dari 150 baris wajib punya `## Daftar Isi` dengan anchor
@@ -100,7 +100,7 @@ checker.
 | Invarian | Bukti |
 | --- | --- |
 | Lima direktori dan indeks | Review `docs/README.md` dan `docs/learn/README.md`; `check_docs.py`. |
-| Tautan valid dan TOC | `python tools/dev/check_docs.py` keluar 0. |
+| Tautan valid dan TOC | `python tools/quality/check_docs.py` keluar 0. |
 | Judul dan code fence | Docs checker dan review F2-DOCS. |
 | Tidak ada tutorial per fitur | Review struktur `docs/user` dan `docs/learn`. |
 | Kontrak tidak diduplikasi | Review docs user/dev/learn; bagian 12.9. |

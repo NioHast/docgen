@@ -139,7 +139,7 @@ def test_cover_author_scalar_not_split_into_three() -> None:
     assert "**Mahasiswa**" not in output
 
 
-def test_cover_author_list_nim_per_entry() -> None:
+def test_cover_author_list_student_id_per_entry() -> None:
     output = _render(
         {
             "author": [

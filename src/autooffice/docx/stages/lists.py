@@ -6,7 +6,7 @@ field ``SEQ`` agar Word dapat memperbarui daftar. Prefix bab literal
 dipertahankan dan switch ``\s 1`` dipakai karena heading pipeline memakai
 nomor literal, bukan ``w:numPr``. Stage juga memastikan style entri
 ``TableofFigures`` flush left dengan tab leader dot selebar konten. Semua
-field daftar ditulis lewat :mod:`docgen.docx.fields`.
+field daftar ditulis lewat :mod:`autooffice.docx.package.fields`.
 """
 
 import re

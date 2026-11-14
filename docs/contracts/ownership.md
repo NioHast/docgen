@@ -16,7 +16,7 @@ termasuk untuk memperbaiki konflik.
 | --- | --- | --- | --- |
 | integration owner | `pyproject.toml`, `uv.lock`, `src/autooffice/__init__.py`, `src/autooffice/__main__.py`, `src/autooffice/cli/**`, `src/autooffice/common/**`, `src/autooffice/errors.py`, `src/autooffice/deck/blocks/registry.py`, `src/autooffice/deck/layout/registry.py`, `src/autooffice/deck/render/protocol.py`, `docs/contracts/README.md`, `docs/contracts/cli.md`, `docs/contracts/coverage.md`, `docs/decisions/**`, `docs/README.md`, `docs/user/cli.md`, `docs/dev/**`, `tests/acceptance/**`, `README.md`, `AGENTS.md` | 0-3 | Entry point, CLI, registry, dependency, acceptance, docs developer, dan navigasi. `.github/workflows/**` dihapus. `render/protocol.py` diserahkan ke PPTX owner setelah F1-PPTX. |
 | design owner | `src/autooffice/design/**`, `src/autooffice/assets/fonts/**`, `tests/design/**`, `docs/contracts/design-token.md` | 1-3 | Token, theme, font, lisensi, dan kontrak token setelah F1-DESIGN. |
-| DOCX owner | `src/autooffice/docx/**`, `tests/docx/**`, `examples/*-single/**`, `docs/contracts/docx.md` | 1-3 | Migrasi docgen, contoh lama, dan kontrak DOCX setelah F1-DOCX. |
+| DOCX owner | `src/autooffice/docx/**`, `tests/docx/**`, `examples/*-single/**`, `docs/contracts/docx.md` | 1-3 | Migrasi DOCX, contoh lama, dan kontrak DOCX setelah F1-DOCX. |
 | model owner | `src/autooffice/deck/model/**`, `src/autooffice/deck/blocks/**` kecuali `registry.py`, `tests/deck/model/**`, `docs/contracts/deck-schema.md`, `docs/contracts/key-grammar.md`, `docs/contracts/deck-ir.md`, `docs/contracts/block-spec.md` | 1-3 | Schema, compiler, key, IR, block spec, dan registry block setelah F1-MODEL. |
 | layout owner | `src/autooffice/deck/layout/**` kecuali `presets/`, `custom.py`, dan `registry.py`, `tests/deck/layout/**`, `docs/contracts/layout-spec.md` | 1-2 | Grid, measure, rows, overflow, discovery preset, dan kontrak layout setelah F1-LAYOUT. |
 | custom grid owner | `src/autooffice/deck/layout/custom.py` dan test uniknya | 2 | Custom composition level 2. |
@@ -27,7 +27,7 @@ termasuk untuk memperbaiki konflik.
 | Google owner | `src/autooffice/google/**`, `tests/google/**`, `docs/contracts/google-state.md` | 2-3 | Satu owner untuk seluruh Google dan kontrak state setelah F2-GOOGLE. |
 | PDF owner | `src/autooffice/pdf/**`, `tests/pdf/**`, `docs/contracts/pdf.md` | 2-3 | COM, lock global, dan kontrak PDF aktif; pemilik kontrak PDF/COM owner. |
 | demo deck owner | `examples/demo-deck/**` termasuk `transcripts.md` dan `copy.yaml`, `tests/fixtures/demo/**` | 2-3 | Demo acceptance. |
-| test infrastructure owner | `tests/conftest.py`, `tests/fixtures/**`, `tests/contract/**` bersama integration, `tests/golden/**` bersama integration, `tools/quality/**`, `tools/dev/check_docs.py`, `docs/dev/**` bersama integration | 1-3 | Fixture shared, gate, docs developer, dan kontrak test setelah F1-TEST. |
+| test infrastructure owner | `tests/conftest.py`, `tests/fixtures/**`, `tests/contract/**` bersama integration, `tests/golden/**` bersama integration, `tools/quality/**`, `docs/dev/**` bersama integration | 1-3 | Fixture shared, gate, docs developer, dan kontrak test setelah F1-TEST. |
 | docs owner | `docs/user/**` kecuali `docs/user/cli.md`, `docs/learn/**` | 2-3 | Dokumentasi pengguna dan konsep. |
 
 ## Kepemilikan kontrak F0

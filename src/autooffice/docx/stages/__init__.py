@@ -1,7 +1,7 @@
-"""Stage pipeline ``docgen``.
+"""Stage pipeline ``autooffice.docx``.
 
 Setiap modul stage hanya menyediakan API transformasi; orkestrasi dan urutan
-stage dimiliki ``docgen.pipeline``. Modul ini mendaftarkan kelas stage kanonik
+stage dimiliki ``autooffice.docx.pipeline``. Modul ini mendaftarkan kelas stage kanonik
 dalam satu tempat agar ``Pipeline`` tidak perlu mengetahui detail impor.
 """
 

@@ -1,21 +1,22 @@
 """Tes cabang edge coverage: slide mismatch, key lintas slide, dan alt hilang."""
 
-from types import SimpleNamespace
-
 import pytest
-from _edge_helpers import binding, shape_with_metadata, single_slide_deck
+from _edge_helpers import binding, single_slide_deck
 from pptx import Presentation
 from pptx.util import Emu
 
 from autooffice.deck.model.deck_ir import BlockIR, DeckIR, KeyManifest, SlideIR
 from autooffice.deck.render.pptx.coverage import (
     CoverageError,
-    _Scan,
-    _scan_slide,
     collect_coverage,
     raise_if_incomplete,
 )
-from autooffice.deck.render.pptx.shapes import KEY_MARKER, PptxRenderError, set_keyed_shape
+from autooffice.deck.render.pptx.shapes import (
+    KEY_MARKER,
+    PptxRenderError,
+    set_keyed_shape,
+    set_non_visual_properties,
+)
 from autooffice.deck.render.protocol import CoverageReport
 
 
@@ -61,31 +62,52 @@ def test_collect_coverage_marks_key_rendered_on_wrong_slide() -> None:
     assert "s02:s01.title.text" in report.unkeyed_visible
 
 
-def test_scan_slide_reads_key_marker_without_text_frame_or_table() -> None:
-    shape = shape_with_metadata(f"{KEY_MARKER}s01.orphan")
-    shape.has_table = False
-    shape.has_text_frame = False
-    scan = _Scan()
-    slide_ir = SlideIR("s01", "content", 0, (), None, None)
-
-    _scan_slide(SimpleNamespace(shapes=[shape]), slide_ir, scan)
-
-    assert scan.keys_by_slide["s01"] == ["s01.orphan"]
-
-
-def test_scan_slide_ignores_empty_key_marker() -> None:
-    shape = shape_with_metadata(KEY_MARKER)
-    shape.has_table = False
-    shape.has_text_frame = False
-    scan = _Scan()
-
-    _scan_slide(
-        SimpleNamespace(shapes=[shape]),
-        SlideIR("s01", "content", 0, (), None, None),
-        scan,
+def test_collect_coverage_reads_key_marker_on_picture(workspace, hero_image) -> None:
+    presentation = _presentation_with_slides(1)
+    picture = presentation.slides[0].shapes.add_picture(
+        str(workspace / hero_image),
+        Emu(0),
+        Emu(0),
+        Emu(100_000),
+        Emu(100_000),
+    )
+    set_keyed_shape(picture, "s01.orphan", description="Ilustrasi")
+    deck = DeckIR(
+        schema="autooffice.deck/v1",
+        meta={"title": "Orphan Key", "author": "AutoOffice"},
+        theme_name="indigo",
+        slides=(SlideIR("s01", "content", 0, (), None, None),),
+        keys=KeyManifest((binding("s01.orphan", block_id="orphan", leaf="text"),)),
     )
 
-    assert dict(scan.keys_by_slide) == {}
+    report = collect_coverage(presentation, deck)
+
+    assert report.missing_keys == ()
+    assert report.ok is True
+
+
+def test_collect_coverage_ignores_empty_key_marker(workspace, hero_image) -> None:
+    presentation = _presentation_with_slides(1)
+    picture = presentation.slides[0].shapes.add_picture(
+        str(workspace / hero_image),
+        Emu(0),
+        Emu(0),
+        Emu(100_000),
+        Emu(100_000),
+    )
+    set_non_visual_properties(picture, name=KEY_MARKER)
+    deck = DeckIR(
+        schema="autooffice.deck/v1",
+        meta={"title": "Empty Key Marker", "author": "AutoOffice"},
+        theme_name="indigo",
+        slides=(SlideIR("s01", "content", 0, (), None, None),),
+        keys=KeyManifest(()),
+    )
+
+    report = collect_coverage(presentation, deck)
+
+    assert report.unkeyed_visible == ()
+    assert report.ok is True
 
 
 def test_collect_coverage_marks_unkeyed_table_cell() -> None:

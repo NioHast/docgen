@@ -36,7 +36,7 @@ adalah data package `autooffice.design`, bukan berkas kerja pengguna.
    terhadap background chart:
    - `indigo`: `#4F46E5`, `#0F766E`, `#B45309`, `#BE123C`.
    - `hitam`: `#111827`, `#374151`, `#4B5563`, `#6B7280`.
-7. Palet aksen dan cover tetap persis token deck-studio. Hanya warna chart
+7. Palet aksen dan cover tetap persis baseline desain deck. Hanya warna chart
    yang memakai turunan `chartSeries` untuk aksesibilitas.
 8. Chart dibatasi empat slot warna: seri untuk `bar`/`line`, kategori untuk
    `donut`.
@@ -45,8 +45,8 @@ adalah data package `autooffice.design`, bukan berkas kerja pengguna.
    memakai system mono stack
    `ui-monospace, 'Cascadia Mono', Consolas, monospace`. Tidak ada font
    family lain di deck.
-10. DOCX mempertahankan font format docgen dan tidak memakai Plus Jakarta
-    Sans.
+10. DOCX mempertahankan font format baseline DOCX dan tidak memakai Plus
+    Jakarta Sans.
 11. Kontras teks normal minimal 4.5:1, teks besar minimal 3:1. Status tidak
     boleh menjadi satu-satunya pembeda; selalu ada label.
 12. Dilarang gradient dekoratif selain cover, glow, glass, blur, blob 3D,
@@ -87,8 +87,8 @@ Semua objek theme immutable dan `status` bersifat read-only. Field `emu`
 memakai integer English Metric Units agar renderer tidak menulis angka baru.
 
 Nilai warna lain, spacing, grid, dan tipografi bersumber dari
-`design-system/tokens.json` dan `design-system/themes.json` deck-studio, lalu
-diport ke `src/autooffice/design/data/` oleh F1-DESIGN.
+`design-system/tokens.json` dan `design-system/themes.json` baseline desain
+deck, lalu diport ke `src/autooffice/design/data/` oleh F1-DESIGN.
 
 ## Contoh konstruksi
 

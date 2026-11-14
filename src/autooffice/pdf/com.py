@@ -1,4 +1,4 @@
-"""Guard COM Windows, lifecycle apartment, timeout, dan cleanup proses Office.
+r"""Guard COM Windows, lifecycle apartment, timeout, dan cleanup proses Office.
 
 Modul ini adalah lapisan bawah adapter :mod:`autooffice.pdf.word` dan
 :mod:`autooffice.pdf.powerpoint`. Import pywin32 dilakukan lazy agar paket
@@ -6,11 +6,42 @@ Modul ini adalah lapisan bawah adapter :mod:`autooffice.pdf.word` dan
 Pemanggilan Word/PowerPoint nyata hanya terjadi di Windows dengan Microsoft
 Office desktop.
 
-Tidak ada PowerShell dan tidak ada subprocess ke ``scripts/word.ps1``.
+Tidak ada PowerShell dan tidak ada subprocess ke adapter PowerShell lama.
 Serialisasi memakai lock file. Cleanup proses hanya menyentuh PID yang
-diidentifikasi secara eksplisit sebagai proses automation melalui window handle
-aplikasi COM, lalu diverifikasi ulang nama image dan creation time sebelum
-``taskkill``.
+dibuktikan sebagai proses automation: Word memakai snapshot PID ``WINWORD.EXE``
+baru plus window ``OpusApp`` milik PID itu dan verifikasi ulang
+``ActiveWindow.Hwnd``; PowerPoint menolak instance yang sudah berjalan lalu
+membuktikan tepat satu PID ``POWERPNT.EXE`` baru. Nama image dan creation time
+diverifikasi ulang sebelum ``taskkill``; ``Quit`` hanya dipanggil untuk
+instance yang PID-nya sudah diklaim.
+
+Penemuan dan penghentian proses memakai ``tasklist.exe``/``taskkill.exe``
+lewat ``subprocess``, bukan ``win32process``. Alasannya: ``win32process``
+memang dapat mengenumerasi dan membuka proses, tetapi menghentikan pohon
+proses membutuhkan Job Object (``win32job``) beserta manajemen handle yang
+rawan bocor dan sulit diuji. ``taskkill /T /F`` lebih sederhana dan sudah
+menangani proses anak. Kedua tool selalu dipanggil lewat path absolut
+``%SystemRoot%\System32`` (atau ``Sysnative`` untuk Python 32-bit di Windows
+64-bit) tanpa shell, sehingga executable di ``PATH`` atau direktori kerja tidak
+dapat dibajak.
+
+Risiko yang diterima dan mitigasinya:
+
+- Output CSV ``tasklist`` bergantung pada locale dan versi Windows. Parser
+  bersikap defensif: baris yang tidak dikenali dilewati, dan hanya image/PID
+  yang cocok serta numerik yang dipakai. Kegagalan parsing berujung pada tidak
+  ada PID yang diklaim (cleanup dibatalkan), bukan menebak PID.
+- Format CSV dapat berubah pada rilis Windows mendatang; kegagalan menjalankan
+  atau membaca tasklist dikembalikan sebagai ``None`` sehingga tracker
+  membatalkan operasi alih-alih memakai snapshot kosong.
+- Setiap snapshot dan terminasi memakai subprocess sehingga ada overhead
+  pembuatan proses.
+- Ada race antara snapshot dan klaim PID. Word mengklaim hanya PID baru yang
+  juga memiliki window ``OpusApp``, PowerPoint hanya saat tepat satu PID baru
+  muncul; image dan creation time diverifikasi ulang tepat sebelum ``taskkill``.
+- Bila worker COM tetap hidup setelah batas cleanup, :class:`WordCleanupError`
+  dilempar sebagai fail-safe; pemanggil tidak boleh menghapus temp karena
+  worker dapat masih menulis.
 """
 
 import contextlib
@@ -39,14 +70,25 @@ WORD_IMAGE = "WINWORD.EXE"
 POWERPOINT_IMAGE = "POWERPNT.EXE"
 """Nama image proses Microsoft PowerPoint."""
 
-COM_LOCK_FILE = "docgen-word.lock"
+COM_LOCK_FILE = "autooffice-word.lock"
 """Nama lock file global untuk seluruh operasi COM Word/PowerPoint."""
 
 DEFAULT_LOCK_TIMEOUT_S = 30.0
 """Batas tunggu lock COM dalam detik."""
 
-WATCHDOG_CLEANUP_TIMEOUT_S = 5.0
-"""Batas tunggu worker setelah watchdog timeout sebelum cleanup dianggap ambigu."""
+CLEANUP_TIMEOUT_S = 5.0
+"""Anggaran tetap cleanup PID/worker setelah timeout, dalam detik.
+
+Nilainya tidak boleh berasal dari sisa deadline operasi: saat watchdog
+timeout, sisa deadline sudah nol atau negatif sehingga cleanup akan menjadi
+no-op.
+"""
+
+QUIT_VERIFY_TIMEOUT_S = 1.0
+"""Batas tunggu singkat setelah ``Quit`` sebelum status PID diverifikasi."""
+
+WATCHDOG_CLEANUP_TIMEOUT_S = CLEANUP_TIMEOUT_S
+"""Alias historis :data:`CLEANUP_TIMEOUT_S` untuk pemanggil lama."""
 
 _LOCK_POLL_S = 0.05
 _TASKLIST_TIMEOUT_S = 15
@@ -69,11 +111,19 @@ class WordComError(AutoOfficeError):
     """Pemanggilan Microsoft Word/PowerPoint lewat COM gagal."""
 
 
+class WordOwnershipError(WordComError):
+    """PID instance Office tidak dapat dibuktikan milik automation.
+
+    Error ini mencegah ``Quit``/``taskkill`` menyentuh instance Office
+    pengguna ketika proses bersama tidak dapat dibedakan dengan aman.
+    """
+
+
 class WordTimeoutError(WordComError):
     """Operasi Word/PowerPoint melewati batas waktu yang diminta."""
 
 
-class WordCleanupError(WordTimeoutError):
+class WordCleanupError(WordComError):
     """Worker COM tidak berhenti setelah timeout sehingga cleanup tidak pasti.
 
     Error ini sengaja dibedakan dari :class:`WordTimeoutError` biasa karena
@@ -259,13 +309,96 @@ def _window_process_id(hwnd: int) -> int | None:
 
 
 def application_window_handle(application: Any) -> int | None:
-    """Ambil ``Application.Hwnd`` Office tanpa melempar error ke pemanggil."""
+    """Ambil ``Application.Hwnd`` Office tanpa melempar error ke pemanggil.
+
+    Untuk Word, ``Application.Hwnd`` tidak tersedia; gunakan
+    :func:`find_word_window_handle` sebelum dokumen dibuka dan
+    ``Application.ActiveWindow.Hwnd`` setelah dokumen terbuka.
+    """
 
     try:
         hwnd = int(application.Hwnd)
     except Exception:  # noqa: BLE001 - identifikasi PID bersifat best-effort
         return None
     return hwnd if hwnd > 0 else None
+
+
+WORD_WINDOW_CLASS = "OpusApp"
+"""Class name window utama Microsoft Word."""
+
+
+def find_word_window_handle(pid: int) -> int | None:
+    """Cari HWND top-level Word yang PID-nya persis ``pid``.
+
+    ``Application.Hwnd`` tidak tersedia sebelum dokumen dibuka, dan caption
+    ``"Word"`` juga dapat dimiliki instance pengguna. Karena itu semua window
+    top-level class ``OpusApp`` dienumerasi dan hanya HWND dengan PID automation
+    baru yang dipilih. ``None`` berarti tidak ada window yang cocok.
+    """
+
+    if os.name != "nt":
+        return None
+    try:
+        win32gui: Any = _import_module("win32gui")
+    except ImportError:
+        return None
+
+    matches: list[int] = []
+
+    def collect(hwnd: Any, _extra: Any) -> bool:
+        try:
+            numeric = int(hwnd)
+            if (
+                win32gui.GetClassName(numeric) == WORD_WINDOW_CLASS
+                and _window_process_id(numeric) == pid
+            ):
+                matches.append(numeric)
+        except Exception:  # noqa: BLE001 - lanjutkan enumerasi window lain
+            return True
+        return True
+
+    try:
+        win32gui.EnumWindows(collect, None)
+    except Exception:  # noqa: BLE001 - enumerasi gagal berarti tidak ada klaim
+        return None
+    return matches[0] if matches else None
+
+
+def query_process_running(control: object, pid: int) -> bool | None:
+    """Tanyakan status PID ke control: hidup, hilang, atau tidak pasti."""
+
+    checker = getattr(control, "is_running", None)
+    if not callable(checker):
+        return None
+    try:
+        status = checker(pid)
+    except Exception:  # noqa: BLE001 - status tak terbaca berarti tidak pasti
+        return None
+    return status if isinstance(status, bool) else None
+
+
+def quit_owned_application(application: Any, tracker: Any) -> None:
+    """``Quit`` hanya instance yang PID-nya sudah diklaim tracker.
+
+    ``Quit`` dipanggil paling banyak sekali. Keberhasilan ``Quit`` bukan bukti
+    proses sudah keluar: status PID diverifikasi ulang secara singkat, dan
+    ``terminate_owned`` dipanggil dengan anggaran cleanup tetap bila proses
+    masih hidup atau statusnya tidak dapat dipastikan.
+    """
+
+    pid = tracker.pid
+    if pid is None:
+        return
+    with contextlib.suppress(Exception):
+        application.Quit()
+    status = query_process_running(tracker.control, pid)
+    deadline = time.monotonic() + QUIT_VERIFY_TIMEOUT_S
+    while status is True and time.monotonic() < deadline:
+        time.sleep(_LOCK_POLL_S)
+        status = query_process_running(tracker.control, pid)
+    if status is not False:
+        with contextlib.suppress(Exception):
+            tracker.terminate_owned(wait_s=CLEANUP_TIMEOUT_S)
 
 
 def limit_process_control(control: ProcessControl, timeout_s: float) -> None:
@@ -396,8 +529,8 @@ def com_lock(
     """Serialisasi operasi COM Word/PowerPoint lintas proses.
 
     Di non-Windows fungsi ini no-op. Di Windows lock memakai
-    ``msvcrt.locking`` pada ``%TEMP%/docgen-word.lock`` agar satu mesin hanya
-    menjalankan satu operasi COM pada satu waktu.
+    ``msvcrt.locking`` pada ``%TEMP%/autooffice-word.lock`` agar satu mesin
+    hanya menjalankan satu operasi COM pada satu waktu.
     """
 
     if not _is_windows():
@@ -462,6 +595,33 @@ class ProcessControl(Protocol):
 
         ...
 
+    def is_running(self, pid: int) -> bool | None:
+        """Status PID: ``True`` hidup, ``False`` sudah hilang, ``None`` tak pasti."""
+
+        ...
+
+
+# ---------------------------------------------------------------------------
+# Penemuan dan penghentian proses: tasklist/taskkill, bukan win32process
+# ---------------------------------------------------------------------------
+# pywin32 ``win32process`` dapat mengenumerasi dan membuka proses, tetapi
+# menghentikan satu pohon proses memerlukan Job Object (``win32job``) plus
+# manajemen handle. ``taskkill /PID <pid> /T /F`` lebih sederhana, sudah
+# menangani proses anak, dan tidak memerlukan shell. Agar tidak bisa dibajak
+# executable di CWD/PATH, tool selalu dipanggil lewat path absolut
+# ``%SystemRoot%\System32`` (atau ``Sysnative`` untuk Python 32-bit) tanpa
+# ``shell=True``.
+#
+# Risiko: output CSV ``tasklist`` bergantung pada locale/versi Windows,
+# formatnya bisa berubah, dan setiap panggilan menambah overhead subprocess.
+# Parser di bawah bersikap defensif; baris yang tidak dikenali dilewati
+# sehingga PID yang tidak lolos verifikasi tidak pernah diklaim, dan kegagalan
+# menjalankan/membaca tasklist dikembalikan sebagai ``None`` supaya tracker
+# membatalkan operasi (fail-safe), bukan menebak PID. PID yang diklaim tetap
+# diverifikasi ulang lewat image dan creation time sebelum taskkill untuk
+# menutup race PID reuse antara snapshot dan klaim.
+# ---------------------------------------------------------------------------
+
 
 def _tasklist_rows(
     *filters: str,
@@ -516,7 +676,12 @@ def _image_pids(image: str, *, timeout_s: float = _TASKLIST_TIMEOUT_S) -> set[in
 
 
 class SystemProcessControl:
-    """Kontrol proses Windows lewat tasklist/taskkill, tanpa PowerShell."""
+    """Kontrol proses Windows lewat tasklist/taskkill, tanpa PowerShell.
+
+    ``tasklist`` hanya untuk snapshot dan verifikasi; terminasi memakai
+    ``taskkill /PID <pid> /T /F`` dengan path absolut System32/Sysnative.
+    Keduanya dipanggil tanpa shell dan dengan timeout terbatas.
+    """
 
     def __init__(self, *, timeout_s: float = _TASKLIST_TIMEOUT_S) -> None:
         self._timeout_s = _clamp_task_timeout(timeout_s)
@@ -555,7 +720,15 @@ class SystemProcessControl:
         return _window_process_id(hwnd)
 
     def terminate(self, pid: int) -> bool:
-        """Hentikan PID yang sudah dipastikan milik automation."""
+        """Hentikan PID yang sudah dipastikan milik automation.
+
+        Memakai ``taskkill /PID <pid> /T /F`` agar proses anak ikut berhenti;
+        path executable absolut dan tidak lewat shell. ``taskkill`` dapat
+        mengembalikan exit code nonzero ketika pohon proses sudah mati; karena
+        itu hasil nonzero diverifikasi ulang lewat :meth:`is_running`. Cleanup
+        dianggap berhasil bila PID target sudah tidak ada, dan hanya gagal bila
+        PID masih hidup atau statusnya tidak dapat diverifikasi.
+        """
 
         if self._timeout_s <= 0:
             return False
@@ -570,7 +743,22 @@ class SystemProcessControl:
             )
         except OSError, subprocess.TimeoutExpired:
             return False
-        return completed.returncode == 0
+        if completed.returncode == 0:
+            return True
+        return self.is_running(pid) is False
+
+    def is_running(self, pid: int) -> bool | None:
+        """Status PID lewat tasklist: hidup, hilang, atau tidak dapat dipastikan.
+
+        ``False`` hanya dikembalikan bila tasklist berhasil dijalankan dan PID
+        tidak ada di hasilnya. ``None`` berarti snapshot gagal sehingga
+        pemanggil tidak boleh menyimpulkan proses sudah hilang.
+        """
+
+        rows = _tasklist_rows("/FI", f"PID eq {pid}", timeout_s=self._timeout_s)
+        if rows is None:
+            return None
+        return any(len(row) >= 2 and row[1].strip() == str(pid) for row in rows)
 
 
 @dataclass
@@ -578,10 +766,12 @@ class _ProcessTracker:
     """Lacak PID Office automation dan bersihkan hanya PID yang pasti miliknya.
 
     ``before`` diambil sebelum COM membuat aplikasi dan tidak boleh berupa
-    ``None``. PID automation diidentifikasi dari ``Application.Hwnd`` lewat
-    ``GetWindowThreadProcessId``; snapshot PID baru hanya dipakai sebagai
-    pemeriksaan silang. Bila PID tidak dapat dipastikan secara unik, tracker
-    tidak mengklaim apa pun dan cleanup tidak menghentikan proses apa pun.
+    ``None``. PID automation dibuktikan dari window handle yang PID-nya cocok
+    (Word: window ``OpusApp`` milik PID baru) atau dari tepat satu PID image
+    baru setelah ``DispatchEx`` (PowerPoint); snapshot PID baru hanya dipakai
+    sebagai pemeriksaan silang. Bila PID tidak dapat dipastikan secara unik,
+    tracker tidak mengklaim apa pun dan cleanup tidak menghentikan proses apa
+    pun.
     """
 
     control: ProcessControl
@@ -639,13 +829,102 @@ class _ProcessTracker:
         with self._lock:
             return self._pid
 
+    def claim_pid(self, pid: int) -> int | None:
+        """Klaim PID yang sudah diverifikasi sebagai proses baru.
+
+        Dipakai Word setelah :meth:`verify_new_process` dan pencocokan window.
+        Tidak mengambil snapshot baru; image dan creation time tetap
+        diverifikasi langsung agar PID yang hilang/daur ulang tidak diklaim.
+        """
+
+        claimed: tuple[int, int] | None = None
+        try:
+            if pid > 0 and pid not in self.before:
+                creation_reader = getattr(self.control, "creation_time", None)
+                image = self.control.image_name(pid)
+                creation_time = creation_reader(pid) if callable(creation_reader) else None
+                if (
+                    image is not None
+                    and image.strip().upper() == self.image
+                    and creation_time is not None
+                ):
+                    claimed = (pid, creation_time)
+        except Exception:  # noqa: BLE001 - PID ambigu berarti tanpa cleanup
+            claimed = None
+        with self._lock:
+            if claimed is None:
+                self._pid = None
+                self._creation_time = None
+            else:
+                self._pid, self._creation_time = claimed
+            claimed_pid = self._pid
+        self._ready.set()
+        return claimed_pid
+
+    def verify_new_process(self) -> int:
+        """Verifikasi tepat satu PID image baru dan kembalikan PID-nya.
+
+        Tidak menyimpan klaim apa pun; pemanggil dapat mencocokkan window milik
+        PID tersebut lebih dulu sebelum memanggil :meth:`claim`.
+        """
+
+        pid, _creation_time = self._verified_new_process()
+        return pid
+
+    def claim_new_process(self) -> int:
+        """Klaim satu-satunya PID image baru setelah ``DispatchEx``.
+
+        Dipakai PowerPoint yang tidak menyediakan window handle stabil dan
+        dapat menempel ke instance pengguna. Snapshot baru harus berisi tepat
+        satu PID baru dibanding ``before``; image dan creation time juga harus
+        cocok. PID nol atau lebih dari satu selalu dianggap ambigu sehingga
+        pemanggil tidak boleh ``Quit``/``taskkill`` instance mana pun.
+        """
+
+        try:
+            pid, creation_time = self._verified_new_process()
+            with self._lock:
+                self._pid = pid
+                self._creation_time = creation_time
+            return pid
+        finally:
+            self._ready.set()
+
+    def _verified_new_process(self) -> tuple[int, int]:
+        after = self.list_pids()
+        if after is None:
+            raise ProcessSnapshotError(
+                "Snapshot proses setelah DispatchEx gagal; PID automation "
+                "tidak dapat dibuktikan sehingga instance tidak akan ditutup."
+            )
+        new_pids = set(after) - self.before
+        if len(new_pids) != 1:
+            raise WordOwnershipError(
+                f"Diharapkan tepat satu proses {self.image} baru setelah "
+                f"DispatchEx, ditemukan {len(new_pids)}. Instance Office "
+                "bersama tidak aman untuk di-Quit."
+            )
+        pid = next(iter(new_pids))
+        creation_reader = getattr(self.control, "creation_time", None)
+        image = self.control.image_name(pid)
+        creation_time = creation_reader(pid) if callable(creation_reader) else None
+        if image is None or image.strip().upper() != self.image or creation_time is None:
+            raise WordOwnershipError(
+                f"PID baru {pid} tidak lolos verifikasi image/creation time "
+                f"untuk {self.image}; instance tidak akan ditutup."
+            )
+        return pid, creation_time
+
     def terminate_owned(self, *, wait_s: float = 0.0) -> bool:
         """Hentikan PID Office milik automation bila masih hidup.
 
         ``wait_s`` dipakai watchdog untuk menunggu ``claim`` selesai sebelum
         memutuskan apakah ada PID yang perlu dihentikan. Sebelum ``taskkill``,
         nama image dan creation time dibaca ulang; PID yang sudah dipakai ulang
-        proses lain tidak pernah dihentikan.
+        proses lain tidak pernah dihentikan. Bila ``terminate`` mengembalikan
+        ``False`` (misalnya ``taskkill`` nonzero padahal pohon proses sudah
+        mati), status PID diverifikasi ulang dan cleanup dianggap berhasil bila
+        PID terbukti sudah hilang.
         """
 
         if wait_s > 0:
@@ -668,10 +947,17 @@ class _ProcessTracker:
         ):
             return False
         terminated = self.control.terminate(pid)
+        if not terminated and self._confirmed_gone(pid):
+            terminated = True
         if terminated:
             with self._lock:
                 self._terminated = True
         return terminated
+
+    def _confirmed_gone(self, pid: int) -> bool:
+        """True hanya bila control memastikan PID sudah tidak ada."""
+
+        return query_process_running(self.control, pid) is False
 
 
 def _begin_tracker(
@@ -737,7 +1023,9 @@ def run_with_watchdog[T](
 
     Saat timeout, ``on_timeout`` dipanggil untuk menghentikan PID automation,
     lalu worker ditunggu sampai selesai sebelum direktori kerja dibersihkan.
-    Bila worker masih hidup setelah ``cleanup_timeout_s``, fungsi melempar
+    Bila ``on_timeout`` mengembalikan ``True``, cleanup dianggap terverifikasi
+    selesai (PID target sudah hilang). Bila worker masih hidup setelah
+    ``cleanup_timeout_s`` dan PID tidak terverifikasi hilang, fungsi melempar
     :class:`WordCleanupError` yang menyatakan cleanup ambigu; pemanggil tidak
     boleh menghapus temp selama worker dapat menulis ke sana.
     """
@@ -757,15 +1045,22 @@ def run_with_watchdog[T](
         ok, value = outcome.get(timeout=timeout_s)
     except Empty:
         cleanup_error: Exception | None = None
+        cleanup_verified = False
         try:
-            on_timeout()
+            cleanup_verified = on_timeout() is True
         except Exception as exc:  # noqa: BLE001 - cleanup tidak boleh menimpa timeout
             cleanup_error = exc
-        wait_s = (
-            WATCHDOG_CLEANUP_TIMEOUT_S if cleanup_timeout_s is None else max(0.0, cleanup_timeout_s)
-        )
+        wait_s = CLEANUP_TIMEOUT_S if cleanup_timeout_s is None else max(0.0, cleanup_timeout_s)
         thread.join(wait_s)
         if thread.is_alive():
+            if cleanup_verified:
+                raise WordTimeoutError(
+                    f"{description} melewati {timeout_s:g} detik dan worker COM "
+                    f"masih berjalan setelah {wait_s:g} detik cleanup, tetapi "
+                    "PID target sudah terverifikasi hilang sehingga cleanup "
+                    "dianggap selesai. Periksa thread/temp secara manual bila "
+                    "diperlukan."
+                ) from cleanup_error
             raise WordCleanupError(
                 f"{description} melewati {timeout_s:g} detik dan worker COM "
                 f"masih berjalan setelah {wait_s:g} detik cleanup. Cleanup "

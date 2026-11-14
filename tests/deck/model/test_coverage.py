@@ -97,7 +97,8 @@ def test_unkeyed_visible_block_detected() -> None:
     assert plan.ok is False
 
 
-def test_missing_alt_detected() -> None:
+def test_defensive_missing_alt_detected() -> None:
+    """Guard internal: schema menolak alt kosong sebelum IR sampai ke plan."""
     plan = build_coverage_plan(_deck((_image_block("   "),)))
 
     assert plan.missing_alt == ("s01.image1",)
@@ -110,7 +111,8 @@ def test_unkeyed_slide_source_detected() -> None:
     assert plan.unkeyed_visible == ("s01.source",)
 
 
-def test_duplicate_manifest_key_detected(fixture_dir: Path) -> None:
+def test_defensive_duplicate_manifest_key_detected(fixture_dir: Path) -> None:
+    """Guard internal: KeyRegistry menolak key duplikat sebelum IR terbentuk."""
     deck = compile_deck(load_deck(fixture_dir / "minimal.yaml"))
     first = deck.keys.bindings[0]
     duplicate_deck = DeckIR(

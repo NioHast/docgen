@@ -130,6 +130,9 @@ class DeckRenderer(Protocol):
 - Aset yang dibundel: Regular, SemiBold, Bold, ExtraBold. PowerPoint menanam
   face yang dipakai presentasi.
 - Family harus `Plus Jakarta Sans`, sama dengan Google Fonts.
+- Bila typeface bobot SemiBold/ExtraBold tidak tersedia, run memakai family
+  dasar dengan `bold=True` dan warning diteruskan ke `RenderResult.warnings`;
+  tidak ada fallback bobot yang dibuang diam-diam.
 - Embedding wajib untuk target final `pptx` dan `pdf`. Bila PowerPoint tidak
   tersedia, font belum terpasang, atau hasil COM tidak valid, build gagal dan
   tidak menerbitkan PPTX tanpa font.

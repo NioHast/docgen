@@ -147,23 +147,28 @@ class _FakeWordDocuments:
 class _FakeWordApplication:
     def __init__(self, *, mutate_on_open: bool) -> None:
         self.mutate_on_open = mutate_on_open
-        self.Hwnd = 0
         self.Options = SimpleNamespace()
         self.Documents = _FakeWordDocuments(self)
         self.opened_path: Path | None = None
         self.open_arguments: tuple[bool, bool, bool] | None = None
         self.export_format: int | None = None
 
+    @property
+    def ActiveWindow(self) -> SimpleNamespace:
+        return SimpleNamespace(Hwnd=9001)
+
     def Quit(self) -> None:
-        pass
+        _FakeWordProcessControl.automation_alive = False
 
 
 class _FakeWordClient:
     def __init__(self, application: _FakeWordApplication) -> None:
         self._application = application
+        _FakeWordProcessControl.automation_alive = False
 
     def DispatchEx(self, name: str) -> _FakeWordApplication:
         assert name == "Word.Application"
+        _FakeWordProcessControl.automation_alive = True
         return self._application
 
 
@@ -176,23 +181,35 @@ class _FakePythonCom:
 
 
 class _FakeWordProcessControl:
+    """Control palsu yang memenuhi kontrak ownership seperti adapter nyata."""
+
+    automation_alive = False
+    pid = 4242
+    window_hwnd = 9001
+
     def set_timeout(self, timeout_s: float) -> None:
         pass
 
     def list_word_pids(self) -> set[int]:
-        return set()
+        return {self.pid} if self.automation_alive else set()
 
     def image_name(self, pid: int) -> str | None:
-        return None
+        return "WINWORD.EXE" if self.automation_alive and pid == self.pid else None
 
     def creation_time(self, pid: int) -> int | None:
-        return None
+        return 1000 if self.automation_alive and pid == self.pid else None
 
     def pid_for_window(self, hwnd: int) -> int | None:
-        return None
+        return self.pid if self.automation_alive and hwnd == self.window_hwnd else None
+
+    def is_running(self, pid: int) -> bool | None:
+        return self.automation_alive if pid == self.pid else False
 
     def terminate(self, pid: int) -> bool:
-        return False
+        if pid != self.pid:
+            return False
+        self.automation_alive = False
+        return True
 
 
 # ---------------------------------------------------------------------------
@@ -532,6 +549,13 @@ def test_export_pdf_preserves_source_when_word_mutates_opened_copy(
     )
     monkeypatch.setattr(pdf_word, "SystemProcessControl", _FakeWordProcessControl)
     monkeypatch.setattr(pdf_word, "com_lock", lambda **_kwargs: contextlib.nullcontext())
+    monkeypatch.setattr(
+        pdf_word,
+        "find_word_window_handle",
+        lambda pid: (
+            _FakeWordProcessControl.window_hwnd if pid == _FakeWordProcessControl.pid else None
+        ),
+    )
 
     assert pdf_word.export_pdf(docx, pdf, timeout_s=5.0) == pdf.resolve()
 

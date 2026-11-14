@@ -1,7 +1,7 @@
 """Verifikasi invariant istilah pada DOCX.
 
 Modul ini memuat :func:`verify_terms` beserta helper status istilah. Modul
-hanya bergantung pada :mod:`docgen.docx.terms.model` dan helper DOCX kanonis;
+hanya bergantung pada :mod:`autooffice.docx.terms.model` dan helper DOCX kanonis;
 tidak ada impor balik ke ``apply`` atau package induk ``terms``.
 """
 
@@ -13,8 +13,8 @@ from lxml import etree
 from ..package.paragraphs import paragraph_text
 from .glossary import Glossary
 from .model import (
-    ISTILAH_ASING,
-    ISTILAH_REVIEW,
+    FOREIGN_TERM_STYLE,
+    REVIEW_TERM_STYLE,
     MarkerError,
     ParagraphModel,
     StyleResolver,
@@ -57,12 +57,12 @@ def _term_status(
     if not chars or any(char is None for char in chars):
         return "plain"
     styles = [direct_style_id(char.run) for char in chars]  # type: ignore[union-attr]
-    if all(style == ISTILAH_ASING for style in styles):
+    if all(style == FOREIGN_TERM_STYLE for style in styles):
         return "styled"
-    if all(style in {ISTILAH_ASING, ISTILAH_REVIEW} for style in styles):
+    if all(style in {FOREIGN_TERM_STYLE, REVIEW_TERM_STYLE} for style in styles):
         return "review"
     if all(
-        style == ISTILAH_ASING or resolver.effective_italic(char.run)  # type: ignore[union-attr]
+        style == FOREIGN_TERM_STYLE or resolver.effective_italic(char.run)  # type: ignore[union-attr]
         for style, char in zip(styles, chars, strict=True)
     ):
         return "direct"
@@ -112,9 +112,11 @@ def verify_terms(package: object, glossary: Glossary) -> TermsVerifyReport:
             chars = model.chars[match.start : match.end]
             if not match.entry.italic:
                 runs = _unique_runs(chars)
-                uses_asing = any(direct_style_id(run) == ISTILAH_ASING for run in runs)
+                uses_foreign_term_style = any(
+                    direct_style_id(run) == FOREIGN_TERM_STYLE for run in runs
+                )
                 uses_italic = any(resolver.effective_italic(run, paragraph) for run in runs)
-                if uses_asing or uses_italic:
+                if uses_foreign_term_style or uses_italic:
                     violations.append(
                         f"Paragraf {number}: istilah italic=no "
                         f"{match.entry.term!r} muncul dengan italic/"
@@ -138,7 +140,7 @@ def verify_terms(package: object, glossary: Glossary) -> TermsVerifyReport:
             for run in _unique_runs(chars):
                 if id(run) in language_failures:
                     continue
-                if direct_style_id(run) in {ISTILAH_ASING, ISTILAH_REVIEW}:
+                if direct_style_id(run) in {FOREIGN_TERM_STYLE, REVIEW_TERM_STYLE}:
                     continue
                 if direct_en_us(run):
                     language_failures.add(id(run))
@@ -149,20 +151,20 @@ def verify_terms(package: object, glossary: Glossary) -> TermsVerifyReport:
                         "w:lang en-US tanpa style IstilahAsing."
                     )
 
-        for span in styled_spans(model, ISTILAH_ASING):
+        for span in styled_spans(model, FOREIGN_TERM_STYLE):
             if span.casefold() not in known_terms:
                 violations.append(
                     f"Paragraf {number}: run IstilahAsing berisi {span!r}, "
                     "bukan istilah di glosarium."
                 )
 
-        seen_asing_runs: set[int] = set()
+        seen_foreign_term_runs: set[int] = set()
         for char in model.chars:
-            if char is None or id(char.run) in seen_asing_runs:
+            if char is None or id(char.run) in seen_foreign_term_runs:
                 continue
-            if direct_style_id(char.run) != ISTILAH_ASING:
+            if direct_style_id(char.run) != FOREIGN_TERM_STYLE:
                 continue
-            seen_asing_runs.add(id(char.run))
+            seen_foreign_term_runs.add(id(char.run))
             text = paragraph_text(char.run).strip()
             if not resolver.effective_italic(char.run, paragraph):
                 violations.append(

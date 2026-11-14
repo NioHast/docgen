@@ -256,6 +256,7 @@ class FakePowerPoint:
         embedded_bytes: bytes = EMBEDDED_PPTX_BYTES,
         write_saved_copy: bool = True,
         fail_save_copy: str | None = None,
+        quit_leaves_alive: bool = False,
     ) -> None:
         object.__setattr__(self, "events", events)
         object.__setattr__(self, "control", control)
@@ -267,8 +268,8 @@ class FakePowerPoint:
         object.__setattr__(self, "embedded_bytes", embedded_bytes)
         object.__setattr__(self, "write_saved_copy", write_saved_copy)
         object.__setattr__(self, "fail_save_copy", fail_save_copy)
+        object.__setattr__(self, "quit_leaves_alive", quit_leaves_alive)
         object.__setattr__(self, "saved_copy", None)
-        object.__setattr__(self, "Hwnd", 9001)
         self.Presentations = FakePresentations(self)
 
     def __setattr__(self, name: str, value: Any) -> None:
@@ -278,10 +279,13 @@ class FakePowerPoint:
 
     def Quit(self) -> None:
         self.events.append("quit")
-        self.control.automation_alive = False
+        if not self.quit_leaves_alive:
+            self.control.automation_alive = False
 
 
 class FakeProcessControl:
+    """Process control palsu yang meniru gating timeout SystemProcessControl."""
+
     def __init__(self, events: list[str], *, initially_alive: bool = False) -> None:
         self.events = events
         self.pid = 4242
@@ -290,9 +294,16 @@ class FakeProcessControl:
         self.release = threading.Event()
         self.terminated: list[int] = []
         self.created_at = 1000
+        self.timeout_s = com.CLEANUP_TIMEOUT_S
+        self.timeout_at_terminate: float | None = None
+
+    def set_timeout(self, timeout_s: float) -> None:
+        self.timeout_s = max(0.0, timeout_s)
 
     def list_powerpoint_pids(self) -> set[int] | None:
         self.events.append("list_powerpoint_pids")
+        if self.timeout_s <= 0:
+            return None
         pids: set[int] = set()
         if self.preexisting is not None:
             pids.add(self.preexisting)
@@ -302,6 +313,8 @@ class FakeProcessControl:
 
     def image_name(self, pid: int) -> str | None:
         self.events.append(f"image:{pid}")
+        if self.timeout_s <= 0:
+            return None
         if self.automation_alive and pid == self.pid:
             return "POWERPNT.EXE"
         if pid == self.preexisting:
@@ -309,12 +322,22 @@ class FakeProcessControl:
         return None
 
     def creation_time(self, pid: int) -> int | None:
+        if self.timeout_s <= 0:
+            return None
         return self.created_at
 
     def pid_for_window(self, hwnd: int) -> int | None:
         return self.pid if self.automation_alive else None
 
+    def is_running(self, pid: int) -> bool | None:
+        if pid == self.pid:
+            return self.automation_alive
+        return pid == self.preexisting
+
     def terminate(self, pid: int) -> bool:
+        self.timeout_at_terminate = self.timeout_s
+        if self.timeout_s <= 0:
+            return False
         self.events.append(f"terminate:{pid}")
         self.terminated.append(pid)
         self.automation_alive = False
@@ -445,17 +468,44 @@ def test_export_pdf_timeout_cleans_tracked_powerpoint_process(
     pptx = tmp_path / "Deck.pptx"
     pptx.write_bytes(PPTX_BYTES)
     pdf = tmp_path / "Deck.pdf"
-    environment = make_environment(initially_alive=True)
+    environment = make_environment()
     environment.application.block_open = environment.control.release
     install(monkeypatch, environment)
 
     with pytest.raises(com.WordTimeoutError, match="tidak selesai"):
-        powerpoint.export_pdf(pptx, pdf, timeout_s=0.02)
+        powerpoint.export_pdf(pptx, pdf, timeout_s=0.5)
 
     assert environment.control.terminated == [4242]
+    assert environment.control.timeout_s == com.CLEANUP_TIMEOUT_S
+    assert environment.control.timeout_at_terminate == com.CLEANUP_TIMEOUT_S
     assert not pdf.exists()
     assert pptx.read_bytes() == PPTX_BYTES
     assert "quit" in environment.events
+
+
+def test_export_pdf_uses_fixed_cleanup_budget_for_short_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    pptx = tmp_path / "Deck.pptx"
+    pptx.write_bytes(PPTX_BYTES)
+    pdf = tmp_path / "Deck.pdf"
+    environment = make_environment()
+    install(monkeypatch, environment)
+    captured: list[dict[str, Any]] = []
+
+    def fake_watchdog(*args: object, **kwargs: object) -> None:
+        captured.append(dict(kwargs))
+        raise com.WordComError("berhenti setelah argumen watchdog diperiksa")
+
+    monkeypatch.setattr(powerpoint, "run_with_watchdog", fake_watchdog)
+
+    with pytest.raises(com.WordComError, match="argumen watchdog"):
+        powerpoint.export_pdf(pptx, pdf, timeout_s=0.5)
+
+    assert captured
+    assert 0.0 < captured[0]["timeout_s"] <= 0.5
+    assert captured[0]["cleanup_timeout_s"] == 5.0
 
 
 def test_embed_fonts_ambiguous_cleanup_preserves_work_dir_and_temp(
@@ -487,7 +537,51 @@ def test_embed_fonts_ambiguous_cleanup_preserves_work_dir_and_temp(
     assert pptx.read_bytes() == PPTX_BYTES
 
 
-def test_export_pdf_does_not_kill_preexisting_powerpoint_instance(
+def test_export_pdf_fails_safely_on_shared_powerpoint_attach(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    pptx = tmp_path / "Deck.pptx"
+    pptx.write_bytes(PPTX_BYTES)
+    pdf = tmp_path / "Deck.pdf"
+    environment = make_environment()
+    install(monkeypatch, environment)
+
+    def attach_without_new_process(name: str) -> FakePowerPoint:
+        environment.events.append(f"dispatch:{name}")
+        return environment.application
+
+    monkeypatch.setattr(environment.client, "DispatchEx", attach_without_new_process)
+
+    with pytest.raises(com.WordOwnershipError, match="tepat satu proses"):
+        powerpoint.export_pdf(pptx, pdf, timeout_s=5.0)
+
+    assert "quit" not in environment.events
+    assert environment.control.terminated == []
+    assert environment.control.automation_alive is False
+    assert not pdf.exists()
+
+
+def test_export_pdf_kills_owned_powerpoint_when_quit_does_not_exit(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    pptx = tmp_path / "Deck.pptx"
+    pptx.write_bytes(PPTX_BYTES)
+    pdf = tmp_path / "Deck.pdf"
+    environment = make_environment(quit_leaves_alive=True)
+    install(monkeypatch, environment)
+    monkeypatch.setattr(com, "QUIT_VERIFY_TIMEOUT_S", 0.05)
+
+    result = powerpoint.export_pdf(pptx, pdf, timeout_s=5.0)
+
+    assert result == pdf.resolve()
+    assert "quit" in environment.events
+    assert environment.control.terminated == [4242]
+    assert environment.control.automation_alive is False
+
+
+def test_export_pdf_refuses_preexisting_powerpoint_instance(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -497,11 +591,15 @@ def test_export_pdf_does_not_kill_preexisting_powerpoint_instance(
     environment = make_environment(initially_alive=True)
     install(monkeypatch, environment)
 
-    result = powerpoint.export_pdf(pptx, pdf, timeout_s=5.0)
+    with pytest.raises(com.PdfUnavailableError, match="sudah berjalan"):
+        powerpoint.export_pdf(pptx, pdf, timeout_s=5.0)
 
-    assert result == pdf.resolve()
+    assert "dispatch:PowerPoint.Application" not in environment.events
+    assert "quit" not in environment.events
     assert environment.control.terminated == []
     assert environment.control.preexisting == 1111
+    assert environment.control.automation_alive is False
+    assert not pdf.exists()
 
 
 def test_export_pdf_reports_missing_powerpoint_dispatch(

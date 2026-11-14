@@ -5,6 +5,7 @@ import shutil
 from pathlib import Path
 
 import pytest
+from ruamel.yaml import YAML
 
 from autooffice.docx import config, paths
 from autooffice.docx.config import load_format, load_structure
@@ -53,6 +54,23 @@ def _copy_format(tmp_path: Path, name: str = "undip-msi") -> Path:
     target = data_root / "formats" / name
     target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(paths.format_dir("undip-msi"), target)
+    return data_root
+
+
+def _set_empty_format_value(tmp_path: Path, key: str) -> Path:
+    """Salin format lalu isi satu key teks dengan string kosong eksplisit."""
+
+    data_root = _copy_format(tmp_path)
+    format_yml = data_root / "formats" / "undip-msi" / "format.yml"
+    yaml = YAML()
+    data = yaml.load(format_yml)
+    node = data
+    *parents, child = key.split(".")
+    for part in parents:
+        node = node[part]
+    node[child] = ""
+    with format_yml.open("w", encoding="utf-8", newline="\n") as handle:
+        yaml.dump(data, handle)
     return data_root
 
 
@@ -131,6 +149,41 @@ def test_data_root_uses_package_not_cwd(tmp_path: Path, monkeypatch: pytest.Monk
     root = paths.data_root()
     assert root == paths.package_root() / "data"
     assert root.is_dir()
+
+
+@pytest.mark.parametrize(
+    "key",
+    [
+        "name",
+        "font.monospace.family",
+        "abstract.font",
+        "headings.styles.heading1.font_family",
+        "headings.styles.heading2.font_family",
+        "headings.styles.heading3.font_family",
+        "toc_heading.heading_style",
+        "toc_heading.font",
+        "captions.figure.label",
+        "captions.table.label",
+        "captions.figure.font.family",
+        "captions.table.font.family",
+        "code.style",
+        "code.font.family",
+        "bibliography_style.heading",
+        "bibliography_style.font",
+        "citation.bibliography",
+        "citation.locale",
+        "assets.logo",
+        "assets.reference_docx",
+    ],
+)
+def test_explicit_empty_text_value_rejected(tmp_path: Path, key: str) -> None:
+    data_root = _set_empty_format_value(tmp_path, key)
+
+    with pytest.raises(ConfigError) as error:
+        load_format("undip-msi", root=data_root)
+
+    assert error.value.code == "CFG-REQUIRED"
+    assert error.value.key == key
 
 
 def test_all_builtin_structures_load() -> None:
@@ -284,6 +337,25 @@ def test_format_assets_reject_cover(tmp_path: Path) -> None:
         load_format("undip-msi", root=data_root)
     assert error.value.code == "CFG-UNKNOWN-KEY"
     assert error.value.key == "assets.cover"
+
+
+def test_reference_docx_unreadable_raises_config_error(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    data_root = _copy_format(tmp_path)
+
+    def unreadable(*_args: object, **_kwargs: object) -> object:
+        raise PermissionError("akses ditolak")
+
+    monkeypatch.setattr("autooffice.docx.config.format.zipfile.ZipFile", unreadable)
+
+    with pytest.raises(ConfigError) as error:
+        load_format("undip-msi", root=data_root)
+
+    assert error.value.code == "CFG-ASSET-INVALID"
+    assert error.value.key == "assets.reference_docx"
+    assert "tidak dapat dibaca" in str(error.value)
 
 
 def test_figures_legacy_alignment_rejected(tmp_path: Path) -> None:

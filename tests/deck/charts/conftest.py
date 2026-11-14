@@ -18,7 +18,7 @@ CHART_BOX = {"left": 914400, "top": 914400, "width": 7315200, "height": 4572000}
 
 @pytest.fixture(scope="session")
 def charts_fixture_dir() -> Path:
-    """Direktori fixture chart milik lane F2-CHARTS."""
+    """Direktori fixture chart."""
     return FIXTURE_DIR
 
 

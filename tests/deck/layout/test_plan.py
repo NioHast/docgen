@@ -393,7 +393,7 @@ def test_custom_layout_is_planned_without_a_preset_spec(
     theme,
 ) -> None:
     block = block_factory("body", "text", fields={"text": "Isi"}, role="body", span=12)
-    slide = slide_factory((block,), layout="custom")
+    slide = slide_factory((block,), layout="custom", rows=(("body",),))
 
     plan = plan_deck(deck_factory((slide,)), theme, layouts={})
 

@@ -320,9 +320,10 @@ def _parse_mono_font(data: Mapping[str, Any], *, path: Path) -> MonoFont:
     _check_unknown(data, _MONO_FONT_KEYS, path=path, key="font.monospace")
     return MonoFont(
         family=_text(
-            data.get("family") or "Courier New",
+            data.get("family"),
             path=path,
             key="font.monospace.family",
+            default="Courier New",
         ),
         size_half_points=_font_size(
             data.get("size"),
@@ -353,9 +354,10 @@ def _parse_abstract(
         )
     return AbstractStyle(
         font_family=_text(
-            font_value or body.family,
+            font_value,
             path=path,
             key="abstract.font",
+            default=body.family,
         ),
         font_size_half_points=_font_size(
             raw.get("size"),
@@ -412,9 +414,10 @@ def _parse_heading_style(
     default_indent = "0cm" if level == 1 else "1.25cm"
     return HeadingStyle(
         font_family=_text(
-            data.get("font_family") or body.family,
+            data.get("font_family"),
             path=path,
             key=f"{key}.font_family",
+            default=body.family,
         ),
         font_size_half_points=_font_size(
             data.get("font_size"),
@@ -518,14 +521,16 @@ def _parse_toc_heading(
         )
     return TocHeadingStyle(
         heading_style=_text(
-            data.get("heading_style") or "TOCHeading",
+            data.get("heading_style"),
             path=path,
             key="toc_heading.heading_style",
+            default="TOCHeading",
         ),
         font_family=_text(
-            font_raw or heading1.font_family,
+            font_raw,
             path=path,
             key="toc_heading.font",
+            default=heading1.font_family,
         ),
         font_size_half_points=_font_size(
             data.get("size"),
@@ -606,9 +611,10 @@ def _parse_caption_font(
         )
     return CaptionFont(
         family=_text(
-            data.get("family") or defaults.family,
+            data.get("family"),
             path=path,
             key=f"{key}.family",
+            default=defaults.family,
         ),
         size_half_points=_font_size(
             data.get("size"),
@@ -719,9 +725,10 @@ def _parse_captions(
 
     figure = CaptionStyle(
         label=_text(
-            figure_raw.get("label") or "Gambar",
+            figure_raw.get("label"),
             path=path,
             key="captions.figure.label",
+            default="Gambar",
         ),
         separator=_text(
             figure_raw.get("separator", " "),
@@ -733,9 +740,10 @@ def _parse_captions(
     )
     table = CaptionStyle(
         label=_text(
-            table_raw.get("label") or "Tabel",
+            table_raw.get("label"),
             path=path,
             key="captions.table.label",
+            default="Tabel",
         ),
         separator=_text(
             table_raw.get("separator", " "),
@@ -856,12 +864,18 @@ def _parse_code(
             key="code.border.style",
         )
     return CodeFormat(
-        style=_text(raw.get("style") or "SourceCode", path=path, key="code.style"),
+        style=_text(
+            raw.get("style"),
+            path=path,
+            key="code.style",
+            default="SourceCode",
+        ),
         font=CodeFont(
             family=_text(
-                font_raw.get("family") or mono.family,
+                font_raw.get("family"),
                 path=path,
                 key="code.font.family",
+                default=mono.family,
             ),
             size_half_points=_font_size(
                 font_raw.get("size"),
@@ -947,14 +961,16 @@ def _parse_bibliography_style(
         )
     return BibliographyStyle(
         heading=_text(
-            raw.get("heading") or "DAFTAR PUSTAKA",
+            raw.get("heading"),
             path=path,
             key="bibliography_style.heading",
+            default="DAFTAR PUSTAKA",
         ),
         font_family=_text(
-            font_value or body.family,
+            font_value,
             path=path,
             key="bibliography_style.font",
+            default=body.family,
         ),
         font_size_half_points=_font_size(
             raw.get("size"),
@@ -1042,6 +1058,13 @@ def _validate_reference_docx(path: Path) -> None:
             path=path,
             key="assets.reference_docx",
         ) from exc
+    except OSError as exc:
+        raise _err(
+            f"reference.docx tidak dapat dibaca: {exc}",
+            code="CFG-ASSET-INVALID",
+            path=path,
+            key="assets.reference_docx",
+        ) from exc
     required = {"[Content_Types].xml", "word/document.xml", "word/styles.xml"}
     missing = sorted(required - names)
     if missing:
@@ -1090,9 +1113,10 @@ def _parse_citation(data: Mapping[str, Any], *, format_dir: Path, path: Path) ->
         )
     _validate_csl(csl)
     bibliography = _text(
-        data.get("bibliography") or "references.bib",
+        data.get("bibliography"),
         path=path,
         key="citation.bibliography",
+        default="references.bib",
     )
     path_mod.safe_relative_path(
         bibliography,
@@ -1107,7 +1131,12 @@ def _parse_citation(data: Mapping[str, Any], *, format_dir: Path, path: Path) ->
             path=path,
             key="citation.bibliography",
         )
-    locale = _text(data.get("locale") or "id-ID", path=path, key="citation.locale")
+    locale = _text(
+        data.get("locale"),
+        path=path,
+        key="citation.locale",
+        default="id-ID",
+    )
     return CitationFormat(
         csl=csl,
         bibliography=bibliography,
@@ -1118,8 +1147,11 @@ def _parse_citation(data: Mapping[str, Any], *, format_dir: Path, path: Path) ->
 def _parse_assets(data: Mapping[str, Any] | None, *, format_dir: Path, path: Path) -> AssetsFormat:
     raw = data or {}
     _check_unknown(raw, _ASSETS_KEYS, path=path, key="assets")
+    logo_value = raw.get("logo")
+    if logo_value is None:
+        logo_value = "logo.jpg"
     logo = path_mod.safe_relative_path(
-        raw.get("logo") or "logo.jpg",
+        logo_value,
         base=format_dir,
         label="assets.logo",
         code="CFG-ASSET-MISSING",
@@ -1134,8 +1166,11 @@ def _parse_assets(data: Mapping[str, Any] | None, *, format_dir: Path, path: Pat
             key="assets.logo",
         )
     _validate_image(logo)
+    reference_value = raw.get("reference_docx")
+    if reference_value is None:
+        reference_value = "reference.docx"
     reference = path_mod.safe_relative_path(
-        raw.get("reference_docx") or "reference.docx",
+        reference_value,
         base=format_dir,
         label="assets.reference_docx",
         code="CFG-ASSET-MISSING",
@@ -1303,7 +1338,12 @@ def load_format(format_id: str, *, root: Path | None = None) -> Format:
 
     return Format(
         id=format_id,
-        name=_text(data.get("name") or format_id, path=path, key="name"),
+        name=_text(
+            data.get("name"),
+            path=path,
+            key="name",
+            default=format_id,
+        ),
         description=_text(
             data.get("description", ""),
             path=path,

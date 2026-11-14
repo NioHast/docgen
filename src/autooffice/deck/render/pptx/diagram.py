@@ -41,7 +41,7 @@ def render_diagram_block(
     """Render satu block diagram dan kembalikan picture serta caption-nya.
 
     Diagram selalu menjadi gambar PNG hasil ``mmdc``; tidak ada fallback teks
-    atau shape. Bila render gagal, error dari lane media diteruskan sebagai
+    atau shape. Bila render gagal, error dari modul media diteruskan sebagai
     ``PptxRenderError`` dengan konteks slide dan block.
     """
     relative_source = field_text(block.fields, "source", block_id=block.block_id)

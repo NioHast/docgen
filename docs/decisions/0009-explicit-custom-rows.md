@@ -30,12 +30,12 @@ bergantung pada key atau nilai span.
    `layout: custom` wajib memuat setiap block tepat satu kali; slide non-custom
    boleh memuat sebagian block.
 3. `rows` kosong berarti IR tidak membawa batas row eksplisit. Compiler selalu
-   mengisi `rows` untuk slide custom; hanya IR yang dibuat manual tanpa rows
-   yang memakai fallback layout.
+   mengisi `rows` untuk slide custom. IR custom yang dibuat manual tanpa `rows`
+   tidak memakai fallback; planner menolaknya dengan `CustomLayoutError`.
 4. Compiler mengisi `SlideIR.rows` dari `SlideDefinition.rows` dan menjaga
    urutan block row-major yang sama dengan `blocks`.
-5. Layout custom memakai `SlideIR.rows` sebagai otoritas. Fallback rekonstruksi
-   span hanya berlaku bila `rows` kosong; bila tidak ada rows maupun block,
+5. Layout custom memakai `SlideIR.rows` sebagai otoritas. Tidak ada fallback
+   rekonstruksi span. Bila slide custom tidak memiliki `rows` eksplisit,
    planner melempar `CustomLayoutError` yang menyebut slide.
 6. Heuristik petunjuk key manifest dihapus karena sumber kebenaran row sudah
    ada di IR dan heuristik itu tidak berlaku untuk block tanpa key.
@@ -48,8 +48,8 @@ bergantung pada key atau nilai span.
   checker tidak berubah.
 - Partial row `divider`/`spacer` kini deterministik tanpa key atau hint.
 - Test compiler wajib memeriksa rows custom persis sesuai urutan authoring.
-- IR lama yang dibuat manual tanpa rows masih dapat direncanakan lewat fallback
-  span, tetapi fallback itu bukan jalur compiler dan tidak dipakai build normal.
+- IR custom yang dibuat manual tanpa rows ditolak dengan `CustomLayoutError`;
+  tidak ada fallback rekonstruksi span.
 
 ## Alternatif yang ditolak
 
@@ -65,5 +65,9 @@ bergantung pada key atau nilai span.
 ## Status
 
 Diterima. Perubahan bentuk atau semantik `SlideIR.rows` memerlukan ADR baru.
+
+Amandemen 2026-11-14: fallback span pada poin 3 dan 5 dihapus. Slide custom
+tanpa `SlideIR.rows` sekarang gagal dengan `CustomLayoutError`; compiler tetap
+wajib mengisi rows.
 
 [Rencana AutoOffice](../../AUTO_OFFICE_PLAN.md)

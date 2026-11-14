@@ -1,4 +1,4 @@
-"""Tes kontrak import antar modul ``docgen``.
+"""Tes kontrak import antar modul ``autooffice``.
 
 Kontrak didefinisikan di ``[tool.importlinter]`` pada ``pyproject.toml`` dan
 diperiksa lewat entry point ``lint-imports`` dari dependency dev.

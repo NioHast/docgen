@@ -7,9 +7,11 @@ from _edge_helpers import new_slide
 
 from autooffice.deck.model.deck_ir import BlockIR
 from autooffice.deck.render.pptx import image as image_module
+from autooffice.deck.render.pptx.diagram import _media_boxes as diagram_media_boxes
 from autooffice.deck.render.pptx.image import (
-    _media_boxes,
-    _picture_source,
+    _media_boxes as image_media_boxes,
+)
+from autooffice.deck.render.pptx.image import (
     contain_geometry,
     cover_crop,
     image_size,
@@ -219,16 +221,42 @@ def test_render_image_block_rejects_unknown_fit(workspace: Path, theme, hero_ima
         )
 
 
-def test_media_boxes_rejects_caption_without_media_room(theme) -> None:
+@pytest.mark.parametrize(
+    ("media_boxes", "message"),
+    [
+        (image_media_boxes, "Kotak gambar tidak menyisakan ruang media"),
+        (diagram_media_boxes, "Kotak diagram tidak menyisakan ruang media"),
+    ],
+    ids=["image", "diagram"],
+)
+def test_media_boxes_reject_caption_without_media_room(media_boxes, message, theme) -> None:
     box = Box(left=0, top=0, width=1_000_000, height=1000)
 
-    with pytest.raises(PptxRenderError, match="tidak menyisakan ruang media"):
-        _media_boxes(box, "Caption yang panjang sekali", theme)
+    with pytest.raises(PptxRenderError, match=message):
+        media_boxes(box, "Caption yang panjang sekali", theme)
 
 
-def test_picture_source_wraps_broken_webp(workspace: Path) -> None:
-    path = workspace / "rusak.webp"
-    path.write_bytes(b"bukan webp")
+def test_render_image_block_reports_unreadable_webp(workspace: Path, theme) -> None:
+    assets = workspace / "assets"
+    assets.mkdir(parents=True, exist_ok=True)
+    (assets / "rusak.webp").write_bytes(b"bukan webp")
+    block = BlockIR(
+        "image1",
+        "image",
+        None,
+        None,
+        {"path": "assets/rusak.webp", "alt": "Alt"},
+    )
 
-    with pytest.raises(PptxRenderError, match="WebP tidak dapat dikonversi"):
-        _picture_source(path)
+    with pytest.raises(
+        PptxRenderError,
+        match=r"Slide 's01', block 'image1'.*tidak dapat dibaca",
+    ):
+        render_image_block(
+            new_slide(),
+            block,
+            Box(left=0, top=0, width=1_000_000, height=1_000_000),
+            theme,
+            slide_id="s01",
+            workspace=workspace,
+        )

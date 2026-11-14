@@ -127,4 +127,4 @@ key dan 3 chart untuk 24 slide.
 - Tidak ada pull data chart dari Slides ke YAML.
 - Tidak ada penulisan teks dari renderer; semua teks berasal dari block atau
   field slide.
-- Tidak ada `docgen` atau `deck-studio` di permukaan perintah.
+- Tidak ada nama package atau entry point lama di permukaan perintah.

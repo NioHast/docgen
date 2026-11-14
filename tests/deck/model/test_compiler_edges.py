@@ -5,7 +5,6 @@ from pathlib import Path
 
 import pytest
 
-import autooffice.deck.model.compiler as compiler_module
 from autooffice.deck.model import (
     BlockDefinition,
     ChartSeries,
@@ -64,12 +63,14 @@ def _definition(*slides: SlideDefinition) -> DeckDefinition:
     )
 
 
-def test_compile_rejects_empty_deck() -> None:
+def test_defensive_compile_rejects_empty_deck() -> None:
+    """Guard internal: loader menolak deck tanpa slide sebelum compile_deck."""
     with pytest.raises(DeckSchemaError, match="minimal satu slide"):
         compile_deck(_definition())
 
 
-def test_compile_rejects_duplicate_slide_id_with_context() -> None:
+def test_defensive_compile_rejects_duplicate_slide_id_with_context() -> None:
+    """Guard internal: loader menolak slide ID duplikat sebelum compile_deck."""
     definition = _definition(_slide(slide_id="s01"), _slide(slide_id="s01"))
 
     with pytest.raises(DeckSchemaError, match="duplikat") as error:
@@ -231,56 +232,3 @@ def test_compile_from_public_loader_rejects_malformed_block_fields(
 ) -> None:
     with pytest.raises(DeckSchemaError, match=match):
         compile_deck(loads_deck(_public_deck_yaml(block_type, fields)))
-
-
-@pytest.mark.parametrize(
-    ("block_type", "fields", "match"),
-    [
-        ("bullets", {"items": ["Satu"]}, "harus tuple string"),
-        ("bullets", {"items": ("Satu", 2)}, "harus tuple string"),
-        ("table", {"columns": ("A",), "rows": [("1",)]}, "harus tuple baris string"),
-        ("table", {"columns": ("A",), "rows": (["1"],)}, "harus tuple baris string"),
-        ("table", {"columns": ("A",), "rows": ((1,),)}, "harus tuple baris string"),
-        (
-            "chart",
-            {
-                "kind": "bar",
-                "title": "Judul",
-                "alt": "Alt",
-                "categories": ("Q1", "Q2"),
-                "series": [],
-            },
-            "harus tuple ChartSeries",
-        ),
-        (
-            "chart",
-            {
-                "kind": "bar",
-                "title": "Judul",
-                "alt": "Alt",
-                "categories": ("Q1", "Q2"),
-                "series": ("bukan-series",),
-            },
-            "harus tuple ChartSeries",
-        ),
-    ],
-)
-def test_defensive_compile_rejects_non_tuple_ir_fields(
-    monkeypatch: pytest.MonkeyPatch,
-    block_type: str,
-    fields: dict[str, object],
-    match: str,
-) -> None:
-    """Guard tipe internal compiler untuk IR yang dibangun di luar jalur publik.
-
-    ``loads_deck`` menormalkan list YAML menjadi tuple dan memvalidasi isi
-    field, sehingga bentuk non-tuple di sini hanya dapat muncul dari pemanggil
-    internal yang membangun ``DeckDefinition`` langsung. Binding sengaja
-    dilewati agar guard compiler sendiri yang diuji, bukan guard di modul
-    binding.
-    """
-    monkeypatch.setattr(compiler_module, "build_bindings", lambda _definition: ())
-    block = _block(block_type, fields)
-
-    with pytest.raises(DeckSchemaError, match=match):
-        compile_deck(_definition(_slide(block)))

@@ -406,6 +406,7 @@ def push_deck(
     staging_path = Path(staging)
     state_file = Path(state)
     compiled = compile_deck_file(deck_path)
+    title = _compiled_title(compiled, deck_path)
     if isinstance(theme, Theme):
         resolved_theme = theme
     elif isinstance(theme, str):
@@ -423,7 +424,7 @@ def push_deck(
 
     workbook, created = ensure_workbook(
         resolved_services.sheets,
-        title=str(compiled.meta.get("title", "")),
+        title=title,
         existing_id=updated_state.spreadsheet_id,
     )
     if created:
@@ -488,7 +489,7 @@ def push_deck(
         uploaded = upload_presentation(
             resolved_services.drive,
             staging_path,
-            name=str(compiled.meta.get("title", staging_path.stem)),
+            name=title,
         )
         updated_state = replace(
             updated_state,
@@ -524,8 +525,10 @@ def push_deck(
     # sukses. Kegagalan sebelumnya mempertahankan nilai lama, sementara progress
     # workbook/presentasi/chart yang sudah tersimpan tetap dipakai rerun.
     updated_state = replace(updated_state, last_pushed_at=now_iso(now))
-    save_state(updated_state, state_file)
-    return (state_file,)
+    saved_state = save_state(updated_state, state_file)
+    if not saved_state.is_file():
+        raise GoogleSyncError(f"State Google tidak tertulis setelah push: {saved_state}.")
+    return (saved_state,)
 
 
 def sync_deck(
@@ -554,14 +557,20 @@ def sync_deck(
     diff = _diff_deck(compiled, pulled, generated_at=now)
 
     review = Path(review_dir)
-    review.mkdir(parents=True, exist_ok=True)
+    try:
+        review.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        raise GoogleSyncError(f"Direktori review tidak dapat dibuat: {review}: {exc}") from exc
     stem = deck_path.stem
+    output: Path | None
     if mode == "diff":
         output = write_diff_report(diff, review / f"{stem}.diff.json")
     elif mode == "pull":
         output = apply_pulled_text(deck_path, pulled, review / f"{stem}.pulled.yaml")
     else:
         output = apply_diff(deck_path, diff, review / f"{stem}.applied.yaml")
+    if output is None or not output.is_file():
+        raise GoogleSyncError(f"Mode sync '{mode}' tidak menghasilkan berkas review di '{review}'.")
 
     # Review-only: jangan majukan deck_sha256. Digest hanya berubah saat
     # presentasi baru berhasil di-upload agar reuse staging tetap aman.
@@ -570,8 +579,20 @@ def sync_deck(
         deck_path=deck_path.name,
         last_pulled_revision_id=pulled.revision_id,
     )
-    save_state(updated_state, state_file)
-    return (output,)
+    saved_state = save_state(updated_state, state_file)
+    if not saved_state.is_file():
+        raise GoogleSyncError(f"State Google tidak tertulis setelah sync: {saved_state}.")
+    return (output, saved_state)
+
+
+def _compiled_title(deck: DeckIR, deck_path: Path) -> str:
+    """Ambil ``meta.title`` wajib untuk nama workbook dan presentasi."""
+    title = deck.meta.get("title")
+    if not isinstance(title, str) or not title.strip():
+        raise GoogleSyncError(
+            f"Deck '{deck_path}' tidak memiliki meta.title untuk push Google Slides."
+        )
+    return title.strip()
 
 
 def _has_pending_placeholders(
@@ -650,9 +671,9 @@ def _set_yaml_path(data: object, path: Sequence[str | int], value: str, *, key: 
 
 
 def _write_yaml_atomic(yaml: YAML, data: object, destination: Path) -> None:
-    destination.parent.mkdir(parents=True, exist_ok=True)
     temporary: Path | None = None
     try:
+        destination.parent.mkdir(parents=True, exist_ok=True)
         with tempfile.NamedTemporaryFile(
             mode="w",
             encoding="utf-8",

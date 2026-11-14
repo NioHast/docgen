@@ -6,11 +6,11 @@ Pemilik kontrak: DOCX owner; pembekuan F0 oleh integration owner.
 
 ## Tujuan
 
-Kontrak ini membekukan migrasi pipeline DOCX docgen ke `autooffice.docx`
+Kontrak ini membekukan migrasi pipeline DOCX baseline ke `autooffice.docx`
 tanpa perubahan perilaku dokumen. Yang berubah hanya namespace, entry point,
 nama satu flag, lokasi kode, dan dokumentasi.
 
-## Invarian parity docgen
+## Invarian parity baseline DOCX
 
 1. Satu `document.md` tetap menjadi satu-satunya sumber dokumen.
 2. Front matter, format `format.yml`, dan struktur `structure.yml`
@@ -20,14 +20,14 @@ nama satu flag, lokasi kode, dan dokumentasi.
    untuk dokumen target. Part non-target harus byte-identik setelah
    normalisasi timestamp dan metadata.
 5. Stage finalisasi Word tetap menghasilkan TOC, daftar, caption, tabel,
-   code, equation, numbering, dan page number seperti docgen.
+   code, equation, numbering, dan page number seperti baseline DOCX.
 6. Manifest Adeu tetap deterministik di `.laporan/manifest.json` dan bookmark
    tetap `pNNNN`.
 7. `report_name` wajib dan aman sebagai nama berkas. Output default:
    `<report_name>.docx` dan `<report_name>.pdf`; contoh di
    `examples/<name>/document.md` memakai `examples/<name>/out/`.
 8. `--terms` menjalankan check, apply, verify, dan gate istilah seperti
-   docgen. Output istilah baru berada di `.laporan/istilah-baru.txt`.
+   baseline DOCX. Output istilah baru berada di `.laporan/istilah-baru.txt`.
    `--terms` hanya berlaku untuk `.md`, bukan `.yaml`.
 9. DOCX tidak memakai design system deck, tidak memakai Plus Jakarta Sans,
    dan tidak menjalankan copy checker atau humanizer.
@@ -51,7 +51,7 @@ def build_docx(
 ```
 
 - `input`: path `document.md`.
-- `out`: direktori output final; `None` memakai aturan output docgen.
+- `out`: direktori output final; `None` memakai aturan output baseline DOCX.
 - `terms`: mengaktifkan gate istilah dan output istilah baru.
 - `keep_intermediate`: mempertahankan `.laporan-build/` dan intermediate DOCX.
 - Return `DocxResult` memuat path DOCX, manifest, istilah, warnings, dan
@@ -105,11 +105,11 @@ Catatan F0: test bentuk ada di `tests/contract/test_contract_shapes.py` dan `tes
 
 | Invarian | Bukti |
 | --- | --- |
-| Parity visual dan part | Golden DOCX dari baseline docgen; `tests/docx/test_golden.py` (planned); bagian 18.2. |
-| Urutan stage dan satu save | Contract test pipeline; `tests/docx/test_pipeline.py` (planned). |
-| Manifest dan bookmark | Golden manifest; `tests/docx/test_adeu.py` (planned). |
-| `--terms` | `tests/docx/test_terms.py` (planned); output `istilah-baru.txt`. |
+| Parity visual dan part | Golden DOCX dari baseline DOCX; `tests/docx/test_command.py`; fixture `tests/fixtures/golden/docx/minimal/`; bagian 18.2. |
+| Urutan stage dan satu save | `tests/docx/test_pipeline.py`; `tests/docx/test_pipeline_edges.py`. |
+| Manifest dan bookmark | `tests/docx/test_adeu_manifest.py`; `tests/docx/test_adeu_paragraph_ids.py`; `tests/docx/test_adeu_reconcile.py`. |
+| `--terms` | `tests/docx/test_stages_terms.py`; output `istilah-baru.txt`. |
 | Batas import | `lint-imports`; kontrak import bagian 12.5. |
-| API `build_docx` | `tests/contract/test_docx_api.py` (planned); F1-DOCX acceptance. |
+| API `build_docx` | `tests/docx/test_command.py`; F1-DOCX acceptance. |
 
 [Rencana AutoOffice](../../AUTO_OFFICE_PLAN.md)

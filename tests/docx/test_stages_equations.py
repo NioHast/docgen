@@ -217,7 +217,7 @@ def test_number_per_chapter_chapter_title_and_roman(equations_docx: Path, tmp_pa
     assert report.equation_paragraphs == 6
     assert report.numbered == 5
     assert report.skipped_field == 1
-    assert report.bab_headings == 3
+    assert report.chapter_headings == 3
 
 
 def test_heading_arabic_dotted_recognized_as_chapter(tmp_path: Path) -> None:
@@ -234,7 +234,7 @@ def test_heading_arabic_dotted_recognized_as_chapter(tmp_path: Path) -> None:
     report = equations.format_equations(package)
     result = DocumentPackage.load(_save(package, tmp_path / "out.docx"))
 
-    assert report.bab_headings == 1
+    assert report.chapter_headings == 1
     assert report.numbered == 1
     assert [_direct_run_text(paragraph) for paragraph in _equation_paragraphs(result)] == ["(4.1)"]
 

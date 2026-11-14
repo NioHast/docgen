@@ -82,28 +82,60 @@ class PandocInvocation:
 # ---------------------------------------------------------------------------
 
 
+def _preserve_relative_override(raw: str, candidate: Path) -> str:
+    """Kembalikan path kandidat tanpa menghapus awalan relatif eksplisit.
+
+    ``Path("./pandoc")`` menormalkan diri menjadi ``pandoc``; bentuk asli
+    dipertahankan agar pemanggil tidak diam-diam beralih ke executable lain
+    dari ``PATH``.
+    """
+
+    if raw.startswith(("./", "../", ".\\", "..\\")):
+        return raw
+    return str(candidate)
+
+
 def find_pandoc(explicit: str | Path | None = None) -> str | None:
-    """Cari Pandoc dari path eksplisit, environment, PATH, lalu lokasi Windows."""
+    """Cari Pandoc dari path eksplisit, environment, PATH, lalu lokasi Windows.
+
+    Environment override yang diisi tetapi tidak dapat dijalankan adalah error:
+    nilai yang salah tidak boleh jatuh diam-diam ke PATH atau lokasi default.
+    Path relatif eksplisit seperti ``./pandoc`` dikembalikan apa adanya.
+    """
 
     if explicit is not None:
-        candidate = Path(explicit).expanduser()
+        raw = str(explicit)
+        candidate = Path(raw).expanduser()
         if candidate.is_file():
-            return str(candidate)
-        found = shutil.which(str(explicit))
+            return _preserve_relative_override(raw, candidate)
+        found = shutil.which(raw)
         if found is not None:
             return found
         return None
 
     for variable in ("DOCGEN_PANDOC", "PANDOC", "LAPORAN_PANDOC"):
         value = os.environ.get(variable)
-        if not value:
+        if value is None:
             continue
+        if not value.strip():
+            raise ToolMissingError(
+                "pandoc",
+                f"{variable} diisi kosong; hapus variabel atau tunjuk executable Pandoc. "
+                f"{PANDOC_INSTALL_HINT}",
+                key=variable,
+            )
         candidate = Path(value).expanduser()
         if candidate.is_file():
-            return str(candidate)
+            return _preserve_relative_override(value, candidate)
         found = shutil.which(value)
         if found is not None:
             return found
+        raise ToolMissingError(
+            "pandoc",
+            f"{variable} menunjuk Pandoc yang tidak dapat dijalankan: {value!r}. "
+            f"{PANDOC_INSTALL_HINT}",
+            key=variable,
+        )
 
     found = shutil.which("pandoc")
     if found is not None:

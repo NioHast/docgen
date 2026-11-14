@@ -24,7 +24,7 @@ from autooffice.pdf.com import (
     SystemProcessControl,
     WordCleanupError,
     WordComError,
-    application_window_handle,
+    WordTimeoutError,
     com_apartment,
     com_lock,
     load_com_modules,
@@ -59,9 +59,10 @@ def render_slides(
         untuk skip dengan alasan eksplisit.
     :raises WordComError: COM gagal, timeout, atau PowerPoint tidak menulis
         PNG yang diminta.
-    :raises WordCleanupError: Timeout dengan cleanup ambigu. PNG parsial
-        sengaja dipertahankan karena worker COM dapat masih menulis; pemanggil
-        harus memeriksa dan menghapusnya secara manual.
+    :raises WordCleanupError: Timeout dengan cleanup ambigu, termasuk saat PID
+        sudah terverifikasi hilang tetapi worker COM masih berjalan. PNG
+        parsial sengaja dipertahankan karena worker COM dapat masih menulis;
+        pemanggil harus memeriksa dan menghapusnya secara manual.
     """
 
     source = _resolve_pptx(pptx)
@@ -71,11 +72,11 @@ def render_slides(
         stale.unlink(missing_ok=True)
     try:
         rendered = _run_powerpoint(source, target_dir, width=width, height=height)
-    except WordCleanupError as exc:
+    except (WordCleanupError, WordTimeoutError) as exc:
         raise WordCleanupError(
-            f"{exc} Output PNG parsial dipertahankan di '{target_dir}' karena "
-            "cleanup ambigu; periksa dan hapus manual setelah proses PowerPoint "
-            "dipastikan berhenti."
+            f"{exc} Cleanup ambigu: worker COM dapat masih menulis, sehingga "
+            f"output PNG parsial dipertahankan di '{target_dir}'. Periksa dan "
+            "hapus manual setelah proses PowerPoint dipastikan berhenti."
         ) from exc
     except Exception:
         _remove_partial_output(target_dir)
@@ -148,7 +149,8 @@ def _execute_powerpoint_operation(
                     "tidak tersedia. Pasang Microsoft PowerPoint desktop di "
                     f"Windows, lalu ulangi. Detail: {exc}"
                 ) from exc
-            tracker.claim(hwnd=application_window_handle(powerpoint))
+            stage = "mengklaim PID PowerPoint"
+            tracker.claim_new_process()
             stage = "mengatur opsi PowerPoint"
             powerpoint.DisplayAlerts = _PP_ALERTS_NONE
             stage = "membuka presentasi"

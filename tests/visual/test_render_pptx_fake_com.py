@@ -205,19 +205,20 @@ def _write_pptx(tmp_path: Path) -> Path:
     return pptx
 
 
-def test_render_slides_claims_powerpoint_pid_from_window_handle(
+def test_render_slides_claims_new_powerpoint_process(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
     environment = _install(monkeypatch)
-    claim_hwnds: list[int | None] = []
-    original_claim: Callable[..., int | None] = PowerPointProcessTracker.claim
+    claimed_pids: list[int] = []
+    original_claim: Callable[[Any], int] = PowerPointProcessTracker.claim_new_process
 
-    def record_claim(self: Any, *, hwnd: int | None = None) -> int | None:
-        claim_hwnds.append(hwnd)
-        return original_claim(self, hwnd=hwnd)
+    def record_claim(self: Any) -> int:
+        pid = original_claim(self)
+        claimed_pids.append(pid)
+        return pid
 
-    monkeypatch.setattr(PowerPointProcessTracker, "claim", record_claim)
+    monkeypatch.setattr(PowerPointProcessTracker, "claim_new_process", record_claim)
 
     rendered = render_pptx.render_slides(
         _write_pptx(tmp_path),
@@ -226,8 +227,7 @@ def test_render_slides_claims_powerpoint_pid_from_window_handle(
         height=180,
     )
 
-    assert claim_hwnds == [_APPLICATION_HWND]
-    assert environment.control.window_handles == [_APPLICATION_HWND]
+    assert claimed_pids == [_AUTOMATION_PID]
     assert [path.name for path in rendered] == ["slide-001.png", "slide-002.png"]
     assert all(path.is_file() for path in rendered)
     assert environment.control.terminated == []
@@ -239,7 +239,7 @@ def test_render_slides_preserves_partial_output_when_cleanup_is_ambiguous(
 ) -> None:
     environment = _install(monkeypatch, block_on_slide=2)
     monkeypatch.setattr(render_pptx, "_COM_TIMEOUT_S", 0.5)
-    monkeypatch.setattr(com, "WATCHDOG_CLEANUP_TIMEOUT_S", 0.01)
+    monkeypatch.setattr(com, "CLEANUP_TIMEOUT_S", 0.01)
     out_dir = tmp_path / "png"
 
     try:

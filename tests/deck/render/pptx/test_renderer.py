@@ -1,5 +1,7 @@
 """Tes integrasi renderer PPTX: slide, shape key, table, image, notes, XML."""
 
+from dataclasses import replace
+
 import pytest
 from _edge_helpers import has_percentage_line_spacing, line_spacing_points
 from pptx import Presentation
@@ -7,6 +9,8 @@ from pptx.enum.shapes import MSO_SHAPE_TYPE
 from pptx.enum.text import MSO_AUTO_SIZE
 
 from autooffice.deck.render.pptx import PptxRenderer
+from autooffice.deck.render.pptx import renderer as renderer_module
+from autooffice.deck.render.pptx.fonts import DEFERRED, FontEmbeddingResult
 from autooffice.deck.render.pptx.xml import forbidden_node_paths
 from autooffice.deck.render.protocol import OutputTarget, RenderRequest
 
@@ -20,6 +24,10 @@ def _render(case, theme, *, target: OutputTarget = OutputTarget.PPTX):
         workspace=case.workspace,
     )
     return PptxRenderer().render(request)
+
+
+def _stub_embed_fonts(_path, _theme) -> FontEmbeddingResult:
+    return FontEmbeddingResult(status=DEFERRED, warnings=(), font_files=(), blocker=None)
 
 
 def test_minimal_deck_writes_artifact_and_metadata(minimal_case, theme) -> None:
@@ -38,6 +46,19 @@ def test_minimal_deck_writes_artifact_and_metadata(minimal_case, theme) -> None:
     assert result.target_metadata["target"] == "pptx"
     assert result.target_metadata["slides"] == "2"
     assert result.target_metadata["font_embedding"] == "deferred"
+
+
+def test_font_weight_fallback_warning_is_returned_in_render_result(
+    minimal_case,
+    theme,
+    monkeypatch,
+) -> None:
+    fallback_theme = replace(theme, typography=replace(theme.typography, family="Inter"))
+    monkeypatch.setattr(renderer_module, "embed_fonts", _stub_embed_fonts)
+
+    result = _render(minimal_case, fallback_theme)
+
+    assert any("font-weight" in warning for warning in result.warnings)
 
 
 def test_minimal_deck_has_native_text_table_image_and_notes(minimal_case, theme) -> None:

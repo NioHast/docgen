@@ -327,7 +327,7 @@ Cara memeriksa: output memuat `[Content_Types].xml`, `word/document.xml`,
 Jalankan:
 
 ```bash
-uv run --extra dev pytest tests/unit/test_docx_paragraphs.py tests/unit/test_docx_runs.py tests/unit/test_docx_page.py -q
+uv run --extra dev pytest tests/docx/test_docx_paragraphs.py tests/docx/test_docx_runs.py tests/docx/test_docx_page.py -q
 ```
 
 Cara memeriksa: semua tes lulus dan ringkasan berakhir dengan `passed`.

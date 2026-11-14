@@ -463,7 +463,7 @@ def _remove_dir_link(link: Path) -> None:
 
 
 @pytest.mark.parametrize("target_name", [".git", "assets", "."])
-def test_workspace_ensure_rejects_laporan_build_link_to_other_target(
+def test_workspace_ensure_rejects_report_build_link_to_other_target(
     tmp_path: Path,
     target_name: str,
 ) -> None:
@@ -515,7 +515,7 @@ def test_workspace_cleanup_unlinks_junction_without_deleting_target(tmp_path: Pa
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="junction hanya tersedia di Windows")
-def test_workspace_ensure_rejects_windows_junction_laporan_build(tmp_path: Path) -> None:
+def test_workspace_ensure_rejects_windows_junction_report_build(tmp_path: Path) -> None:
     document = tmp_path / "document"
     document.mkdir()
     target = document / ".git"
@@ -778,7 +778,7 @@ def test_run_batch_records_skipped_stage_without_running_it() -> None:
     assert result.warnings == ("stage 'validate' dinonaktifkan oleh opsi build.",)
 
 
-def test_run_batch_passes_docgen_errors_and_wraps_unknown_errors() -> None:
+def test_run_batch_passes_domain_errors_and_wraps_unknown_errors() -> None:
     pipeline = Pipeline(stages=_stage_classes())
 
     with pytest.raises(StageError) as custom:
@@ -1132,7 +1132,7 @@ def test_pipeline_run_wraps_stage_failure_and_respects_keep(
     assert workspace.exists() is keep
 
 
-def test_pipeline_run_does_not_swallow_docgen_stage_error(tmp_path: Path) -> None:
+def test_pipeline_run_does_not_swallow_domain_stage_error(tmp_path: Path) -> None:
     document = _project(tmp_path)
     pipeline = _pipeline(
         runners={

@@ -45,7 +45,8 @@ def test_apply_theme_xml_wraps_invalid_xml(theme) -> None:
         _apply_theme_xml(presentation, theme)
 
 
-def test_apply_color_scheme_requires_scheme(theme) -> None:
+def test_defensive_apply_color_scheme_requires_scheme(theme) -> None:
+    """Guard XML defensif: theme python-pptx bawaan selalu memiliki a:clrScheme."""
     root = etree.Element(qn("a:theme"))
 
     with pytest.raises(PptxRenderError, match="tidak memiliki a:clrScheme"):
@@ -73,14 +74,16 @@ def test_apply_color_scheme_creates_missing_entries(theme) -> None:
     assert accent_color.get("val") == theme.colors.accent[1:].upper()
 
 
-def test_apply_font_scheme_requires_scheme(theme) -> None:
+def test_defensive_apply_font_scheme_requires_scheme(theme) -> None:
+    """Guard XML defensif: theme python-pptx bawaan selalu memiliki a:fontScheme."""
     root = etree.Element(qn("a:theme"))
 
     with pytest.raises(PptxRenderError, match="tidak memiliki a:fontScheme"):
         _apply_font_scheme(root, theme)
 
 
-def test_apply_font_scheme_requires_major_and_minor_fonts(theme) -> None:
+def test_defensive_apply_font_scheme_requires_major_and_minor_fonts(theme) -> None:
+    """Guard XML defensif: theme python-pptx bawaan selalu memiliki major/minorFont."""
     root = etree.Element(qn("a:theme"))
     etree.SubElement(root, qn("a:fontScheme"))
 

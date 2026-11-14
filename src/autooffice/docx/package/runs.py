@@ -110,7 +110,7 @@ def copy_rpr(rpr: etree._Element) -> etree._Element:
 def strip_bold_from_rpr(rpr: etree._Element) -> int:
     """Hapus ``w:b``/``w:bCs`` aktif langsung dari satu ``w:rPr``.
 
-    Status aktif dibaca lewat :func:`docgen.docx.xml.is_on`, sehingga nilai
+    Status aktif dibaca lewat :func:`autooffice.docx.package.xml.is_on`, sehingga nilai
     ``0``, ``false``, ``off``, dan ``no`` dipertahankan sebagai nonaktif,
     sedangkan ``none`` diperlakukan aktif seperti helper XML kanonis.
     Kembalikan jumlah elemen yang benar-benar dihapus.

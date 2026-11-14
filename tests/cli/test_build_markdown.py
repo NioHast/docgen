@@ -11,8 +11,8 @@ from autooffice.cli.build import build_markdown
 from autooffice.docx.command import DocxResult
 from autooffice.docx.errors import WordError
 from autooffice.docx.stages import office
-from autooffice.docx.stages.pandoc import find_pandoc
 from autooffice.pdf import WordCleanupError
+from tests._helpers.pandoc import pandoc_available
 
 REPORT_NAME = "Laporan Uji"
 DOCX_FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "docx" / "minimal"
@@ -136,10 +136,11 @@ def test_build_markdown_pdf_only_preserves_preexisting_docx(
     _install_build_docx(monkeypatch, with_manifest=False)
     exported: list[tuple[Path, Path]] = []
 
-    def fake_export(docx: Path, pdf: Path) -> None:
+    def fake_export(docx: Path, pdf: Path) -> Path:
         exported.append((docx, pdf))
         pdf.parent.mkdir(parents=True, exist_ok=True)
         pdf.write_bytes(b"%PDF-1.7 fake\n")
+        return pdf
 
     monkeypatch.setattr(autooffice.pdf, "export_pdf", fake_export)
 
@@ -159,7 +160,7 @@ def test_build_markdown_pdf_only_preserves_preexisting_docx(
 
 
 @pytest.mark.skipif(
-    find_pandoc() is None,
+    not pandoc_available(),
     reason="Pandoc diperlukan untuk build DOCX nyata",
 )
 def test_build_markdown_pdf_only_real_docx_keeps_workspace_until_conversion(
@@ -245,34 +246,26 @@ def test_build_markdown_docx_and_pdf_keep_both_outputs(
     assert outcome.notes == ()
 
 
-def test_build_markdown_prefers_dedicated_docx_converter(
+def test_build_markdown_calls_export_pdf_directly(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     source = _markdown(tmp_path)
     _install_build_docx(monkeypatch, with_manifest=False)
-    calls: list[tuple[Path, Path]] = []
 
-    def fake_convert(docx: Path, pdf: Path) -> None:
-        calls.append((docx, pdf))
-        pdf.write_bytes(b"%PDF-1.7 dedicated\n")
+    def hidden_convert(_docx: Path, _pdf: Path) -> Path:
+        raise AssertionError("convert_docx_to_pdf tidak boleh dipanggil")
 
-    monkeypatch.setattr(autooffice.pdf, "convert_docx_to_pdf", fake_convert, raising=False)
+    def fake_export(_docx: Path, pdf: Path) -> Path:
+        pdf.write_bytes(b"%PDF-1.7 fake\n")
+        return pdf
 
-    def fail_export(_docx: Path, _pdf: Path) -> None:
-        raise AssertionError("export_pdf tidak boleh dipanggil")
-
-    monkeypatch.setattr(autooffice.pdf, "export_pdf", fail_export)
+    monkeypatch.setattr(autooffice.pdf, "convert_docx_to_pdf", hidden_convert, raising=False)
+    monkeypatch.setattr(autooffice.pdf, "export_pdf", fake_export)
 
     outcome = build_markdown(source, ("pdf",))
 
     assert outcome.files == (tmp_path / f"{REPORT_NAME}.pdf",)
-    assert calls == [
-        (
-            tmp_path / ".laporan-build" / f"{REPORT_NAME}.docx",
-            tmp_path / f"{REPORT_NAME}.pdf",
-        )
-    ]
 
 
 def test_build_markdown_pdf_failure_names_completed_docx(
@@ -291,7 +284,7 @@ def test_build_markdown_pdf_failure_names_completed_docx(
         build_markdown(source, ("pdf",))
 
     docx = tmp_path / ".laporan-build" / f"{REPORT_NAME}.docx"
-    assert error.value.code == "CLI-LANE-F2-PDF"
+    assert error.value.code == "CLI-ARTIFACT"
     assert error.value.exit_code == 1
     assert error.value.path == str(docx)
     assert docx.is_file()
@@ -356,22 +349,6 @@ def test_build_markdown_preserves_build_dir_on_ambiguous_pdf_cleanup(
     assert (build_dir / "office-temp.pdf").is_file()
 
 
-def test_build_markdown_pdf_without_converter_reports_lane(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    source = _markdown(tmp_path)
-    _install_build_docx(monkeypatch, with_manifest=False)
-    monkeypatch.setattr(autooffice.pdf, "export_pdf", None)
-    monkeypatch.delattr(autooffice.pdf, "convert_docx_to_pdf", raising=False)
-
-    with pytest.raises(CliError, match="F2-PDF") as error:
-        build_markdown(source, ("pdf",))
-
-    assert error.value.code == "CLI-LANE-F2-PDF"
-    assert "belum tersedia" in str(error.value)
-
-
 def test_build_markdown_pdf_converter_may_return_path(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -390,7 +367,7 @@ def test_build_markdown_pdf_converter_may_return_path(
     assert outcome.files == (tmp_path / f"{REPORT_NAME}.pdf",)
 
 
-def test_build_markdown_pdf_converter_invalid_result_reports_lane(
+def test_build_markdown_pdf_converter_invalid_result_reports_artifact_error(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -401,7 +378,25 @@ def test_build_markdown_pdf_converter_invalid_result_reports_lane(
     with pytest.raises(CliError, match="tidak mengembalikan path") as error:
         build_markdown(source, ("pdf",))
 
-    assert error.value.code == "CLI-LANE-F2-PDF"
+    assert error.value.code == "CLI-ARTIFACT"
+
+
+def test_build_markdown_pdf_converter_none_result_reports_artifact_error(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = _markdown(tmp_path)
+    _install_build_docx(monkeypatch, with_manifest=False)
+
+    def fake_export(_docx: Path, pdf: Path) -> None:
+        pdf.write_bytes(b"%PDF-1.7 fake\n")
+
+    monkeypatch.setattr(autooffice.pdf, "export_pdf", fake_export)
+
+    with pytest.raises(CliError, match="tidak mengembalikan path") as error:
+        build_markdown(source, ("pdf",))
+
+    assert error.value.code == "CLI-ARTIFACT"
 
 
 def test_build_markdown_dry_run_keep_intermediate_note(
@@ -451,18 +446,17 @@ def test_build_markdown_expands_out_before_build_and_outputs(
     assert outcome.files[0] == expected / f"{REPORT_NAME}.docx"
 
 
-def test_build_markdown_dry_run_requires_pdf_converter(
+def test_build_markdown_dry_run_requires_pdf_api(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     source = _markdown(tmp_path)
     monkeypatch.setattr(autooffice.pdf, "export_pdf", None)
-    monkeypatch.delattr(autooffice.pdf, "convert_docx_to_pdf", raising=False)
 
-    with pytest.raises(CliError, match="F2-PDF") as error:
+    with pytest.raises(CliError, match="ekspor PDF") as error:
         build_markdown(source, ("pdf",), dry_run=True)
 
-    assert error.value.code == "CLI-LANE-F2-PDF"
+    assert error.value.code == "CLI-PDF"
     assert error.value.exit_code == 1
     assert not (tmp_path / f"{REPORT_NAME}.pdf").exists()
     assert not (tmp_path / ".laporan-build").exists()

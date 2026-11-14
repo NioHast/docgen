@@ -1,7 +1,7 @@
 # Aturan Menulis
 
-Panduan ini merangkum aturan prosa yang dipakai repo. Sumber pola pemeriksa
-ada di `tools/dev/rules.yml`; jangan menyalin regex ke berkas lain.
+Panduan ini merangkum aturan prosa yang dipakai repo. Aturan ini bersifat
+editorial; paket AutoOffice tidak menyertakan pemeriksa prosa terpisah.
 
 ## Daftar isi
 
@@ -11,9 +11,7 @@ ada di `tools/dev/rules.yml`; jangan menyalin regex ke berkas lain.
 - [Klaim dan sitasi](#klaim-dan-sitasi)
 - [Istilah asing](#istilah-asing)
 - [Glosarium](#glosarium)
-- [Menjalankan pemeriksa prosa](#menjalankan-pemeriksa-prosa)
-- [Audit istilah DOCX](#audit-istilah-docx)
-- [Kode temuan](#kode-temuan)
+- [Pemeriksaan otomatis](#pemeriksaan-otomatis)
 - [Presedensi](#presedensi)
 - [Contoh](#contoh)
 
@@ -106,58 +104,21 @@ istilah yang benar atau tambahkan entri glosarium, lalu build ulang.
 Tanpa `--terms`, tidak ada penerapan istilah dan tidak ada review file.
 Rincian ada di [docs/dev/docx/terms.md](../dev/docx/terms.md).
 
-## Menjalankan pemeriksa prosa
+## Pemeriksaan otomatis
 
-```bash
-uv run --project <repo> python tools/dev/check_prose.py document.md
-uv run --project <repo> python tools/dev/check_prose.py --banding asli.md document.md
-uv run --project <repo> python tools/dev/check_prose.py --abaikan SG-04,KL-01 document.md
-uv run --project <repo> python tools/dev/check_prose.py --self-test
-```
+AutoOffice tidak menyertakan pemeriksa prosa terpisah. `autooffice check`
+memvalidasi struktur, front matter, aset, urutan heading, dan caption, bukan
+gaya prosa. Aturan di halaman ini dipakai saat review editorial.
 
-Label `K` memblokir dan membuat kode keluar `1`. Label `G` dan `AI` hanya
-memberi anjuran. `--banding` memeriksa angka, sitasi, dan kutipan antara dua
-versi. `--self-test` menjalankan kasus uji mandiri pemeriksa.
-
-Pemeriksa menerima `.md`, `.txt`, dan `.docx`. Pada DOCX, teks dibaca per
-paragraf dan nomor baris laporan adalah nomor paragraf.
-
-## Audit istilah DOCX
-
-Untuk memeriksa hasil build:
-
-```bash
-uv run --project <repo> python -m tools.dev.audit_terms \
-  --docx Tugas.docx \
-  --glossary src/autooffice/docx/data/glossary/istilah.tsv \
-  --out .laporan/istilah-audit.md
-```
-
-Alat ini hanya membaca DOCX dan menulis laporan. Alat tidak mengubah DOCX,
-glosarium, atau naskah.
-
-## Kode temuan
-
-| Keluarga | Kode | Isi |
-| --- | --- | --- |
-| Kalimat efektif | `KE-01` sampai `KE-17` | subjek, pleonasme, perangkai, perbandingan |
-| Nominalisasi dan klaim | `NM-01`, `KK-01` | verba penopang dan kekuatan klaim |
-| Singkatan | `SG-01` sampai `SG-06` | tanda hubung, titik, jamak, kepanjangan |
-| Ejaan dan tanda baca | `EJ-01` sampai `EJ-11` | di/ke, bentuk terikat, angka, satuan, koma, em dash |
-| Klise mesin | `AI-01` sampai `AI-20` | pembuka kosong, kalke, penghubung berulang |
-| Kata baku | `KB-01` | kata tidak baku |
-| Kalimat panjang | `KL-01` | lebih dari 35 kata |
-| Penanda istilah | `IS-01` | `{{?istilah?}}` belum diputuskan |
+Untuk istilah, aktifkan `--terms` saat build. Stage `terms` menerapkan style,
+memverifikasi invariant, dan menulis `.laporan/istilah-baru.txt`. Rincian ada
+di [docs/dev/docx/terms.md](../dev/docx/terms.md).
 
 ## Presedensi
 
 1. Fakta: angka, sitasi, kutipan, nama, dan arah hubungan.
 2. Pedoman kampus dan format `undip-msi`.
 3. Panduan ini.
-4. Saran pemeriksa.
-
-Bila pemeriksa dan panduan bertentangan, berhenti dan laporkan. Jangan memilih
-diam-diam. Aturan `K` mengikat; `G` dan `AI` advisory.
 
 ## Contoh
 
@@ -186,5 +147,5 @@ Sistem ini tidak cepat, tetapi boros.
 ```
 
 Atribusi: kaidah Ejaan Bahasa Indonesia, Kamus Besar Bahasa Indonesia, dan Tata
-Bahasa Baku Bahasa Indonesia. Sebagian pola pemeriksa berasal dari proyek
-naskah-id (MIT). Teks lisensi ada di `LICENSE`.
+Bahasa Baku Bahasa Indonesia. Sebagian kaidah dalam panduan ini diadaptasi dari
+proyek naskah-id (MIT). Teks lisensi ada di `LICENSE`.

@@ -6,7 +6,10 @@ terdaftar. Warna, ukuran, dan jarak selalu berasal dari ``Theme`` yang sudah
 diresolusi.
 """
 
-from collections.abc import Iterable, Mapping, Sequence
+import logging
+from collections.abc import Iterable, Iterator, Mapping, Sequence
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 
 from lxml import etree
@@ -58,9 +61,37 @@ _BUNDLED_WEIGHT_TYPEFFACES = frozenset(
 
 etree.register_namespace("aoo", KEY_EXTENSION_NS)
 
+_LOGGER = logging.getLogger(__name__)
+_RENDER_WARNINGS: ContextVar[list[str] | None] = ContextVar("pptx_render_warnings", default=None)
+
 
 class PptxRenderError(AutoOfficeError, ValueError):
     """Satu block atau request tidak dapat dirender menjadi PPTX."""
+
+
+@contextmanager
+def collect_render_warnings() -> Iterator[list[str]]:
+    """Kumpulkan warning render dalam scope agar dapat diteruskan pemanggil.
+
+    Warning yang sama hanya dicatat sekali. Bila tidak ada kolektor aktif,
+    :func:`record_render_warning` menuliskannya ke logger modul.
+    """
+    collected: list[str] = []
+    token = _RENDER_WARNINGS.set(collected)
+    try:
+        yield collected
+    finally:
+        _RENDER_WARNINGS.reset(token)
+
+
+def record_render_warning(warning: str) -> None:
+    """Catat warning render ke kolektor aktif, atau log bila tidak ada."""
+    collected = _RENDER_WARNINGS.get()
+    if collected is None:
+        _LOGGER.warning("%s", warning)
+        return
+    if warning not in collected:
+        collected.append(warning)
 
 
 @dataclass(frozen=True, slots=True)

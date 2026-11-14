@@ -28,6 +28,7 @@ from .shapes import (
     field_optional_text,
     field_rows,
     field_sequence,
+    record_render_warning,
     rgb,
     set_namespace_marker,
 )
@@ -369,7 +370,7 @@ def _style_cell(
         alignment=PP_ALIGN.RIGHT if numeric else PP_ALIGN.LEFT,
     )
     for run in paragraph.runs:
-        apply_run_style(
+        warning = apply_run_style(
             run,
             family=style.family,
             size_pt=style.size_pt,
@@ -377,6 +378,8 @@ def _style_cell(
             color=style.color,
             tracking_em=theme.typography.tracking_em,
         )
+        if warning is not None:
+            record_render_warning(warning)
     cell.fill.solid()  # type: ignore[no-untyped-call]
     cell.fill.fore_color.rgb = rgb(fill)
     _set_cell_borders(cell._tc.get_or_add_tcPr(), theme)

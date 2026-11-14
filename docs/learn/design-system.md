@@ -76,10 +76,10 @@ Warna chart memakai empat slot di kedua theme:
 | `indigo` | `#4F46E5`, `#0F766E`, `#B45309`, `#BE123C` |
 | `hitam` | `#111827`, `#374151`, `#4B5563`, `#6B7280` |
 
-Palet kategorikal mentah `hitam` dari deck-studio memuat `#9CA3AF` dan
-`#D1D5DB` yang tidak lolos 3:1 di kanvas terang. Karena itu AutoOffice memakai
-turunan empat warna di atas. Batas empat slot berlaku untuk seri `bar`/`line`
-dan kategori `donut`.
+Palet kategorikal mentah `hitam` dari baseline desain deck memuat `#9CA3AF`
+dan `#D1D5DB` yang tidak lolos 3:1 di kanvas terang. Karena itu AutoOffice
+memakai turunan empat warna di atas. Batas empat slot berlaku untuk seri
+`bar`/`line` dan kategori `donut`.
 
 ## Font
 
@@ -99,8 +99,8 @@ src/autooffice/assets/fonts/plus-jakarta-sans/
 SHA256. Test memverifikasi setiap berkas ada, magic bytes TTF valid, dan hash
 cocok. Lisensi yang dipakai adalah SIL Open Font License 1.1.
 
-DOCX tidak memakai Plus Jakarta Sans; DOCX mempertahankan font format docgen.
-Google Slides memakai nama family `Plus Jakarta Sans` dari Google Fonts.
+DOCX tidak memakai Plus Jakarta Sans; DOCX mempertahankan font format baseline
+DOCX. Google Slides memakai nama family `Plus Jakarta Sans` dari Google Fonts.
 
 ## Kontras
 

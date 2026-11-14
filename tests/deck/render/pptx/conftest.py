@@ -211,7 +211,7 @@ def minimal_case(workspace: Path, hero_image: str) -> RenderCase:
 
 @pytest.fixture
 def chart_case(workspace: Path) -> RenderCase:
-    """Deck satu slide dengan chart placeholder F1."""
+    """Deck satu slide dengan chart placeholder."""
     block = BlockIR(
         "chart1",
         "chart",

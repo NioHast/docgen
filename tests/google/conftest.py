@@ -1,4 +1,4 @@
-"""Fixture bersama test lane Google: deck nyata dan fake in-memory."""
+"""Fixture bersama test Google: deck nyata dan fake in-memory."""
 
 import shutil
 from collections.abc import Callable, Mapping

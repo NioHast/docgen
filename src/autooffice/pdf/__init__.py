@@ -14,6 +14,7 @@ from .com import (
     WordBusyError,
     WordCleanupError,
     WordComError,
+    WordOwnershipError,
     WordTimeoutError,
 )
 from .powerpoint import export_pdf as export_pptx_pdf
@@ -32,6 +33,7 @@ __all__ = [
     "WordBusyError",
     "WordCleanupError",
     "WordComError",
+    "WordOwnershipError",
     "WordTimeoutError",
     "embed_pptx_fonts",
     "export_pdf",

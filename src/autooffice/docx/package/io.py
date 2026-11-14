@@ -1,4 +1,4 @@
-"""Baca/tulis ZIP untuk :mod:`docgen.docx.package`.
+"""Baca/tulis ZIP untuk :mod:`autooffice.docx.package`.
 
 Modul internal package. Stage tidak boleh memakainya langsung.
 """

@@ -1,8 +1,8 @@
 """Stage ``style_reference``: derived ``reference.docx`` dari ``format.yml``.
 
-Sumber kebenaran nilai visual adalah :class:`docgen.config.Format`. Stage ini
+Sumber kebenaran nilai visual adalah :class:`autooffice.docx.config.Format`. Stage ini
 tidak pernah menulis ke ``assets.reference_docx``; derived reference selalu
-ditulis ke workspace/cache. Semua mutasi XML memakai ``docgen.docx``.
+ditulis ke workspace/cache. Semua mutasi XML memakai ``autooffice.docx``.
 """
 
 import hashlib
@@ -26,7 +26,7 @@ STYLE_REFERENCE_PART = "word/styles.xml"
 DEFAULT_REFERENCE_NAME = "reference.docx"
 
 # Style karakter yang wajib ada agar stage terms dapat langsung bekerja.
-ISTILAH_STYLES: tuple[StyleSpec, ...] = (
+TERM_STYLES: tuple[StyleSpec, ...] = (
     StyleSpec(
         style_id="IstilahAsing",
         style_type="character",
@@ -428,7 +428,7 @@ def style_specs_for_format(
         specs[style_id] = _abstract_spec(style_id, format_spec)
     for style_id in _COVER_STYLES:
         specs[style_id] = _cover_spec(style_id)
-    for spec in ISTILAH_STYLES:
+    for spec in TERM_STYLES:
         specs[spec.style_id] = spec
     return specs
 
@@ -460,14 +460,20 @@ def build_reference_docx(
             path=source_path,
         )
     try:
-        if source_path.resolve() == output_path.resolve():
-            raise StyleError(
-                "reference.docx sumber tidak boleh ditimpa; tulis derived reference ke cache/temp",
-                code="STYLE-SOURCE-OVERWRITE",
-                path=source_path,
-            )
-    except OSError:
-        pass
+        same_path = source_path.resolve() == output_path.resolve()
+    except OSError as exc:
+        raise StyleError(
+            f"path reference.docx sumber/tujuan tidak dapat diresolusi; "
+            f"guard overwrite tidak dapat dijalankan: {exc}",
+            code="STYLE-SOURCE-OVERWRITE",
+            path=source_path,
+        ) from exc
+    if same_path:
+        raise StyleError(
+            "reference.docx sumber tidak boleh ditimpa; tulis derived reference ke cache/temp",
+            code="STYLE-SOURCE-OVERWRITE",
+            path=source_path,
+        )
 
     before = _digest(source_path)
     package = DocumentPackage.load(source_path)
@@ -556,7 +562,7 @@ class StyleReferenceStage(BaseStage):
 def main(argv: list[str] | None = None) -> int:
     """CLI dev tipis: hasilkan derived reference dari format id.
 
-    Orkestrasi produksi tetap milik ``docgen.pipeline``; fungsi ini hanya
+    Orkestrasi produksi tetap milik ``autooffice.docx.pipeline``; fungsi ini hanya
     memudahkan pembuatan fixture dan pemeriksaan manual.
     """
 
@@ -583,7 +589,7 @@ def main(argv: list[str] | None = None) -> int:
 
 __all__ = [
     "DEFAULT_REFERENCE_NAME",
-    "ISTILAH_STYLES",
+    "TERM_STYLES",
     "StyleReferenceStage",
     "build_reference_docx",
     "build_style_patch",

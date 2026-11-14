@@ -34,44 +34,82 @@ def _docs_clean(root: Path) -> None:
     _write(root, "docs/dev/references.md", REGISTRY_VALID)
 
 
-def _run_tests(root: Path, source: str) -> check_tests.Hasil:
+def _run_tests(root: Path, source: str) -> check_tests.Result:
     _write(root, "tests/test_contoh.py", source)
-    return check_tests.periksa([str(root / "tests")])
+    return check_tests.check([str(root / "tests")])
 
 
 def test_docs_clean_tree_exits_zero(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     _docs_clean(tmp_path)
 
-    result = check_docs.periksa(tmp_path)
+    result = check_docs.check(tmp_path)
     code = check_docs.main([str(tmp_path)])
 
-    assert result.masalah == ()
-    assert result.berkas == 4
-    assert result.entri == 2
+    assert result.problems == ()
+    assert result.file_count == 4
+    assert result.entry_count == 2
     assert code == 0
     assert "Broken: 0" in capsys.readouterr().out
+
+
+def test_docs_scans_autooffice_package_readmes(tmp_path: Path) -> None:
+    _docs_clean(tmp_path)
+    _write(
+        tmp_path,
+        "src/autooffice/docx/README.md",
+        "# DOCX\n\n[Hilang](hilang.md)\n",
+    )
+
+    result = check_docs.check_documents(tmp_path)
+
+    assert any(
+        problem.file == "src/autooffice/docx/README.md" and "tautan rusak" in problem.message
+        for problem in result.problems
+    )
+
+
+def test_docs_ignores_deleted_module_readmes(tmp_path: Path) -> None:
+    _docs_clean(tmp_path)
+    _write(tmp_path, "scripts/README.md", "# Scripts\n\n[Hilang](hilang.md)\n")
+    _write(tmp_path, "src/docgen/README.md", "# Lama\n\n[Hilang](hilang.md)\n")
+
+    result = check_docs.check_documents(tmp_path)
+
+    assert result.problems == ()
+
+
+def test_docs_scans_tools_readme(tmp_path: Path) -> None:
+    _docs_clean(tmp_path)
+    _write(tmp_path, "tools/README.md", "# Tools\n\n[Hilang](hilang.md)\n")
+
+    result = check_docs.check_documents(tmp_path)
+
+    assert any(
+        problem.file == "tools/README.md" and "tautan rusak" in problem.message
+        for problem in result.problems
+    )
 
 
 def test_docs_detects_broken_link(tmp_path: Path) -> None:
     _write(tmp_path, "docs/README.md", "# Dokumentasi\n\n[Hilang](hilang.md)\n")
 
-    result = check_docs.periksa_dokumen(tmp_path)
+    result = check_docs.check_documents(tmp_path)
 
-    assert len(result.masalah) == 1
-    assert result.masalah[0].berkas == "docs/README.md"
-    assert "tautan rusak" in result.masalah[0].pesan
-    assert result.masalah[0].baris == 3
+    assert len(result.problems) == 1
+    assert result.problems[0].file == "docs/README.md"
+    assert "tautan rusak" in result.problems[0].message
+    assert result.problems[0].line == 3
 
 
 def test_docs_detects_heading_and_fence_violations(tmp_path: Path) -> None:
     _write(tmp_path, "docs/README.md", "# Dokumentasi\n\n[Contoh](contoh.md)\n")
     _write(tmp_path, "docs/contoh.md", "# Satu\n\n# Dua\n\n```\nkode\n```\n")
 
-    result = check_docs.periksa_dokumen(tmp_path)
+    result = check_docs.check_documents(tmp_path)
 
-    pesan = " ".join(masalah.pesan for masalah in result.masalah)
-    assert "judul level 1" in pesan
-    assert "code fence tanpa bahasa" in pesan
+    message = " ".join(problem.message for problem in result.problems)
+    assert "judul level 1" in message
+    assert "code fence tanpa bahasa" in message
 
 
 def test_docs_detects_unreachable_page(tmp_path: Path) -> None:
@@ -79,21 +117,21 @@ def test_docs_detects_unreachable_page(tmp_path: Path) -> None:
     _write(tmp_path, "docs/panduan.md", "# Panduan\n")
     _write(tmp_path, "docs/yatim.md", "# Yatim\n")
 
-    result = check_docs.periksa_dokumen(tmp_path)
+    result = check_docs.check_documents(tmp_path)
 
-    assert len(result.masalah) == 1
-    assert "tidak terjangkau" in result.masalah[0].pesan
+    assert len(result.problems) == 1
+    assert "tidak terjangkau" in result.problems[0].message
 
 
 def test_docs_detects_invalid_toc_anchor(tmp_path: Path) -> None:
-    isi = "# Panjang\n\n## Daftar Isi\n\n- [Hilang](#bagian-hilang)\n\n## Bagian\n\n"
+    content = "# Panjang\n\n## Daftar Isi\n\n- [Hilang](#bagian-hilang)\n\n## Bagian\n\n"
     _write(tmp_path, "docs/README.md", "# Dokumentasi\n\n[Panjang](panjang.md)\n")
-    _write(tmp_path, "docs/panjang.md", isi + "Isi paragraf.\n" * 160)
+    _write(tmp_path, "docs/panjang.md", content + "Isi paragraf.\n" * 160)
 
-    result = check_docs.periksa_dokumen(tmp_path)
+    result = check_docs.check_documents(tmp_path)
 
-    assert len(result.masalah) == 1
-    assert "anchor daftar isi tidak valid" in result.masalah[0].pesan
+    assert len(result.problems) == 1
+    assert "anchor daftar isi tidak valid" in result.problems[0].message
 
 
 def test_docs_registry_rejects_duplicate_and_invalid_url(tmp_path: Path) -> None:
@@ -107,12 +145,12 @@ def test_docs_registry_rejects_duplicate_and_invalid_url(tmp_path: Path) -> None
         "| mypy | ftp://example.com/mypy | Salah. |\n",
     )
 
-    result = check_docs.periksa_registry(path)
+    result = check_docs.check_registry(path)
 
-    assert len(result.masalah) == 2
-    pesan = " ".join(masalah.pesan for masalah in result.masalah)
-    assert "URL duplikat" in pesan
-    assert "URL tidak valid" in pesan
+    assert len(result.problems) == 2
+    message = " ".join(problem.message for problem in result.problems)
+    assert "URL duplikat" in message
+    assert "URL tidak valid" in message
 
 
 def test_docs_main_returns_nonzero_on_violation(tmp_path: Path) -> None:
@@ -127,16 +165,16 @@ def test_test_checker_clean_file_exits_zero(tmp_path: Path) -> None:
         "def test_tambah():\n    assert 2 + 2 == 4\n",
     )
 
-    assert result.berkas == 1
+    assert result.file_count == 1
     assert result.test == 1
-    assert result.masalah == ()
+    assert result.violations == ()
     assert check_tests.main([str(tmp_path / "tests")]) == 0
 
 
 def test_test_checker_detects_assert_true(tmp_path: Path) -> None:
     result = _run_tests(tmp_path, "def test_tautologi():\n    assert True\n")
 
-    assert [masalah.jenis for masalah in result.masalah] == ["assert_true"]
+    assert [violation.kind for violation in result.violations] == ["assert_true"]
     assert check_tests.main([str(tmp_path / "tests")]) == 1
 
 
@@ -146,7 +184,7 @@ def test_test_checker_detects_sleep(tmp_path: Path) -> None:
         "import time\n\ndef test_tunggu():\n    time.sleep(1)\n    assert 2 + 2 == 4\n",
     )
 
-    assert "sleep" in {masalah.jenis for masalah in result.masalah}
+    assert "sleep" in {violation.kind for violation in result.violations}
 
 
 def test_test_checker_detects_requests_network(tmp_path: Path) -> None:
@@ -157,7 +195,7 @@ def test_test_checker_detects_requests_network(tmp_path: Path) -> None:
         "    assert respons.status_code == 200\n",
     )
 
-    assert "network" in {masalah.jenis for masalah in result.masalah}
+    assert "network" in {violation.kind for violation in result.violations}
 
 
 def test_test_checker_detects_urllib_network(tmp_path: Path) -> None:
@@ -168,7 +206,7 @@ def test_test_checker_detects_urllib_network(tmp_path: Path) -> None:
         "    assert respons.status == 200\n",
     )
 
-    assert "network" in {masalah.jenis for masalah in result.masalah}
+    assert "network" in {violation.kind for violation in result.violations}
 
 
 def test_test_checker_detects_write_outside_tmp_path(tmp_path: Path) -> None:
@@ -180,7 +218,7 @@ def test_test_checker_detects_write_outside_tmp_path(tmp_path: Path) -> None:
         '    assert path.name == "keluaran.txt"\n',
     )
 
-    assert "write" in {masalah.jenis for masalah in result.masalah}
+    assert "write" in {violation.kind for violation in result.violations}
 
 
 def test_test_checker_accepts_write_inside_tmp_path(tmp_path: Path) -> None:
@@ -192,13 +230,13 @@ def test_test_checker_accepts_write_inside_tmp_path(tmp_path: Path) -> None:
         '    assert path.read_text(encoding="utf-8") == "isi"\n',
     )
 
-    assert result.masalah == ()
+    assert result.violations == ()
 
 
 def test_test_checker_detects_missing_assertion(tmp_path: Path) -> None:
     result = _run_tests(tmp_path, "def test_kosong():\n    pass\n")
 
-    assert [masalah.jenis for masalah in result.masalah] == ["no_assert"]
+    assert [violation.kind for violation in result.violations] == ["no_assert"]
 
 
 def test_test_checker_accepts_local_assertion_helper(tmp_path: Path) -> None:
@@ -207,7 +245,7 @@ def test_test_checker_accepts_local_assertion_helper(tmp_path: Path) -> None:
         "def _cek(nilai):\n    assert nilai == 4\n\ndef test_lewat_helper():\n    _cek(2 + 2)\n",
     )
 
-    assert result.masalah == ()
+    assert result.violations == ()
 
 
 def test_test_checker_detects_skip_without_reason(tmp_path: Path) -> None:
@@ -216,7 +254,7 @@ def test_test_checker_detects_skip_without_reason(tmp_path: Path) -> None:
         "import pytest\n\n@pytest.mark.skip\ndef test_lewati():\n    assert 2 + 2 == 4\n",
     )
 
-    assert [masalah.jenis for masalah in result.masalah] == ["skip_without_reason"]
+    assert [violation.kind for violation in result.violations] == ["skip_without_reason"]
 
 
 def test_gate_parser_defaults_to_all_steps() -> None:
@@ -242,21 +280,44 @@ def test_gate_step_order_matches_documented_gate() -> None:
         "test-quality",
         "no-legacy",
         "python-style",
+        "identifiers",
+        "source-style",
     )
 
 
 def test_gate_coverage_steps_use_risk_based_policy() -> None:
-    steps = {step.nama: step for step in gate.build_steps()}
+    steps = {step.name: step for step in gate.build_steps()}
 
-    assert "--cov-fail-under=90" in steps["tests"].perintah
-    assert steps["coverage-policy"].perintah == (
+    assert "--cov-fail-under=90" in steps["tests"].command
+    assert steps["coverage-policy"].command == (
         "uv",
         "run",
         "python",
         "tools/quality/check_coverage.py",
     )
-    assert steps["coverage-policy"].memblokir is True
-    assert steps["python-style"].memblokir is True
+    assert steps["coverage-policy"].blocking is True
+    assert steps["no-legacy"].command == (
+        "uv",
+        "run",
+        "python",
+        "tools/quality/check_no_legacy.py",
+    )
+    assert steps["no-legacy"].blocking is True
+    assert steps["python-style"].blocking is True
+    assert steps["identifiers"].command == (
+        "uv",
+        "run",
+        "python",
+        "tools/quality/check_identifiers.py",
+    )
+    assert steps["identifiers"].blocking is True
+    assert steps["source-style"].command == (
+        "uv",
+        "run",
+        "python",
+        "tools/quality/check_source_style.py",
+    )
+    assert steps["source-style"].blocking is True
 
 
 def test_gate_select_steps_preserves_gate_order() -> None:
@@ -286,6 +347,20 @@ def test_gate_list_includes_lock_and_no_legacy(capsys: pytest.CaptureFixture[str
     assert code == 0
     assert "lock" in names
     assert "no-legacy" in names
+
+
+def test_gate_list_and_dry_run_include_identifier_and_source_style(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    assert gate.main(["--list"]) == 0
+    listed = capsys.readouterr().out
+    assert "identifiers" in listed
+    assert "source-style" in listed
+
+    assert gate.main(["--dry-run"]) == 0
+    dry_run = capsys.readouterr().out
+    assert "tools/quality/check_identifiers.py" in dry_run
+    assert "tools/quality/check_source_style.py" in dry_run
 
 
 def test_gate_dry_run_does_not_execute(capsys: pytest.CaptureFixture[str]) -> None:

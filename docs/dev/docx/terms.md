@@ -1,11 +1,11 @@
 # Istilah dan Glosarium
 
-Halaman ini menjelaskan fitur glosarium, penanda istilah, verifikasi, dan audit
-DOCX. Kontrak API ada di [../contracts/docx.md](../../contracts/docx.md);
-kontrak stage ada di [pipeline/stages.md](../pipeline/stages.md).
-Glosarium menentukan istilah asing yang ditulis miring. Stage `terms`
-menerapkan style, memverifikasi invariant, dan menulis daftar tinjauan. Stage
-ini hanya aktif bila build memakai `--terms`.
+Halaman ini menjelaskan fitur glosarium, penanda istilah, dan verifikasi DOCX.
+Kontrak API ada di [kontrak DOCX](../../contracts/docx.md); kontrak stage ada di
+[pipeline/stages.md](../pipeline/stages.md). Glosarium menentukan istilah asing
+yang ditulis miring. Stage `terms` menerapkan style, memverifikasi invariant,
+dan menulis daftar tinjauan. Stage ini hanya aktif bila build memakai
+`--terms`.
 
 ## Berkas glosarium
 
@@ -38,10 +38,13 @@ Pencocokan istilah:
 
 - case-insensitive;
 - hanya cocok sebagai kata utuh, bukan bagian kata lain;
-- entri pengguna menimpa entri paket dengan kunci casefold yang sama;
-- entri pengguna lain ditambahkan ke glosarium paket.
+- merge dilakukan per frasa dengan kunci casefold yang sama;
+- entri yang dimerge belakangan menimpa entri sebelumnya.
 
-Presedensi: pengguna di atas paket.
+Urutan merge: glosarium paket, lalu override eksplisit `ctx.glossary`, lalu
+`istilah.tsv` pengguna di samping `document.md`. Artinya, glosarium pengguna
+mengalahkan override eksplisit dan paket, sedangkan override eksplisit
+mengalahkan paket. Entri unik dari setiap sumber tetap ditambahkan.
 
 ## Penanda istilah
 
@@ -97,7 +100,7 @@ Style:
 Pelanggaran menggagalkan build dengan `TermsError` dan exit code 1. Perbaiki
 naskah atau glosarium, bukan DOCX.
 
-## Review file
+## Review dan verifikasi
 
 `--terms` selalu menulis:
 
@@ -112,20 +115,10 @@ adalah daftar keputusan, bukan output dokumen. Setelah istilah diputuskan:
 2. tambahkan entri ke `istilah.tsv`;
 3. build ulang.
 
-## Audit DOCX
-
-`tools/dev/audit_terms.py` memeriksa DOCX hasil build tanpa mengubahnya:
-
-```bash
-uv run --project <repo> python -m tools.dev.audit_terms \
-  --docx Tugas.docx \
-  --glossary src/autooffice/docx/data/glossary/istilah.tsv \
-  --out .laporan/istilah-audit.md
-```
-
-Alat ini menulis laporan Markdown dan mengembalikan exit code 2 bila ada
-istilah yang perlu diperbaiki atau diputuskan. Alat tidak mengubah DOCX,
-glosarium, atau naskah.
+Stage `terms` sudah memverifikasi invariant dan menggagalkan build dengan
+`TERMS-VERIFY` bila ada pelanggaran. Audit istilah otomatis tidak disertakan di
+paket AutoOffice; periksa `.laporan/istilah-baru.txt` dan hasil build secara
+manual bila diperlukan.
 
 ## API package
 

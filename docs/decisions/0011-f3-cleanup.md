@@ -1,6 +1,6 @@
 # ADR 0011: Pembersihan F3 dan Penghapusan Legacy
 
-- Status: diusulkan
+- Status: diterima; pembersihan diterapkan di working tree
 - Tanggal: 2026-11-14
 - Pemilik: integration owner
 - Keputusan terkunci: L01, L02, L13, L16, L18, L20, L25
@@ -59,9 +59,12 @@ Inventaris per berkas ada di bagian [Inventaris referensi aktif](#inventaris-ref
    `src/docgen`.
 2. Hapus tes legacy setelah invariannya diporting ke `tests/docx/**` atau
    `tests/acceptance/**`. Fixture golden yang masih dipakai tidak dihapus.
-3. Pindahkan tool yang masih dipakai dari `tools/dev/` ke `tools/quality/`,
-   lalu hapus `tools/dev/**`. `check_docs`, `check_tests`, dan `check_coverage`
-   tidak diporting karena sudah punya pengganti di `tools/quality/`.
+3. Pindahkan checker yang masih dipakai dari `tools/dev/` ke `tools/quality/`
+   (`check_docs`, `check_tests`, dan `check_coverage`), lalu hapus
+   `tools/dev/**`. `audit_terms*.py`, `check_prose.py`, dan `rules.yml` tidak
+   diporting: AutoOffice tidak menyertakan checker prosa atau audit istilah
+   terpisah. Gate istilah ditangani stage `terms` dan daftar
+   `.laporan/istilah-baru.txt`.
 4. Hapus `scripts/word.ps1` dan `scripts/README.md`; adapter Word AutoOffice
    tetap `autooffice.pdf.word`. Tidak ada pengganti PowerShell.
 5. Hapus tiga kontrak internal lama di `docs/dev/contracts/` dan arahkan
@@ -108,18 +111,18 @@ ditulis. `git rm` harus dijalankan dari akar repo.
 | --- | --- | --- |
 | `src/docgen/**` | 81 | Package legacy. Pengganti: `src/autooffice/docx/**` dan `src/autooffice/cli/**` sesuai peta 16.1. |
 | `src/docgen.egg-info/**` | ignored | Artefak editable install. Hapus dari working tree, bukan dari Git. |
-| `tests/unit/**` | 37 | Suite legacy. Port `test_golden_fixtures.py` lebih dulu ke `tests/docx/test_golden_fixtures.py`; 35 berkas lain mengimpor `docgen`. |
+| `tests/unit/**` | 37 | Suite legacy. Invarian golden yang masih dipakai diporting ke `tests/docx/test_command.py` dan `tests/docx/test_docx_package.py`; 35 berkas lain mengimpor `docgen`. |
 | `tests/integration/**` | 7 | Port invariant golden DOCX/PDF dan pipeline ke `tests/docx/**`; sisanya dihapus. |
 | `tests/e2e/**` | 2 | Pengganti acceptance ada di `tests/acceptance/**`; fixture `tests/fixtures/e2e/thesis/**` dipertahankan bila dipakai acceptance. |
-| `tests/packaging/test_repo_local.py` | 1 | Isi legacy dihapus dan ditulis ulang di path yang sama untuk CLI `autooffice`. Path tidak hilang. |
-| `tests/test_audit_terms.py` | 1 | Port ke `tests/tools/test_audit_terms.py` dengan import `autooffice.docx.terms`; lalu hapus berkas lama. |
+| `tests/packaging/test_repo_local.py` | 1 | Diganti `tests/packaging/test_autooffice_package.py` untuk metadata package, entry point, dan package data. |
+| `tests/test_audit_terms.py` | 1 | Dihapus; AutoOffice tidak menyertakan audit istilah terpisah. |
 | `tests/test_check_coverage.py` | 1 | Pengganti `tests/tools/test_coverage_policy.py`. |
 | `tests/test_check_docs.py` | 1 | Pengganti `tests/tools/test_quality_tools.py`. |
 | `tests/test_check_tests.py` | 1 | Pengganti `tests/tools/test_quality_tools.py`. |
-| `tests/test_check_prose.py` | 1 | Port ke `tests/tools/test_check_prose.py` bila `check_prose` dipertahankan. |
-| `tests/test_check_prose_docx.py` | 1 | Port ke `tests/tools/test_check_prose_docx.py` bila `check_prose` dipertahankan. |
+| `tests/test_check_prose.py` | 1 | Dihapus; checker prosa tidak dipertahankan. |
+| `tests/test_check_prose_docx.py` | 1 | Dihapus; checker prosa tidak dipertahankan. |
 | `tests/factories/**` | 2 | Tidak dipakai suite ported setelah `rg "tests.factories"` bersih. |
-| `tools/dev/**` | 10 | Pindahkan `audit_terms*.py`, `check_prose.py`, dan `rules.yml` ke `tools/quality/`; `check_docs.py`, `check_tests.py`, dan `check_coverage.py` dihapus karena sudah digantikan. |
+| `tools/dev/**` | 10 | Checker yang masih dipakai (`check_docs`, `check_tests`, `check_coverage`) diporting ke `tools/quality/`; `audit_terms*.py`, `check_prose.py`, dan `rules.yml` dihapus tanpa port. |
 | `scripts/word.ps1` | 1 | Adapter legacy. Pengganti: `autooffice.pdf.word`. |
 | `scripts/README.md` | 1 | Dokumentasi adapter legacy; tidak berlaku setelah `word.ps1` dihapus. |
 | `docs/dev/contracts/config.md` | 1 | Duplikasi kontrak lama. Isi yang masih mengikat dipindahkan ke `docs/dev/formats.md` dan `docs/contracts/docx.md`. |
@@ -167,8 +170,8 @@ Yang tidak boleh dihapus:
 | --- | --- |
 | `LICENSE` | `Copyright (c) 2026 docgen contributors` menjadi `Copyright (c) 2026 AutoOffice contributors`. |
 | `AGENTS.md` | Ganti larangan lama dengan larangan menambahkan kembali package/entry point lama; sebut bahwa arsip historis hanya boleh di `docs/dev/archive/**`. |
-| `README.md` | Update atribusi `tools/dev/check_prose.py` ke lokasi baru; pastikan peta repo dan perintah hanya menyebut `autooffice`. |
-| `pytest.ini` | Hapus marker `e2e` dan `packaging` bila acceptance/packaging baru tidak memakainya; pertahankan `integration`, `slow`, `word`, dan `windows`. |
+| `README.md` | Hapus atribusi path lama; sebut kaidah prosa diadaptasi dari proyek naskah-id. |
+| `pytest.ini` | Hapus marker `e2e` yang tidak dipakai; pertahankan `unit`, `integration`, `packaging`, `word`, `windows`, dan `slow`. |
 
 ### Indeks dokumentasi
 
@@ -178,7 +181,7 @@ Yang tidak boleh dihapus:
 | `docs/dev/README.md` | Hapus bagian Kontrak yang menautkan `dev/contracts/**`; tambahkan `f3-cleanup.md`; tandai `decisions/**` sebagai historis. |
 | `docs/contracts/README.md` | Ganti deskripsi `docx.md` dari "parity docgen" menjadi "parity baseline DOCX"; ubah perintah checker ke `tools/quality/check_docs.py`. |
 | `docs/decisions/README.md` | Tambahkan baris ADR 0011. |
-| `tests/README.md` | Tulis ulang untuk suite AutoOffice: `tests/docx`, `tests/deck`, `tests/google`, `tests/pdf`, `tests/acceptance`, `tests/tools`; hapus referensi `docgen`, `tools.dev`, `e2e` lama, dan `word.ps1`. |
+| `tests/README.md` | Tulis ulang untuk suite AutoOffice: `tests/docx`, `tests/deck`, `tests/google`, `tests/pdf`, `tests/acceptance`, `tests/packaging`, dan `tests/tools`; hapus referensi `docgen`, `tools.dev`, `e2e` lama, dan `word.ps1`. |
 | `tools/README.md` | Tulis ulang: `tools/quality/**` adalah rumah checker; `tools/dev/` tidak ada; tidak ada runtime `docgen`. |
 
 ### Halaman dokumentasi aktif
@@ -187,15 +190,15 @@ Yang tidak boleh dihapus:
 | --- | --- |
 | `docs/dev/pdf.md` | Hapus seluruh bagian "Legacy docgen: PowerShell", `DOCGEN_POWERSHELL`, `DOCGEN_WORD_SCRIPT`, dan narasi `word.ps1`; sisakan jalur `autooffice.pdf.word` dan Word COM. |
 | `docs/dev/com.md` | Hapus `scripts/word.ps1`; ganti lock file menjadi `autooffice-word.lock`. |
-| `docs/dev/repo-map.md` | Tulis ulang pohon dan tabel untuk `src/autooffice/**`, `tests/docx/**`, `tools/quality/**`; hapus `scripts/`. |
+| `docs/dev/repo-map.md` | Tulis ulang pohon dan tabel untuk `src/autooffice/**`, `tests/docx/**`, `tests/acceptance/**`, `tests/packaging/**`, `tools/quality/**`; hapus `scripts/`. |
 | `docs/dev/packaging.md` | Tulis ulang untuk package `autooffice`, entry point `autooffice`, package-data `assets`, `design/data`, dan `docx/data`. |
 | `docs/dev/architecture.md`, `docs/dev/formats.md`, `docs/dev/glossary.md`, `docs/dev/references.md`, `docs/dev/code-style.md`, `docs/dev/contributing.md`, `docs/dev/testing.md`, `docs/dev/test-quality.md`, `docs/dev/python-315-style.md`, `docs/dev/adeu-integration.md` | Ganti `src/docgen` ke `src/autooffice/docx` (atau `src/autooffice/cli` untuk CLI), `docgen.*` ke modul `autooffice.*`, `tools/dev` ke `tools/quality`; perbarui tautan kontrak ke `docs/contracts/**`. |
 | `docs/dev/docx/**` (14 berkas) | Ganti path modul dan perintah; tautkan ke `docs/contracts/docx.md`, bukan `docs/dev/contracts/docx-api.md`. |
 | `docs/dev/pipeline/**` (7 berkas) | Ganti path modul dan perintah; tautkan ke `docs/contracts/cli.md` dan `docs/dev/pipeline/**`, bukan `docs/dev/contracts/stage-api.md`. |
-| `docs/dev/learn/**` (8 berkas) | Ganti contoh `from docgen...`, `uv run docgen`, dan `src/docgen` ke padanan AutoOffice; perbarui tautan kontrak. |
+| `docs/dev/learn/**` (8 berkas) | Ganti contoh import, perintah build/check, dan path package lama ke padanan AutoOffice; perbarui tautan kontrak. |
 | `docs/dev/decisions/**` (8 berkas) | Jangan edit isi; tandai sebagai historis dan keluarkan dari indeks aktif. |
 | `docs/contracts/cli.md` | Hapus pengecualian transisi `docgen`; ganti "seperti docgen" dan "aturan docgen" dengan "baseline DOCX"; nyatakan `check_no_legacy` sudah penuh. |
-| `docs/contracts/docx.md` | Ganti "parity docgen" dan "aturan output docgen" dengan "parity baseline DOCX"; perbarui bukti test ke `tests/docx/test_golden_baseline.py` dan `tests/docx/test_parity.py`. |
+| `docs/contracts/docx.md` | Ganti "parity docgen" dan "aturan output docgen" dengan "parity baseline DOCX"; perbarui bukti test ke `tests/docx/test_command.py`, `test_docx_package.py`, `test_toc.py`, `test_sections.py`, dan `test_page_numbers.py`. |
 | `docs/contracts/design-token.md` | Ganti provenance `deck-studio` dengan "baseline desain pra-AutoOffice" dan path `design-system/*.json` dengan `src/autooffice/design/data/*.yaml`. |
 | `docs/contracts/copy.md` | Pertahankan atribusi sebagai catatan historis tanpa menyebut repo lama; jangan menautkan `deck-studio`. |
 | `docs/contracts/pdf.md` | Hapus `scripts/word.ps1`; ganti lock file ke `autooffice-word.lock`. |
@@ -301,7 +304,7 @@ terpisah:
 | `uv.lock` | 1 | Package editable `docgen` menjadi `autooffice` setelah `uv lock`. |
 | `LICENSE` | 1 | Copyright `docgen contributors` menjadi `AutoOffice contributors`. |
 | `AGENTS.md` | 1 `docgen`, 1 `deck-studio` | Larangan lama menjadi larangan menambahkan kembali nama/entry point lama. |
-| `README.md` | 0 `docgen`; 1 `tools/dev` | Atribusi `tools/dev/check_prose.py` diarahkan ke lokasi baru. |
+| `README.md` | 0 `docgen`; 1 `tools/dev` | Atribusi `tools/dev/check_prose.py` dihapus; kaidah prosa disebut sebagai adaptasi naskah-id. |
 | `scripts/README.md` | 9 `docgen`, 11 `word.ps1` | Berkas dihapus. |
 | `scripts/word.ps1` | 1 `docgen`, 2 `word.ps1` | Berkas dihapus. |
 
@@ -424,18 +427,19 @@ bukan package, entry point, path, atau perintah lama:
    Simpan baseline DOCX ternormalisasi untuk assignment, proposal, dan thesis
    di `tests/fixtures/golden/parity/`. Regenerasi `pdf-baseline.json` bila
    teks contoh berubah. Baseline ini adalah data uji, bukan kode runtime.
-3. **Tulis ulang parity test.** Port `tests/integration/test_golden_docx.py`
-   menjadi `tests/docx/test_golden_baseline.py` dan
-   `tests/integration/test_golden_pdf.py` menjadi `tests/docx/test_golden_pdf.py`
-   dengan import `autooffice.*`. Tambahkan `tests/docx/test_parity.py` yang
-   membandingkan build AutoOffice dengan baseline di langkah 2. Jalankan
-   ketiganya sampai hijau terhadap kode `docgen` yang masih ada.
+3. **Port invariant golden.** Invarian DOCX dibuktikan oleh
+   `tests/docx/test_command.py`, `tests/docx/test_docx_package.py`,
+   `tests/docx/test_toc.py`, `tests/docx/test_sections.py`, dan
+   `tests/docx/test_page_numbers.py`. Acceptance deck diuji oleh
+   `tests/acceptance/test_demo_deck.py`.
 4. **Hapus kode, tes, dan script.** Jalankan `git rm` sesuai tabel
    [Daftar hapus](#daftar-hapus). Jangan hapus fixture yang dipakai langkah 3.
    Hapus juga `src/docgen.egg-info/` dan `__pycache__` dari working tree.
-5. **Pindahkan tool yang masih dipakai.** Pindahkan `audit_terms*.py`,
-   `check_prose.py`, dan `rules.yml` ke `tools/quality/`; ubah import ke
-   `autooffice.docx.*`; port tesnya; lalu hapus `tools/dev/**`.
+5. **Hapus tool lama.** Pindahkan checker yang masih dipakai
+   (`check_docs`, `check_tests`, `check_coverage`) ke `tools/quality/`, lalu
+   hapus `tools/dev/**`. `audit_terms*.py`, `check_prose.py`, dan `rules.yml`
+   dihapus tanpa port; AutoOffice tidak menyertakan checker prosa atau audit
+   istilah terpisah.
 6. **Update package dan konfigurasi.** Ubah `pyproject.toml`, jalankan
    `uv lock`, perbarui `LICENSE`, `README.md`, `AGENTS.md`, `pytest.ini`,
    checker `tools/quality/**`, dan `tests/README.md`/`tools/README.md`.
@@ -477,9 +481,9 @@ bukan package, entry point, path, atau perintah lama:
 | Tautan docs ke `dev/contracts/**` rusak | Docs checker gagal | Update semua tautan ke `docs/contracts/**`, `docs/dev/pipeline/**`, dan `docs/dev/formats.md`; jalankan checker. |
 | Entry point `docgen` di wheel/venv | Perintah hantu atau import error | Hapus dari `[project.scripts]`, jalankan `uv lock` dan `uv sync --reinstall`, lalu `autooffice --help`. |
 | Golden baseline berubah karena teks contoh | Parity test gagal atau baseline tidak bermakna | Buat baseline baru dengan kode legacy setelah teks contoh final; normalisasi timestamp/metadata; jangan mengubah fixture historis `laporan-baseline.docx`. |
-| `check_no_legacy` masih list-only | Gate tidak menangkap reintroduksi package lama | Implementasikan pemeriksaan penuh dan allowlist sebelum F3-GATE. |
+| `check_no_legacy` masih list-only | Gate tidak menangkap reintroduksi package lama | Implementasi penuh dan allowlist sudah diterapkan; gate menjalankan checker sebagai langkah blocking. |
 | `DocgenError`/`DOCGEN_*` terdeteksi sebagai referensi lama | False positive pada gate | Dokumentasikan sebagai identifier yang dipertahankan; allowlist eksplisit; rename hanya lewat ADR baru. |
-| Pemindahan `tools/dev` memutus tes/docs | Checker gagal atau import error | Port `audit_terms`/`check_prose` beserta tesnya, update docs, lalu hapus direktori. |
+| Penghapusan `tools/dev` memutus tes/docs | Checker gagal atau import error | Checker quality diporting ke `tools/quality/`; alat prosa/audit istilah dihapus bersama referensinya, lalu docs dan tes diperbarui. |
 | Rename repo dilakukan terlalu cepat | Remote, cache, dan clean clone rusak | Rename hanya setelah freeze, gate final, dan persetujuan; sediakan rollback tag/branch. |
 | Mesin gate tidak punya Word/PowerPoint | COM/PDF acceptance tidak dapat dibuktikan | Jalankan F3-GATE di mesin Windows yang disyaratkan plan; jangan klaim gate lulus tanpa bukti. |
 
@@ -508,9 +512,11 @@ Definisi selesai F3 cleanup:
 Perintah verifikasi:
 
 ```bash
-# 1. Baseline dan parity
-uv run docgen build examples/thesis-single/document.md --target both
-uv run pytest -q tests/docx/test_golden_baseline.py tests/docx/test_golden_pdf.py tests/docx/test_parity.py
+# 1. Baseline dan invariant golden
+uv run autooffice build examples/thesis-single/document.md --target docx
+uv run pytest -q tests/docx/test_command.py tests/docx/test_docx_package.py \
+  tests/docx/test_toc.py tests/docx/test_sections.py tests/docx/test_page_numbers.py
+uv run pytest -q tests/acceptance/test_demo_deck.py
 
 # 2. Setelah penghapusan dan update
 uv lock
@@ -542,10 +548,13 @@ rg -n --case-sensitive -F -e 'docgen' -e 'deck-studio' -e 'word.ps1' \
 
 - Repo kehilangan seluruh jalur legacy dan hanya memiliki satu package, satu
   entry point, dan satu gate.
-- Tes DOCX lama yang tidak diporting hilang; cakupan perilaku harus dibuktikan
-  oleh `tests/docx/**`, `tests/acceptance/**`, dan baseline parity baru.
+- Tes DOCX lama yang tidak diporting hilang; cakupan perilaku dibuktikan oleh
+  `tests/docx/**`, `tests/acceptance/**`, `tests/packaging/**`, dan invariant
+  golden yang masih disimpan.
 - `tools/dev` tidak lagi menjadi rumah tool; `tools/quality` menjadi satu-
-  satunya rumah checker.
+  satunya rumah checker. `audit_terms*.py`, `check_prose.py`, dan `rules.yml`
+  dihapus tanpa port; AutoOffice tidak menyertakan checker prosa atau audit
+  istilah terpisah.
 - Environment variable `DOCGEN_WINWORD`, `DOCGEN_PANDOC`, dan `LAPORAN_PANDOC`
   tetap kompatibel sampai ada ADR yang menggantinya. Nama kelas `DocgenError`
   dan kode `DOCGEN` juga tetap.
@@ -560,8 +569,10 @@ rg -n --case-sensitive -F -e 'docgen' -e 'deck-studio' -e 'word.ps1' \
   oleh L01/L02 dan checklist no-dead-code.
 - **Menghapus semua tes legacy tanpa porting invariant.** Ditolak karena
   parity DOCX dan PDF adalah acceptance F3.
-- **Menghapus `tools/dev` sekaligus tanpa memindahkan audit/prose.** Ditolak
-  karena tool masih dipakai user docs dan tes; port dulu, baru hapus.
+- **Menghapus `tools/dev` sekaligus tanpa memindahkan checker quality.**
+  Ditolak karena `check_docs`, `check_tests`, dan `check_coverage` masih
+  dipakai gate. Alat prosa dan audit istilah dihapus tanpa port karena tidak
+  menjadi bagian AutoOffice.
 - **Menggabungkan rename repo dengan commit penghapusan.** Ditolak karena
   rollback remote dan clean clone menjadi tidak jelas.
 - **Menyunting ADR lama dan arsip agar grep bersih.** Ditolak; arsip harus

@@ -8,7 +8,7 @@ from types import SimpleNamespace
 import pytest
 
 from autooffice.docx.errors import StageError
-from autooffice.docx.package.fields import FieldKind, iter_fields
+from autooffice.docx.package.fields import FieldKind, iter_fields, iter_fields_in_part
 from autooffice.docx.package.heading_numbering import (
     NumberingSpec,
     apply_heading_numbering,
@@ -27,11 +27,11 @@ from autooffice.docx.package.package import (
 )
 from autooffice.docx.package.paragraphs import paragraph_text
 from autooffice.docx.package.sections import (
-    FOOTER_CONTENT_TYPE,
     HEADER_CONTENT_TYPE,
     add_section_break,
     clear_header_footer_references,
     create_header_footer_part,
+    header_footer_part,
     iter_sections,
     remove_empty_sections,
     remove_unused_header_footer_parts,
@@ -291,33 +291,27 @@ def test_iter_sections_later_section_without_paragraphs_is_front_matter(
     assert sections[1].kind == "front_matter"
 
 
-def test_golden_page_numbers_lower_roman_then_decimal() -> None:
-    package = DocumentPackage.load(GOLDEN)
-    sections = iter_sections(package)
-    assert _pg_num(sections[0]) == (None, None)
-
-    front_matter = [section for section in sections if section.kind == "front_matter"]
-    assert _pg_num(front_matter[0]) == ("lowerRoman", "1")
-    for section in front_matter[1:]:
-        assert _pg_num(section) == ("lowerRoman", None)
-
-    body = [section for section in sections if section.kind == "body"]
-    # Word menghapus fmt default; start=1 tetap menandai awal penomoran Arab.
-    assert _pg_num(body[0]) == (None, "1")
-    for section in body[1:]:
-        assert _pg_num(section) == (None, None)
+def _page_field_count(package: DocumentPackage, part_name: str) -> int:
+    return sum(
+        1 for field in iter_fields_in_part(package, part_name) if field.kind is FieldKind.PAGE
+    )
 
 
 def test_golden_header_footer_per_section() -> None:
     package = DocumentPackage.load(GOLDEN)
     sections = iter_sections(package)
+
     cover_refs = section_header_footer(sections[0])
-    assert cover_refs == section_header_footer(sections[0])
     assert cover_refs.header is None
     assert cover_refs.footer is None
+
     front_refs = section_header_footer(sections[1])
     assert front_refs.header is None
     assert front_refs.footer is not None
+    front_part, front_root = header_footer_part(package, front_refs.footer)
+    assert front_root.tag == qn("w:ftr")
+    assert _page_field_count(package, front_part) == 1
+
     body_refs = section_header_footer(
         next(section for section in sections if section.kind == "body")
     )
@@ -325,6 +319,19 @@ def test_golden_header_footer_per_section() -> None:
     assert body_refs.footer is not None
     assert body_refs.first_page_header is not None
     assert body_refs.first_page_footer is not None
+    references = {
+        body_refs.header,
+        body_refs.footer,
+        body_refs.first_page_header,
+        body_refs.first_page_footer,
+    }
+    assert len(references) == 4
+    body_header_part, body_header_root = header_footer_part(package, body_refs.header)
+    first_header_part, first_header_root = header_footer_part(package, body_refs.first_page_header)
+    assert body_header_root.tag == qn("w:hdr")
+    assert first_header_root.tag == qn("w:hdr")
+    assert _page_field_count(package, body_header_part) == 1
+    assert _page_field_count(package, first_header_part) == 0
 
 
 def test_golden_no_blank_page_between_toc_and_chapter_i() -> None:
@@ -482,8 +489,6 @@ def test_create_header_footer_part_sets_part_relationship_and_content_type(
     clear_header_footer_references(section)
     assert remove_unused_header_footer_parts(package) == 1
     assert not package.has_part("word/header1.xml")
-    assert HEADER_CONTENT_TYPE
-    assert FOOTER_CONTENT_TYPE
 
 
 # ---------------------------------------------------------------------------
@@ -529,8 +534,12 @@ def test_sections_stage_splits_cover_front_matter_and_chapters(
 
 def test_sections_stage_requires_package() -> None:
     ctx = _fake_ctx(None)  # type: ignore[arg-type]
-    with pytest.raises(StageError):
+
+    with pytest.raises(StageError) as excinfo:
         SectionsStage().run(ctx)
+
+    assert excinfo.value.code == "STAGE-PACKAGE"
+    assert "stage sections" in str(excinfo.value)
 
 
 def test_sections_stage_landscape_swaps_dimensions(tmp_path: Path) -> None:

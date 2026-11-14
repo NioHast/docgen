@@ -85,14 +85,14 @@ def _assignment_front_matter(extra: str = "") -> str:
     )
 
 
-def test_valid_scalar_author_and_nim(tmp_path: Path) -> None:
+def test_valid_scalar_author_and_student_id(tmp_path: Path) -> None:
     path = _write_document(tmp_path, _assignment_front_matter())
     project = load_project(path)
 
     assert project.document.metadata.title == "Laporan Uji"
     assert len(project.document.metadata.authors) == 1
     assert project.document.metadata.authors[0].name == "Nama Mahasiswa"
-    assert project.document.metadata.authors[0].nim == "30000000000000"
+    assert project.document.metadata.authors[0].student_id == "30000000000000"
     assert project.document.structure_id == "assignment"
     assert project.document.format_id == "undip-msi"
     assert project.assets.bibliography is not None
@@ -119,7 +119,7 @@ def test_author_list_and_keywords_scalar(tmp_path: Path) -> None:
     project = load_project(_write_document(tmp_path, front_matter))
 
     metadata = project.document.metadata
-    assert [author.nim for author in metadata.authors] == [
+    assert [author.student_id for author in metadata.authors] == [
         "30000000000001",
         "30000000000002",
     ]
@@ -128,7 +128,7 @@ def test_author_list_and_keywords_scalar(tmp_path: Path) -> None:
     assert "Baris kedua." in metadata.abstract_id
 
 
-def test_top_level_nim_with_multiple_authors_rejected(tmp_path: Path) -> None:
+def test_top_level_student_id_with_multiple_authors_rejected(tmp_path: Path) -> None:
     front_matter = (
         'title: "Laporan Uji"\n'
         "author:\n"
@@ -145,7 +145,7 @@ def test_top_level_nim_with_multiple_authors_rejected(tmp_path: Path) -> None:
     assert error.value.code == "CFG-CONDITIONAL"
 
 
-def test_conflicting_nim_rejected(tmp_path: Path) -> None:
+def test_conflicting_student_id_rejected(tmp_path: Path) -> None:
     front_matter = (
         'title: "Laporan Uji"\n'
         "author:\n"

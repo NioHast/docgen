@@ -1,22 +1,18 @@
 """Tes cabang edge tabel native: validasi, caption, dan border berulang."""
 
+from dataclasses import replace
 from types import SimpleNamespace
 
 import pytest
 from _edge_helpers import new_slide
-from lxml import etree
 from pptx.oxml.ns import qn
-from pptx.oxml.xmlchemy import OxmlElement
 
 from autooffice.deck.model.deck_ir import BlockIR
-from autooffice.deck.render.pptx.shapes import Box, PptxRenderError
+from autooffice.deck.render.pptx.shapes import Box, PptxRenderError, collect_render_warnings
 from autooffice.deck.render.pptx.table import (
     _looks_numeric,
-    _remove_table_style,
-    _set_cell_borders,
     render_table_block,
     set_table_cell_key,
-    table_cell_key,
 )
 
 
@@ -30,12 +26,6 @@ def _render(block: BlockIR, box: Box, theme, slide=None):
     )
 
 
-def test_table_cell_key_returns_none_without_tc_pr() -> None:
-    cell = SimpleNamespace(_tc=SimpleNamespace(tcPr=None))
-
-    assert table_cell_key(cell) is None
-
-
 def test_set_table_cell_key_rejects_empty_key() -> None:
     with pytest.raises(PptxRenderError, match="Key sel tabel tidak boleh kosong"):
         set_table_cell_key(SimpleNamespace(), "")
@@ -46,6 +36,22 @@ def test_render_table_block_rejects_empty_columns(theme) -> None:
 
     with pytest.raises(PptxRenderError, match="tidak memiliki kolom"):
         _render(block, Box(left=0, top=0, width=4_000_000, height=2_000_000), theme)
+
+
+def test_render_table_block_collects_font_weight_fallback_warning(theme) -> None:
+    block = BlockIR(
+        "t1",
+        "table",
+        None,
+        None,
+        {"columns": ("A",), "rows": (("1",),)},
+    )
+    fallback_theme = replace(theme, typography=replace(theme.typography, family="Inter"))
+
+    with collect_render_warnings() as warnings:
+        _render(block, Box(left=0, top=0, width=4_000_000, height=2_000_000), fallback_theme)
+
+    assert any("font-weight" in warning for warning in warnings)
 
 
 def test_render_table_block_rejects_empty_rows(theme) -> None:
@@ -98,43 +104,33 @@ def test_render_table_block_rejects_caption_without_room(theme) -> None:
         _render(block, box, theme)
 
 
-def test_remove_table_style_ignores_missing_tbl_pr() -> None:
-    element = etree.Element(qn("p:graphicFrame"))
-    marker = etree.SubElement(element, qn("p:extLst"))
+def test_render_table_block_removes_default_table_style(theme) -> None:
+    block = BlockIR(
+        "t1",
+        "table",
+        None,
+        None,
+        {"columns": ("A", "B"), "rows": (("1", "2"),)},
+    )
 
-    _remove_table_style(SimpleNamespace(_element=element))
+    shapes = _render(block, Box(left=0, top=0, width=4_000_000, height=2_000_000), theme)
+    element = shapes[0]._element
 
-    assert element.find(qn("p:extLst")) is marker
-    assert element.find(".//" + qn("a:tblPr")) is None
-
-
-def test_remove_table_style_removes_existing_style_id() -> None:
-    element = etree.Element(qn("p:graphicFrame"))
-    tbl_pr = etree.SubElement(element, qn("a:tblPr"))
-    style_id = etree.SubElement(tbl_pr, qn("a:tableStyleId"))
-    style_id.text = "{5C22544A-7EE6-4342-B048-85BDC9FD1C3A}"
-    marker = etree.SubElement(tbl_pr, qn("a:extLst"))
-
-    _remove_table_style(SimpleNamespace(_element=element))
-
-    assert tbl_pr.find(qn("a:tableStyleId")) is None
-    assert tbl_pr.find(qn("a:extLst")) is marker
-
-
-def test_remove_table_style_ignores_missing_style_id() -> None:
-    element = etree.Element(qn("p:graphicFrame"))
-    etree.SubElement(element, qn("a:tblPr"))
-
-    _remove_table_style(SimpleNamespace(_element=element))
-
+    assert element.find(".//" + qn("a:tblPr")) is not None
     assert element.find(".//" + qn("a:tableStyleId")) is None
 
 
-def test_set_cell_borders_replaces_existing_lines(theme) -> None:
-    tc_pr = OxmlElement("a:tcPr")
+def test_render_table_block_writes_one_border_per_cell_side(theme) -> None:
+    block = BlockIR(
+        "t1",
+        "table",
+        None,
+        None,
+        {"columns": ("A", "B"), "rows": (("1", "2"),)},
+    )
 
-    _set_cell_borders(tc_pr, theme)
-    _set_cell_borders(tc_pr, theme)
+    shapes = _render(block, Box(left=0, top=0, width=4_000_000, height=2_000_000), theme)
+    tc_pr = shapes[0].table.cell(0, 0)._tc.get_or_add_tcPr()
 
     for tag in ("a:lnL", "a:lnR", "a:lnT", "a:lnB"):
         assert len(tc_pr.findall(qn(tag))) == 1

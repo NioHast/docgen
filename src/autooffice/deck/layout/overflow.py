@@ -1,7 +1,7 @@
 """Perakitan ``LayoutPlan`` dan kebijakan overflow fail-hard.
 
-Layout engine tidak melakukan shrink atau ellipsis. ``plan_slide`` dan
-``plan_deck(fail_on_overflow=False)`` mengembalikan ``overflow_keys`` untuk
+Layout engine tidak melakukan shrink atau ellipsis. Perencanaan slide dan deck
+dengan ``fail_on_overflow=False`` mengembalikan ``overflow_keys`` untuk
 diagnostik; gate build default mengangkat :class:`LayoutOverflowError` bila
 daftar tersebut tidak kosong.
 """
@@ -98,7 +98,7 @@ def build_layout_plan(
     """Bangun ``LayoutPlan`` dan gagal bila ada overflow.
 
     ``fail_on_overflow=False`` tersedia untuk inspeksi diagnostik dan tidak
-    mengubah geometri plan.
+    mengubah geometri rencana layout.
     """
     return plan_deck(
         deck,
@@ -119,7 +119,7 @@ def plan_deck(
 
     ``fail_on_overflow`` default ``True`` sesuai kebijakan build fail-hard.
     Set ``False`` hanya untuk inspeksi ``overflow_keys``; nilainya tidak
-    mengubah geometri atau hasil plan.
+    mengubah geometri atau hasil rencana layout.
     """
     result = _build_plan(deck, theme, layouts=layouts)
     if fail_on_overflow and result.findings:
@@ -128,10 +128,10 @@ def plan_deck(
 
 
 def assert_no_overflow(plan: LayoutPlan) -> LayoutPlan:
-    """Gagalkan plan yang masih memiliki ``overflow_keys``.
+    """Gagalkan rencana layout yang masih memiliki ``overflow_keys``.
 
-    Plan dari :func:`plan_deck` menyimpan findings aslinya, sehingga error
-    tetap membawa slide, block, key, dan estimasi EMU.
+    Rencana layout hasil perencanaan deck menyimpan findings aslinya, sehingga
+    error tetap membawa slide, block, key, dan estimasi EMU.
     """
     keys = plan_overflow_keys(plan)
     if keys:
@@ -140,7 +140,7 @@ def assert_no_overflow(plan: LayoutPlan) -> LayoutPlan:
 
 
 def plan_overflow_keys(plan: LayoutPlan) -> tuple[str, ...]:
-    """Kumpulkan overflow key satu plan dalam urutan slide dan slot."""
+    """Kumpulkan overflow key satu rencana layout dalam urutan slide dan slot."""
     keys: list[str] = []
     for slide in plan.slides:
         for key in slide.overflow_keys:

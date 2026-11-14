@@ -108,7 +108,7 @@ def test_caption_number_resets_per_chapter(docs, tmp_path):
     package.save(output)
 
     assert report.heading1_count == 2
-    assert report.bab_headings == 2
+    assert report.chapter_headings == 2
     assert report.image_captions == 3
     assert report.table_captions == 2
     assert report.missing_captions == []
@@ -140,7 +140,7 @@ def test_heading_arabic_dotted_gives_chapter_four_number(tmp_path):
     output = tmp_path / "out.docx"
     package.save(output)
 
-    assert report.bab_headings == 1
+    assert report.chapter_headings == 1
     assert caption_texts(output, "TableCaption") == ["Tabel 4.1 Data"]
     assert caption_texts(output, "ImageCaption") == ["Gambar 4.1 Diagram"]
 

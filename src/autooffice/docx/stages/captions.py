@@ -1,7 +1,7 @@
 """Stage ``captions``: caption wajib, nomor bab, gambar, dan tabel.
 
-Orkestrasi memakai helper domain ``docgen.docx.captions`` dan
-``docgen.docx.tables``. Stage hanya memutasi ``word/document.xml`` pada
+Orkestrasi memakai helper domain ``autooffice.docx.package.captions`` dan
+``autooffice.docx.package.tables``. Stage hanya memutasi ``word/document.xml`` pada
 ``DocumentPackage`` yang diberikan pipeline.
 """
 
@@ -197,7 +197,7 @@ def _ensure_captions(
 
 def _merge_renumber(report: CaptionReport, numbered: CaptionReport) -> None:
     report.heading1_count = numbered.heading1_count
-    report.bab_headings = numbered.bab_headings
+    report.chapter_headings = numbered.chapter_headings
     report.image_captions = numbered.image_captions
     report.table_captions = numbered.table_captions
     report.skipped_no_chapter = numbered.skipped_no_chapter
@@ -206,7 +206,7 @@ def _merge_renumber(report: CaptionReport, numbered: CaptionReport) -> None:
 
 def _add_warnings(report: CaptionReport, scope: str) -> None:
     if scope == "chapter":
-        if report.bab_headings == 0:
+        if report.chapter_headings == 0:
             if report.heading1_count == 0:
                 report.warnings.append("Tidak ada paragraf Heading1; penomoran caption dilewati.")
             else:

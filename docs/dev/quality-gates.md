@@ -45,15 +45,17 @@ tanpa menjalankannya. Nama langkah yang tidak dikenal ditolak dengan exit 2.
 | `lock` | `uv lock --check` | Pastikan `uv.lock` mutakhir tanpa menulis. |
 | `docs` | `uv run python tools/quality/check_docs.py` | Tautan, TOC, judul, fence, indeks, registry. |
 | `test-quality` | `uv run python tools/quality/check_tests.py` | Assertion, sleep, network, dan penulisan path. |
-| `no-legacy` | `uv run python tools/quality/check_no_legacy.py --list` | Daftar target legacy yang dilarang. |
+| `no-legacy` | `uv run python tools/quality/check_no_legacy.py` | Pemeriksa path, package, entry point, dan teknologi legacy; blocking. |
 | `python-style` | `uv run python tools/quality/check_python.py` | Future import, alias typing warisan, dan API stdlib deprecated. |
 
 Langkah `coverage-policy` membaca `.coverage` hasil langkah `tests` tanpa
 menjalankan ulang suite. Checker mencetak baris dan branch yang hilang untuk
 setiap pemeriksaan yang gagal.
 
-Langkah `no-legacy` mencetak daftar target yang dibekukan F0. Penghapusan
-target mengikuti lane migrasi dan acceptance, bukan gate ini.
+Langkah `no-legacy` menjalankan pemeriksa penuh dan bersifat blocking. Checker
+memindai path, import, entry point, dan nama teknologi legacy; allowlist
+eksplisit mencakup arsip, ADR, fixture golden, plan, execution log, dan guard
+negatif. Temuan aktif menghentikan gate.
 
 Langkah `python-style` bersifat blocking. Seluruh future import sudah
 dibersihkan, sehingga setiap temuan checker harus diperbaiki dan tidak lagi

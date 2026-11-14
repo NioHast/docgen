@@ -1,4 +1,4 @@
-"""Kontrak slot, layout, penempatan block, dan layout plan."""
+"""Kontrak slot, layout, penempatan block, dan rencana layout."""
 
 from collections import Counter
 from dataclasses import dataclass

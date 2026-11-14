@@ -28,7 +28,7 @@ class Author:
     """Satu penulis ternormalisasi."""
 
     name: str
-    nim: str | None = None
+    student_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -58,9 +58,9 @@ class Metadata:
         return tuple(author.name for author in self.authors)
 
     @property
-    def nim(self) -> str | None:
+    def student_id(self) -> str | None:
         if len(self.authors) == 1:
-            return self.authors[0].nim
+            return self.authors[0].student_id
         return None
 
 
@@ -213,18 +213,18 @@ def _normalize_author_entry(entry: Any, *, index: int, source: object) -> Author
         required=True,
     )
     assert author_name is not None
-    nim = _text(
+    student_id = _text(
         entry.get("nim"),
         key=f"author[{index}].nim",
         source=source,
     )
-    return Author(name=author_name, nim=nim)
+    return Author(name=author_name, student_id=student_id)
 
 
 def normalize_authors(
     value: Any,
     *,
-    top_level_nim: Any = None,
+    top_level_student_id: Any = None,
     source: object,
 ) -> tuple[Author, ...]:
     """Normalisasi ``author`` scalar/mapping/list dan aturan NIM.
@@ -260,8 +260,8 @@ def normalize_authors(
             source=source,
         )
 
-    nim = _text(top_level_nim, key="nim", source=source)
-    if nim is not None and len(entries) != 1:
+    student_id = _text(top_level_student_id, key="nim", source=source)
+    if student_id is not None and len(entries) != 1:
         raise _error(
             "kunci 'nim' tingkat atas hanya boleh dipakai untuk satu author; "
             "tulis NIM di setiap entri author",
@@ -274,16 +274,17 @@ def normalize_authors(
         _normalize_author_entry(entry, index=index, source=source)
         for index, entry in enumerate(entries, start=1)
     ]
-    if nim is not None:
+    if student_id is not None:
         author = authors[0]
-        if author.nim is not None and author.nim != nim:
+        if author.student_id is not None and author.student_id != student_id:
             raise _error(
-                f"NIM tingkat atas '{nim}' bertentangan dengan NIM author '{author.nim}'",
+                f"NIM tingkat atas '{student_id}' bertentangan dengan "
+                f"NIM author '{author.student_id}'",
                 code="CFG-CONFLICT",
                 key="nim",
                 source=source,
             )
-        authors[0] = Author(name=author.name, nim=nim)
+        authors[0] = Author(name=author.name, student_id=student_id)
     return tuple(authors)
 
 
@@ -326,7 +327,7 @@ def normalize_metadata(front_matter: Mapping[str, Any], *, source: object) -> Me
 
     authors = normalize_authors(
         front_matter.get("author"),
-        top_level_nim=front_matter.get("nim"),
+        top_level_student_id=front_matter.get("nim"),
         source=source,
     )
 

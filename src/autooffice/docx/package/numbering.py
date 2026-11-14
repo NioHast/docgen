@@ -16,14 +16,14 @@ import re
 
 __all__ = [
     "ARABIC_CHAPTER_RE",
-    "BAB_RE",
+    "CHAPTER_RE",
     "chapter_number",
     "format_roman",
     "roman_to_int",
     "to_roman",
 ]
 
-BAB_RE = re.compile(
+CHAPTER_RE = re.compile(
     r"^\s*BAB\s+(?P<number>[IVXLCDM]+|\d+)(?=\s|[.:;,\-\u2013\u2014]|$)",
     re.IGNORECASE,
 )
@@ -87,7 +87,7 @@ def chapter_number(text: str | None) -> int | None:
 
     if text is None:
         return None
-    match = BAB_RE.match(text)
+    match = CHAPTER_RE.match(text)
     if match is not None:
         token = match.group("number")
         if token.isdigit():

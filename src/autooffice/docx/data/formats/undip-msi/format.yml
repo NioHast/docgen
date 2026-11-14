@@ -2,7 +2,7 @@
 # Nilai format, identitas, CSL, dan bibliography untuk struktur UNDIP MSI.
 # Nomor bab (prefix/format) tidak disimpan di sini karena berbeda per
 # struktur; lihat structures/<id>/structure.yml bagian numbering.
-# Skema mengikuti docs/dev/contracts/config.md.
+# Skema mengikuti kontrak DOCX di docs/contracts/docx.md.
 format: undip-msi
 name: "Universitas Diponegoro - Magister Sistem Informasi"
 description: "Margin 4/3/4/3 cm, Times New Roman 12 pt, spasi 1,5, sitasi author-date UNDIP MSI."

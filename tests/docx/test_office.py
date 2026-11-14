@@ -11,7 +11,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from autooffice.docx.errors import ToolMissingError, WordError
+from autooffice.docx.errors import PdfError, ToolMissingError, WordError
 from autooffice.docx.pipeline import BuildOptions, StageName, canonical_prefix
 from autooffice.docx.stages import office
 from autooffice.pdf import com as pdf_com
@@ -247,6 +247,18 @@ def test_stage_office_maps_direct_adapter_cleanup_error(
     assert caught.value.cleanup_ambiguous is True
 
 
+def test_stage_office_rejects_invalid_injected_adapter(
+    tmp_path: Path,
+) -> None:
+    ctx, _ = _context(tmp_path)
+    ctx.word = SimpleNamespace(available=lambda: True)
+
+    with pytest.raises(TypeError, match="WordAdapterProtocol") as caught:
+        office.OfficeStage().run(ctx)
+
+    assert "update_fields" in str(caught.value)
+
+
 def test_stage_office_maps_unavailable_word_to_tool_missing(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -467,6 +479,67 @@ def test_path_output_uses_report_name_without_fallback(tmp_path: Path) -> None:
 
     assert office._docx_path(ctx) == tmp_path / "Laporan.docx"
     assert office._pdf_path(ctx) == tmp_path / "Laporan.pdf"
+
+
+def test_docx_path_requires_output_dir(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ctx, _ = _context(tmp_path)
+    ctx.artifacts = None
+    del ctx.output_dir
+    monkeypatch.chdir(tmp_path)
+
+    with pytest.raises(WordError) as caught:
+        office._docx_path(ctx)
+
+    assert caught.value.code == "WORD-INPUT"
+
+
+def test_docx_path_rejects_workspace_decoy_when_output_missing(
+    tmp_path: Path,
+) -> None:
+    output_dir = tmp_path / "out"
+    workspace_dir = tmp_path / "workspace"
+    output_dir.mkdir()
+    workspace_dir.mkdir()
+    decoy = workspace_dir / "Laporan.docx"
+    decoy.write_bytes(_ZIP_STUB)
+
+    ctx, _ = _context(tmp_path)
+    ctx.artifacts = None
+    ctx.output_dir = output_dir
+    ctx.document.metadata.report_name = "Laporan"
+    ctx.workspace = SimpleNamespace(path=lambda name: workspace_dir / name)
+
+    with pytest.raises(WordError) as caught:
+        office._docx_path(ctx)
+
+    assert caught.value.code == "WORD-INPUT"
+    assert caught.value.path == output_dir / "Laporan.docx"
+    assert decoy.is_file()
+
+
+def test_pdf_path_requires_output_dir(tmp_path: Path) -> None:
+    ctx, _ = _context(tmp_path)
+    del ctx.output_dir
+
+    with pytest.raises(PdfError) as caught:
+        office._pdf_path(ctx)
+
+    assert caught.value.code == "PDF-INPUT"
+
+
+def test_pdf_path_output_dir_error_wins_over_missing_metadata(tmp_path: Path) -> None:
+    ctx, _ = _context(tmp_path)
+    del ctx.output_dir
+    ctx.document = SimpleNamespace()
+
+    with pytest.raises(PdfError) as caught:
+        office._pdf_path(ctx)
+
+    assert caught.value.code == "PDF-INPUT"
+    assert "output_dir" in caught.value.message
 
 
 def test_stage_office_metadata_order() -> None:

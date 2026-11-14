@@ -1,4 +1,4 @@
-"""Contract tests for the six core F2 preset layouts."""
+"""Contract tests for the six core preset layouts."""
 
 from dataclasses import dataclass
 
