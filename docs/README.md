@@ -39,6 +39,15 @@ bila baru mengenal repo, lalu pilih salah satu pintu berikut:
 | [dev/test-quality.md](dev/test-quality.md) | Prinsip memilih kasus test dan hasil audit suite. |
 | [dev/code-style.md](dev/code-style.md) | Konfigurasi Ruff, mypy, dan tabel rule. |
 
+## AutoOffice (migrasi)
+
+Repo ini sedang dimigrasikan ke AutoOffice. Kontrak F0 ada di
+[contracts/README.md](contracts/README.md) dan keputusan serta penutupan
+asumsi ada di [decisions/README.md](decisions/README.md). Materi konsep
+bertahap ada di [learn/README.md](learn/README.md). Dokumen
+[AUTO_OFFICE_PLAN.md](../AUTO_OFFICE_PLAN.md) adalah rencana migrasi dan
+bukan dokumentasi pengguna.
+
 ## Referensi
 
 | Dokumen | Isi |

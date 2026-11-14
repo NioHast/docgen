@@ -1,0 +1,1 @@
+"""Antarmuka baris perintah AutoOffice."""

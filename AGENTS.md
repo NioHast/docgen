@@ -61,3 +61,17 @@ uv run --project <repo> docgen reconcile document.md
 - `AGENTS.md` (root): instruksi untuk AI agent.
 - `docs/user/`: panduan pengguna dan penulis `document.md`.
 - `docs/dev/`: dokumentasi teknis yang mencakup arsitektur, kontrak, pipeline, dan detail implementasi.
+
+## AutoOffice execution
+
+- Sumber rencana: `AUTO_OFFICE_PLAN.md`. Jangan menyimpang dari plan tanpa ADR.
+- Eksekusi end-to-end F0 sampai F3. Jangan berhenti di F0 tanpa alasan yang dicatat.
+- Maksimalkan paralelisme file-disjoint. Satu owner per file atau glob.
+- Contracts before code. Tidak ada lane fitur sebelum F0 lulus.
+- Setiap masalah yang diselesaikan saat eksekusi dicatat di `AUTO_OFFICE_EXECUTION_LOG.md`.
+- Log ditulis oleh scribe/orchestrator, bukan oleh lane yang sedang bekerja.
+- Format entri log: tanggal, fase/lane, masalah, resolusi, efek samping, catatan, file yang berubah.
+- Keputusan yang mengubah kontrak wajib punya ADR di `docs/decisions/`.
+- Jangan commit atau push bila gate lane gagal.
+- Jangan menghapus `docgen` atau `deck-studio` sebelum parity/acceptance lulus.
+- Bahasa: prosa Indonesia, identifier dan kode Inggris.
