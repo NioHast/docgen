@@ -696,7 +696,7 @@ Table wajib dirender sebagai native table di PPTX dan Google Slides. Di PPTX dib
 | `title` | ya | Plain text, bukan inline Markdown. |
 | `alt` | ya | Deskripsi aksesibilitas. |
 | `categories` | ya | Minimal dua label. `donut` maksimal empat kategori berwarna. Plain text. |
-| `series` | ya | 1–4 seri. `donut` tepat satu seri. |
+| `series` | ya | 1-4 seri. `donut` tepat satu seri. |
 | `series[].name` | ya | Plain text. |
 | `series[].values` | ya | Angka. Jumlah nilai sama dengan jumlah categories. |
 | `unit` | tidak | Label unit yang tampil. Plain text. |
@@ -2382,7 +2382,7 @@ Semua renderer membaca token yang sudah di-resolve. Tidak ada hardcode hex, ukur
 
 Theme v1:
 
-Palet `indigo` dan `hitam` diambil dari `design-system/themes.json` deck-studio, lalu digabung dengan neutrals `design-system/tokens.json`. `hitam` menimpa aksen, cover, dan token chart; background tetap terang. `themes.json` adalah sumber otoritatif. `dist/themes/hitam.html` adalah artefak preview dan harus di-regenerasi sebelum verifikasi; artefak lama masih memuat palet kategorikal default dan tidak boleh dipakai sebagai bukti warna. Nilai final dibekukan di Fase 0.
+Palet `indigo` dan `hitam` diambil dari `design-system/themes.json` deck-studio, lalu digabung dengan neutrals `design-system/tokens.json`. `hitam` menimpa aksen, cover, dan token chart; background tetap terang. `themes.json` adalah sumber otoritatif. `dist/themes/hitam.html` adalah artefak preview dan harus di-regenerasi sebelum verifikasi; artefak lama masih memuat palet kategorikal default dan tidak boleh dipakai sebagai bukti warna. Bentuk, sumber, dan aturan token dibekukan di Fase 0; nilai final dibekukan setelah audit kontras di F1-DESIGN.
 
 | Theme | Mode | Status | Catatan |
 | --- | --- | --- | --- |
@@ -2715,8 +2715,8 @@ Aturan:
 #### F0-CONTRACTS
 
 - **Owner:** integration owner.
-- **Files/glob:** `docs/contracts/**`, `docs/decisions/**`, `pyproject.toml`, `uv.lock`, `src/autooffice/__init__.py`, `src/autooffice/__main__.py`, `src/autooffice/deck/layout/registry.py`, `src/autooffice/deck/blocks/registry.py`, `tools/quality/**`, `tests/contract/**`.
-- **Dependencies:** tidak ada, tetapi wajib menunggu jawaban Bagian 19.
+- **Files/glob:** `docs/contracts/**`, `docs/decisions/**`, `pyproject.toml`, `uv.lock`, `src/autooffice/__init__.py`, `src/autooffice/__main__.py`, `src/autooffice/cli/main.py`, `src/autooffice/errors.py`, `src/autooffice/deck/layout/registry.py`, `src/autooffice/deck/blocks/registry.py`, `src/autooffice/deck/model/deck_ir.py`, `src/autooffice/deck/blocks/spec.py`, `src/autooffice/deck/layout/spec.py`, `src/autooffice/design/theme.py`, `src/autooffice/deck/render/protocol.py`, `src/autooffice/**/__init__.py`, `tools/quality/**`, `tests/contract/**`, `docs/README.md`, `docs/learn/README.md`, `AGENTS.md`, `AUTO_OFFICE_EXECUTION_LOG.md`, `.gitignore`.
+- **Dependencies:** tidak ada, tetapi wajib menunggu penutupan Bagian 19 melalui ADR 0001.
 - **Deliverables:**
   - Kontrak schema deck.
   - Kontrak key grammar dan KeyBinding.
@@ -2734,6 +2734,7 @@ Aturan:
   - Scaffold package minimal yang bisa di-import dan `autooffice --help`.
   - Registry discovery skeleton untuk layout dan block, dimiliki integration owner.
   - Kontrak file ownership dan lane map.
+  - Bentuk Python kontrak (DeckIR, BlockSpec, LayoutSpec, Theme, RenderRequest/Result) dibekukan di F0 dan diserahkan ke owner domain di F1/F2.
 - **Acceptance tests:**
   - `uv run autooffice --help` berhasil.
   - `uv run python -c "import autooffice"` berhasil.
@@ -2786,7 +2787,7 @@ Aturan:
   - Semua field unknown ditolak.
   - Duplicate slide ID, block ID, dan key ditolak.
   - Reorder slide/block tidak mengubah key.
-  - `bar`/`line` menerima 1–4 seri dan menolak 5 seri; `donut` menerima tepat satu seri dengan 2–4 kategori berwarna dan menolak 5 kategori.
+  - `bar`/`line` menerima 1-4 seri dan menolak 5 seri; `donut` menerima tepat satu seri dengan 2-4 kategori berwarna dan menolak 5 kategori.
   - Mapping key sesuai Bagian 5.
   - Inline Markdown valid dan invalid.
   - Path traversal ditolak.
@@ -2815,7 +2816,7 @@ Aturan:
 #### F1-LAYOUT
 
 - **Owner:** layout engine owner.
-- **Files/glob:** `src/autooffice/deck/layout/grid.py`, `src/autooffice/deck/layout/measure.py`, `src/autooffice/deck/layout/slot.py`, `src/autooffice/deck/layout/overflow.py`, `src/autooffice/deck/layout/presets/__init__.py`, `tests/deck/layout/test_grid.py`, `tests/deck/layout/test_measure.py`, `tests/deck/layout/test_slots.py`, `docs/contracts/layout-engine.md`.
+- **Files/glob:** `src/autooffice/deck/layout/grid.py`, `src/autooffice/deck/layout/measure.py`, `src/autooffice/deck/layout/slot.py`, `src/autooffice/deck/layout/overflow.py`, `src/autooffice/deck/layout/presets/__init__.py`, `tests/deck/layout/test_grid.py`, `tests/deck/layout/test_measure.py`, `tests/deck/layout/test_slots.py`, `docs/contracts/layout-spec.md`.
 - **Dependencies:** F0, F1-MODEL, F1-DESIGN.
 - **Deliverables:**
   - 12-column geometry.
@@ -2838,7 +2839,7 @@ Aturan:
 #### F1-PPTX
 
 - **Owner:** PPTX primitives owner.
-- **Files/glob:** `src/autooffice/deck/render/pptx/shapes.py`, `textbox.py`, `table.py`, `image.py`, `notes.py`, `coverage.py`, `fonts.py`, `theme.py`, `xml.py`, `renderer.py`, `tests/deck/render/pptx/**`, `docs/contracts/pptx.md`.
+- **Files/glob:** `src/autooffice/deck/render/pptx/shapes.py`, `textbox.py`, `table.py`, `image.py`, `notes.py`, `coverage.py`, `fonts.py`, `theme.py`, `xml.py`, `renderer.py`, `tests/deck/render/pptx/**`, `docs/contracts/pptx-renderer.md`.
 - **Dependencies:** F0, F1-MODEL, F1-LAYOUT, F1-DESIGN.
 - **Deliverables:**
   - Slide canvas.
@@ -2866,7 +2867,7 @@ Aturan:
 #### F1-DESIGN
 
 - **Owner:** design system owner.
-- **Files/glob:** `src/autooffice/design/**`, `src/autooffice/assets/fonts/**`, `tests/design/**`, `docs/contracts/design-system.md`, `docs/learn/design-system.md`.
+- **Files/glob:** `src/autooffice/design/**`, `src/autooffice/assets/fonts/**`, `tests/design/**`, `docs/contracts/design-token.md`, `docs/learn/design-system.md`.
 - **Dependencies:** F0.
 - **Deliverables:**
   - Token YAML.
@@ -2992,7 +2993,7 @@ Fase 2 boleh berjalan maksimal 7 feature worker bersamaan, dengan layout cap 4. 
 #### F2-CHARTS
 
 - **Owner:** charts owner.
-- **Files/glob:** `src/autooffice/deck/charts/**`, `src/autooffice/deck/render/pptx/chart.py`, `tests/deck/charts/**`, `docs/contracts/charts.md`.
+- **Files/glob:** `src/autooffice/deck/charts/**`, `src/autooffice/deck/render/pptx/chart.py`, `tests/deck/charts/**`, `docs/contracts/chart-contract.md`.
 - **Dependencies:** F1-PPTX, F1-MODEL, F1-DESIGN, kontrak chart F0.
 - **Deliverables:**
   - Chart spec.
@@ -3001,13 +3002,13 @@ Fase 2 boleh berjalan maksimal 7 feature worker bersamaan, dengan layout cap 4. 
   - Chart XML validation.
   - Chart key coverage.
   - Placeholder generator.
-- **Acceptance tests:** native chart parts, no image chart, data match, `chartSeries` color token, contrast 3:1 in both themes, `bar`/`line` 1–4 series pass and 5 fail; `donut` 1 series with 2–4 colored categories pass and 5 categories fail, placeholder marker, donut single series.
+- **Acceptance tests:** native chart parts, no image chart, data match, `chartSeries` color token, contrast 3:1 in both themes, `bar`/`line` 1-4 series pass and 5 fail; `donut` 1 series with 2-4 colored categories pass and 5 categories fail, placeholder marker, donut single series.
 - **Hard barrier:** placeholder contract beku sebelum Google lane mulai.
 
 #### F2-GOOGLE
 
 - **Owner:** Google and sync owner.
-- **Files/glob:** `src/autooffice/google/**`, `tests/google/**`, `tests/fixtures/google/**`, `docs/contracts/google-sheets.md`, `docs/contracts/google-slides-sync.md`.
+- **Files/glob:** `src/autooffice/google/**`, `tests/google/**`, `tests/fixtures/google/**`, `docs/contracts/google-state.md`.
 - **Dependencies:** F2-CHARTS, F1-PPTX, F1-MODEL, F1-CLI interfaces.
 - **Deliverables:**
   - OAuth.
@@ -3112,12 +3113,14 @@ Fase 2 boleh berjalan maksimal 7 feature worker bersamaan, dengan layout cap 4. 
 
 ### 14.1 Matriks Ownership
 
+Untuk F0, `docs/contracts/ownership.md` adalah sumber otoritatif; tabel ini adalah ringkasan lane.
+
 | Path/glob | Owner | Fase | Catatan |
 | --- | --- | --- | --- |
 | `pyproject.toml`, `uv.lock` | integration owner | 0-3 | Hanya integration owner. Dependency request lewat lane card. |
 | `src/autooffice/__init__.py`, `__main__.py` | integration owner | 0-3 | Shared entry point. |
 | `src/autooffice/cli/**` | integration owner | 0-3 | Satu-satunya pemilik CLI. |
-| `src/autooffice/common/**` | integration owner | 1-3 | Shared utility. |
+| `src/autooffice/common/**` | integration owner | 0-3 | Shared utility. |
 | `src/autooffice/errors.py` | integration owner | 0-3 | Error taxonomy. |
 | `src/autooffice/design/**` | design owner | 1-3 | Token dan theme. |
 | `src/autooffice/assets/fonts/**` | design owner | 1-3 | Font dan lisensi. |
@@ -3151,15 +3154,14 @@ Fase 2 boleh berjalan maksimal 7 feature worker bersamaan, dengan layout cap 4. 
 | `tests/fixtures/copy/**` | copy owner/test infrastructure | 1-2 | Fixture copy dan transcript. |
 | `tests/google/**` | Google owner | 2-3 | Fake dan contract. |
 | `tests/pdf/**` | PDF owner | 2-3 | COM fake. |
-| `tests/acceptance/**` | integration owner | 3 | Acceptance. |
+| `tests/acceptance/**` | integration owner | 0-3 | Acceptance. |
 | `tests/golden/**` | test infrastructure owner + integration; lane boleh menambah file golden unik miliknya | 1-3 | Update golden existing serial. |
-| `docs/contracts/deck-schema.md`, `key-grammar.md` | model owner | 0-2 | Setelah freeze, perubahan lewat ADR. |
-| `docs/contracts/layout-engine.md` | layout owner | 0-2 | Setelah freeze, perubahan lewat ADR. |
-| `docs/contracts/layout-catalog.md` | integration owner, generated dari layout specs | 0-3 | Jangan diedit manual oleh layout lane. |
-| `docs/contracts/pptx.md` | PPTX owner | 0-2 | Kontrak renderer. |
-| `docs/contracts/charts.md` | charts owner | 2-3 | Kontrak chart. |
+| `docs/contracts/deck-schema.md`, `key-grammar.md` | model owner | F0 integration owner, handoff ke model owner di F1-MODEL | Setelah freeze, perubahan lewat ADR. |
+| `docs/contracts/layout-spec.md` | layout owner | 0-2 | Setelah freeze, perubahan lewat ADR. |
+| `docs/contracts/pptx-renderer.md` | PPTX owner | 0-2 | Kontrak renderer. |
+| `docs/contracts/chart-contract.md` | charts owner | 2-3 | Kontrak chart. |
 | `docs/contracts/copy.md` dan `transcript.md` | copy owner | 0-2 | Kontrak copy dan transcript. |
-| `docs/contracts/google-*.md` | Google owner | 2-3 | Kontrak Google. |
+| `docs/contracts/google-state.md` | Google owner | 2-3 | Kontrak Google. |
 | `docs/contracts/cli.md` | integration owner | 0-3 | Kontrak CLI. |
 | `docs/contracts/coverage.md` | integration owner | 0-3 | Exclusion policy. |
 | `docs/user/**` | docs owner; `cli.md` integration owner | 2-3 | User-facing. |
@@ -3181,7 +3183,7 @@ Fase 2 boleh berjalan maksimal 7 feature worker bersamaan, dengan layout cap 4. 
 5. Registry layout memakai discovery deterministik. Menambah file preset harus cukup untuk registrasi. Bila registry perlu diubah, integration owner yang mengubah.
 6. Block registry bersifat tetap untuk 11 block type. Block type baru memerlukan ADR.
 7. `pyproject.toml` dan `uv.lock` tidak boleh diedit lane. Dependency request ditulis di lane card dan dieksekusi integration owner.
-8. `docs/contracts/layout-catalog.md` dihasilkan dari spec. Lane tidak boleh mengedit hasil generate.
+8. `docs/contracts/layout-spec.md` adalah kontrak layout beku. Lane tidak boleh mengeditnya tanpa ADR.
 9. File golden existing hanya diperbarui oleh golden owner dengan flag update eksplisit. Lane boleh menambah file golden baru di path unik miliknya, tetapi tidak boleh mengubah golden milik lane lain.
 10. File fixture existing tidak boleh diedit lane. Lane boleh menambah file baru dengan nama unik.
 11. Lane tidak boleh mengedit test lane lain. Bila perlu, ajukan perubahan ke owner.
@@ -3519,7 +3521,7 @@ Risiko tinggi yang harus di-spike sebelum Fase 2 selesai:
 - [ ] PPTX dapat dibuka PowerPoint tanpa repair.
 - [ ] 20 slide acceptance memakai layout dan block yang benar.
 - [ ] Chart native untuk bar, line, donut.
-- [ ] Batas chart diuji: `bar`/`line` 1–4 seri lolos dan 5 seri gagal; `donut` 2–4 kategori berwarna lolos dan 5 kategori gagal.
+- [ ] Batas chart diuji: `bar`/`line` 1-4 seri lolos dan 5 seri gagal; `donut` 2-4 kategori berwarna lolos dan 5 kategori gagal.
 - [ ] Palet `chartSeries` lolos kontras 3:1 di indigo dan hitam.
 - [ ] Table native.
 - [ ] Image native dengan crop proporsional.
@@ -3689,7 +3691,7 @@ Final hanya boleh ditandatangani bila:
 
 Semua asumsi berikut harus ditutup sebelum Fase 0 selesai. Bila tidak, Fase 0 tidak boleh lulus.
 
-Status per 2026-11-14: A1, A5, dan A25 sudah dikonfirmasi. Pertanyaan 1, 5, dan 25 tidak lagi menjadi gate F0; baris tetap dipertahankan sebagai catatan keputusan.
+Status per 2026-11-14: A1, A5, dan A25 sudah dikonfirmasi. A2-A4 dan A6-A24 ditutup dengan default plan melalui ADR 0001. Tidak ada asumsi yang masih menjadi gate F0.
 
 | ID | Asumsi | Default bila tidak dijawab | Dampak bila salah |
 | --- | --- | --- | --- |
@@ -3720,6 +3722,8 @@ Status per 2026-11-14: A1, A5, dan A25 sudah dikonfirmasi. Pertanyaan 1, 5, dan 
 | A25 | Chart memakai maksimal empat slot warna (seri untuk `bar`/`line`, kategori untuk `donut`) dan palet turunan `chartSeries` empat warna yang lolos kontras 3:1: `hitam` `#111827`/`#374151`/`#4B5563`/`#6B7280`, `indigo` `#4F46E5`/`#0F766E`/`#B45309`/`#BE123C`. Palet aksen dan cover tetap persis `themes.json`. Berlaku untuk semua theme. | Pakai batas empat slot dan palet chart-safe. | Schema, validasi, kontras, dan acceptance chart berubah. |
 
 ### 19.1 Pertanyaan yang Wajib Dijawab Sebelum F0 Lulus
+
+Pertanyaan 2-4 dan 6-24 ditutup dengan default plan melalui ADR 0001.
 
 1. Apakah ID slide wajib eksplisit dan tidak di-renumber? (A1) (sudah dikonfirmasi)
 2. Apakah preset layout memiliki rows internal, atau semua layout harus memakai rows? (A2)

@@ -19,6 +19,8 @@ dist/
 .build/
 build/
 .laporan-build/
+.autooffice/
+.autooffice-build/
 .pytest_cache/
 out/
 .laporan/
